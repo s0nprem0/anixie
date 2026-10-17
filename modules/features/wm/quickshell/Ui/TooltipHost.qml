@@ -11,13 +11,6 @@ import Quickshell.Wayland
 QtObject {
   id: root
 
-// The bar's own window, set once at startup. The popup anchors to whichever
-  // button is hovered, so this is not what it positions against — it is the item
-  // the button's transform is measured from, since a tooltip has to follow its
-  // button and Quickshell only repositions a popup when its anchor's window or
-  // its own size changes.
-  property Item host: null
-
   property var tooltipTarget: null
   property string tooltipText: ""
   property bool tooltipShown: false
@@ -95,21 +88,12 @@ QtObject {
     }
   }
 
-  // The tooltip has to keep up with its button, and modules here move: the
-  // focused window's title animates its own width, which shifts every module to
-  // its right. Quickshell repositions a popup when the anchor's window or the
-  // popup's own size changes, but not when the anchored item moves inside that
-  // window, so the target's transform is watched and a reposition asked for when
-  // it changes.
-  //
-  // Held as a property because a QtObject has no default property for a bare
-  // child declaration to attach to.
-  property TransformWatcher anchorWatcher: TransformWatcher {
-    a: root.tooltipTarget
-    b: root.host
-    onTransformChanged: root.window.reposition()
-  }
-
+  // The tooltip is positioned when it is shown and does not then follow a button
+  // that moves. Quickshell repositions a popup only on its own anchor or size
+  // changes, and the way to ask for one — ProxyPopupWindow.reposition — is a
+  // private slot, so QML cannot call it. A TransformWatcher was tried for this
+  // and only threw on every layout change. In practice a tooltip is up for well
+  // under a second, so it is placed where the button was when it appeared.
   property PopupWindow window: PopupWindow {
     visible: root.tooltipShown
       && root.tooltipTarget !== null

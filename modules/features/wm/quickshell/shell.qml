@@ -69,17 +69,17 @@ ShellRoot {
     // must not push windows around when they open.
     exclusiveZone: BarContext.vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal
 
-    // The tooltip and panel popups anchor to this item rather than to whichever
-    // button was used, because a popup resolves its anchor once, at creation. It
-    // cannot anchor to the PanelWindow itself either: that is a QObject here,
-    // not an item, so it has no coordinate space to place against.
+    // The panel popup anchors to this item rather than to whichever button was
+    // used, because a popup resolves its anchor once, at creation. It cannot
+    // anchor to the PanelWindow itself either: that is a QObject here, not an
+    // item, so it has no coordinate space to place against. The tooltip has no
+    // such need — it anchors to the button it describes directly.
     Item {
       id: barRoot
       anchors.fill: parent
     }
 
     Component.onCompleted: {
-      TooltipHost.host = barRoot
       PanelHost.host = barRoot
     }
 
