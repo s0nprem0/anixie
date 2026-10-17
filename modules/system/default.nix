@@ -6,5 +6,6 @@
     ./fonts.nix
     ./users.nix
     ./desktop.nix
+    ./power.nix
   ];
 }
