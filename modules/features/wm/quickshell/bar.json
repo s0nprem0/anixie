@@ -7,7 +7,8 @@
       { "id": "bar.workspaces" }
     ],
     "centerBegin": [
-      { "id": "bar.media" }
+      { "id": "bar.media" },
+      { "id": "weather", "type": "command", "exec": "sh $HOME/.config/quickshell/scripts/weather.sh", "interval": 1800, "tooltip": "Weather" }
     ],
     "center": [
       { "id": "bar.clock" }
