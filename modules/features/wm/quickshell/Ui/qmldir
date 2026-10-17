@@ -2,7 +2,9 @@ singleton Style 1.0 Style.qml
 singleton Util 1.0 Util.qml
 singleton Commands 1.0 Commands.qml
 singleton Bar 1.0 Bar.qml
+singleton OsdHost 1.0 OsdHost.qml
 singleton PolkitHost 1.0 PolkitHost.qml
+Osd 1.0 Osd.qml
 PolkitPrompt 1.0 PolkitPrompt.qml
 singleton TooltipHost 1.0 TooltipHost.qml
 singleton PanelHost 1.0 PanelHost.qml

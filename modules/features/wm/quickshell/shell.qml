@@ -180,4 +180,32 @@ ShellRoot {
       onCancelled: PolkitHost.cancel()
     }
   }
+
+  // The on-screen display for volume and brightness. Anchored to the bottom
+  // edge alone, which is what centres a layer surface on the axis it does not
+  // anchor, so the window is only as wide as the card and cannot swallow clicks
+  // across the whole width of the screen.
+  PanelWindow {
+    id: osdWindow
+
+    anchors.bottom: true
+    margins.bottom: Style.space(90)
+    implicitWidth: osdCard.implicitWidth
+    implicitHeight: osdCard.implicitHeight
+
+    color: "transparent"
+    exclusionMode: ExclusionMode.Ignore
+    visible: OsdHost.shown
+
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.namespace: "quickshell-osd"
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+
+    Osd {
+      id: osdCard
+      anchors.fill: parent
+      icon: OsdHost.icon
+      percent: OsdHost.percent
+    }
+  }
 }
