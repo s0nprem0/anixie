@@ -2,7 +2,8 @@
 
 {
   imports = [
-    ../../configuration.nix
+    ./hardware-configuration.nix
+    ../../modules/system
   ];
 
   programs.hyprland.enable = true;

@@ -70,6 +70,11 @@
     # jack.enable = true;
   };
 
+  nix.settings.experimental-features = [
+  "nix-command"
+  "flakes"
+  ];
+
   # Enable touchpad support (enabled default in most desktopManager).
   services.libinput.enable = true;
 
@@ -78,6 +83,7 @@
     isNormalUser = true;
     description = "son";
     extraGroups = [ "networkmanager" "wheel" ];
+    
     packages = with pkgs; [
     #  thunderbird
     ];

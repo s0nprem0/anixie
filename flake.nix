@@ -2,23 +2,26 @@
   description = "son's personal NixOS dotfiles";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
     home-manager = {
-      url = "github:nix-community/home-manager/release-26.05";
+      url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
   outputs = { nixpkgs, home-manager, ... }: {
-    nixosConfigurations.laptop = nixpkgs.lib.nixosSystem {
+    nixosConfigurations.vivobook = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
 
       modules = [
-        ./hosts/laptop/default.nix
+        ./hosts/vivobook
+
         home-manager.nixosModules.default
 
         {
+          nixpkgs.config.allowUnfree = true;
+
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;

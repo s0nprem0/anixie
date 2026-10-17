@@ -7,6 +7,7 @@
     ./programs/terminal.nix
     ./waybar.nix
     ./hyprland/default.nix
+    ./desktop-tools.nix
   ];
 
   home.username = "son";
