@@ -19,6 +19,12 @@ QtObject {
   // frosting; this only has to tint what comes through it.
   readonly property color glass: "@BG_ALPHA_F2@"
 
+  // Which edge the bar sits on: top, bottom, left or right. Rendered from the
+  // Nix module rather than read from bar.json, because the window is built once
+  // and cannot be re-anchored afterwards — the value has to be known before the
+  // first frame, and a FileView would only report it after that.
+  readonly property string position: "@POSITION@"
+
   // Every module sits in its own rounded block, separated by a gap. This is
   // the "blocky" look: distinct slabs rather than one continuous bar.
   readonly property int blockRadius: 8

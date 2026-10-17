@@ -1,6 +1,8 @@
+singleton BarContext 1.0 BarContext.qml
 singleton Theme 1.0 Theme.qml
 singleton BarConfig 1.0 BarConfig.qml
 singleton ModuleRegistry 1.0 ModuleRegistry.qml
 Section 1.0 Section.qml
 Background 1.0 Background.qml
 CommandModule 1.0 CommandModule.qml
+ModuleRepeater 1.0 ModuleRepeater.qml

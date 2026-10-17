@@ -2,46 +2,39 @@ import QtQuick
 import "."
 import "Ui"
 
-// One horizontal run of bar modules, as named by a bar.json section.
-Row {
+// One run of bar modules, as named by a bar.json section.
+//
+// Horizontal bars stack modules in a row; vertical ones need a column, so this
+// picks its positioner from the orientation rather than forcing every module to
+// know which way up the bar is.
+Item {
   id: root
-  spacing: 0
 
   property var entries: []
+  readonly property bool vertical: BarContext.vertical
 
-  Repeater {
-    model: root.entries
+  implicitWidth: vertical ? Style.bar.sizeVertical : row.implicitWidth
+  implicitHeight: vertical ? column.implicitHeight : Style.bar.sizeHorizontal
 
-    delegate: Loader {
-      id: loader
-      required property var modelData
+  Row {
+    id: row
+    visible: !root.vertical
+    anchors.centerIn: parent
+    spacing: 0
 
-      // Declared here rather than built inline: `Component { ... }` is an object
-      // declaration, so it cannot be passed straight to the loader.
-      Component {
-        id: commandFactory
-        CommandModule { entry: loader.modelData }
-      }
+    ModuleRepeater {
+      modules: root.entries
+    }
+  }
 
-      Component.onCompleted: {
-        const entry = modelData
-        if (!entry) return
+  Column {
+    id: column
+    visible: root.vertical
+    anchors.centerIn: parent
+    spacing: 0
 
-        if (entry.type === "command") {
-          loader.sourceComponent = commandFactory
-        } else {
-          const component = ModuleRegistry.registry[entry.id]
-          if (component) loader.sourceComponent = component
-          else console.warn("quickshell bar: unknown module id " + entry.id)
-        }
-      }
-
-      // Loaded from the registry with its defaults, then handed its layout
-      // entry. Every module declares `entry`, so this is how per-module
-      // settings such as a clock format reach it.
-      onLoaded: {
-        if (loader.item && loader.item.entry !== undefined) loader.item.entry = modelData
-      }
+    ModuleRepeater {
+      modules: root.entries
     }
   }
 }

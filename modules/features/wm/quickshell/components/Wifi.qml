@@ -70,7 +70,7 @@ BarWidget {
     id: readout
     anchors.centerIn: parent
     text: Util.wifi
-    labelText: root.ssid
+    labelText: root.vertical ? "" : root.ssid
     tooltipText: root.resolved ? root.ssid : "Wi-Fi off"
     onPressed: function (button) {
       if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelHost.toggle(readout, wifiPanel)

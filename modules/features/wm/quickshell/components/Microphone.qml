@@ -44,7 +44,7 @@ BarWidget {
     id: readout
     anchors.centerIn: parent
     text: root.muted ? Util.micOff : Util.micOn
-    labelText: root.muted ? "OFF" : root.percent + "%"
+    labelText: root.vertical ? "" : (root.muted ? "OFF" : root.percent + "%")
     active: root.listening
     foreground: root.listening ? Theme.danger : Theme.fg
     tooltipText: (root.source ? root.source.name : "No input")

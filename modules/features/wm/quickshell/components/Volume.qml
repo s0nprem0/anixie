@@ -50,7 +50,7 @@ BarWidget {
     id: readout
     anchors.centerIn: parent
     text: root.glyph
-    labelText: root.muted ? "MUTE" : root.percent + "%"
+    labelText: root.vertical ? "" : (root.muted ? "MUTE" : root.percent + "%")
     tooltipText: (root.sink ? root.sink.name : "No output")
       + " · click for mixer · right-click to mute · scroll to change"
 

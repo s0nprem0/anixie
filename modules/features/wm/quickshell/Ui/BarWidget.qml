@@ -1,4 +1,5 @@
 import QtQuick
+import ".."
 
 // Base item every bar module extends. `entry` is the module's own object from
 // bar.json, handed over by Section once the module has loaded.
@@ -13,7 +14,7 @@ Item {
   // grows both ways.
   property string fixedEdge: "center"
 
-  readonly property bool vertical: false
+  readonly property bool vertical: BarContext.vertical
   readonly property int barSize: Style.bar.sizeHorizontal
 
   // Read one value out of this module's bar.json entry, with a fallback.

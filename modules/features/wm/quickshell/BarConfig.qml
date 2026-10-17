@@ -11,6 +11,7 @@ QtObject {
   // Stand-in for a missing or broken bar.json, so a typo in the config never
   // leaves the session without a bar at all.
   readonly property var fallback: ({
+
     background: "clear",
     layout: {
       left: [{ id: "bar.workspaces" }],

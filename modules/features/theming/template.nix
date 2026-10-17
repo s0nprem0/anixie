@@ -64,11 +64,19 @@ in
   };
 
   config.my.theme.template = {
+    # Seeded from the palette.
     inherit placeholders;
 
     render =
       source:
-      builtins.replaceStrings (lib.attrNames placeholders) (lib.attrValues placeholders) (
+      # Read through the option rather than captured from the let binding, so a
+      # module that adds its own placeholder — the bar's position, say — is
+      # actually substituted here. Reading the local binding would only ever see
+      # the palette, and silently drop every other module's tokens.
+      let
+        tokens = config.my.theme.template.placeholders;
+      in
+      builtins.replaceStrings (lib.attrNames tokens) (lib.attrValues tokens) (
         if lib.isString source then source else builtins.readFile source
       );
   };

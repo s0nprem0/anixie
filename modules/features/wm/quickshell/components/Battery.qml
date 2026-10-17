@@ -65,7 +65,7 @@ BarWidget {
     id: readout
     anchors.centerIn: parent
     text: root.charging ? Util.charging : root.glyph
-    labelText: root.showPercent ? root.level + "%" : ""
+    labelText: !root.vertical && root.showPercent ? root.level + "%" : ""
     active: root.charging
     foreground: root.level >= 0 && root.level <= 15 && !root.charging ? Theme.danger : Theme.fg
     tooltipText: "Battery · click for power panel"
