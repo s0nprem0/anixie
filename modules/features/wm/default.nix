@@ -8,8 +8,8 @@
     ./hyprsunset
     ./mako
     ./mixer
+    ./quickshell
     ./screenshot
     ./screenshare
-    ./waybar
   ];
 }
