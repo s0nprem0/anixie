@@ -225,7 +225,7 @@ BarWidget {
                   anchors.centerIn: parent
                   width: Style.space(26)
                   height: Style.space(26)
-                  radius: width / 2
+                  radius: Theme.cornerRadius
                   color: Theme.accent
                   visible: parent.isToday
                 }

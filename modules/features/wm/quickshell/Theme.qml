@@ -30,6 +30,10 @@ QtObject {
   // is active, no permanent outline, and a gap between neighbours. The fill
   // strengths themselves are alphas in Style.control, so they follow whichever
   // foreground a module is using.
-  readonly property int blockRadius: 8
+  //
+  // The corner radius for every surface — bar blocks, panels and tooltips —
+  // so the whole shell shares one shape rather than each picking its own.
+  // Zero is square.
+  readonly property int cornerRadius: 0
   readonly property int gap: 6
 }

@@ -240,7 +240,7 @@ Process {
       id: disconnectButton
       width: card.contentWidth
       height: Style.space(24)
-      radius: 6
+      radius: Theme.cornerRadius
       visible: root.activeSsid !== ""
       color: disconnectMouse.containsMouse ? Theme.danger : "transparent"
       border.color: Theme.danger
@@ -277,7 +277,7 @@ Process {
 
         width: list.width
         height: Style.space(26)
-        radius: 6
+        radius: Theme.cornerRadius
         color: rowMouse.containsMouse ? Theme.bg : "transparent"
 
         Text {
@@ -308,7 +308,7 @@ Process {
               required property int index
               width: 3
               height: 4 + index * 3
-              radius: 1
+              radius: Theme.cornerRadius
               anchors.verticalCenter: parent.verticalCenter
               color: index < root.signalLevel(rowItem.modelData.signal)
                 ? (rowItem.modelData.inUse ? Theme.primary : Theme.muted)
@@ -335,7 +335,7 @@ Process {
     Rectangle {
       width: card.contentWidth
       height: Style.space(24)
-      radius: 6
+      radius: Theme.cornerRadius
       color: rescanMouse.containsMouse ? Theme.bg : "transparent"
       border.color: Theme.muted
       border.width: 1

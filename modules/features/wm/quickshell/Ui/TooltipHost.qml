@@ -124,7 +124,7 @@ QtObject {
 
     Rectangle {
       anchors.fill: parent
-      radius: 6
+      radius: Theme.cornerRadius
       color: Theme.surface
       border.color: Theme.muted
       border.width: 1

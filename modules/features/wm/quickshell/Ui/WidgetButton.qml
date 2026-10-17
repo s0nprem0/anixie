@@ -90,7 +90,7 @@ Item {
   // surface behind it do the separating.
   Rectangle {
     anchors.fill: parent
-    radius: Theme.blockRadius
+    radius: Theme.cornerRadius
 
     color: {
       const alpha = root.selected

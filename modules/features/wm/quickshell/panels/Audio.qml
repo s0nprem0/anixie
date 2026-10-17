@@ -93,7 +93,7 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           width: 8
           height: 8
-          radius: 4
+          radius: Theme.cornerRadius
           color: root.defaultSink === modelData ? Theme.primary : Theme.muted
 
           MouseArea {
