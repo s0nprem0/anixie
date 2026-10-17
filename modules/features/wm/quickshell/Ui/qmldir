@@ -1,7 +1,12 @@
 singleton Style 1.0 Style.qml
 singleton Util 1.0 Util.qml
 singleton TooltipHost 1.0 TooltipHost.qml
+singleton PanelHost 1.0 PanelHost.qml
 BarWidget 1.0 BarWidget.qml
 WidgetButton 1.0 WidgetButton.qml
 BarIconButton 1.0 BarIconButton.qml
 OpticalGlyph 1.0 OpticalGlyph.qml
+Panel 1.0 Panel.qml
+PanelRow 1.0 PanelRow.qml
+Slider 1.0 Slider.qml
+ScrollBar 1.0 ScrollBar.qml

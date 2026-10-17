@@ -1,6 +1,7 @@
 import QtQuick
 import ".."
 import "../Ui"
+import "../panels"
 import Quickshell
 import Quickshell.Services.Pipewire
 
@@ -51,9 +52,20 @@ BarWidget {
     text: root.glyph
     labelText: root.muted ? "MUTE" : root.percent + "%"
     tooltipText: (root.sink ? root.sink.name : "No output")
-      + " · scroll to change · click to mute"
+      + " · click for mixer · right-click to mute · scroll to change"
+
+    // Declared as an id rather than built inline: `Component { ... }` is an
+    // object declaration, so it cannot be passed as a call argument.
+    Component {
+      id: mixer
+      Audio {}
+    }
+
+    // Left opens the mixer; mute moves to the right button so clicking the
+    // volume is not destructive. Clicking the module again closes it.
     onPressed: function (button) {
-      if (button === Qt.LeftButton || button === Qt.MiddleButton) root.toggleMute()
+      if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelHost.toggle(readout, mixer)
+      else if (button === Qt.RightButton) root.toggleMute()
     }
     onWheelMoved: function (delta) {
       root.adjust(delta)
