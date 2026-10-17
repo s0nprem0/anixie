@@ -23,6 +23,7 @@
       { "id": "bar.bluetooth" },
       { "id": "bar.wifi" },
       { "id": "bar.audio" },
+      { "id": "bar.monitor" },
       { "id": "bar.power" }
     ]
   }
