@@ -4,7 +4,9 @@
     "left": [
       { "id": "bar.workspaces" }
     ],
-    "centerBegin": [],
+    "centerBegin": [
+      { "id": "bar.media" }
+    ],
     "center": [
       { "id": "bar.clock" }
     ],
