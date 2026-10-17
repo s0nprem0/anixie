@@ -2,6 +2,7 @@
   imports = [
     ./nix.nix
     ./boot.nix
+    ./dev.nix
     ./networking.nix
     ./audio.nix
     ./fonts.nix

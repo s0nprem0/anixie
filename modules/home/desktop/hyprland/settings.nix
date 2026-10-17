@@ -11,11 +11,9 @@ in
       border_size = 2;
       resize_on_border = true;
 
-      "col.active_border" =
-        "rgba(${builtins.substring 1 6 c.primary}ff)";
+      "col.active_border" = "rgba(${builtins.substring 1 6 c.primary}ff)";
 
-      "col.inactive_border" =
-        "rgba(${builtins.substring 1 6 c.muted}aa)";
+      "col.inactive_border" = "rgba(${builtins.substring 1 6 c.muted}aa)";
     };
 
     decoration = {

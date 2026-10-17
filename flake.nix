@@ -10,27 +10,34 @@
     };
   };
 
-  outputs = { nixpkgs, home-manager, ... }: {
-    nixosConfigurations.vivobook = nixpkgs.lib.nixosSystem {
+  outputs =
+    inputs@{ nixpkgs, home-manager, ... }:
+    {
+      nixosConfigurations.vivobook = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+
+        modules = [
+          ./hosts/vivobook
+
+          home-manager.nixosModules.default
+
+          {
+            nixpkgs.config.allowUnfree = true;
+
+            home-manager = {
+              useGlobalPkgs = true;
+              useUserPackages = true;
+              backupFileExtension = "hm-backup";
+
+              users.son = import ./modules/home;
+            };
+          }
+        ];
+      };
+
+      devShells.x86_64-linux.default = import ./modules/devshell {
+inherit inputs nixpkgs;
       system = "x86_64-linux";
-
-      modules = [
-        ./hosts/vivobook
-
-        home-manager.nixosModules.default
-
-        {
-          nixpkgs.config.allowUnfree = true;
-
-          home-manager = {
-            useGlobalPkgs = true;
-            useUserPackages = true;
-            backupFileExtension = "hm-backup";
-
-            users.son = import ./modules/home;
-          };
-        }
-      ];
+      };
     };
-  };
 }
