@@ -5,6 +5,10 @@ let
 in
 {
   wayland.windowManager.hyprland.settings = {
+    # Native resolution with no HiDPI scaling: the panel is already 1920x1080,
+    # so 1.0 gives a full 1920x1080 workspace instead of 1280x720.
+    monitor = ",preferred,auto,1";
+
     general = {
       gaps_in = 5;
       gaps_out = 10;
