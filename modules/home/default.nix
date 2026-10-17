@@ -1,6 +1,5 @@
 {
   imports = [
-    ./options.nix
     ./desktop
     ./programs
     ./theme
