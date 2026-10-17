@@ -4,7 +4,7 @@
     ./helix
     ./kitty
     ./opencode
-    ./tools.nix
+    ./tools
     ./zsh
   ];
 }

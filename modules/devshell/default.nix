@@ -1,7 +1,5 @@
 {
   pkgs,
-  # Consumed by the `lite` shell.
-  tools ? pkgs,
   ...
 }:
 
@@ -14,19 +12,9 @@ let
     statix
   ];
 
-  # Everyday CLI with no configuration of its own. Mirrors
-  # features/shell/tools.nix so `nix develop .#lite` covers the same ground
-  # without a rebuild.
-  cliTools = with tools; [
-    difftastic
-    github-cli
-    httpie
-    jq
-    lazygit
-    ripgrep
-    tmux
-    yq
-  ];
+  # Everyday CLI with no configuration of its own. Shared with
+  # features/shell/tools so `nix develop` and the user profile stay in step.
+  cliTools = import ../features/shell/tools/packages.nix { inherit pkgs; };
 
   # Language runtimes and build toolchains. ~2.3 GiB unpacked, realised only
   # when the default shell is entered, never by `nixos-rebuild switch`.
