@@ -47,6 +47,12 @@ Item {
   readonly property bool labelShown: labelVisible && !iconLabel
   readonly property bool iconLabel: labelVisible && isIconGlyph(text)
 
+  // Whether the pointer is genuinely resting on this button. The shared tooltip
+  // asks for this rather than tracking enter and exit itself, because a button
+  // can become un-hovered without either event firing: it may hide, dim or be
+  // covered while the pointer has not moved at all.
+  readonly property bool tooltipHovered: visible && interactive && !concealed && mouseArea.containsMouse
+
   function isIconGlyph(value) {
     const s = String(value || "")
     if (!s) return false
@@ -129,8 +135,8 @@ Item {
     hoverEnabled: true
     cursorShape: root.pressable ? Qt.PointingHandCursor : Qt.ArrowCursor
 
-    onEntered: if (root.tooltipText !== "") TooltipHost.show(root.tooltipText, root)
-    onExited: TooltipHost.hide()
+    onEntered: TooltipHost.show(root.tooltipText, root)
+    onExited: TooltipHost.hide(root)
     onClicked: function (mouse) {
       if (root.pressable) root.pressed(mouse.button)
     }

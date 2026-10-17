@@ -5,9 +5,9 @@ import ".."
 import Quickshell
 import Quickshell.Wayland
 
-// One tooltip shared by every bar button. Each button hands over its text and
-// itself as the subject; the window sits above that button and closes when the
-// pointer leaves. A single window means the bar can never stack two tooltips.
+// One tooltip shared by every bar button, owned here rather than by each button.
+// A button calls show() on enter and hide() on exit; the rules below are what
+// keep exactly one tooltip on screen and stop it being stranded.
 QtObject {
   id: root
 
@@ -17,52 +17,105 @@ QtObject {
   // straight to the subject would leave it unanchored for good.
   property Item host: null
 
-  property string text: ""
-  property var source: null
-  property bool shown: false
+  property var tooltipTarget: null
+  property string tooltipText: ""
+  property bool tooltipShown: false
 
-  function show(label, item) {
-    root.text = String(label || "")
-    root.source = item
+  // Bumped for every show and hide. A scheduled show records the number it was
+  // issued with and gives up if it no longer matches, so a tooltip pending for
+  // a button you have already left cannot appear.
+  property int tooltipRequest: 0
+  property int scheduledFor: -1
 
-    if (root.text === "" || !item) {
-      delay.stop()
-      root.shown = false
+  // A button counts as hovered only if it is actually on screen. Modules hide
+  // themselves — the volume slot disappears when there is no output device —
+  // and a tooltip must not open for, or stick to, something invisible.
+  function targetHovered(target) {
+    return !!target
+      && target.visible !== false
+      && target.opacity !== 0
+      && target.tooltipHovered === true
+  }
+
+  function clear() {
+    showDelay.stop()
+    root.tooltipTarget = null
+    root.tooltipText = ""
+    root.tooltipShown = false
+  }
+
+  function show(label, target) {
+    // Cancels any show still waiting on the timer.
+    root.clear()
+
+    if (!root.targetHovered(target) || !label) {
+      root.tooltipRequest += 1
       return
     }
 
-    delay.restart()
+    root.tooltipRequest += 1
+    root.scheduledFor = root.tooltipRequest
+    root.tooltipTarget = target
+    root.tooltipText = String(label)
+    showDelay.restart()
   }
 
-  function hide() {
-    delay.stop()
-    root.shown = false
-    root.text = ""
-    root.source = null
+  // Scoped to a target so that leaving one button does not tear down a tooltip
+  // that another button has already claimed.
+  function hide(target) {
+    if (root.tooltipTarget !== target) return
+    root.tooltipRequest += 1
+    root.clear()
   }
 
   // A tooltip that appears the instant the pointer crosses the bar is noise, so
   // it waits for the pointer to settle. Held as a property because a QtObject
   // has no default property for a bare child declaration to attach to.
-  property Timer delay: Timer {
-    interval: 450
-    onTriggered: root.shown = true
+  property Timer showDelay: Timer {
+    interval: 400
+    onTriggered: {
+      // Superseded while waiting: a newer show or a hide came and went.
+      if (root.tooltipRequest !== root.scheduledFor) return
+
+      if (root.targetHovered(root.tooltipTarget)) root.tooltipShown = true
+      else root.clear()
+    }
+  }
+
+  // A button can hide or dim itself while the pointer is still resting on it,
+  // in which case onExited never arrives and the tooltip would hang over
+  // nothing. Re-check while on screen so that case clears itself.
+  property Timer watch: Timer {
+    interval: 100
+    running: root.tooltipShown
+    repeat: true
+    onTriggered: {
+      if (!root.targetHovered(root.tooltipTarget)) root.hide(root.tooltipTarget)
+    }
   }
 
   readonly property rect subjectRect: {
-    if (!root.source || !root.host) return Qt.rect(0, 0, 0, 0)
+    if (!root.tooltipTarget || !root.host) return Qt.rect(0, 0, 0, 0)
 
-    const topLeft = root.source.mapToItem(root.host, 0, 0)
-    return Qt.rect(topLeft.x, topLeft.y, root.source.width, root.source.height)
+    const topLeft = root.tooltipTarget.mapToItem(root.host, 0, 0)
+    return Qt.rect(
+      Math.round(topLeft.x),
+      Math.round(topLeft.y),
+      root.tooltipTarget.width,
+      root.tooltipTarget.height
+    )
   }
 
   property PopupWindow window: PopupWindow {
-    visible: root.shown && root.host !== null
+    visible: root.tooltipShown
+      && root.tooltipTarget !== null
+      && root.tooltipText !== ""
+      && root.targetHovered(root.tooltipTarget)
     color: "transparent"
     anchor.item: root.host
     anchor.rect: root.subjectRect
-    implicitWidth: Math.max(32, body.implicitWidth + 16)
-    implicitHeight: body.implicitHeight + 10
+    implicitWidth: Math.ceil(body.implicitWidth) + 20
+    implicitHeight: Math.ceil(body.implicitHeight) + 14
 
     Rectangle {
       anchors.fill: parent
@@ -75,7 +128,7 @@ QtObject {
     Text {
       id: body
       anchors.centerIn: parent
-      text: root.text
+      text: root.tooltipText
       color: Theme.fg
       font.family: Style.font.family
       font.pixelSize: Style.font.bodySmall
