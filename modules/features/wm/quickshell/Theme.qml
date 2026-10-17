@@ -15,6 +15,10 @@ QtObject {
   readonly property color success: "@SUCCESS@"
   readonly property color danger: "@DANGER@"
 
+  // Translucent fill for the "glassy" bar look. Hyprland's layer blur does the
+  // frosting; this only has to tint what comes through it.
+  readonly property color glass: "@BG_ALPHA_F2@"
+
   // Every module sits in its own rounded block, separated by a gap. This is
   // the "blocky" look: distinct slabs rather than one continuous bar.
   readonly property int blockRadius: 8
@@ -22,4 +26,5 @@ QtObject {
   readonly property int barPad: 8
   readonly property int gap: 6
   readonly property int barHeight: 40
+  readonly property int blockMargin: 6
 }

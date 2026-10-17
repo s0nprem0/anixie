@@ -1,5 +1,6 @@
-// Blocky status bar. Replaces waybar: every module sits in its own rounded
-// slab, which is what makes it read as "blocky" rather than one flat strip.
+// Blocky status bar in five sections: `center` is pinned to the exact middle
+// of the bar, and centerBegin/centerEnd hang off its edges so they grow
+// outward instead of shifting the clock off centre.
 import QtQuick
 import Quickshell
 
@@ -9,74 +10,110 @@ import "components"
 ShellRoot {
   PanelWindow {
     id: bar
-    anchors { top: true; left: true; right: true }
+
+    anchors {
+      top: true
+      left: true
+      right: true
+    }
     implicitHeight: Theme.barHeight
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
 
-    // ---- left: workspaces ----
+    Background {}
+
+    // ---- left ----
     Rectangle {
-      id: wsBlock
       anchors.left: parent.left
-      anchors.top: parent.top
-      anchors.bottom: parent.bottom
+      anchors.verticalCenter: parent.verticalCenter
       anchors.leftMargin: Theme.barPad
-      anchors.topMargin: 6
-      anchors.bottomMargin: 6
-      width: wsRow.implicitWidth + Theme.blockPad * 2
+      width: leftSection.implicitWidth + Theme.blockPad * 2
+      visible: leftSection.implicitWidth > 0
       radius: Theme.blockRadius
       color: Theme.bg
       border.color: Theme.surface
       border.width: 1
 
-      Workspaces {
-        id: wsRow
+      Section {
+        id: leftSection
         anchors.centerIn: parent
+        entries: BarConfig.section("left")
       }
     }
 
-    // ---- centre: clock ----
+    // ---- center ----
     Rectangle {
-      id: clockBlock
+      id: centerBlock
       anchors.horizontalCenter: parent.horizontalCenter
-      anchors.top: parent.top
-      anchors.bottom: parent.bottom
-      anchors.topMargin: 6
-      anchors.bottomMargin: 6
-      width: clock.implicitWidth + Theme.blockPad * 2
+      anchors.verticalCenter: parent.verticalCenter
+      width: centerSection.implicitWidth + Theme.blockPad * 2
+      visible: centerSection.implicitWidth > 0
       radius: Theme.blockRadius
       color: Theme.bg
       border.color: Theme.surface
       border.width: 1
 
-      Clock {
-        id: clock
+      Section {
+        id: centerSection
         anchors.centerIn: parent
+        entries: BarConfig.section("center")
       }
     }
 
-    // ---- right: wifi, volume, battery ----
+    // ---- centerBegin: grows leftwards off the center block ----
+    Rectangle {
+      anchors.right: centerBlock.left
+      anchors.rightMargin: Theme.gap
+      anchors.verticalCenter: parent.verticalCenter
+      width: beginSection.implicitWidth + Theme.blockPad * 2
+      visible: beginSection.implicitWidth > 0
+      radius: Theme.blockRadius
+      color: Theme.bg
+      border.color: Theme.surface
+      border.width: 1
+
+      Section {
+        id: beginSection
+        anchors.centerIn: parent
+        entries: BarConfig.section("centerBegin")
+      }
+    }
+
+    // ---- centerEnd: grows rightwards off the center block ----
+    Rectangle {
+      anchors.left: centerBlock.right
+      anchors.leftMargin: Theme.gap
+      anchors.verticalCenter: parent.verticalCenter
+      width: endSection.implicitWidth + Theme.blockPad * 2
+      visible: endSection.implicitWidth > 0
+      radius: Theme.blockRadius
+      color: Theme.bg
+      border.color: Theme.surface
+      border.width: 1
+
+      Section {
+        id: endSection
+        anchors.centerIn: parent
+        entries: BarConfig.section("centerEnd")
+      }
+    }
+
+    // ---- right ----
     Rectangle {
       anchors.right: parent.right
-      anchors.top: parent.top
-      anchors.bottom: parent.bottom
+      anchors.verticalCenter: parent.verticalCenter
       anchors.rightMargin: Theme.barPad
-      anchors.topMargin: 6
-      anchors.bottomMargin: 6
-      width: statusRow.implicitWidth + Theme.blockPad * 2
+      width: rightSection.implicitWidth + Theme.blockPad * 2
+      visible: rightSection.implicitWidth > 0
       radius: Theme.blockRadius
       color: Theme.bg
       border.color: Theme.surface
       border.width: 1
 
-      Row {
-        id: statusRow
+      Section {
+        id: rightSection
         anchors.centerIn: parent
-        spacing: Theme.gap * 2
-
-        Wifi {}
-        Volume {}
-        Battery {}
+        entries: BarConfig.section("right")
       }
     }
   }

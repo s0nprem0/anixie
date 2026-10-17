@@ -11,6 +11,8 @@ Text {
   font.family: "JetBrains Mono"
   font.pixelSize: 13
 
+  property var entry: ({})
+
   property bool connected: false
   property string ssid: ""
   property int signal: 0

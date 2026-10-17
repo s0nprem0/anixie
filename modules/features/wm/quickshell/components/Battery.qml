@@ -17,6 +17,8 @@ Text {
   font.family: "JetBrains Mono"
   font.pixelSize: 13
 
+  property var entry: ({})
+
   property int level: -1
   property bool charging: false
 

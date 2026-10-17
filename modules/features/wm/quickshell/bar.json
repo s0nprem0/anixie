@@ -1,0 +1,19 @@
+{
+  "position": "top",
+  "background": "clear",
+  "layout": {
+    "left": [
+      { "id": "bar.workspaces" }
+    ],
+    "centerBegin": [],
+    "center": [
+      { "id": "bar.clock" }
+    ],
+    "centerEnd": [],
+    "right": [
+      { "id": "bar.wifi" },
+      { "id": "bar.audio" },
+      { "id": "bar.power" }
+    ]
+  }
+}
