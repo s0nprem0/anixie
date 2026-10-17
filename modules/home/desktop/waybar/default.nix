@@ -24,7 +24,7 @@ let
       c.success
       c.danger
     ]
-    (builtins.readFile ./waybar/style.css);
+    (builtins.readFile ./style.css);
 in
 {
   programs.waybar = {
