@@ -18,7 +18,4 @@ in
       selection_foreground = c.background;
     };
   };
-
-  programs.git.enable = true;
-  programs.starship.enable = true;
 }
