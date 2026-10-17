@@ -8,6 +8,7 @@
 // top when it is vertical.
 import QtQuick
 import Quickshell
+import Quickshell.Wayland
 
 import "."
 import "Ui"
@@ -141,6 +142,42 @@ ShellRoot {
       anchors.rightMargin: BarContext.vertical ? undefined : bar.gap
       name: "right"
       entries: BarConfig.section("right")
+    }
+  }
+
+  // The polkit prompt. A surface of its own rather than anything to do with the
+  // bar: a privilege request is not a bar event, and this has to cover the whole
+  // output and hold the keyboard for as long as it is up.
+  //
+  // It only takes keyboard focus while it is showing. Holding it permanently
+  // would keep the compositor from ever delivering keys to windows underneath.
+  PanelWindow {
+    id: polkitWindow
+
+    anchors.top: true
+    anchors.bottom: true
+    anchors.left: true
+    anchors.right: true
+
+    color: "transparent"
+    exclusionMode: ExclusionMode.Ignore
+    visible: PolkitHost.awaiting
+
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.namespace: "quickshell-polkit"
+    WlrLayershell.keyboardFocus: PolkitHost.awaiting
+      ? WlrKeyboardFocus.Exclusive
+      : WlrKeyboardFocus.None
+
+    PolkitPrompt {
+      anchors.fill: parent
+      message: PolkitHost.message
+      prompt: PolkitHost.prompt
+      detail: PolkitHost.detail
+      detailIsError: PolkitHost.detailIsError
+
+      onSubmitted: function (value) { PolkitHost.submit(value) }
+      onCancelled: PolkitHost.cancel()
     }
   }
 }
