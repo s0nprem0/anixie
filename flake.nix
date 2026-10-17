@@ -41,8 +41,17 @@
         ];
       };
 
-      perSystem = { pkgs, ... }: {
-        devShells.default = import ./modules/devshell { inherit pkgs; };
-      };
+      perSystem =
+        { pkgs, ... }:
+        let
+          # Both shells share one package list, split into tiers by cost.
+          shells = import ./modules/devshell { inherit pkgs; };
+        in
+        {
+          devShells = {
+            default = pkgs.mkShell shells.default;
+            lite = pkgs.mkShell shells.lite;
+          };
+        };
     };
 }
