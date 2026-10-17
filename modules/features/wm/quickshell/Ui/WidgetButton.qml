@@ -19,6 +19,12 @@ Item {
   property bool active: false
   property bool useActiveColor: true
 
+  // A module that stands for a deliberate state — a chosen workspace, an
+  // indicator that is on — keeps its block fill. Deliberately separate from
+  // `active`, which only tints the glyph: a live microphone sets `active` as
+  // its normal state and must not end up permanently highlighted.
+  property bool selected: false
+
   property real horizontalMargin: 8.5
   property real verticalPadding: 6
   property real fixedWidth: -1
@@ -76,6 +82,29 @@ Item {
 
   Behavior on opacity {
     NumberAnimation { duration: Style.duration(140); easing.type: Easing.OutCubic }
+  }
+
+  // The block: nothing at rest, a faint fill while the pointer is on it, and a
+  // stronger one while the module is active. Deliberately no outline — an
+  // outlined idle module reads as heavier than the reference's, which lets the
+  // surface behind it do the separating.
+  Rectangle {
+    anchors.fill: parent
+    radius: Theme.blockRadius
+
+    color: {
+      const alpha = root.selected
+        ? Style.control.selectedFillAlpha
+        : (mouseArea.containsMouse ? Style.control.hoverFillAlpha : 0)
+
+      return alpha <= 0
+        ? "transparent"
+        : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, alpha)
+    }
+
+    Behavior on color {
+      ColorAnimation { duration: Style.duration(120) }
+    }
   }
 
   Text {

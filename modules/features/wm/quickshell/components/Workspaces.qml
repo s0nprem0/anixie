@@ -87,6 +87,7 @@ BarWidget {
 
         text: button.modelData === 10 ? "0" : String(button.modelData)
         active: button.focused
+        selected: button.focused
         dimmed: !button.focused && !root.occupied(button.modelData)
         horizontalMargin: 6
         verticalPadding: 6

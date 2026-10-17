@@ -1,5 +1,5 @@
 {
-  "background": "clear",
+  "background": "opaque",
   "layout": {
     "left": [
       { "id": "bar.menu" },

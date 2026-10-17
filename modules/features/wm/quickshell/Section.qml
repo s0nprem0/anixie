@@ -25,7 +25,9 @@ Item {
     id: row
     visible: !root.vertical
     anchors.centerIn: parent
-    spacing: 0
+
+    // Modules are laid out as separate blocks rather than one continuous run.
+    spacing: Theme.gap
 
     ModuleRepeater {
       // Empty when the row is not the orientation in use. A Repeater builds a
@@ -41,7 +43,7 @@ Item {
     id: column
     visible: root.vertical
     anchors.centerIn: parent
-    spacing: 0
+    spacing: Theme.gap
 
     ModuleRepeater {
       modules: root.vertical ? root.entries : []

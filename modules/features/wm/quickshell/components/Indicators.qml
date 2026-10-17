@@ -79,6 +79,7 @@ BarWidget {
       fontSize: Style.bar.iconFont
       tooltipText: root.dnd ? "Notifications silenced" : "Notifications allowed"
       active: root.dnd
+      selected: root.dnd
       dimmed: !root.dnd
       onPressed: function () { dndToggle.running = true }
     }
@@ -92,6 +93,7 @@ BarWidget {
       fontSize: Style.bar.iconFont
       tooltipText: root.idleStopped ? "Idle lock off · click to restore" : "Idle lock on"
       active: root.idleStopped
+      selected: root.idleStopped
       dimmed: !root.idleStopped
       onPressed: function () { idleToggle.running = true }
     }
@@ -105,6 +107,7 @@ BarWidget {
       fontSize: Style.bar.iconFont
       tooltipText: root.nightlight ? "Night light on · click to turn off" : "Night light off"
       active: root.nightlight
+      selected: root.nightlight
       dimmed: !root.nightlight
       onPressed: function () { nightToggle.running = true }
     }

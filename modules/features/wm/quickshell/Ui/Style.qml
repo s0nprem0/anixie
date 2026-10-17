@@ -34,6 +34,16 @@ QtObject {
     readonly property int statusSlot: 21
   }
 
+  // Fill strengths for the bar's control chrome, as alphas over whatever
+  // foreground a module is using. Idle controls paint nothing at all: hover and
+  // the active state are what make a module read as a block, which is how the
+  // reference does it rather than outlining every module permanently.
+  readonly property QtObject control: QtObject {
+    readonly property real hoverFillAlpha: 0.08
+    readonly property real selectedFillAlpha: 0.18
+    readonly property real pressedFillAlpha: 0.22
+  }
+
   // Spacing scale. `space` rounds so callers can pass loose pixel values and
   // land on whole pixels; `spaceReal` keeps fractional geometry such as the
   // half-pixel offsets that centre odd-width slots.

@@ -25,12 +25,11 @@ QtObject {
   // first frame, and a FileView would only report it after that.
   readonly property string position: "@POSITION@"
 
-  // Every module sits in its own rounded block, separated by a gap. This is
-  // the "blocky" look: distinct slabs rather than one continuous bar.
+  // Bar chrome. Modules keep the reference's shape rather than being drawn as
+  // one continuous run: a fill that appears on hover and stays while a module
+  // is active, no permanent outline, and a gap between neighbours. The fill
+  // strengths themselves are alphas in Style.control, so they follow whichever
+  // foreground a module is using.
   readonly property int blockRadius: 8
-  readonly property int blockPad: 10
-  readonly property int barPad: 8
   readonly property int gap: 6
-  readonly property int barHeight: 40
-  readonly property int blockMargin: 6
 }
