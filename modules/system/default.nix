@@ -8,6 +8,9 @@
     ./fonts.nix
     ./users.nix
     ./desktop.nix
+    ./lock.nix
+    ./bluetooth.nix
+    ./printing.nix
     ./power.nix
   ];
 }

@@ -8,6 +8,7 @@
     "$mod, RETURN, exec, $terminal"
     "$mod, SPACE, exec, $menu"
     "$mod SHIFT, S, exec, sh -c 'mkdir -p \"$HOME/Pictures/Screenshots\" && grim -g \"$(slurp)\" \"$HOME/Pictures/Screenshots/$(date +%Y-%m-%d_%H-%M-%S).png\"'"
+    "$mod SHIFT, A, exec, hyprlock"
     "$mod SHIFT, V, exec, sh -c 'cliphist list | fuzzel --dmenu | cliphist decode | wl-copy'"
 
     # --------------------------------------------------------------------
