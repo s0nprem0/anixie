@@ -7,8 +7,12 @@ in
   programs.kitty = {
     enable = true;
 
+    font = {
+      name = "JetBrains Mono";
+      size = 11;
+    };
+
     settings = {
-      font_size = 11;
       background_opacity = "0.96";
 
       background = c.background;

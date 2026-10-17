@@ -6,4 +6,8 @@
   ];
 
   fonts.fontconfig.enable = true;
+
+  home.sessionVariables = {
+    TERMINAL_FONT = "JetBrains Mono";
+  };
 }

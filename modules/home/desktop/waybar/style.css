@@ -8,7 +8,7 @@
 @define-color danger @DANGER@;
 
 * {
-  font-family: "Noto Sans", sans-serif;
+  font-family: "JetBrains Mono", sans-serif;
   font-size: 12px;
   min-height: 0;
 }
