@@ -11,6 +11,13 @@ import "Ui"
 //
 // "active" tints with the accent, "urgent" and "warning" with the danger
 // colour, "inactive" is muted, and anything else takes the normal foreground.
+//
+// The layout entry drives it, as it does in Omarchy:
+//
+//   { "id": "vpn", "type": "command", "exec": "vpn-status",
+//     "interval": 5, "tooltip": "VPN", "onClick": "nm-connection-editor" }
+//
+// so a command module can be hovered and clicked like any other.
 Item {
   id: root
 
@@ -29,8 +36,23 @@ Item {
   // tooltip for whoever goes looking.
   property string failure: ""
 
-  implicitWidth: text.implicitWidth
-  implicitHeight: text.implicitHeight
+  // From the layout entry rather than the command's output, so both are known
+  // before the first poll returns. "on-click" is accepted alongside "onClick"
+  // because that was the spelling in the Waybar config this replaces.
+  readonly property string entryTooltip: entry.tooltip ? String(entry.tooltip) : ""
+  readonly property string clickCommand: entry.onClick
+    ? String(entry.onClick)
+    : (entry["on-click"] ? String(entry["on-click"]) : "")
+
+  // A tooltip the command reports beats the static one: it carries live state the
+  // layout cannot know, such as a tunnel being up or a build having failed.
+  readonly property string tooltipLabel: root.tip !== "" ? root.tip : root.entryTooltip
+
+  // A command with nothing to say collapses rather than leaving a gap.
+  // WidgetButton floors an empty label at its horizontal margin, so the width is
+  // stated here instead of inherited.
+  implicitWidth: root.displayText() === "" ? 0 : button.implicitWidth
+  implicitHeight: root.displayText() === "" ? 0 : button.implicitHeight
 
   function apply(raw) {
     const trimmed = raw.trim()
@@ -111,12 +133,24 @@ Item {
     return Theme.fg
   }
 
-  Text {
-    id: text
+  function click() {
+    if (root.clickCommand !== "") Commands.run(root.clickCommand)
+  }
+
+  // A WidgetButton rather than a bare Text, so the module takes part in the same
+  // hover and tooltip handling as every other button. `active` is off because the
+  // colour comes from the command's own class below, not from pressed state.
+  WidgetButton {
+    id: button
     anchors.centerIn: parent
+    active: false
     text: root.displayText()
-    font.family: Style.font.family
-    font.pixelSize: 13
-    color: root.textColor()
+    foreground: root.textColor()
+    fontSize: Style.bar.iconFont
+    tooltipText: root.tooltipLabel
+
+    onPressed: function (which) {
+      if (which === Qt.LeftButton || which === Qt.MiddleButton) root.click()
+    }
   }
 }

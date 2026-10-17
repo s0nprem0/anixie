@@ -97,6 +97,7 @@ ShellRoot {
       anchors.verticalCenter: BarContext.vertical ? undefined : parent.verticalCenter
       anchors.topMargin: BarContext.vertical ? bar.gap : undefined
       anchors.leftMargin: BarContext.vertical ? undefined : bar.gap
+      name: "left"
       entries: BarConfig.section("left")
     }
 
@@ -105,6 +106,7 @@ ShellRoot {
       id: centerSection
       anchors.horizontalCenter: BarContext.vertical ? undefined : parent.horizontalCenter
       anchors.verticalCenter: BarContext.vertical ? parent.verticalCenter : undefined
+      name: "center"
       entries: BarConfig.section("center")
     }
 
@@ -115,6 +117,7 @@ ShellRoot {
       anchors.verticalCenter: BarContext.vertical ? undefined : parent.verticalCenter
       anchors.rightMargin: BarContext.vertical ? undefined : bar.gap
       anchors.bottomMargin: BarContext.vertical ? bar.gap : undefined
+      name: "centerBegin"
       entries: BarConfig.section("centerBegin")
     }
 
@@ -125,6 +128,7 @@ ShellRoot {
       anchors.verticalCenter: BarContext.vertical ? undefined : parent.verticalCenter
       anchors.leftMargin: BarContext.vertical ? undefined : bar.gap
       anchors.topMargin: BarContext.vertical ? bar.gap : undefined
+      name: "centerEnd"
       entries: BarConfig.section("centerEnd")
     }
 
@@ -135,6 +139,7 @@ ShellRoot {
       anchors.verticalCenter: BarContext.vertical ? undefined : parent.verticalCenter
       anchors.bottomMargin: BarContext.vertical ? bar.gap : undefined
       anchors.rightMargin: BarContext.vertical ? undefined : bar.gap
+      name: "right"
       entries: BarConfig.section("right")
     }
   }
