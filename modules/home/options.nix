@@ -1,28 +1,47 @@
 { lib, ... }:
 
 {
-  options.myDots.theme = {
-    name = lib.mkOption {
-      type = lib.types.str;
-      default = "midnight-ember";
-      description = "Name of the personal desktop theme.";
-    };
-
-    colors = lib.mkOption {
-      type = lib.types.attrsOf lib.types.str;
-
-      default = {
-        background = "#111318";
-        surface = "#1b1f27";
-        foreground = "#e6e8ef";
-        muted = "#9298a8";
-        accent = "#e0a458";
-        accentAlt = "#8da9c4";
-        success = "#a6c48a";
-        danger = "#e58b8b";
+  options.my.theme = {
+    colors = {
+      background = lib.mkOption {
+        type = lib.types.str;
+        default = "#0f111a";
       };
 
-      description = "Shared color palette for personal dotfiles.";
+      surface = lib.mkOption {
+        type = lib.types.str;
+        default = "#171a24";
+      };
+
+      foreground = lib.mkOption {
+        type = lib.types.str;
+        default = "#c8d3f5";
+      };
+
+      muted = lib.mkOption {
+        type = lib.types.str;
+        default = "#828bb8";
+      };
+
+      accent = lib.mkOption {
+        type = lib.types.str;
+        default = "#82aaff";
+      };
+
+      accentAlt = lib.mkOption {
+        type = lib.types.str;
+        default = "#c099ff";
+      };
+
+      success = lib.mkOption {
+        type = lib.types.str;
+        default = "#c3e88d";
+      };
+
+      danger = lib.mkOption {
+        type = lib.types.str;
+        default = "#ff757f";
+      };
     };
   };
 }

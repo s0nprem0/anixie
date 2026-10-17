@@ -1,7 +1,7 @@
 { config, ... }:
 
 let
-  c = config.myDots.theme.colors;
+  c = config.my.theme.colors;
 
   css = builtins.replaceStrings
     [
