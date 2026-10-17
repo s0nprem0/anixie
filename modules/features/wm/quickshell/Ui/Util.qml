@@ -52,6 +52,10 @@ QtObject {
   readonly property string coffee: glyph("f0f4")
   readonly property string moon: glyph("f186")
 
+  // Calendar stepping.
+  readonly property string chevronLeft: glyph("f053")
+  readonly property string chevronRight: glyph("f054")
+
   readonly property string wifi: glyph("f1eb")
 
   readonly property string micOn: glyph("f130")
