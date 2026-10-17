@@ -4,7 +4,8 @@
   home.packages = [ pkgs.helix ];
 
   home.sessionVariables = {
-    EDITOR = "helix";
-    VISUAL = "helix";
+    # Helix installs its binary as hx.
+    EDITOR = "hx";
+    VISUAL = "hx";
   };
 }
