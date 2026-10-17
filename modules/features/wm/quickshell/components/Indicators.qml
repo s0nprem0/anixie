@@ -24,13 +24,14 @@ BarWidget {
     return list.length === 0 || list.indexOf(id) !== -1
   }
 
-  // Re-read often enough that a change made elsewhere — a keybind silencing
-  // notifications, systemd stopping the daemon — is picked up. These cannot be
-  // tracked from this widget's own clicks, which is the whole reason they are
-  // polled rather than toggled locally.
+  // Re-read often enough that a change made elsewhere — systemd stopping the
+  // idle daemon, hyprsunset switching profile on its own timetable — is picked
+  // up. Those cannot be tracked from this widget's own clicks, which is why
+  // they are polled. Silencing is not: the notification daemon lives in this
+  // shell, so its state is read directly.
   readonly property int pollMs: 4000
 
-  property bool dnd: false
+  readonly property bool dnd: NotificationHost.doNotDisturb
   property bool idleStopped: false
   property int nightTemperature: 0
 
@@ -77,11 +78,11 @@ BarWidget {
     WidgetButton {
       text: Util.bellSlash
       fontSize: Style.bar.iconFont
-      tooltipText: root.dnd ? "Notifications silenced" : "Notifications allowed"
+      tooltipText: root.dnd ? "Notifications silenced · click to allow" : "Notifications allowed"
       active: root.dnd
       selected: root.dnd
       dimmed: !root.dnd
-      onPressed: function () { dndToggle.running = true }
+      onPressed: function () { NotificationHost.toggle() }
     }
   }
 
@@ -111,22 +112,6 @@ BarWidget {
       dimmed: !root.nightlight
       onPressed: function () { nightToggle.running = true }
     }
-  }
-
-  // ---- notifications silenced, via mako ----
-  Process {
-    id: dndQuery
-    command: ["makoctl", "mode"]
-    stdout: StdioCollector {
-      // mako lists the active modes one per line; do-not-disturb is one of them.
-      onStreamFinished: root.dnd = this.text.indexOf("do-not-disturb") !== -1
-    }
-  }
-
-  Process {
-    id: dndToggle
-    command: ["makoctl", "mode", "-t", "do-not-disturb"]
-    onExited: dndQuery.running = true
   }
 
   // ---- idle daemon stopped, via systemd ----
@@ -179,7 +164,6 @@ BarWidget {
     repeat: true
     triggeredOnStart: true
     onTriggered: {
-      dndQuery.running = true
       idleQuery.running = true
       nightQuery.running = true
     }

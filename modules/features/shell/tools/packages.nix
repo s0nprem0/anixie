@@ -24,6 +24,9 @@ with pkgs;
   bemoji
   wtype
 
+  # The notification client. The daemon that draws what it sends is the shell's.
+  libnotify
+
   difftastic
   github-cli
   gnumake

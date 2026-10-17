@@ -6,8 +6,8 @@
     ./hypridle
     ./hyprland
     ./hyprsunset
-    ./mako
     ./mixer
+    ./reminder
     ./quickshell
     ./screenshot
     ./screenshare

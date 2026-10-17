@@ -7,6 +7,10 @@
     # --------------------------------------------------------------------
     "$mod, RETURN, exec, $terminal"
     "$mod, SPACE, exec, $menu"
+    # A reminder: $mod+R asks how long and then for a message, and the timer it
+    # sets keeps running after this shell is gone.
+    "$mod, R, exec, reminder -i"
+
     "$mod SHIFT, V, exec, sh -c 'cliphist list | fuzzel --dmenu | cliphist decode | wl-copy'"
 
     # Super+period, the emoji picker every other desktop uses. bemoji draws its

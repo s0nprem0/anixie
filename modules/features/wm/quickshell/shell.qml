@@ -208,4 +208,49 @@ ShellRoot {
       percent: OsdHost.percent
     }
   }
+
+  // Notification popups. Top right, over everything, and taking no keyboard:
+  // a notification is there to be read, not typed into. Sized to its stack, so
+  // an empty one leaves no window behind to swallow clicks.
+  PanelWindow {
+    id: notificationWindow
+
+    anchors.top: true
+    anchors.right: true
+
+    // Clear of the bar, which occupies the top edge.
+    margins.top: Style.bar.sizeHorizontal + Style.space(10)
+    margins.right: Style.space(10)
+
+    implicitWidth: notificationColumn.implicitWidth
+    implicitHeight: notificationColumn.implicitHeight
+
+    color: "transparent"
+    exclusionMode: ExclusionMode.Ignore
+    visible: NotificationHost.tracked.length > 0
+
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.namespace: "quickshell-notifications"
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+
+    Column {
+      id: notificationColumn
+
+      anchors.fill: parent
+      spacing: Style.space(8)
+
+      Repeater {
+        model: NotificationHost.stacked
+
+        delegate: NotificationCard {
+          required property var modelData
+
+          // Width comes from the card's own implicit width, which is what sizes
+          // the column and so the window. Binding it back to the column would be
+          // circular and collapse both.
+          notification: modelData
+        }
+      }
+    }
+  }
 }
