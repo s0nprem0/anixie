@@ -1,20 +1,22 @@
 import QtQuick
 import ".."
+import "../Ui"
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 
-// Workspace pills driven by Hyprland's event socket rather than by polling
+// Workspace entries driven by Hyprland's event socket rather than by polling
 // hyprctl: Hyprland.workspaces.values is a change-notifying list, so a switch
-// redraws immediately instead of waiting out the poll interval.
-Row {
+// repaints immediately instead of waiting out a poll interval.
+BarWidget {
   id: root
-  spacing: Theme.gap
-
-  property var entry: ({})
 
   readonly property var workspaces: Hyprland.workspaces ? Hyprland.workspaces.values : []
   readonly property int focusedId: Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : -1
+
+  // A wheel notch moves one workspace along the row; a touchpad adds up its
+  // smaller deltas until they make a notch's worth.
+  property real wheelAccumulator: 0
 
   function workspaceIds() {
     const ids = []
@@ -29,7 +31,7 @@ Row {
   }
 
   // An empty workspace is dimmed rather than hidden, so the row does not
-  // reshuffle under the pointer while you drag windows between them.
+  // reshuffle under the pointer while windows are dragged between them.
   function occupied(id) {
     for (let i = 0; i < root.workspaces.length; i++) {
       if (root.workspaces[i].id === id) {
@@ -41,10 +43,25 @@ Row {
   }
 
   // Plain hyprctl dispatch on purpose: this machine runs hyprlang, where the
-  // Lua dispatch path some bars use is unavailable.
+  // Lua dispatch path is unavailable.
   function focus(id) {
     focusProc.command = ["hyprctl", "dispatch", "workspace", String(id)]
     focusProc.running = true
+  }
+
+  function scroll(delta) {
+    const wheel = Util.wheelSteps(root.wheelAccumulator, delta)
+    root.wheelAccumulator = wheel.remainder
+    if (wheel.steps === 0) return
+
+    // Holds at either end rather than wrapping, so a long swipe stops on the
+    // last workspace instead of jumping back to the first.
+    const ids = root.workspaceIds()
+    const index = ids.indexOf(root.focusedId)
+    if (index === -1) return
+
+    const target = ids[Util.clamp(index - wheel.steps, 0, ids.length - 1)]
+    if (target !== ids[index]) root.focus(target)
   }
 
   Process {
@@ -52,35 +69,38 @@ Row {
     running: false
   }
 
-  Repeater {
-    model: root.workspaceIds()
+  implicitWidth: row.implicitWidth
+  implicitHeight: Style.bar.sizeHorizontal
 
-    delegate: Rectangle {
-      id: pill
-      required property int modelData
+  Row {
+    id: row
+    anchors.centerIn: parent
 
-      readonly property bool focused: root.focusedId === modelData
+    Repeater {
+      model: root.workspaceIds()
 
-      width: 22
-      height: 22
-      radius: 11
-      color: focused ? Theme.primary : "transparent"
-      border.color: focused ? Theme.primary : Theme.surface
-      border.width: 1
+      delegate: WidgetButton {
+        id: button
+        required property int modelData
 
-      Text {
-        anchors.centerIn: parent
-        text: pill.modelData === 10 ? "0" : String(pill.modelData)
-        color: pill.focused ? Theme.bg : (root.occupied(pill.modelData) ? Theme.fg : Theme.muted)
-        font.family: "JetBrains Mono"
-        font.pixelSize: 11
-        font.weight: pill.focused ? Font.DemiBold : Font.Normal
-      }
+        readonly property bool focused: root.focusedId === modelData
 
-      MouseArea {
-        anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.focus(pill.modelData)
+        text: button.modelData === 10 ? "0" : String(button.modelData)
+        active: button.focused
+        dimmed: !button.focused && !root.occupied(button.modelData)
+        horizontalMargin: 6
+        verticalPadding: 6
+        fixedWidth: Style.space(20)
+        fixedHeight: Style.bar.sizeHorizontal
+        tooltipText: "Workspace " + button.modelData
+
+        onPressed: function (button_) {
+          if (button_ !== Qt.LeftButton) return
+          root.focus(button.modelData)
+        }
+        onWheelMoved: function (delta) {
+          root.scroll(delta)
+        }
       }
     }
   }

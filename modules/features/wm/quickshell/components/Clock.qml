@@ -1,19 +1,14 @@
 import QtQuick
 import ".."
+import "../Ui"
 
-Text {
+// Clock. Formatted inside a timer tick rather than inside a text binding: a
+// binding that calls new Date() reads no property, so QML cannot know when to
+// re-evaluate it — it runs once and the clock freezes on that value. Assigning
+// a string from the handler is what makes the text update.
+BarWidget {
   id: root
-  color: Theme.fg
-  font.family: "JetBrains Mono"
-  font.pixelSize: 14
-  font.weight: Font.DemiBold
 
-  property var entry: ({})
-
-  // Formatted inside a timer tick instead of inside the text binding. A binding
-  // that calls new Date() reads no property, so QML cannot know when to
-  // re-evaluate it: it runs once and the clock freezes on that value. Assigning
-  // a string from the handler is what makes the text update.
   property string stamp: ""
 
   function refresh() {
@@ -22,7 +17,7 @@ Text {
     const mons = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-    const format = entry.format ? String(entry.format) : "ddd dd MMM  HH:mm"
+    const format = String(root.setting("format", "ddd dd MMM  HH:mm"))
 
     // ddd has to precede dd in the alternation, or "ddd" matches as "dd" + "d".
     root.stamp = format.replace(/ddd|dd|HH|mm|MMM/g, function (token) {
@@ -35,6 +30,10 @@ Text {
     })
   }
 
+  visible: stamp !== ""
+  implicitWidth: readout.implicitWidth
+  implicitHeight: readout.implicitHeight
+
   Timer {
     running: true
     interval: 1000
@@ -43,5 +42,13 @@ Text {
     onTriggered: root.refresh()
   }
 
-  text: root.stamp
+  WidgetButton {
+    id: readout
+    anchors.centerIn: parent
+    text: root.stamp
+    fontSize: Style.font.body
+    centerFigures: false
+    active: true
+    useActiveColor: false
+  }
 }

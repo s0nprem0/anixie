@@ -1,0 +1,7 @@
+singleton Style 1.0 Style.qml
+singleton Util 1.0 Util.qml
+singleton TooltipHost 1.0 TooltipHost.qml
+BarWidget 1.0 BarWidget.qml
+WidgetButton 1.0 WidgetButton.qml
+BarIconButton 1.0 BarIconButton.qml
+OpticalGlyph 1.0 OpticalGlyph.qml

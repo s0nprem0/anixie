@@ -1,64 +1,64 @@
 import QtQuick
 import ".."
+import "../Ui"
 import Quickshell
 import Quickshell.Io
 
-Text {
+// Battery readout. Both values come from FileView, which watches the sysfs
+// nodes rather than re-reading them on a timer, so the percentage tracks the
+// hardware instead of polling for it.
+BarWidget {
   id: root
-  color: {
-    if (level < 0)
-      return Theme.muted
-    if (level <= 15 && !charging)
-      return Theme.danger
-    if (charging)
-      return Theme.success
-    return Theme.fg
-  }
-  font.family: "JetBrains Mono"
-  font.pixelSize: 13
 
-  property var entry: ({})
-
-  property int level: -1
-  property bool charging: false
-
-  readonly property string capPath: "/sys/class/power_supply/BAT0/capacity"
+  readonly property string capacityPath: "/sys/class/power_supply/BAT0/capacity"
   readonly property string statusPath: "/sys/class/power_supply/BAT0/status"
 
-  Process {
-    id: capProc
-    running: true
-    command: ["cat", capPath]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const v = parseInt(this.text.trim(), 10)
-        if (!isNaN(v))
-          root.level = v
-      }
-    }
+  readonly property int level: {
+    const raw = capView.text()
+    const v = parseInt(String(raw).trim(), 10)
+    return isNaN(v) ? -1 : v
+  }
+  readonly property bool charging: String(statusView.text()).trim() === "Charging"
+
+  readonly property bool present: level >= 0
+
+  // Hidden on a machine with no battery, rather than a permanently blank slot.
+  visible: present
+
+  readonly property string glyph: {
+    if (level <= 10) return Util.batteryEmpty
+    if (level <= 30) return Util.batteryQuarter
+    if (level <= 55) return Util.batteryHalf
+    if (level <= 80) return Util.batteryThreeQuarters
+    return Util.batteryFull
   }
 
-  Process {
-    id: statusProc
-    running: capProc.running
-    command: ["cat", statusPath]
-    stdout: StdioCollector {
-      onStreamFinished: root.charging = this.text.trim() === "Charging"
-    }
+  implicitWidth: readout.implicitWidth
+  implicitHeight: readout.implicitHeight
+
+  FileView {
+    id: capView
+    path: root.capacityPath
+    printErrors: false
+    watchChanges: true
+    blockLoading: true
   }
 
-  // Refresh every 60s so the percentage tracks discharge without polling hard.
-  // Both processes are restarted: statusProc only ever follows capProc.running,
-  // so without an explicit toggle it would keep its first reading forever.
-  Timer {
-    running: true
-    interval: 60000
-    triggeredOnStart: true
-    onTriggered: {
-      capProc.running = false; capProc.running = true
-      statusProc.running = false; statusProc.running = true
-    }
+  FileView {
+    id: statusView
+    path: root.statusPath
+    printErrors: false
+    watchChanges: true
+    blockLoading: true
   }
 
-  text: level < 0 ? "" : ("BAT " + level + "%" + (charging ? " +" : ""))
+  BarIconButton {
+    id: readout
+    anchors.centerIn: parent
+    text: root.charging ? Util.charging : root.glyph
+    labelText: root.level + "%"
+    active: root.charging
+    foreground: root.level >= 0 && root.level <= 15 && !root.charging ? Theme.danger : Theme.fg
+    tooltipText: root.charging ? "Charging" : "Battery"
+  }
 }

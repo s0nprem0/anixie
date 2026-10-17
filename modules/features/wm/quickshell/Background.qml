@@ -1,11 +1,12 @@
 import QtQuick
 import "."
+import "Ui"
 
 // The bar's own backdrop, behind every module. Three looks, cycled by
 // double-clicking empty bar space:
 //
-//   clear  - no fill at all, only the module blocks show
-//   glassy - translucent fill; Hyprland's layer blur supplies the frosting
+//   clear  - no fill at all
+//   glassy - translucent fill, tinted
 //   opaque - solid fill across the whole bar
 //
 // The choice lives in bar.json as "background". Double-clicking overrides it
@@ -14,7 +15,6 @@ import "."
 Item {
   id: root
   anchors.fill: parent
-  z: -1
 
   readonly property var modes: ["clear", "glassy", "opaque"]
 
@@ -23,8 +23,7 @@ Item {
                         : "clear"
 
   function cycle() {
-    const next = (modes.indexOf(mode) + 1) % modes.length
-    root.mode = modes[next]
+    root.mode = root.modes[(root.modes.indexOf(root.mode) + 1) % root.modes.length]
   }
 
   Rectangle {

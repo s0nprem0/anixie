@@ -1,10 +1,11 @@
 import QtQuick
 import "."
+import "Ui"
 
 // One horizontal run of bar modules, as named by a bar.json section.
 Row {
   id: root
-  spacing: Theme.gap
+  spacing: 0
 
   property var entries: []
 
