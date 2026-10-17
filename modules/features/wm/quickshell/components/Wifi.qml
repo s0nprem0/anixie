@@ -1,6 +1,7 @@
 import QtQuick
 import ".."
 import "../Ui"
+import "../panels"
 import Quickshell
 import Quickshell.Io
 
@@ -58,6 +59,13 @@ BarWidget {
     }
   }
 
+  // Declared as an id rather than built inline: `Component { ... }` is an
+  // object declaration, so it cannot be passed as a call argument.
+  Component {
+    id: wifiPanel
+    Network {}
+  }
+
   BarIconButton {
     id: readout
     anchors.centerIn: parent
@@ -65,7 +73,8 @@ BarWidget {
     labelText: root.ssid
     tooltipText: root.resolved ? root.ssid : "Wi-Fi off"
     onPressed: function (button) {
-      if (button === Qt.LeftButton) root.openSettings()
+      if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelHost.toggle(readout, wifiPanel)
+      else if (button === Qt.RightButton) root.openSettings()
     }
   }
 
