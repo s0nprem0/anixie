@@ -9,13 +9,22 @@
   # hyprsunset 0.4 reads ~/.config/hypr/hyprsunset.conf and only understands
   # profile blocks. The old sunset.conf with its top-level bezier/duration keys
   # was silently ignored, which is why it logged "Loaded 0 profiles".
+  #
+  # Profiles activate at their time and override each other, with the most
+  # recent activation winning. A single profile at 00:00 therefore means "always
+  # on", which is not what a night filter should do: it tinted the display all
+  # day. These two turn it off by day and warm it after dark.
   xdg.configFile."hypr/hyprsunset.conf".text = ''
-    # Warms the display colour temperature towards 4500K so late-night use is
-    # easier on the eyes. Add profiles with a `time` key to schedule a warmer
-    # filter at night and a neutral one by day.
+    # Daytime: identity, so hyprsunset applies no tint at all.
     profile {
-      time = 00:00
-      temperature = 4500
+      time = 06:00
+      identity = true
+    }
+
+    # Evening onwards, and wrapping through to early morning.
+    profile {
+      time = 21:00
+      temperature = 3500
     }
   '';
 
