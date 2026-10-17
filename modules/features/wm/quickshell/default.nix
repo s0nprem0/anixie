@@ -64,13 +64,22 @@ in
     # after it has pushed the session environment into the user manager, so the
     # bar is running with the variables it needs. %h is the user's home, since
     # systemd does not expand ~.
+    #
+    # That push happens once, at session start, so a compositor restart leaves
+    # the user manager holding a signature and socket that no longer exist. The
+    # bar then fails to connect and would otherwise be given up on: the default
+    # start limit is five restarts in ten seconds, easily reached while Hyprland
+    # is still coming back. Unlimiting it lets the bar keep retrying until
+    # Hyprland re-imports its environment (see startup.nix) and the next attempt
+    # succeeds.
     systemd.user.services.quickshell = {
       Unit.Description = "Quickshell status bar";
       Unit.After = [ "graphical-session-pre.target" ];
+      Unit.StartLimitIntervalSec = 0;
       Service = {
         Type = "simple";
         ExecStart = "${lib.getExe pkgs.quickshell} -p %h/.config/quickshell";
-        Restart = "on-failure";
+        Restart = "always";
         RestartSec = 2;
       };
       Install.WantedBy = [ "graphical-session.target" ];
