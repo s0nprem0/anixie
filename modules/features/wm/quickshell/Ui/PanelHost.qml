@@ -78,9 +78,12 @@ QtObject {
     visible: root.shown
     color: "transparent"
     anchor.item: root.host
-    // Gravity puts the window below the rect, so starting the rect at the bar's
-    // full height leaves the bar itself uncovered.
-    anchor.rect: Qt.rect(0, 0, root.screenWidth, root.barHeight)
+    // The popup's top edge lands on the rect's top edge and it grows downward, so
+    // the rect has to start at the bar's full height for the bar to stay
+    // uncovered. Starting it at 0 drew the curtain across the bar itself, so
+    // clicking a module while a panel was open hit the curtain and closed the
+    // panel instead of reaching the module.
+    anchor.rect: Qt.rect(0, root.barHeight, root.screenWidth, 0)
     implicitWidth: root.screenWidth
     implicitHeight: root.screenHeight - root.barHeight
 

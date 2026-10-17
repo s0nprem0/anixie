@@ -11,10 +11,11 @@ import Quickshell.Wayland
 QtObject {
   id: root
 
-  // The bar's own window, set once at startup. The popup anchors to this rather
-  // than to whichever button is hovered: PopupWindow resolves its anchor when
-  // it is created, and at that point no button has been hovered, so anchoring
-  // straight to the subject would leave it unanchored for good.
+// The bar's own window, set once at startup. The popup anchors to whichever
+  // button is hovered, so this is not what it positions against — it is the item
+  // the button's transform is measured from, since a tooltip has to follow its
+  // button and Quickshell only repositions a popup when its anchor's window or
+  // its own size changes.
   property Item host: null
 
   property var tooltipTarget: null
@@ -94,16 +95,19 @@ QtObject {
     }
   }
 
-  readonly property rect subjectRect: {
-    if (!root.tooltipTarget || !root.host) return Qt.rect(0, 0, 0, 0)
-
-    const topLeft = root.tooltipTarget.mapToItem(root.host, 0, 0)
-    return Qt.rect(
-      Math.round(topLeft.x),
-      Math.round(topLeft.y),
-      root.tooltipTarget.width,
-      root.tooltipTarget.height
-    )
+  // The tooltip has to keep up with its button, and modules here move: the
+  // focused window's title animates its own width, which shifts every module to
+  // its right. Quickshell repositions a popup when the anchor's window or the
+  // popup's own size changes, but not when the anchored item moves inside that
+  // window, so the target's transform is watched and a reposition asked for when
+  // it changes.
+  //
+  // Held as a property because a QtObject has no default property for a bare
+  // child declaration to attach to.
+  property TransformWatcher anchorWatcher: TransformWatcher {
+    a: root.tooltipTarget
+    b: root.host
+    onTransformChanged: root.window.reposition()
   }
 
   property PopupWindow window: PopupWindow {
@@ -112,8 +116,25 @@ QtObject {
       && root.tooltipText !== ""
       && root.targetHovered(root.tooltipTarget)
     color: "transparent"
-    anchor.item: root.host
-    anchor.rect: root.subjectRect
+
+    // The button itself, with no explicit rect: PopupAnchor maps the anchor from
+    // the item in C++ on every reposition, so it stays right as the button moves.
+    // Computing the rect in QML with mapToItem cannot do that — mapToItem is a
+    // plain function call, so the binding is never told that anything moved,
+    // which is the failure Quickshell documents for coordinate mapping functions
+    // in a binding to this property.
+    anchor.item: root.tooltipTarget
+
+    // Below the button, never across it. The defaults (edges Top|Left, gravity
+    // Bottom|Right) put the popup's top-left on the rect's top-left, so a rect
+    // taken from the button drew the tooltip over the button itself. Being its
+    // own surface, the tooltip took the pointer with it, the button saw hover
+    // lost and dismissed the tooltip, hover came back, and it opened again — the
+    // flicker. Anchoring to the rect's bottom edge and growing downward starts it
+    // clear of the button.
+    anchor.edges: Edges.Bottom
+    anchor.gravity: Edges.Bottom
+
     implicitWidth: Math.ceil(body.implicitWidth) + 20
     implicitHeight: Math.ceil(body.implicitHeight) + 14
 
