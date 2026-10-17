@@ -2,34 +2,111 @@
 
 {
   wayland.windowManager.hyprland.settings.bind = [
+    # --------------------------------------------------------------------
+    # Launching
+    # --------------------------------------------------------------------
     "$mod, RETURN, exec, $terminal"
     "$mod, SPACE, exec, $menu"
-    "$mod, Q, killactive,"
-    "$mod, F, fullscreen,"
-    "$mod, V, togglefloating,"
-    "$mod, M, exit,"
+    "$mod SHIFT, S, exec, sh -c 'mkdir -p \"$HOME/Pictures/Screenshots\" && grim -g \"$(slurp)\" \"$HOME/Pictures/Screenshots/$(date +%Y-%m-%d_%H-%M-%S).png\"'"
+    "$mod SHIFT, V, exec, sh -c 'cliphist list | fuzzel --dmenu | cliphist decode | wl-copy'"
 
+    # --------------------------------------------------------------------
+    # Moving focus between windows
+    # $mod + HJKL walks the layout; the arrow keys duplicate it for people
+    # who reach for those first.
+    # --------------------------------------------------------------------
     "$mod, H, movefocus, l"
     "$mod, L, movefocus, r"
     "$mod, K, movefocus, u"
     "$mod, J, movefocus, d"
+    "$mod, LEFT, movefocus, l"
+    "$mod, RIGHT, movefocus, r"
+    "$mod, UP, movefocus, u"
+    "$mod, DOWN, movefocus, d"
 
+    # --------------------------------------------------------------------
+    # Moving and resizing the focused window
+    # Same HJKL shape as focus movement, with a modifier added:
+    #   $mod SHIFT + HJKL   nudge the window
+    #   $mod CTRL  + HJKL   resize the window
+    # resizeactive takes an X,Y step; the sign decides the direction.
+    # --------------------------------------------------------------------
+    "$mod SHIFT, H, moveactive, -10 0"
+    "$mod SHIFT, L, moveactive, 10 0"
+    "$mod SHIFT, K, moveactive, 0 -10"
+    "$mod SHIFT, J, moveactive, 0 10"
+    "$mod CTRL, H, resizeactive, -10 0"
+    "$mod CTRL, L, resizeactive, 10 0"
+    "$mod CTRL, K, resizeactive, 0 -10"
+    "$mod CTRL, J, resizeactive, 0 10"
+
+    # --------------------------------------------------------------------
+    # Swapping the focused window with its neighbour
+    # --------------------------------------------------------------------
+    "$mod SHIFT, LEFT, swapwindow, LEFT"
+    "$mod SHIFT, RIGHT, swapwindow, RIGHT"
+    "$mod SHIFT, UP, swapwindow, UP"
+    "$mod SHIFT, DOWN, swapwindow, DOWN"
+
+    # --------------------------------------------------------------------
+    # Window state
+    # --------------------------------------------------------------------
+    "$mod, Q, killactive,"
+    "$mod, F, fullscreen,"
+    "$mod, V, togglefloating,"
+    # pseudo-tile turns the window into a column the group resizes as a unit;
+    # pin floats a window above everything regardless of focus order.
+    "$mod, P, pseudo,"
+    "$mod SHIFT, P, pin, active, toggle"
+
+    # --------------------------------------------------------------------
+    # Workspaces
+    # 1-5 jump, comma/period step through all of them so you are not boxed
+    # into the first five, and SHIFT + arrows sends the window with you.
+    # --------------------------------------------------------------------
     "$mod, 1, workspace, 1"
     "$mod, 2, workspace, 2"
     "$mod, 3, workspace, 3"
     "$mod, 4, workspace, 4"
     "$mod, 5, workspace, 5"
+    "$mod, comma, workspace, -1"
+    "$mod, period, workspace, 1"
 
     "$mod SHIFT, 1, movetoworkspace, 1"
     "$mod SHIFT, 2, movetoworkspace, 2"
     "$mod SHIFT, 3, movetoworkspace, 3"
     "$mod SHIFT, 4, movetoworkspace, 4"
     "$mod SHIFT, 5, movetoworkspace, 5"
+    "$mod SHIFT, LEFT, movetoworkspace, -1"
+    "$mod SHIFT, RIGHT, movetoworkspace, 1"
 
-    "$mod SHIFT, S, exec, sh -c 'mkdir -p \"$HOME/Pictures/Screenshots\" && grim -g \"$(slurp)\" \"$HOME/Pictures/Screenshots/$(date +%Y-%m-%d_%H-%M-%S).png\"'"
+    # Scrolling the wheel moves between existing workspaces. Hyprland 0.56's
+    # hyprlang path rejects the documented `bindm ..., scroll, workspace e-1`
+    # form with "too many args", so dispatch through hyprctl instead.
+    "$mod, wheel, exec, hyprctl dispatch workspace e-1"
+    "$mod, wheel, exec, hyprctl dispatch workspace e+1"
 
-    "$mod SHIFT, V, exec, sh -c 'cliphist list | fuzzel --dmenu | cliphist decode | wl-copy'"
+    # --------------------------------------------------------------------
+    # Scratchpad
+    # A special workspace that keeps its window alive and hidden while every
+    # other workspace stays empty. Good for a long-running terminal.
+    # --------------------------------------------------------------------
+    "$mod, TAB, togglespecialworkspace, name:special, hyprland"
 
+    # --------------------------------------------------------------------
+    # Session
+    # SHIFT + M is the graceful logout Hyprland's own config recommends: it
+    # prefers a shutdown helper when one exists and falls back to a plain
+    # compositor exit. Plain $mod + M still exits immediately.
+    # --------------------------------------------------------------------
+    "$mod, M, exit,"
+    "$mod SHIFT, M, exec, command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch exit"
+    "$mod SHIFT, R, exec, hyprctl reload"
+
+    # --------------------------------------------------------------------
+    # Media and brightness
+    # The leading comma means "no modifier"; these arrive as hardware keys.
+    # --------------------------------------------------------------------
     ", XF86AudioRaiseVolume, exec, wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+"
     ", XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
     ", XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
@@ -39,5 +116,16 @@
 
     ", XF86MonBrightnessUp, exec, brightnessctl set +5%"
     ", XF86MonBrightnessDown, exec, brightnessctl set 5%-"
+  ];
+
+  # ----------------------------------------------------------------------
+  # Mouse and trackpad
+  # SUPER + left/right drags a window around or resizes it, which is much
+  # quicker than holding a modifier and pressing an arrow repeatedly.
+  # ----------------------------------------------------------------------
+  wayland.windowManager.hyprland.settings.bindm = [
+    "$mod, button:1, movewindow"
+    "$mod, button:2, resizewindow"
+    "$mod, button:3, movewindow"
   ];
 }
