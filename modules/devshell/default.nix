@@ -1,15 +1,5 @@
-{
-  nixpkgs,
-  system ? "x86_64-linux",
-  ...
-}:
+{ pkgs, ... }:
 
-let
-  pkgs = import nixpkgs {
-    inherit system;
-    config.allowUnfree = true;
-  };
-in
 pkgs.mkShell {
   name = "nix-dots-dev";
 
