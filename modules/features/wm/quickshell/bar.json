@@ -2,6 +2,8 @@
   "background": "clear",
   "layout": {
     "left": [
+      { "id": "bar.menu" },
+      { "id": "bar.spacer", "size": 12 },
       { "id": "bar.workspaces" }
     ],
     "centerBegin": [
@@ -14,6 +16,7 @@
     "right": [
       { "id": "bar.active-window", "maxWidth": 200 },
       { "id": "bar.microphone" },
+      { "id": "bar.bluetooth" },
       { "id": "bar.wifi" },
       { "id": "bar.audio" },
       { "id": "bar.power" }

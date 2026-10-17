@@ -14,6 +14,9 @@ QtObject {
   readonly property Component microphone: Component { Microphone {} }
   readonly property Component activeWindow: Component { ActiveWindow {} }
   readonly property Component media: Component { Media {} }
+  readonly property Component spacer: Component { Spacer {} }
+  readonly property Component menu: Component { Menu {} }
+  readonly property Component bluetooth: Component { Bluetooth {} }
 
   readonly property var registry: ({
     "bar.workspaces": workspaces,
@@ -23,7 +26,10 @@ QtObject {
     "bar.wifi": wifi,
     "bar.microphone": microphone,
     "bar.active-window": activeWindow,
-    "bar.media": media
+    "bar.media": media,
+    "bar.spacer": spacer,
+    "bar.menu": menu,
+    "bar.bluetooth": bluetooth
   })
 
   function has(id) {

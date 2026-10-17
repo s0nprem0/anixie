@@ -42,6 +42,11 @@ QtObject {
       : String.fromCharCode(n)
   }
 
+  // App grid, for the launcher button.
+  readonly property string menu: glyph("f00a")
+
+  readonly property string bluetooth: glyph("f293")
+
   readonly property string wifi: glyph("f1eb")
 
   readonly property string micOn: glyph("f130")
