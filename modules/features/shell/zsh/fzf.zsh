@@ -29,8 +29,8 @@ export FZF_CTRL_T_OPTS="--preview \"$FZF_PREVIEW\""
 # fzf >= 0.48 ships them via --zsh; cached and regenerated whenever the
 # binary is newer (post-upgrade).
 if (( $+commands[fzf] )); then
-  FZF_CACHE="$XDG_CACHE_HOME/zsh/fzf.zsh"
-  mkdir -p "$XDG_CACHE_HOME/zsh"
+  FZF_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/fzf.zsh"
+  mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
   if [[ ! -s "$FZF_CACHE" || "$commands[fzf]" -nt "$FZF_CACHE" ]]; then
     fzf --zsh > "$FZF_CACHE"
   fi

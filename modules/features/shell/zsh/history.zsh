@@ -2,8 +2,8 @@
 # When atuin is installed it owns interactive history (search, recording);
 # these settings remain as the on-disk source for `atuin import auto`
 # and as a fallback on machines without atuin.
-mkdir -p "$XDG_STATE_HOME/zsh"
-HISTFILE="$XDG_STATE_HOME/zsh/history"
+mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
+HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history"
 HISTSIZE=10000
 SAVEHIST=20000
 
@@ -26,8 +26,8 @@ TIMEFMT=$'\nreal\t%E\nuser\t%U\nsys\t%S\ncpu\t%P'
 if (( $+commands[zoxide] )); then
     # Cache the init script to speed up shell startup; regenerate when the
     # binary is newer than the cache (i.e. after an upgrade)
-    ZOXIDE_CACHE="$XDG_CACHE_HOME/zsh/zoxide.zsh"
-    mkdir -p "$XDG_CACHE_HOME/zsh"
+    ZOXIDE_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zoxide.zsh"
+    mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
     if [[ ! -s "$ZOXIDE_CACHE" || "$commands[zoxide]" -nt "$ZOXIDE_CACHE" ]]; then
         zoxide init zsh > "$ZOXIDE_CACHE"
     fi
@@ -37,8 +37,8 @@ fi
 if (( $+commands[atuin] )); then
     # Atuin: fuzzy searchable history, bound to Up and Ctrl-R.
     # Cached like zoxide; regenerated after binary upgrades.
-    ATUIN_CACHE="$XDG_CACHE_HOME/zsh/atuin.zsh"
-    mkdir -p "$XDG_CACHE_HOME/zsh"
+    ATUIN_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/atuin.zsh"
+    mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
     if [[ ! -s "$ATUIN_CACHE" || "$commands[atuin]" -nt "$ATUIN_CACHE" ]]; then
         atuin init zsh > "$ATUIN_CACHE"
     fi

@@ -3,9 +3,9 @@
 
 # Cache `dircolors -b` output once (LS_COLORS is otherwise unset, leaving
 # the list-colors zstyle empty).
-LSCOLORS_CACHE="$XDG_CACHE_HOME/zsh/dircolors.zsh"
+LSCOLORS_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/dircolors.zsh"
 if (( $+commands[dircolors] )); then
-    mkdir -p "$XDG_CACHE_HOME/zsh"
+    mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
     if [[ ! -s "$LSCOLORS_CACHE" ]]; then
         dircolors -b > "$LSCOLORS_CACHE"
     fi
