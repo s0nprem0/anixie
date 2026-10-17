@@ -36,8 +36,8 @@
       };
 
       devShells.x86_64-linux.default = import ./modules/devshell {
-inherit inputs nixpkgs;
-      system = "x86_64-linux";
+        inherit inputs nixpkgs;
+        system = "x86_64-linux";
       };
     };
 }

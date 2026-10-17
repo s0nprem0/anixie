@@ -1,8 +1,6 @@
 {
   imports = [
-    ./desktop
-    ./programs
-    ./theme
+    ../features
   ];
 
   home.username = "son";
