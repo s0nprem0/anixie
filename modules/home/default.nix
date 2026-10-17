@@ -4,7 +4,6 @@
     ./desktop
     ./programs
     ./theme
-    ./desktop-tools.nix
   ];
 
   home.username = "son";
