@@ -47,6 +47,10 @@ QtObject {
 
   readonly property string bluetooth: glyph("f293")
 
+  // Indicators.
+  readonly property string bellSlash: glyph("f1f6")
+  readonly property string coffee: glyph("f0f4")
+
   readonly property string wifi: glyph("f1eb")
 
   readonly property string micOn: glyph("f130")

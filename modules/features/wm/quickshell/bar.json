@@ -12,7 +12,9 @@
     "center": [
       { "id": "bar.clock" }
     ],
-    "centerEnd": [],
+    "centerEnd": [
+      { "id": "bar.indicators" }
+    ],
     "right": [
       { "id": "bar.active-window", "maxWidth": 200 },
       { "id": "bar.microphone" },
