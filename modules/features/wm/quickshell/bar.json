@@ -17,6 +17,7 @@
       { "id": "bar.indicators" }
     ],
     "right": [
+      { "id": "bar.tray" },
       { "id": "bar.active-window", "maxWidth": 200 },
       { "id": "bar.microphone" },
       { "id": "bar.bluetooth" },
