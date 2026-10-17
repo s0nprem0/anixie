@@ -20,6 +20,10 @@ with pkgs;
   pciutils
   usbutils
 
+  # Emoji picker, and the key injection it types the chosen one through.
+  bemoji
+  wtype
+
   difftastic
   github-cli
   gnumake

@@ -9,6 +9,11 @@
     "$mod, SPACE, exec, $menu"
     "$mod SHIFT, V, exec, sh -c 'cliphist list | fuzzel --dmenu | cliphist decode | wl-copy'"
 
+    # Super+period, the emoji picker every other desktop uses. bemoji draws its
+    # list through fuzzel and types the choice with wtype rather than only
+    # putting it on the clipboard, so it lands in the focused window.
+    "$mod, PERIOD, exec, bemoji -t"
+
     # --------------------------------------------------------------------
     # Screen capture
     # Two separate binds: swappy opens its crop/annotate overlay for area
