@@ -47,7 +47,27 @@ ShellRoot {
       : Style.bar.sizeHorizontal
 
     color: "transparent"
-    exclusionMode: ExclusionMode.Ignore
+
+    // The bar's thickness is reserved from the workspace, so Hyprland lays every
+    // window out below it instead of underneath it.
+    //
+    // This has to be asked for as a size rather than through exclusionMode: the
+    // bar used to set ExclusionMode.Ignore, which declares no zone at all, and
+    // maximized windows took the full output height and ran under the bar. Since
+    // the default background is a transparent "clear", the window showed straight
+    // through it, which read as the bar and the window overlapping. Switching to
+    // ExclusionMode.Normal did not fix it either — on this Quickshell it still
+    // left hyprctl reporting "reserved: 0 0 0 0". Stating the zone directly does
+    // register, and reports "reserved: 0 26 0 0".
+    //
+    // Stated as a size rather than left at exclusionMode's default of -1 (the
+    // compositor guesses from the anchored edges), so the reserved strip always
+    // matches the bar's own geometry rather than whatever Hyprland infers.
+    //
+    // Popups (PanelHost's panel and curtain, TooltipHost's window) keep the
+    // default of no exclusive zone on purpose: they float over the desktop and
+    // must not push windows around when they open.
+    exclusiveZone: BarContext.vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal
 
     // The tooltip and panel popups anchor to this item rather than to whichever
     // button was used, because a popup resolves its anchor once, at creation. It
