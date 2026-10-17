@@ -1,7 +1,7 @@
 { config, ... }:
 
 let
-  c = config.my.theme.colors;
+  render = config.my.theme.template.render;
 in
 {
   wayland.windowManager.hyprland.settings = {
@@ -11,9 +11,9 @@ in
       border_size = 2;
       resize_on_border = true;
 
-      "col.active_border" = "rgba(${builtins.substring 1 6 c.primary}ff)";
+      "col.active_border" = render "@PRIMARY_RGBA_FF@";
 
-      "col.inactive_border" = "rgba(${builtins.substring 1 6 c.muted}aa)";
+      "col.inactive_border" = render "@MUTED_RGBA_AA@";
     };
 
     decoration = {

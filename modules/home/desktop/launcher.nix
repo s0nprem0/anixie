@@ -1,7 +1,7 @@
 { config, ... }:
 
 let
-  c = config.my.theme.colors;
+  render = config.my.theme.template.render;
 in
 {
   programs.fuzzel = {
@@ -19,12 +19,12 @@ in
       };
 
       colors = {
-        background = "${builtins.substring 1 6 c.background}ff";
-        text = "${builtins.substring 1 6 c.foreground}ff";
-        match = "${builtins.substring 1 6 c.accent}ff";
-        selection = "${builtins.substring 1 6 c.surface}ff";
-        selection-text = "${builtins.substring 1 6 c.foreground}ff";
-        border = "${builtins.substring 1 6 c.accent}ff";
+        background = render "@BG_BARE_FF@";
+        text = render "@FG_BARE_FF@";
+        match = render "@ACCENT_BARE_FF@";
+        selection = render "@SURFACE_BARE_FF@";
+        selection-text = render "@FG_BARE_FF@";
+        border = render "@ACCENT_BARE_FF@";
       };
 
       border = {

@@ -1,36 +1,9 @@
 { config, ... }:
 
-let
-  c = config.my.theme.colors;
-
-  css =
-    builtins.replaceStrings
-      [
-        "@BG@"
-        "@SURFACE@"
-        "@FG@"
-        "@MUTED@"
-        "@ACCENT@"
-        "@ACCENT_ALT@"
-        "@SUCCESS@"
-        "@DANGER@"
-      ]
-      [
-        c.background
-        c.surface
-        c.foreground
-        c.muted
-        c.accent
-        c.accentAlt
-        c.success
-        c.danger
-      ]
-      (builtins.readFile ./style.css);
-in
 {
   programs.waybar = {
     enable = true;
-    style = css;
+    style = config.my.theme.template.render ./style.css;
 
     settings.mainBar = {
       layer = "top";

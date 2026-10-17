@@ -1,7 +1,7 @@
 { config, ... }:
 
 let
-  c = config.my.theme.colors;
+  render = config.my.theme.template.render;
 in
 {
   programs.kitty = {
@@ -15,11 +15,11 @@ in
     settings = {
       background_opacity = "0.96";
 
-      background = c.background;
-      foreground = c.foreground;
+      background = render "@BG@";
+      foreground = render "@FG@";
 
-      selection_background = c.accent;
-      selection_foreground = c.background;
+      selection_background = render "@ACCENT@";
+      selection_foreground = render "@BG@";
     };
   };
 }
