@@ -1,5 +1,6 @@
 {
   config,
+  lib,
   pkgs,
   ...
 }:
@@ -28,7 +29,27 @@ in
     source = shellConfig;
   };
 
-  wayland.windowManager.hyprland.settings.exec-once = [
-    "quickshell -p ~/.config/quickshell"
-  ];
+  # A service rather than an exec-once line. Three reasons:
+  #   - exec-once re-runs on every Hyprland config reload, which stacked a
+  #     second bar over the first.
+  #   - Hand-starting it from a shell does not reliably carry the session
+  #     environment, and without HYPRLAND_INSTANCE_SIGNATURE the Hyprland IPC
+  #     module never connects, so the workspace list silently stays empty.
+  #   - A crashed bar stays crashed.
+  #
+  # graphical-session.target is started by Home Manager's Hyprland activation,
+  # after it has pushed the session environment into the user manager, so the
+  # bar is running with the variables it needs. %h is the user's home, since
+  # systemd does not expand ~.
+  systemd.user.services.quickshell = {
+    Unit.Description = "Quickshell status bar";
+    Unit.After = [ "graphical-session-pre.target" ];
+    Service = {
+      Type = "simple";
+      ExecStart = "${lib.getExe pkgs.quickshell} -p %h/.config/quickshell";
+      Restart = "on-failure";
+      RestartSec = 2;
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
+  };
 }
