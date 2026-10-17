@@ -9,5 +9,6 @@
     cliphist
     brightnessctl
     playerctl
+    awww
   ];
 }
