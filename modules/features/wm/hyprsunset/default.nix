@@ -15,10 +15,14 @@
   # on", which is not what a night filter should do: it tinted the display all
   # day. These two turn it off by day and warm it after dark.
   xdg.configFile."hypr/hyprsunset.conf".text = ''
-    # Daytime: identity, so hyprsunset applies no tint at all.
+    # Daytime: 6500K, the neutral white. Stated as a temperature rather than the
+    # identity matrix so the bar's night light indicator can tell which way it is
+    # in: hyprsunset reports its temperature, and identity leaves that reading at
+    # whatever it was instead of clearing it, so a day spent after a warm night
+    # would still report itself as tinted.
     profile {
       time = 06:00
-      identity = true
+      temperature = 6500
     }
 
     # Evening onwards, and wrapping through to early morning.

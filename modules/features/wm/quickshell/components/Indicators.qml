@@ -32,11 +32,18 @@ BarWidget {
 
   property bool dnd: false
   property bool idleStopped: false
+  property int nightTemperature: 0
+
+  // hyprsunset reports its current temperature, and identity — the value the
+  // daytime profile uses — leaves that reading untouched rather than clearing
+  // it, so "warmer than neutral" is what tells us a tint is actually applied.
+  readonly property bool nightlight: root.nightTemperature > 0 && root.nightTemperature < 6000
 
   readonly property var shown: {
     const list = []
     if (root.wanted("Dnd") && (root.alwaysShow || root.dnd)) list.push("Dnd")
     if (root.wanted("Idle") && (root.alwaysShow || root.idleStopped)) list.push("Idle")
+    if (root.wanted("NightLight") && (root.alwaysShow || root.nightlight)) list.push("NightLight")
     return list
   }
 
@@ -57,7 +64,9 @@ BarWidget {
       delegate: Loader {
         required property string modelData
 
-        sourceComponent: modelData === "Dnd" ? dndIndicator : idleIndicator
+        sourceComponent: modelData === "Dnd" ? dndIndicator
+          : modelData === "NightLight" ? nightIndicator
+          : idleIndicator
       }
     }
   }
@@ -85,6 +94,19 @@ BarWidget {
       active: root.idleStopped
       dimmed: !root.idleStopped
       onPressed: function () { idleToggle.running = true }
+    }
+  }
+
+  Component {
+    id: nightIndicator
+
+    WidgetButton {
+      text: Util.moon
+      fontSize: Style.bar.iconFont
+      tooltipText: root.nightlight ? "Night light on · click to turn off" : "Night light off"
+      active: root.nightlight
+      dimmed: !root.nightlight
+      onPressed: function () { nightToggle.running = true }
     }
   }
 
@@ -124,6 +146,30 @@ BarWidget {
     onExited: idleQuery.running = true
   }
 
+  // ---- night light, via hyprsunset ----
+  Process {
+    id: nightQuery
+    command: ["hyprctl", "hyprsunset", "temperature"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const n = parseInt(this.text.trim(), 10)
+        root.nightTemperature = isFinite(n) ? n : 0
+      }
+    }
+  }
+
+  // 4000 is a warm tint; 6500 is the neutral it returns to. Read first so the
+  // direction is chosen from the same number the indicator is showing.
+  Process {
+    id: nightToggle
+    command: ["sh", "-c",
+      "t=$(hyprctl hyprsunset temperature 2>/dev/null)"
+      + " && if [ -n \"$t\" ] && [ \"$t\" -lt 6000 ]; then"
+      + " hyprctl hyprsunset temperature 6500 >/dev/null;"
+      + " else hyprctl hyprsunset temperature 4000 >/dev/null; fi"]
+    onExited: nightQuery.running = true
+  }
+
   Timer {
     interval: root.pollMs
     running: true
@@ -132,6 +178,7 @@ BarWidget {
     onTriggered: {
       dndQuery.running = true
       idleQuery.running = true
+      nightQuery.running = true
     }
   }
 }

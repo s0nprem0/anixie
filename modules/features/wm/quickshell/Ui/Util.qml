@@ -50,6 +50,7 @@ QtObject {
   // Indicators.
   readonly property string bellSlash: glyph("f1f6")
   readonly property string coffee: glyph("f0f4")
+  readonly property string moon: glyph("f186")
 
   readonly property string wifi: glyph("f1eb")
 
