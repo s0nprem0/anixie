@@ -12,5 +12,6 @@
     ./bluetooth.nix
     ./printing.nix
     ./power.nix
+    ./virtualization.nix
   ];
 }

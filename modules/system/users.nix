@@ -14,6 +14,9 @@
     extraGroups = [
       "networkmanager"
       "wheel"
+      "podman"
+      "libvirtd"
+      "kvm"
     ];
   };
 }
