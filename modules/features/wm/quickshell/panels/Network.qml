@@ -17,6 +17,11 @@ Item {
   property string activeSsid: ""
   property bool scanning: false
 
+  // nmcli exiting non-zero is not the same as there being no networks, and the
+  // panel says which it is rather than showing an empty list either way.
+  property bool failed: false
+  property string failure: ""
+
   // A scan reports networks the device has not seen yet; connecting to a hidden
   // network is out of scope, so only listed ones are offered.
   function parse(raw) {
@@ -71,6 +76,11 @@ Process {
         root.activeSsid = found.length && found[0].inUse ? found[0].ssid : ""
         root.scanning = false
 
+        if (found.length > 0) {
+          root.failed = false
+          root.failure = ""
+        }
+
         // The process that starts as part of building the shell can come back
         // with its output already dropped, which reads as "no networks". Ask
         // again rather than showing an empty list.
@@ -78,6 +88,17 @@ Process {
           root.emptyRetries += 1
           emptyRetry.restart()
         }
+      }
+    }
+
+    stderr: StdioCollector {
+      onStreamFinished: root.failure = this.text.trim()
+    }
+
+    onExited: function (exitCode) {
+      if (exitCode !== 0) {
+        root.failed = true
+        if (root.failure === "") root.failure = "nmcli exited with " + exitCode
       }
     }
   }
@@ -169,6 +190,7 @@ Process {
     deviceProc.running = false
     deviceProc.running = true
     root.emptyRetries = 0
+    root.failed = false
     root.refresh()
   }
 
@@ -193,8 +215,25 @@ Process {
     PanelRow {
       id: statusRow
       width: card.contentWidth
-      label: root.activeSsid !== "" ? root.activeSsid : "Not connected"
-      value: root.networks.length + " found"
+      // The status line doubles as the error surface: when nmcli is broken it
+      // is the only place the reason can be read, since the list below is empty
+      // for exactly the same reason either way.
+      label: root.failed
+        ? "Unavailable"
+        : (root.activeSsid !== "" ? root.activeSsid : "Not connected")
+      value: root.failed ? "" : root.networks.length + " found"
+    }
+
+    Text {
+      width: card.contentWidth
+      height: implicitHeight
+      visible: root.failed && root.failure !== ""
+      text: root.failure
+      color: Theme.danger
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      elide: Text.ElideRight
+      topPadding: Style.space(2)
     }
 
     Rectangle {

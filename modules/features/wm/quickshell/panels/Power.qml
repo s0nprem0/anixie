@@ -43,12 +43,25 @@ Item {
   readonly property var profiles: ["power-saver", "balanced", "performance"]
   property string profile: ""
 
+  // power-profiles-daemon may simply not be running, in which case no profile
+  // is selected and nothing on screen would explain why.
+  property bool profileFailed: false
+
   Process {
     id: profileGet
     running: true
     command: ["powerprofilesctl", "get"]
     stdout: StdioCollector {
-      onStreamFinished: root.profile = this.text.trim()
+      onStreamFinished: {
+        root.profile = this.text.trim()
+        root.profileFailed = false
+      }
+    }
+    stderr: StdioCollector {
+      onStreamFinished: root.profileFailed = true
+    }
+    onExited: function (exitCode) {
+      if (exitCode !== 0) root.profileFailed = true
     }
   }
 
@@ -198,6 +211,16 @@ Item {
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       font.weight: Font.DemiBold
+    }
+
+    Text {
+      width: card.contentWidth
+      height: implicitHeight
+      visible: root.profileFailed
+      text: "power-profiles-daemon unavailable"
+      color: Theme.danger
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
     }
 
     Row {
