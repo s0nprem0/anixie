@@ -64,7 +64,6 @@ BarWidget {
     text: Util.wifi
     labelText: root.ssid
     tooltipText: root.resolved ? root.ssid : "Wi-Fi off"
-    slotSize: Math.max(Style.bar.iconSlot, root.ssid.length * 7 + 28)
     onPressed: function (button) {
       if (button === Qt.LeftButton) root.openSettings()
     }

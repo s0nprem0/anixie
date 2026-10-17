@@ -6,10 +6,16 @@ import Quickshell
 import Quickshell.Wayland
 
 // One tooltip shared by every bar button. Each button hands over its text and
-// itself as the anchor; the window sits above that button and closes when the
+// itself as the subject; the window sits above that button and closes when the
 // pointer leaves. A single window means the bar can never stack two tooltips.
 QtObject {
   id: root
+
+  // The bar's own window, set once at startup. The popup anchors to this rather
+  // than to whichever button is hovered: PopupWindow resolves its anchor when
+  // it is created, and at that point no button has been hovered, so anchoring
+  // straight to the subject would leave it unanchored for good.
+  property Item host: null
 
   property string text: ""
   property var source: null
@@ -43,11 +49,18 @@ QtObject {
     onTriggered: root.shown = true
   }
 
+  readonly property rect subjectRect: {
+    if (!root.source || !root.host) return Qt.rect(0, 0, 0, 0)
+
+    const topLeft = root.source.mapToItem(root.host, 0, 0)
+    return Qt.rect(topLeft.x, topLeft.y, root.source.width, root.source.height)
+  }
+
   property PopupWindow window: PopupWindow {
-    visible: root.shown && root.source !== null
+    visible: root.shown && root.host !== null
     color: "transparent"
-    anchor.item: root.source
-    anchor.rect: Qt.rect(0, 0, root.source ? root.source.width : 0, root.source ? root.source.height : 0)
+    anchor.item: root.host
+    anchor.rect: root.subjectRect
     implicitWidth: Math.max(32, body.implicitWidth + 16)
     implicitHeight: body.implicitHeight + 10
 

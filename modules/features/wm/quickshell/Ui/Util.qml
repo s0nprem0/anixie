@@ -44,6 +44,9 @@ QtObject {
 
   readonly property string wifi: glyph("f1eb")
 
+  readonly property string micOn: glyph("f130")
+  readonly property string micOff: glyph("f131")
+
   readonly property string volumeHigh: glyph("f028")
   readonly property string volumeLow: glyph("f027")
   readonly property string volumeMute: glyph("f026")

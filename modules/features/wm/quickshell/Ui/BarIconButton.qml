@@ -27,8 +27,17 @@ WidgetButton {
   labelVisible: false
   hasVisualContent: text !== "" || labelText !== ""
   fontSize: Style.bar.iconFont
-  fixedWidth: slotSize
+
+  // An icon on its own takes the fixed slot, so a row of them stays evenly
+  // spaced. One carrying a label has to widen to whatever that label measures,
+  // which is why the width is derived rather than guessed from a character
+  // count.
+  fixedWidth: -1
   fixedHeight: -1
+
+  implicitWidth: labelText === ""
+    ? slotSize
+    : content.width + scaledHorizontalMargin * 2
 
   Item {
     id: content

@@ -20,6 +20,17 @@ ShellRoot {
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
 
+    // The tooltip popup anchors to this item rather than to whichever button is
+    // hovered, because a popup resolves its anchor once, at creation. It cannot
+    // anchor to the PanelWindow itself either: that is a QObject here, not an
+    // item, so it has no coordinate space to place against.
+    Item {
+      id: barRoot
+      anchors.fill: parent
+    }
+
+    Component.onCompleted: TooltipHost.host = barRoot
+
     Background {
       anchors.fill: parent
       implicitHeight: Style.bar.sizeHorizontal

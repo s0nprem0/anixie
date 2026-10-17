@@ -18,6 +18,8 @@ QtObject {
       center: [{ id: "bar.clock" }],
       centerEnd: [],
       right: [
+        { id: "bar.active-window" },
+        { id: "bar.microphone" },
         { id: "bar.wifi" },
         { id: "bar.audio" },
         { id: "bar.power" }
