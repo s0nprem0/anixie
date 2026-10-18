@@ -293,6 +293,17 @@ ShellRoot {
     function close(): void { PanelHost.close() }
   }
 
+  // What the shell is actually drawing with. The theme follows a state file on
+  // its own, so this is how you check that it did rather than taking a screenshot
+  // and squinting at it.
+  IpcHandler {
+    target: "theme"
+
+    function set(name: string): void { Theme.set(name) }
+    function current(): string { return Theme.name }
+    function list(): string { return Theme.names().join(" ") }
+  }
+
   // The screenshot preview. Bottom right, over the desktop, gone on its own after
   // ten seconds unless it is pinned.
   //

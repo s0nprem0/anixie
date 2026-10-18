@@ -1,0 +1,90 @@
+{
+  "tokyo-night": {
+    "background": "#0f111a",
+    "surface": "#1a1c2b",
+    "foreground": "#c8d3f5",
+    "muted": "#828bb8",
+    "primary": "#82aaff",
+    "accent": "#86e1fc",
+    "accentAlt": "#c099ff",
+    "success": "#c3e88d",
+    "danger": "#ff757f"
+  },
+  "catppuccin-mocha": {
+    "background": "#1e1e2e",
+    "surface": "#313244",
+    "foreground": "#cdd6f4",
+    "muted": "#7f849c",
+    "primary": "#89b4fa",
+    "accent": "#89dceb",
+    "accentAlt": "#cba6f7",
+    "success": "#a6e3a1",
+    "danger": "#f38ba8"
+  },
+  "gruvbox-dark": {
+    "background": "#282828",
+    "surface": "#3c3836",
+    "foreground": "#ebdbb2",
+    "muted": "#928374",
+    "primary": "#83a598",
+    "accent": "#8ec07c",
+    "accentAlt": "#d3869b",
+    "success": "#b8bb26",
+    "danger": "#fb4934"
+  },
+  "nord": {
+    "background": "#2e3440",
+    "surface": "#3b4252",
+    "foreground": "#d8dee9",
+    "muted": "#7b88a1",
+    "primary": "#81a1c1",
+    "accent": "#88c0d0",
+    "accentAlt": "#b48ead",
+    "success": "#a3be8c",
+    "danger": "#bf616a"
+  },
+  "dracula": {
+    "background": "#282a36",
+    "surface": "#343746",
+    "foreground": "#f8f8f2",
+    "muted": "#6272a4",
+    "primary": "#bd93f9",
+    "accent": "#8be9fd",
+    "accentAlt": "#ff79c6",
+    "success": "#50fa7b",
+    "danger": "#ff5555"
+  },
+  "everforest-dark": {
+    "background": "#2b3339",
+    "surface": "#323c41",
+    "foreground": "#d3c6aa",
+    "muted": "#7a8478",
+    "primary": "#7fbbb3",
+    "accent": "#83c092",
+    "accentAlt": "#d699b6",
+    "success": "#a7c080",
+    "danger": "#e67e80"
+  },
+  "rose-pine": {
+    "background": "#191724",
+    "surface": "#1f1d2e",
+    "foreground": "#e0def4",
+    "muted": "#6e6a86",
+    "primary": "#9ccfd8",
+    "accent": "#ebbcba",
+    "accentAlt": "#c4a7e7",
+    "success": "#31748f",
+    "danger": "#eb6f92"
+  },
+  "kanagawa": {
+    "background": "#1f1f28",
+    "surface": "#2a2a37",
+    "foreground": "#dcd7ba",
+    "muted": "#727169",
+    "primary": "#7e9cd8",
+    "accent": "#7fb4ca",
+    "accentAlt": "#957fb8",
+    "success": "#98bb6c",
+    "danger": "#e82424"
+  }
+}

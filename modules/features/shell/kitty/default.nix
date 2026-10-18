@@ -7,6 +7,12 @@ in
   programs.kitty = {
     enable = true;
 
+    # The colours above are the built-in default; this pulls in the file the
+    # `theme` command writes, and lands after them — kitty takes the last value it
+    # reads, so a theme set at runtime wins without a rebuild. SIGUSR1 makes a
+    # running kitty re-read it.
+    extraConfig = "include ${config.my.theme.stateDir}/kitty.conf";
+
     font = {
       name = "GohuFont 11 Nerd Font Mono";
       size = 11;

@@ -8,7 +8,23 @@
 let
   render = config.my.theme.template.render;
 
-  theme = pkgs.writeText "Theme.qml" (render ./Theme.qml);
+  # Where the `theme` command records the live choice. The same path the command
+  # itself uses, written out here so the shell can watch it.
+  themeState = "${config.xdg.stateHome}/anixie/theme/current";
+
+  # The whole palette list goes into the shell, not just the selected one, so it
+  # can switch without a rebuild. JSON is a valid QML object literal, so the file
+  # the `theme` command reads in the shell is the one that feeds this build.
+  theme = pkgs.writeText "Theme.qml" (
+    builtins.replaceStrings
+      [ "@PALETTES_JSON@" "@DEFAULT_THEME@" "@THEME_STATE@" ]
+      [
+        (builtins.toJSON config.my.theme.palettes)
+        config.my.theme.theme
+        themeState
+      ]
+      (render ./Theme.qml)
+  );
 
   # Quickshell resolves `import "components"` relative to the directory holding
   # shell.qml. Home Manager deploys every xdg.configFile entry as a separate

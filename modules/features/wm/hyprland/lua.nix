@@ -34,7 +34,11 @@ in
   # over one key, which is the usual reason a keybind "sometimes" does the wrong
   # thing after a reload.
   # ----------------------------------------------------------------------
-  wayland.windowManager.hyprland.extraConfig = ''
+  # Through the renderer, so a placeholder written into the Lua itself — the
+  # palette file's path, which the border colours read at runtime — is substituted
+  # along with the ones passed to `render` by hand. `@DEFAULT_AUDIO_SINK@` in the
+  # volume binds is not a theme token and is left alone.
+  wayland.windowManager.hyprland.extraConfig = render ''
     local mod = "SUPER"
     local terminal = "kitty"
     local menu = "menu"
@@ -99,7 +103,46 @@ in
 
     -- ------------------------------------------------------------------
     -- Settings
+    --
+    -- The border colours come from the live theme rather than from the palette
+    -- this file was built with, so `theme set` recolours the borders on the
+    -- `hyprctl reload` it already triggers. Read the same way the saved monitor
+    -- scale is: a small state file the config reads at load, because Hyprland has
+    -- no runtime call for either and a build-time value cannot change without a
+    -- rebuild.
+    --
+    -- The built-in colours below are the fallback, used when the file is not
+    -- there or does not name something usable.
     -- ------------------------------------------------------------------
+    local function theme_colour(token, fallback)
+      local state_home = os.getenv("XDG_STATE_HOME")
+        or ((os.getenv("HOME") or "") .. "/.local/state")
+      local file = io.open(state_home .. "/anixie/theme/current", "r")
+      if not file then return fallback end
+
+      local name = file:read("l")
+      file:close()
+      if not name then return fallback end
+      name = name:gsub("%s+", "")
+      -- Escaped before it goes into a pattern: a palette name is a plain word, but
+      -- one of them will eventually contain a '-' or a '.', and in a Lua pattern
+      -- those are quantifiers rather than characters.
+      name = name:gsub("(%W)", "%%%1")
+
+      local palettes_file = io.open("@PALETTES@", "r")
+      if not palettes_file then return fallback end
+      local raw = palettes_file:read("a")
+      palettes_file:close()
+
+      -- The palette table is JSON, which is not Lua: quoted keys and no trailing
+      -- commas, so it cannot simply be loaded. Pull the one field out instead.
+      local hex = raw:match('"' .. name .. '"%s*:%s*{[^}]-"' .. token .. '"%s*:%s*"(#%x%x%x%x%x%x)"')
+      if not hex then return fallback end
+
+      local r, g, b = hex:match("#(%x%x)(%x%x)(%x%x)")
+      return "rgba(" .. r .. g .. b .. "ff)"
+    end
+
     hl.config({
       general = {
         gaps_in = 5,
@@ -107,8 +150,8 @@ in
         border_size = 2,
         resize_on_border = true,
 
-        ["col.active_border"] = "${render "@PRIMARY_RGBA_FF@"}",
-        ["col.inactive_border"] = "${render "@MUTED_RGBA_AA@"}",
+        ["col.active_border"] = theme_colour("primary", "${render "@PRIMARY_RGBA_FF@"}"),
+        ["col.inactive_border"] = theme_colour("muted", "${render "@MUTED_RGBA_AA@"}"),
       },
 
       decoration = {
@@ -540,6 +583,18 @@ in
     -- The bar on and off. The window stays mapped and only its contents hide, so
     -- the panels above still open against it while it is out of the way.
     bind(mod .. " + SHIFT + SPACE", "Toggle bar", "quickshell ipc call bar toggle")
+
+    -- ------------------------------------------------------------------
+    -- Style
+    --
+    -- The theme picker. The shell, the window borders, the terminal and the
+    -- launcher all follow it; the shell and the borders follow the state file it
+    -- writes, kitty is signalled, and fuzzel reads it on its next launch.
+    --
+    -- The reference's key, and the reason it is this one: it is the only theme
+    -- gesture that needs a picker, so it wants the space bar with everything held.
+    -- ------------------------------------------------------------------
+    bind(mod .. " + CTRL + SHIFT + SPACE", "Theme picker", "theme")
 
     -- ------------------------------------------------------------------
     -- Focus

@@ -1,8 +1,5 @@
 { config, ... }:
 
-let
-  render = config.my.theme.template.render;
-in
 {
   programs.fuzzel = {
     enable = true;
@@ -16,15 +13,13 @@ in
         horizontal-pad = 20;
         vertical-pad = 12;
         inner-pad = 8;
-      };
 
-      colors = {
-        background = render "@BG_BARE_FF@";
-        text = render "@FG_BARE_FF@";
-        match = render "@ACCENT_BARE_FF@";
-        selection = render "@SURFACE_BARE_FF@";
-        selection-text = render "@FG_BARE_FF@";
-        border = render "@ACCENT_BARE_FF@";
+        # The colours come from the file the `theme` command writes rather than
+        # from here. They cannot be overridden from here: fuzzel reads an include
+        # where it appears, and a `[colors]` section of its own would come later
+        # and win. Home Manager's fuzzel module generates from an attrset and has
+        # no way to append one, so the colours are simply left to the include.
+        include = "${config.my.theme.stateDir}/fuzzel.ini";
       };
 
       border = {
