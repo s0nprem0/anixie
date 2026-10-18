@@ -9,6 +9,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Io
 
 import "."
 import "Ui"
@@ -207,6 +208,53 @@ ShellRoot {
       icon: OsdHost.icon
       percent: OsdHost.percent
     }
+  }
+
+  // The dock. Left edge, reserving a strip like the bar does, so windows are laid
+  // out beside it rather than running underneath — a dock that windows slide
+  // under would be worse than no dock at all.
+  //
+  // `Ignore` is not used here, unlike the popups. The bar had to state its zone
+  // as a size because exclusionMode left hyprctl reporting no reservation at
+  // all, and the same is true of this window; an invisible-but-present dock must
+  // not cost screen space when it is closed, so the zone follows `shown`.
+  PanelWindow {
+    id: dockWindow
+
+    anchors.top: true
+    anchors.bottom: true
+    anchors.left: true
+
+    exclusiveZone: DockHost.shown ? dockWindow.dockWidth : 0
+    visible: DockHost.shown
+
+    color: Theme.surface
+
+    WlrLayershell.layer: WlrLayer.Top
+    WlrLayershell.namespace: "quickshell-dock"
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+
+    // Stated here rather than measured from the content. Measuring it meant
+    // asking the content column for a width that the column then took from the
+    // window, and the two agreed on nothing at all: the dock came up one pixel
+    // wide and Hyprland reserved one pixel.
+    readonly property real dockWidth: Style.space(360)
+    implicitWidth: dockWindow.dockWidth
+
+    Dock {
+      anchors.fill: parent
+    }
+  }
+
+  // The dock is the one thing Hyprland drives rather than the shell, so it needs
+  // a way in from the compositor. IPC rather than a polled flag file: the toggle
+  // should take effect on the keypress, not on the next tick.
+  IpcHandler {
+    target: "dock"
+
+    function toggle(): void { DockHost.toggle() }
+    function show(): void { DockHost.show() }
+    function hide(): void { DockHost.hide() }
   }
 
   // Notification popups. Top right, over everything, and taking no keyboard:

@@ -18,6 +18,11 @@
     # putting it on the clipboard, so it lands in the focused window.
     "$mod, PERIOD, exec, bemoji -t"
 
+    # The dock. Hyprland is what drives it, so the bind asks the shell over its
+    # IPC rather than writing a flag the shell would have to notice on a poll —
+    # the dock should appear on the keypress, not up to a second later.
+    "$mod, D, exec, quickshell ipc call dock toggle"
+
     # --------------------------------------------------------------------
     # Screen capture
     # Two separate binds: swappy opens its crop/annotate overlay for area

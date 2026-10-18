@@ -11,6 +11,7 @@ NotificationCard 1.0 NotificationCard.qml
 PolkitPrompt 1.0 PolkitPrompt.qml
 singleton TooltipHost 1.0 TooltipHost.qml
 singleton PanelHost 1.0 PanelHost.qml
+singleton DockHost 1.0 DockHost.qml
 BarWidget 1.0 BarWidget.qml
 WidgetButton 1.0 WidgetButton.qml
 BarIconButton 1.0 BarIconButton.qml
