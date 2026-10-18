@@ -13,7 +13,7 @@ WidgetButton {
   property real iconSize: Math.min(Style.bar.iconSize, opticalSize)
   property real opticalCenterErrorX: content.x + opticalCanvas.x
     + (glyph.paintedCenterX - root.width / 2)
-    - (label.visible ? (label.implicitWidth + Style.space(4)) / 2 : 0)
+    - (label.visible ? (label.width + Style.space(4)) / 2 : 0)
   property real opticalCenterErrorY: content.y + glyph.paintedCenterY - root.height / 2
   property real glyphPaintedWidth: glyph.paintedWidth
   property real glyphPaintedHeight: glyph.paintedHeight
@@ -82,7 +82,12 @@ WidgetButton {
 
     Item {
       id: opticalCanvas
-      x: label.visible ? label.implicitWidth + Style.space(4) : 0
+      // `label.width`, not `label.implicitWidth`. They are the same until a label
+      // is capped and elided, and then they are very different: the cap makes the
+      // *width* 240 while the text still wants 700, so positioning the glyph off
+      // the implicit width drew it 700px to the right of the label it belongs to
+      // — out past the clock, with the widget's own box still only 260 wide.
+      x: label.visible ? label.width + Style.space(4) : 0
       width: root.canvasSize
       height: root.canvasSize
 
