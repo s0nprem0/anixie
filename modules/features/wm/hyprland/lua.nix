@@ -283,8 +283,13 @@ in
     -- should appear on the keypress, not up to a second later.
     bind(mod .. " + SHIFT + D", "Dock", "quickshell ipc call dock toggle")
 
+    -- The default browser, whichever it is, opened on its own home page. Not
+    -- `xdg-open` on its own: with no file or URL it prints its usage and exits,
+    -- so the key did nothing. xdg-settings names the browser's desktop entry and
+    -- the menu launches it by id. basename strips the suffix rather than a
+    -- parameter expansion, whose dollar-brace Nix would take for its own.
     bind(mod .. " + SHIFT + RETURN", "Browser",
-      or_else("xdg-open", "$EDITOR https://example.com"))
+      "menu \"$(basename \"$(xdg-settings get default-web-browser)\" .desktop)\"")
 
     -- The editor command is escaped so Nix leaves it alone. Inside this string an
     -- unescaped dollar-brace is Nix interpolation, and Nix reads what sits between
