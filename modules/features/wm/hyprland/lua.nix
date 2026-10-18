@@ -166,26 +166,57 @@ in
       no_anim = true,
     })
 
+    -- The picker is closed, so the keys have nothing left to act on.
+    --
+    -- Checked defensively: `namespace` is read off the layer object rather than
+    -- assumed present, because a nil there raises inside the callback and the
+    -- event handler dies silently — which leaves the submap armed forever.
+    --
+    -- This is a second line of defence, not the primary one. See capture().
     hl.on("layer.closed", function(layer)
-      if layer.namespace:match("hyprpicker") then
-        hl.dispatch(hl.dsp.submap("default"))
+      local ns = layer and layer.namespace
+      if ns and ns:find("hyprpicker", 1, true) then
+        hl.dispatch(hl.dsp.submap("reset"))
       end
     end)
 
-    -- Opens the picker and arms its keys. Returns a function so each capture
-    -- bind below can name its own mode.
+    -- Opens the picker and arms its keys.
+    --
+    -- The submap is reset in the same command that runs the picker, so it comes
+    -- down whenever that command ends — however it ends. It used to rely on
+    -- `layer.closed` alone, which meant that any failure between the two left
+    -- the submap stuck, and a stuck submap disables every bind outside it:
+    -- the terminal on Super+Return and everything else simply stopped working,
+    -- with no obvious cause. Resetting here cannot miss, because it does not
+    -- care why the command returned or whether a layer ever opened at all.
+    --
+    -- "reset" rather than "default": Hyprland rejects the latter with
+    -- "submap doesn't exist (wasn't registered!)", since only the name you
+    -- gave define_submap is registered.
     local function capture(cmd)
       return function()
         hl.dispatch(hl.dsp.submap("picker"))
-        hl.exec_cmd(cmd)
+        hl.exec_cmd(cmd .. " ; hyprctl dispatch 'hl.dsp.submap(\"reset\")'")
       end
     end
 
-    hl.define_submap("picker", "reset", function()
+    -- Two arguments, name then body. A third argument is not "a reset mode": the
+    -- three-argument form is define_submap(name, nextSubmap, body), which names
+    -- a submap to switch to once this one dispatches. Passing "reset" there
+    -- asked for a submap that was never defined, and this is the most likely
+    -- reason the picker submap could be left armed.
+    hl.define_submap("picker", function()
       -- Key handling cannot live in shot-pick: a key press arrives as a bind,
       -- never as input to that process. Each one re-runs it with a flag, and
       -- the marker file it touches is what tells the waiting slurp what was
       -- really asked for.
+
+      -- Escape is the way out, and so is any key the picker has no use for. A stuck
+      -- submap disables every bind outside it, so the whole desktop stops
+      -- responding to Super+Return and everything else; catchall means a stray
+      -- keypress is enough to get out rather than reaching for a TTY.
+      hl.bind("escape", hl.dsp.submap("reset"))
+      hl.bind("catchall", hl.dsp.submap("reset"))
 
       -- Return takes whatever is under the pointer, so a click-free capture of
       -- a single window is two keys rather than a drag.
