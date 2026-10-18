@@ -73,9 +73,11 @@ in
     # Hyprland re-imports its environment (see startup.nix) and the next attempt
     # succeeds.
     systemd.user.services.quickshell = {
-      Unit.Description = "Quickshell status bar";
-      Unit.After = [ "graphical-session-pre.target" ];
-      Unit.StartLimitIntervalSec = 0;
+      Unit = {
+        Description = "Quickshell status bar";
+        After = [ "graphical-session-pre.target" ];
+        StartLimitIntervalSec = 0;
+      };
       Service = {
         Type = "simple";
         ExecStart = "${lib.getExe pkgs.quickshell} -p %h/.config/quickshell";

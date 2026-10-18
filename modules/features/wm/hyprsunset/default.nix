@@ -38,12 +38,16 @@
   # first attempt at session start can abort while Hyprland's IPC socket is
   # still coming up.
   systemd.user.services.hyprsunset = {
-    Unit.Description = "hyprsunset blue light filter";
-    Unit.After = [ "graphical-session-pre.target" ];
-    Service.ExecStart = "${pkgs.hyprsunset}/bin/hyprsunset";
-    Service.Type = "simple";
-    Service.Restart = "on-failure";
-    Service.RestartSec = 5;
+    Unit = {
+      Description = "hyprsunset blue light filter";
+      After = [ "graphical-session-pre.target" ];
+    };
+    Service = {
+      ExecStart = "${pkgs.hyprsunset}/bin/hyprsunset";
+      Type = "simple";
+      Restart = "on-failure";
+      RestartSec = 5;
+    };
     Install.WantedBy = [ "graphical-session.target" ];
   };
 }

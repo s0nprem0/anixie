@@ -59,16 +59,24 @@ let
   ];
 in
 {
-  home.file = sourcedFiles;
+  home = {
+    file = sourcedFiles;
 
-  home.packages = with pkgs; [
-    atuin
-    bat
-    eza
-    fd
-    fzf
-    zoxide
-  ];
+    packages = with pkgs; [
+      atuin
+      bat
+      eza
+      fd
+      fzf
+      zoxide
+    ];
+
+    sessionVariables = {
+      MANPAGER = "bat -l man -p";
+      PAGER = "bat --paging=always";
+      GNUPGHOME = "\${XDG_DATA_HOME:-$HOME/.local/share}/gnupg";
+    };
+  };
 
   programs.zsh = {
     enable = true;
@@ -80,11 +88,5 @@ in
       inlineChunks
       ++ map (file: lib.mkOrder file.order ''source "$HOME/${confDir}/${file.name}.zsh"'') files
     );
-  };
-
-  home.sessionVariables = {
-    MANPAGER = "bat -l man -p";
-    PAGER = "bat --paging=always";
-    GNUPGHOME = "\${XDG_DATA_HOME:-$HOME/.local/share}/gnupg";
   };
 }
