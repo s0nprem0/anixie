@@ -3,6 +3,7 @@
 {
   home.packages = with pkgs; [
     nerd-fonts.jetbrains-mono
+    nerd-fonts.gohufont
   ];
 
   fonts.fontconfig.enable = true;

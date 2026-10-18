@@ -8,7 +8,7 @@ in
     enable = true;
 
     font = {
-      name = "JetBrains Mono";
+      name = "GohuFont 11 Nerd Font Mono";
       size = 11;
     };
 
