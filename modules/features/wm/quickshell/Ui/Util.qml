@@ -60,6 +60,9 @@ QtObject {
   readonly property string pin: glyph("f08d")
   readonly property string close: glyph("f00d")
 
+  // A secured network in the Wi-Fi list.
+  readonly property string lock: glyph("f023")
+
   // Calendar stepping.
   readonly property string chevronLeft: glyph("f053")
   readonly property string chevronRight: glyph("f054")

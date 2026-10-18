@@ -5,10 +5,16 @@ import "../Ui"
 import Quickshell
 import Quickshell.Io
 
-// Wi-Fi panel: what is nearby, which one is in use, and a way to switch.
+// Wi-Fi panel: the radio, what is in use, what is nearby, and a way to switch.
 //
 // nmcli is the only network manager here, so this is shell-driven rather than
 // backed by a native module the way audio and power are.
+//
+// The shape follows the reference's panels: a hero row for the thing the panel is
+// *about* (the radio), then sections under a rule and a heading. The sections are
+// what make a panel of this size readable — a flat run of rows leaves you
+// counting rather than scanning — and the hero is the one control worth reaching
+// for without aiming.
 Item {
   id: root
 
@@ -21,6 +27,24 @@ Item {
   // panel says which it is rather than showing an empty list either way.
   property bool failed: false
   property string failure: ""
+
+  // The radio. Read from nmcli rather than assumed, and written optimistically:
+  // the switch answers the click at once and the read-back confirms it, because
+  // `nmcli radio` takes a moment and a switch that lags its own click reads as
+  // broken.
+  property bool radioEnabled: true
+  property bool radioBusy: false
+
+  // The row whose action is running, and which action it is. The row renders
+  // "Connecting…" / "Disconnecting…" so a click that takes a second is visibly
+  // doing something rather than looking ignored.
+  property string actionSsid: ""
+  property string actionKind: ""
+
+  // One action at a time. Two connects racing each other is not a faster connect,
+  // it is two nmcli processes fighting over the device and neither result
+  // trustworthy.
+  readonly property bool busy: root.actionKind !== ""
 
   // A scan reports networks the device has not seen yet; connecting to a hidden
   // network is out of scope, so only listed ones are offered.
@@ -63,9 +87,16 @@ Item {
     return String(value).replace(/\\(.)/g, "$1")
   }
 
+  // nmcli reports an open network as "--"; anything else is some form of key or
+  // 802.1X, and the row only has to say "this one is not open".
+  function secured(network) {
+    const s = String(network.security || "")
+    return s !== "" && s !== "--"
+  }
+
   // ---- commands ----
 
-Process {
+  Process {
     id: listProc
     running: true
     command: ["nmcli", "-t", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "device", "wifi", "list"]
@@ -122,10 +153,14 @@ Process {
     stdout: StdioCollector {
       // Whether it worked shows up in the list a moment later; re-read now so
       // the panel settles quickly either way.
-      onStreamFinished: {
-        listProc.running = false
-        listProc.running = true
-      }
+      onStreamFinished: root.refresh()
+    }
+    onExited: function () {
+      // Cleared on exit rather than on the re-read, so a failed connect still
+      // takes the row out of its "Connecting…" state instead of leaving it there.
+      root.actionSsid = ""
+      root.actionKind = ""
+      root.refresh()
     }
   }
 
@@ -144,6 +179,30 @@ Process {
     }
   }
 
+  Process {
+    id: radioGet
+    running: true
+    command: ["nmcli", "-t", "radio", "wifi"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        // Read-back confirms the optimistic value, and is also what tells the
+        // panel on first open that the radio is already off.
+        root.radioEnabled = this.text.trim() === "enabled"
+      }
+    }
+  }
+
+  Process {
+    id: radioSet
+    running: false
+    onExited: function () {
+      root.radioBusy = false
+      radioGet.running = false
+      radioGet.running = true
+      root.refresh()
+    }
+  }
+
   function refresh() {
     listProc.running = false
     listProc.running = true
@@ -159,15 +218,26 @@ Process {
   }
 
   function connect(ssid) {
+    root.actionSsid = ssid
+    root.actionKind = "connect"
     actionProc.command = ["nmcli", "device", "wifi", "connect", ssid]
     actionProc.running = true
     settle.restart()
   }
 
-  function disconnect() {
+  function disconnect(ssid) {
+    root.actionSsid = ssid
+    root.actionKind = "disconnect"
     actionProc.command = ["nmcli", "device", "disconnect", root.wifiDevice]
     actionProc.running = true
     settle.restart()
+  }
+
+  function setRadio(on) {
+    root.radioBusy = true
+    root.radioEnabled = on
+    radioSet.command = ["nmcli", "radio", "wifi", on ? "on" : "off"]
+    radioSet.running = true
   }
 
   Timer {
@@ -189,6 +259,8 @@ Process {
   Component.onCompleted: {
     deviceProc.running = false
     deviceProc.running = true
+    radioGet.running = false
+    radioGet.running = true
     root.emptyRetries = 0
     root.failed = false
     root.refresh()
@@ -204,7 +276,7 @@ Process {
 
   readonly property int maxListHeight: Style.space(220)
 
-  implicitWidth: Style.space(300)
+  implicitWidth: Style.space(320)
   implicitHeight: card.implicitHeight
 
   Panel {
@@ -212,12 +284,45 @@ Process {
     anchors.fill: parent
     title: "Wi-Fi"
 
-    PanelRow {
-      id: statusRow
+    // ---- the radio ----
+    Item {
       width: card.contentWidth
-      // The status line doubles as the error surface: when nmcli is broken it
-      // is the only place the reason can be read, since the list below is empty
-      // for exactly the same reason either way.
+      height: Math.max(radioLabel.implicitHeight, radioSwitch.implicitHeight)
+
+      Text {
+        id: radioLabel
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
+        text: "Wireless"
+        color: Theme.fg
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        renderType: Text.NativeRendering
+      }
+
+      ToggleSwitch {
+        id: radioSwitch
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        checked: root.radioEnabled
+        busy: root.radioBusy
+        onToggled: root.setRadio(!root.radioEnabled)
+      }
+    }
+
+    PanelSeparator {}
+
+    // ---- what is in use ----
+    PanelSectionHeader {
+      width: card.contentWidth
+      label: "Connection"
+    }
+
+    PanelRow {
+      width: card.contentWidth
+      // The status line doubles as the error surface: when nmcli is broken it is
+      // the only place the reason can be read, since the list below is empty for
+      // exactly the same reason either way.
       label: root.failed
         ? "Unavailable"
         : (root.activeSsid !== "" ? root.activeSsid : "Not connected")
@@ -233,6 +338,7 @@ Process {
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       elide: Text.ElideRight
+      wrapMode: Text.WordWrap
       topPadding: Style.space(2)
     }
 
@@ -241,14 +347,14 @@ Process {
       width: card.contentWidth
       height: Style.space(24)
       radius: Theme.cornerRadius
-      visible: root.activeSsid !== ""
+      visible: root.activeSsid !== "" && !root.failed
       color: disconnectMouse.containsMouse ? Theme.danger : "transparent"
       border.color: Theme.danger
       border.width: 1
 
       Text {
         anchors.centerIn: parent
-        text: "Disconnect"
+        text: root.busy && root.actionKind === "disconnect" ? "Disconnecting…" : "Disconnect"
         color: disconnectMouse.containsMouse ? Theme.bg : Theme.danger
         font.family: Style.font.family
         font.pixelSize: Style.font.bodySmall
@@ -259,8 +365,16 @@ Process {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onClicked: root.disconnect()
+        onClicked: if (!root.busy) root.disconnect(root.activeSsid)
       }
+    }
+
+    PanelSeparator {}
+
+    // ---- what is nearby ----
+    PanelSectionHeader {
+      width: card.contentWidth
+      label: "Networks"
     }
 
     ListView {
@@ -275,22 +389,47 @@ Process {
         id: rowItem
         required property var modelData
 
+        readonly property bool inFlight: root.actionSsid === modelData.ssid && root.busy
+
         width: list.width
         height: Style.space(26)
         radius: Theme.cornerRadius
-        color: rowMouse.containsMouse ? Theme.bg : "transparent"
+        color: rowMouse.containsMouse ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha) : "transparent"
 
         Text {
+          id: ssidText
           anchors.left: parent.left
           anchors.leftMargin: Style.space(6)
+          anchors.right: lockGlyph.left
+          anchors.rightMargin: Style.space(6)
+          anchors.verticalCenter: parent.verticalCenter
+          // The row says what it is doing while it does it. Without this a click
+          // on a network that takes a second looks like nothing happened.
+          text: rowItem.inFlight
+            ? (root.actionKind === "connect" ? "Connecting…" : "Disconnecting…")
+            : rowItem.modelData.ssid
+          elide: Text.ElideMiddle
+          color: rowItem.inFlight
+            ? Theme.accent
+            : (rowItem.modelData.inUse ? Theme.primary : Theme.fg)
+          font.family: Style.font.family
+          font.pixelSize: Style.font.body
+          renderType: Text.NativeRendering
+        }
+
+        // Only for networks that need a key. An open network gets no glyph rather
+        // than an open padlock: the absence says "open" more quietly than a symbol
+        // repeated on every row would.
+        Text {
+          id: lockGlyph
           anchors.right: signalBars.left
           anchors.rightMargin: Style.space(6)
           anchors.verticalCenter: parent.verticalCenter
-          text: rowItem.modelData.ssid
-          elide: Text.ElideMiddle
-          color: rowItem.modelData.inUse ? Theme.primary : Theme.fg
+          visible: root.secured(rowItem.modelData)
+          text: Util.lock
+          color: Theme.muted
           font.family: Style.font.family
-          font.pixelSize: Style.font.body
+          font.pixelSize: Style.font.caption
           renderType: Text.NativeRendering
         }
 
@@ -312,7 +451,7 @@ Process {
               anchors.verticalCenter: parent.verticalCenter
               color: index < root.signalLevel(rowItem.modelData.signal)
                 ? (rowItem.modelData.inUse ? Theme.primary : Theme.muted)
-                : Theme.bg
+                : Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.12)
             }
           }
         }
@@ -323,22 +462,40 @@ Process {
           hoverEnabled: true
           cursorShape: Qt.PointingHandCursor
           onClicked: {
-            if (rowItem.modelData.inUse) root.disconnect()
+            if (root.busy) return
+            if (rowItem.modelData.inUse) root.disconnect(rowItem.modelData.ssid)
             else root.connect(rowItem.modelData.ssid)
           }
         }
       }
 
       ScrollBar.vertical: ScrollBar {}
+
+      // What an empty list means, rather than an empty box. Three different
+      // reasons to be empty, and each says which it is.
+      Text {
+        anchors.centerIn: parent
+        visible: list.count === 0
+        width: parent.width
+        horizontalAlignment: Text.AlignHCenter
+        wrapMode: Text.WordWrap
+        text: !root.radioEnabled
+          ? "Wireless is off"
+          : (root.scanning ? "Scanning…" : (root.failed ? "" : "No networks found"))
+        color: Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.bodySmall
+      }
     }
 
     Rectangle {
       width: card.contentWidth
       height: Style.space(24)
       radius: Theme.cornerRadius
-      color: rescanMouse.containsMouse ? Theme.bg : "transparent"
+      color: rescanMouse.containsMouse ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha) : "transparent"
       border.color: Theme.muted
       border.width: 1
+      opacity: root.radioEnabled ? 1 : 0.45
 
       Text {
         anchors.centerIn: parent
@@ -352,8 +509,8 @@ Process {
         id: rescanMouse
         anchors.fill: parent
         hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.rescan()
+        cursorShape: root.radioEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+        onClicked: if (root.radioEnabled) root.rescan()
       }
     }
   }

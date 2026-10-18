@@ -225,14 +225,9 @@ Item {
     // came back as a non-zero exit, and the panel announced a daemon that was
     // running fine as unavailable.
 
-    Text {
+    PanelSectionHeader {
       width: card.contentWidth
-      height: implicitHeight
-      text: "PERFORMANCE PROFILE"
-      color: Theme.muted
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
-      font.weight: Font.DemiBold
+      label: "Performance profile"
     }
 
     Text {
@@ -310,16 +305,14 @@ Item {
     }
 
     // ---- battery ----
-    Text {
-      width: card.contentWidth
-      height: implicitHeight
+    PanelSeparator {
       visible: root.present
-      text: "BATTERY"
-      color: Theme.muted
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
-      font.weight: Font.DemiBold
-      topPadding: Style.space(4)
+    }
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      visible: root.present
+      label: "Battery"
     }
 
     PanelRow {

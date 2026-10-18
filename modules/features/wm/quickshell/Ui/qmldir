@@ -23,3 +23,6 @@ Panel 1.0 Panel.qml
 PanelRow 1.0 PanelRow.qml
 Slider 1.0 Slider.qml
 ScrollBar 1.0 ScrollBar.qml
+PanelSectionHeader 1.0 PanelSectionHeader.qml
+PanelSeparator 1.0 PanelSeparator.qml
+ToggleSwitch 1.0 ToggleSwitch.qml

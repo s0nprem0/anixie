@@ -69,16 +69,14 @@ Item {
     }
 
     // ---- outputs ----
-    Text {
+    PanelSeparator {
+      visible: root.sinks.length > 1
+    }
+
+    PanelSectionHeader {
       width: card.contentWidth
       visible: root.sinks.length > 1
-      text: "OUTPUT"
-      color: Theme.muted
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
-      font.weight: Font.DemiBold
-      height: implicitHeight
-      topPadding: Style.space(4)
+      label: "Output device"
     }
 
     Repeater {
@@ -108,16 +106,14 @@ Item {
     }
 
     // ---- per-app mixer ----
-    Text {
+    PanelSeparator {
+      visible: root.streams.length > 0
+    }
+
+    PanelSectionHeader {
       width: card.contentWidth
       visible: root.streams.length > 0
-      text: "PLAYING"
-      color: Theme.muted
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
-      font.weight: Font.DemiBold
-      height: implicitHeight
-      topPadding: Style.space(4)
+      label: "Playing now"
     }
 
     Repeater {
