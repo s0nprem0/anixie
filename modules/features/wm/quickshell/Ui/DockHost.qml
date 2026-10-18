@@ -163,13 +163,17 @@ QtObject {
 
   // ---- acting ----
 
+  // Dispatched as Lua: the config manager rewrites `hyprctl dispatch focuswindow
+  // address:0x..` into `hl.dispatch(focuswindow address:0x..)` before evaluating,
+  // and that is not a Lua expression, so every call failed with "')' expected
+  // near 'address'". Each form below was checked against the running compositor.
   function focus(address) {
     if (!address) return
-    Commands.run("hyprctl dispatch focuswindow address:" + Util.shellQuote(address))
+    Commands.run("hyprctl dispatch 'hl.dsp.focus({window = \"" + address + "\"})'")
   }
 
   function focusActiveWorkspace(id) {
-    Commands.run("hyprctl dispatch workspace " + id)
+    Commands.run("hyprctl dispatch 'hl.dsp.focus({workspace = " + id + "})'")
   }
 
   // Close is dispatched by address rather than `activewindow`, so a click on the
@@ -177,13 +181,13 @@ QtObject {
   // focus at that moment.
   function close(address) {
     if (!address) return
-    Commands.run("hyprctl dispatch closewindow address:" + Util.shellQuote(address))
+    Commands.run("hyprctl dispatch 'hl.dsp.window.close({address = \"" + address + "\"})'")
   }
 
   function minimize(address) {
     if (!address) return
-    Commands.run("hyprctl dispatch togglespecialworkspace minimize")
-    Commands.run("hyprctl dispatch focuswindow address:" + Util.shellQuote(address))
+    Commands.run("hyprctl dispatch 'hl.dsp.workspace.toggle_special({name = \"minimize\"})'")
+    Commands.run("hyprctl dispatch 'hl.dsp.focus({window = \"" + address + "\"})'")
   }
 
   function activate(app) {
@@ -194,7 +198,7 @@ QtObject {
     // A minimized window has to come back to the current workspace before it is
     // worth focusing; focusing it where it is parked achieves nothing.
     if (target.minimized) {
-      Commands.run("hyprctl dispatch togglespecialworkspace minimize")
+      Commands.run("hyprctl dispatch 'hl.dsp.workspace.toggle_special({name = \"minimize\"})'")
     } else if (target.workspace !== root.activeWorkspace) {
       root.focusActiveWorkspace(target.workspace)
     }

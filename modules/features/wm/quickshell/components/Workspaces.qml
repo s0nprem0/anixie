@@ -42,10 +42,11 @@ BarWidget {
     return false
   }
 
-  // Plain hyprctl dispatch on purpose: this machine runs hyprlang, where the
-  // Lua dispatch path is unavailable.
+  // Dispatched as Lua, for the same reason as DockHost: the config manager
+  // rewrites `hyprctl dispatch workspace 3` into `hl.dispatch(workspace 3)`,
+  // which is not a Lua expression. Verified against the running compositor.
   function focus(id) {
-    focusProc.command = ["hyprctl", "dispatch", "workspace", String(id)]
+    focusProc.command = ["hyprctl", "dispatch", "hl.dsp.focus({workspace = " + String(id) + "})"]
     focusProc.running = true
   }
 

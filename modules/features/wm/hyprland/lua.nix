@@ -383,8 +383,8 @@ in
     -- gone from hyprctl binds with no error anywhere. Which of the two you want
     -- on that key is a choice, and the reference shell's choice is the emoji
     -- picker, so step with comma instead.
-    bind(mod .. " + comma", "Previous workspace", "hyprctl dispatch workspace -1")
-    bind(mod .. " + SHIFT + comma", "Next workspace", "hyprctl dispatch workspace 1")
+    bind(mod .. " + comma", "Previous workspace", "hyprctl dispatch 'hl.dsp.focus({workspace = -1})'")
+    bind(mod .. " + SHIFT + comma", "Next workspace", "hyprctl dispatch 'hl.dsp.focus({workspace = 1})'")
 
     -- Note what is *not* here: SUPER+SHIFT+arrow does not also move the window to
     -- the next workspace. It used to, alongside the swap above, and because a
@@ -396,8 +396,8 @@ in
     -- The wheel moves between existing workspaces. mouse_up and mouse_down, not
     -- a bare "wheel": the key has to say which way the wheel turned, or the two
     -- binds are identical apart from their argument and one shadows the other.
-    bind(mod .. " + mouse_up", "Previous workspace", "hyprctl dispatch workspace e-1")
-    bind(mod .. " + mouse_down", "Next workspace", "hyprctl dispatch workspace e+1")
+    bind(mod .. " + mouse_up", "Previous workspace", "hyprctl dispatch 'hl.dsp.focus({workspace = -1})'")
+    bind(mod .. " + mouse_down", "Next workspace", "hyprctl dispatch 'hl.dsp.focus({workspace = 1})'")
 
     -- ------------------------------------------------------------------
     -- Scratchpad
@@ -417,7 +417,7 @@ in
     dispatch(mod .. " + M", "Log out", "exit")
 
     bind(mod .. " + SHIFT + M", "Log out gracefully",
-      "command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch exit")
+      "command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"")
 
     -- Lock is SUPER+CTRL+L. It used to share SUPER+SHIFT+A with the annotation
     -- bind, which is one key with two meanings and whichever fired last.
