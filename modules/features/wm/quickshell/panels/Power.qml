@@ -3,6 +3,7 @@ import ".."
 import "../Ui"
 import Quickshell
 import Quickshell.Io
+import Quickshell.Services.UPower
 
 // Power panel: performance profile, screen brightness, and battery detail.
 //
@@ -17,24 +18,16 @@ Item {
   id: root
 
   readonly property string backlight: "/sys/class/backlight/amdgpu_bl1"
-  readonly property string battery: "/sys/class/power_supply/BAT0"
 
   // sysfs reads go through FileView, whose text() throws until the first read
-  // lands, so every access is funnelled through these.
+  // lands, so every access is funnelled through here. Only the battery's cycle
+  // count is still read this way; the rest comes from UPower.
   function readNum(view, fallback) {
     try {
       const value = parseInt(String(view.text()).trim(), 10)
       return isNaN(value) ? fallback : value
     } catch (e) {
       return fallback
-    }
-  }
-
-  function readText(view) {
-    try {
-      return String(view.text()).trim()
-    } catch (e) {
-      return ""
     }
   }
 
@@ -104,77 +97,85 @@ Item {
 
   // ---- battery ----
 
-  readonly property int capacity: root.readNum(capacityView, -1)
-  readonly property string batteryStatus: root.readText(statusView)
-  readonly property double energyNow: root.readNum(energyNowView, 0)
-  readonly property double powerNow: root.readNum(powerNowView, 0)
-  readonly property double energyFull: root.readNum(energyFullView, 0)
-  readonly property double energyDesign: root.readNum(energyDesignView, 0)
+  // UPower carries the whole readout: percentage, state, both time estimates,
+  // rate, capacity and health. It beats the sysfs files this used to watch,
+  // which reported kernel micro-units needing scaling, could not tell "on mains
+  // but holding" from "on battery", and whose watchers could deliver a value in
+  // the wrong order and leave a binding stuck on it.
+  readonly property var battery: UPower.displayDevice
+  readonly property bool present: root.battery !== null && root.battery.ready && root.battery.isPresent
 
-  readonly property bool charging: batteryStatus === "Charging"
-  readonly property bool present: capacity >= 0
+  readonly property int capacity: root.present ? Math.round(root.battery.percentage) : -1
+  readonly property bool charging: root.present && root.battery.state === UPowerDeviceState.Charging
+  readonly property bool full: root.present && root.battery.state === UPowerDeviceState.FullyCharged
 
-  // energy_now and power_now share a unit, so the quotient is hours directly.
-  readonly property double hoursLeft: powerNow > 0 ? energyNow / powerNow : -1
+  // UPower's own view of the mains, rather than a sysfs status field that only
+  // says "Charging".
+  readonly property bool onMains: !UPower.onBattery
 
-  readonly property string timeLeft: {
-    if (hoursLeft < 0) return "—"
-    const total = Math.round(hoursLeft * 60)
+  readonly property string stateLabel: {
+    if (!root.present) return "No battery"
+    if (root.charging) return "Charging"
+    if (root.full) return "Full"
+    if (root.onMains) return "On mains"
+    return "On battery"
+  }
+
+  // Both estimates arrive in seconds and UPower decides which is meaningful:
+  // timeToEmpty is -1 while charging, timeToFull is -1 while discharging.
+  readonly property double secondsRemaining: {
+    if (!root.present) return -1
+    return root.charging ? root.battery.timeToFull : root.battery.timeToEmpty
+  }
+
+  readonly property string timeLabel: {
+    if (root.charging) return "Time to full"
+    if (root.full) return "Fully charged"
+    return "Time remaining"
+  }
+
+  readonly property string timeValue: {
+    if (root.secondsRemaining <= 0) return "—"
+
+    const total = Math.round(root.secondsRemaining / 60)
     const h = Math.floor(total / 60)
     const m = total % 60
     return (h > 0 ? h + "h " : "") + m + "m"
   }
 
-  readonly property int health: energyDesign > 0
-    ? Math.round(energyFull * 100 / energyDesign)
+  function watts(value) {
+    const magnitude = Math.abs(value)
+    return magnitude > 0 ? magnitude.toFixed(1).replace(/\.0$/, "") + "W" : "—"
+  }
+
+  readonly property string draw: root.present ? root.watts(root.battery.changeRate) : "—"
+
+  readonly property string size: root.present && root.battery.energyCapacity > 0
+    ? root.battery.energyCapacity.toFixed(1).replace(/\.0$/, "") + "Wh"
+    : "—"
+
+  readonly property int health: root.present && root.battery.healthSupported
+    ? Math.round(root.battery.healthPercentage)
     : -1
 
-  FileView {
-    id: capacityView
-    path: root.battery + "/capacity"
-    printErrors: false
-    watchChanges: true
-    blockLoading: true
-  }
+  // Cycle count is the one reading UPower does not carry, so it comes from the
+  // battery's own directory — named by UPower rather than assumed to be BAT0.
+  readonly property string cyclePath: root.battery !== null && root.battery.nativePath !== ""
+    ? "/sys/class/power_supply/" + root.battery.nativePath + "/cycle_count"
+    : ""
 
-  FileView {
-    id: statusView
-    path: root.battery + "/status"
-    printErrors: false
-    watchChanges: true
-    blockLoading: true
-  }
+  property int cycles: -1
 
+  // The one battery reading UPower does not carry. Static, so it is read once
+  // when the file loads rather than watched, and assigned from the load signal
+  // rather than bound — a binding read before the file lands would stick.
   FileView {
-    id: energyNowView
-    path: root.battery + "/energy_now"
+    id: cycleView
+    path: root.cyclePath
     printErrors: false
-    watchChanges: true
     blockLoading: true
-  }
 
-  FileView {
-    id: powerNowView
-    path: root.battery + "/power_now"
-    printErrors: false
-    watchChanges: true
-    blockLoading: true
-  }
-
-  FileView {
-    id: energyFullView
-    path: root.battery + "/energy_full"
-    printErrors: false
-    watchChanges: true
-    blockLoading: true
-  }
-
-  FileView {
-    id: energyDesignView
-    path: root.battery + "/energy_full_design"
-    printErrors: false
-    watchChanges: true
-    blockLoading: true
+    onLoaded: root.cycles = root.readNum(cycleView, -1)
   }
 
   FileView {
@@ -300,7 +301,7 @@ Item {
       id: chargeRow
       width: card.contentWidth
       visible: root.present
-      label: root.charging ? "Charging" : "On battery"
+      label: root.stateLabel
       value: root.present ? root.capacity + "%" : "—"
     }
 
@@ -308,8 +309,24 @@ Item {
       id: timeRow
       width: card.contentWidth
       visible: root.present
-      label: "Time remaining"
-      value: root.timeLeft
+      label: root.timeLabel
+      value: root.timeValue
+    }
+
+    PanelRow {
+      id: drawRow
+      width: card.contentWidth
+      visible: root.present
+      label: root.charging ? "Charging at" : "Drawing"
+      value: root.draw
+    }
+
+    PanelRow {
+      id: sizeRow
+      width: card.contentWidth
+      visible: root.present && root.size !== "—"
+      label: "Capacity"
+      value: root.size
     }
 
     PanelRow {
@@ -318,6 +335,14 @@ Item {
       visible: root.present && root.health > 0
       label: "Full charge health"
       value: root.health + "%"
+    }
+
+    PanelRow {
+      id: cycleRow
+      width: card.contentWidth
+      visible: root.present && root.cycles >= 0
+      label: "Charge cycles"
+      value: root.cycles >= 0 ? String(root.cycles) : "—"
     }
   }
 }

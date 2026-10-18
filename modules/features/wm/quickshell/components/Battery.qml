@@ -3,56 +3,36 @@ import ".."
 import "../Ui"
 import "../panels"
 import Quickshell
-import Quickshell.Io
+import Quickshell.Services.UPower
 
-// Battery readout. Both values come from FileView, which watches the sysfs
-// nodes rather than re-reading them on a timer, so the percentage tracks the
-// hardware instead of polling for it.
+// Battery readout, taken from UPower rather than from sysfs: it normalises the
+// kernel's micro-units, is event-driven, and finds the machine's battery
+// without being told what it is called.
 BarWidget {
   id: root
 
-  readonly property string capacityPath: "/sys/class/power_supply/BAT0/capacity"
-  readonly property string statusPath: "/sys/class/power_supply/BAT0/status"
+  readonly property var device: UPower.displayDevice
+  readonly property bool present: root.device !== null && root.device.ready && root.device.isPresent
 
-  readonly property int level: {
-    const raw = capView.text()
-    const v = parseInt(String(raw).trim(), 10)
-    return isNaN(v) ? -1 : v
-  }
-  readonly property bool charging: String(statusView.text()).trim() === "Charging"
+  readonly property int level: root.present ? Math.round(root.device.percentage) : -1
+  readonly property bool charging: root.present
+    && root.device.state === UPowerDeviceState.Charging
 
-  readonly property bool present: level >= 0
   property bool showPercent: true
 
   // Hidden on a machine with no battery, rather than a permanently blank slot.
-  visible: present
+  visible: root.present
 
   readonly property string glyph: {
-    if (level <= 10) return Util.batteryEmpty
-    if (level <= 30) return Util.batteryQuarter
-    if (level <= 55) return Util.batteryHalf
-    if (level <= 80) return Util.batteryThreeQuarters
+    if (root.level <= 10) return Util.batteryEmpty
+    if (root.level <= 30) return Util.batteryQuarter
+    if (root.level <= 55) return Util.batteryHalf
+    if (root.level <= 80) return Util.batteryThreeQuarters
     return Util.batteryFull
   }
 
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
-
-  FileView {
-    id: capView
-    path: root.capacityPath
-    printErrors: false
-    watchChanges: true
-    blockLoading: true
-  }
-
-  FileView {
-    id: statusView
-    path: root.statusPath
-    printErrors: false
-    watchChanges: true
-    blockLoading: true
-  }
 
   // Declared as an id rather than built inline: `Component { ... }` is an
   // object declaration, so it cannot be passed as a call argument.
