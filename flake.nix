@@ -10,6 +10,13 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Community packaging of the ArtCraft Crafting Apps (PhotoCraft and
+    # friends) from their upstream release tarballs. Not in nixpkgs.
+    nix-craftapps = {
+      url = "github:olafkfreund/nix-craftapps";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -27,6 +34,11 @@
 
           inputs.home-manager.nixosModules.default
 
+          # Provides programs.craftapps at the system level, which the machine
+          # uses only to link /usr/share/fonts for the apps (they bypass
+          # fontconfig). The apps themselves are installed per-user below.
+          inputs.nix-craftapps.nixosModules.default
+
           {
             nixpkgs.config.allowUnfree = true;
 
@@ -34,6 +46,10 @@
               useGlobalPkgs = true;
               useUserPackages = true;
               backupFileExtension = "hm-backup";
+
+              # The apps are Home Manager modules, so they cannot sit in the
+              # NixOS `modules` list above.
+              sharedModules = [ inputs.nix-craftapps.homeManagerModules.default ];
 
               users.son = import ./modules/home;
             };

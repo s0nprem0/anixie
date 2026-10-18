@@ -6,6 +6,7 @@
     ./networking.nix
     ./audio.nix
     ./fonts.nix
+    ./craftapps.nix
     ./users.nix
     ./desktop.nix
     ./screenrecord.nix

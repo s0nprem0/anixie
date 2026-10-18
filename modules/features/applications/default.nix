@@ -6,6 +6,7 @@
     ./documents
     ./files
     ./media
+    ./photocraft
     ./printer
   ];
 }
