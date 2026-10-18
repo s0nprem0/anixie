@@ -105,13 +105,20 @@ Item {
   readonly property var battery: UPower.displayDevice
   readonly property bool present: root.battery !== null && root.battery.ready && root.battery.isPresent
 
-  readonly property int capacity: root.present ? Math.round(root.battery.percentage) : -1
+  // `percentage` and `healthPercentage` both arrive as fractions, so both are
+  // scaled: Math.round(0.4) is 0, which is how a healthy battery came to read
+  // 0% in the panel and on the bar.
+  readonly property int capacity: root.present ? Math.round(root.battery.percentage * 100) : -1
   readonly property bool charging: root.present && root.battery.state === UPowerDeviceState.Charging
   readonly property bool full: root.present && root.battery.state === UPowerDeviceState.FullyCharged
 
-  // UPower's own view of the mains, rather than a sysfs status field that only
-  // says "Charging".
-  readonly property bool onMains: !UPower.onBattery
+  // Derived from the charge state rather than read from UPower's `onBattery`:
+  // that one stays false on this machine even with a battery fitted, so
+  // inverting it would report "On mains" whatever was actually happening.
+  readonly property bool onMains: root.present && (
+    root.battery.state === UPowerDeviceState.Charging
+    || root.battery.state === UPowerDeviceState.FullyCharged
+    || root.battery.state === UPowerDeviceState.PendingCharge)
 
   readonly property string stateLabel: {
     if (!root.present) return "No battery"
@@ -155,7 +162,7 @@ Item {
     : "—"
 
   readonly property int health: root.present && root.battery.healthSupported
-    ? Math.round(root.battery.healthPercentage)
+    ? Math.round(root.battery.healthPercentage * 100)
     : -1
 
   // Cycle count is the one reading UPower does not carry, so it comes from the

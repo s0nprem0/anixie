@@ -14,7 +14,11 @@ BarWidget {
   readonly property var device: UPower.displayDevice
   readonly property bool present: root.device !== null && root.device.ready && root.device.isPresent
 
-  readonly property int level: root.present ? Math.round(root.device.percentage) : -1
+  // Quickshell hands over UPower's `percentage` as a fraction — 0.4 for 40% — so
+  // it has to be scaled. Reading it as if it were already a percentage is what
+  // made a healthy battery show 0%: Math.round(0.4) is 0.
+  readonly property int level: root.present ? Math.round(root.device.percentage * 100) : -1
+
   readonly property bool charging: root.present
     && root.device.state === UPowerDeviceState.Charging
 
