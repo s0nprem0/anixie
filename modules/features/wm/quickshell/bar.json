@@ -4,9 +4,7 @@
     "left": [
       { "id": "bar.menu" },
       { "id": "bar.spacer", "size": 12 },
-      { "id": "bar.workspaces" },
-      { "id": "bar.spacer", "size": 12 },
-      { "id": "bar.active-window", "maxWidth": 220 }
+      { "id": "bar.workspaces" }
     ],
     "centerBegin": [
       { "id": "weather", "type": "command", "exec": "sh $HOME/.config/quickshell/scripts/weather.sh", "interval": 1800, "tooltip": "Weather" }
