@@ -5,6 +5,7 @@
     ./kitty
     ./opencode
     ./tools
+    ./yazi
     ./zsh
   ];
 }
