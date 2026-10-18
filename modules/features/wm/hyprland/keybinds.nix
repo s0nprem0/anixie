@@ -138,11 +138,19 @@
     "$mod SHIFT, LEFT, movetoworkspace, -1"
     "$mod SHIFT, RIGHT, movetoworkspace, 1"
 
-    # Scrolling the wheel moves between existing workspaces. Hyprland 0.56's
-    # hyprlang path rejects the documented `bindm ..., scroll, workspace e-1`
-    # form with "too many args", so dispatch through hyprctl instead.
-    "$mod, wheel, exec, hyprctl dispatch workspace e-1"
-    "$mod, wheel, exec, hyprctl dispatch workspace e+1"
+    # Scrolling the wheel moves between existing workspaces.
+    #
+    # `mouse_up` / `mouse_down`, per the wiki's own spelling. A bare `wheel` is
+    # not a key name here: the fields are positional, so `bind=$mod, wheel, exec,
+    # ...` registered two binds that were identical apart from their argument —
+    # nothing recorded which way the wheel turned, and one shadowed the other.
+    # `scroll, up` is not it either; that puts `up` in the dispatcher field and
+    # is rejected as an unknown dispatcher.
+    #
+    # Still dispatched through hyprctl rather than with the `workspace e-1`
+    # dispatcher, which needs an argument the dispatcher field cannot carry here.
+    "$mod, mouse_up, exec, hyprctl dispatch workspace e-1"
+    "$mod, mouse_down, exec, hyprctl dispatch workspace e+1"
 
     # --------------------------------------------------------------------
     # Scratchpad
