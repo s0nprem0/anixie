@@ -12,5 +12,6 @@
     ./capture
     ./toggles
     ./menu
+    ./pick
   ];
 }

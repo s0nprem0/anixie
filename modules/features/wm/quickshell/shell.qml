@@ -407,4 +407,45 @@ ShellRoot {
       }
     }
   }
+
+  // The picker. Covers the whole output and takes the keyboard for as long as it
+  // is up, for the same reason the polkit prompt does: it is a surface you type
+  // into, and everything on it has to be reachable without the mouse.
+  //
+  // On the Overlay layer, above the notifications — a picker opened while
+  // something is being notified should cover it, not be covered by it.
+  PanelWindow {
+    id: pickerWindow
+
+    anchors.top: true
+    anchors.bottom: true
+    anchors.left: true
+    anchors.right: true
+
+    color: "transparent"
+    exclusionMode: ExclusionMode.Ignore
+    visible: PickHost.shown
+
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.namespace: "quickshell-picker"
+    WlrLayershell.keyboardFocus: PickHost.shown
+      ? WlrKeyboardFocus.Exclusive
+      : WlrKeyboardFocus.None
+
+    Picker {
+      anchors.fill: parent
+    }
+  }
+
+  // What `pick` calls in through, and what the menu calls for itself.
+  //
+  // One entry point carrying the whole request as one JSON argument: the entries,
+  // the prompt, and what to run afterwards all arrive together, and a caller
+  // that had to make three separate calls could be half-served by a shell that
+  // restarted between them.
+  IpcHandler {
+    target: "pick"
+
+    function open(payload: string): string { return PickHost.open(payload) }
+  }
 }

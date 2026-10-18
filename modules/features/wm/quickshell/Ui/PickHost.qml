@@ -1,0 +1,200 @@
+pragma Singleton
+
+import QtQuick
+import "fuzzy.js" as Fuzzy
+
+// The shell's picker: a searchable list, and the one way this shell asks the
+// user to choose something.
+//
+// It replaced fuzzel, which was a separate Wayland client spawned per use. That
+// worked, and it worked well — but it meant the shell could not draw icons
+// (fuzzel's dmenu mode has none), could not show an entry's state, and had to
+// write its own idea of the theme into a fuzzel.ini to be themed at all. Moving
+// the picker into the shell makes those free.
+//
+// How a caller asks for one:
+//
+//   pick --title theme --on-select 'theme {}' <<< "nord\ngruvbox-dark\n..."
+//
+// `pick` sends the entries over IPC and exits as soon as the shell has them, so
+// the caller's script is not left waiting on a menu it cannot see. The chosen
+// value comes back as `{}` in `--on-select`, already shell-quoted, which is why
+// a value with a space or a quote in it cannot break the command it is spliced
+// into. A caller with more than one step chains them: the command for the first
+// pick opens the second.
+//
+// There is deliberately no fallback to fuzzel. A picker that only sometimes
+// exists is a picker whose keyboard layout you cannot learn; and the case that
+// would need a fallback — the shell not running — is the case where a broken
+// shell is what you are trying to fix, so the one thing you cannot do is pick
+// something to fix it with. `pick` fails loudly instead.
+QtObject {
+  id: root
+
+  // Shown. Gates the window's visibility and its keyboard focus: the picker only
+  // takes the keyboard while it is up, or the compositor would never deliver keys
+  // to the windows underneath.
+  property bool shown: false
+
+  // "list" picks from the entries. "input" is a bare text field with no list —
+  // what fuzzel's --prompt-only gave, and what a reminder's message needs.
+  property string mode: "list"
+
+  // Draw a dimmed group line above each run of entries sharing a group. On for
+  // the menu, where the group is a path prefix; off for the small pickers, whose
+  // three entries do not need dividing.
+  property bool grouped: false
+
+  property string title: ""
+  property string placeholder: ""
+
+  property var entries: []
+  property var results: []
+  property int selected: 0
+  property string query: ""
+
+  // Commands to run on a choice and on a dismissal. `{}` in onSelect is replaced
+  // by the chosen value.
+  property string onSelect: ""
+  property string onCancel: ""
+
+  readonly property bool isInput: root.mode === "input"
+  readonly property bool hasResults: root.results.length > 0
+  readonly property var current:
+    root.hasResults && root.selected >= 0 && root.selected < root.results.length
+      ? root.results[root.selected].row
+      : null
+
+  // How many rows the list shows at once. A cap rather than a height because the
+  // entries are of one kind and the picker is a panel, not a window.
+  readonly property int maxVisible: 12
+
+  function open(payload) {
+    let request
+    try {
+      request = JSON.parse(String(payload || ""))
+    } catch (error) {
+      console.warn("pick: could not read the request: " + error)
+      return "error"
+    }
+
+    // A request arriving while a picker is up replaces it. The alternative —
+    // ignoring it — leaves the caller with a menu that never opens and no way
+    // to tell that from one that was dismissed.
+    root.title = String(request.title !== undefined ? request.title : "")
+    root.placeholder = String(request.placeholder !== undefined ? request.placeholder : "")
+    root.mode = String(request.mode !== undefined ? request.mode : "list")
+    root.grouped = !!request.grouped
+    root.onSelect = String(request.onSelect !== undefined ? request.onSelect : "")
+    root.onCancel = String(request.onCancel !== undefined ? request.onCancel : "")
+    root.entries = request.entries !== undefined ? request.entries : []
+    root.query = ""
+    root.shown = true
+
+    root.apply()
+
+    // The ack. `pick` exits on this, so it has to mean "I have the entries" and
+    // not "I have finished" — the second is the user's problem, not the caller's.
+    return "ok"
+  }
+
+  function apply() {
+    if (root.isInput) {
+      root.results = []
+      return
+    }
+
+    root.results = Fuzzy.filter(root.entries, root.query)
+
+    // The selection cannot point past the end of a list that just shrank under
+    // it, which is what typing does to the last entry.
+    if (root.selected >= root.results.length) root.selected = Math.max(0, root.results.length - 1)
+  }
+
+  function setQuery(text) {
+    root.query = String(text)
+    // Back to the top on every keystroke: the entry you were on is very likely
+    // not the entry at index 0 of the new results, and staying put reads as the
+    // list ignoring the search.
+    root.selected = 0
+    root.apply()
+  }
+
+  function move(delta) {
+    if (root.results.length === 0) return
+
+    let next = root.selected + delta
+    if (next < 0) next = 0
+    if (next > root.results.length - 1) next = root.results.length - 1
+    root.selected = next
+  }
+
+  // A page is a visible screen of rows rather than a tenth of the list, so a
+  // jump lands somewhere you can see.
+  function page(direction) {
+    root.move(direction * (root.maxVisible - 1))
+  }
+
+  function first() {
+    root.selected = 0
+  }
+
+  function last() {
+    root.selected = Math.max(0, root.results.length - 1)
+  }
+
+  function accept() {
+    // Read before dismissing: dismiss() clears the callbacks, so asking for them
+    // afterwards asks an empty string for a command that was there a moment ago.
+    const select = root.onSelect
+
+    if (root.isInput) {
+      // Text mode's value is whatever was typed, and an empty one is a
+      // cancellation rather than a choice: Enter on an empty field should not
+      // run the caller's command with nothing in it.
+      const typed = String(root.query)
+      root.dismiss()
+      if (typed.length > 0) root.runTemplate(select, typed)
+      return
+    }
+
+    const entry = root.current
+    if (!entry) {
+      root.dismiss()
+      return
+    }
+
+    const value = String(entry.value !== undefined && entry.value !== null ? entry.value : entry.label)
+
+    // An entry's own command wins over the request's template. The menu uses
+    // this: its seventy-odd entries each run something different, where every
+    // other caller runs the same command with a different argument.
+    const own = String(entry.run !== undefined && entry.run !== null ? entry.run : "")
+
+    root.dismiss()
+    if (own.length > 0) Commands.run(own)
+    else root.runTemplate(select, value)
+  }
+
+  function dismiss() {
+    const cancel = root.onCancel
+
+    root.shown = false
+    root.results = []
+    root.entries = []
+    root.selected = 0
+    root.query = ""
+    root.onSelect = ""
+    root.onCancel = ""
+
+    if (cancel.length > 0) Commands.run(cancel)
+  }
+
+  // Splice a value into a command template, quoting it here rather than leaving
+  // it to the caller.
+  function runTemplate(template, value) {
+    const line = String(template !== undefined && template !== null ? template : "")
+    if (line.length === 0) return
+    Commands.run(line.split("{}").join(Util.shellQuote(value)))
+  }
+}
