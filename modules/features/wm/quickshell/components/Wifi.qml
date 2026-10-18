@@ -1,136 +1,61 @@
 import QtQuick
 import ".."
 import "../Ui"
-import "../panels"
+import "../panels" as Panels
 import Quickshell
 import Quickshell.Io
+import Quickshell.Networking
 
-// Wifi readout. Uses nmcli because nixpkgs ships no NetworkManager connection
-// editor, so this is also the only place wifi state gets surfaced.
+// Wifi readout, from NetworkManager through Quickshell.Networking.
 //
-// nmcli is a subprocess rather than a native API, so a failure and an empty
-// result both arrive as "no output". Those are different facts and the module
-// keeps them apart: `failed` means the query itself did not work, which is
-// worth showing, while merely having no network is not.
+// This used to run `nmcli device wifi list` every ten seconds. That command is
+// not a status query: when NetworkManager's cache is stale it triggers a real
+// radio scan, which took about 3.2 seconds once in five runs and drew power each
+// time. The Networking service reads the same state over D-Bus, and its device
+// only scans while `scannerEnabled` is set — which is off unless the wifi panel
+// asks for it.
 BarWidget {
   id: root
 
   // Reachable by hotkey as well as by click.
   Component.onCompleted: PanelRegistry.register("network", readout, wifiPanel)
 
-  property bool connected: false
-  property string ssid: ""
-  property int signal: 0
+  // The wifi device that is connected, if there is one.
+  readonly property var device: {
+    const list = Networking.devices.values || []
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].type === DeviceType.Wifi && list[i].connected) return list[i]
+    }
+    return null
+  }
 
-  // nmcli could not be run, or exited non-zero. Distinct from being offline.
-  property bool failed: false
+  // The network that device is on.
+  readonly property var active: {
+    if (!root.device) return null
+    const nets = root.device.networks.values || []
+    for (let i = 0; i < nets.length; i++) {
+      if (nets[i].connected) return nets[i]
+    }
+    return null
+  }
 
-  // A run that comes back with no output can be the first one of a session,
-  // where the process loses its output as the shell finishes starting. Two
-  // retries is enough to tell that apart from a genuinely quiet radio.
-  property int emptyRuns: 0
+  readonly property bool connected: root.active !== null
+  readonly property string ssid: root.active ? String(root.active.name) : ""
+  readonly property int signal: root.active ? Math.round(Number(root.active.signalStrength) * 100) : 0
+
+  // The service reports state rather than failing to run, so there is no
+  // separate "query failed" case left. Kept as a property because the tooltip
+  // still has a branch for it.
+  readonly property bool failed: false
 
   readonly property bool resolved: connected && ssid !== ""
 
   // Offline hides the module, since a bar that reflows every time the network
-  // drops is noisier than one that simply loses a module. A failed query shows,
-  // because a missing icon would otherwise read as "no network" and hide a
-  // broken backend.
-  visible: resolved || failed
+  // drops is noisier than one that simply loses a module.
+  visible: resolved
 
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
-
-  function parse(raw) {
-    const rows = String(raw).split("\n")
-
-    for (let i = 0; i < rows.length; i++) {
-      const parts = rows[i].split(":")
-
-      // nmcli escapes a colon inside an SSID as "\:", so split on the first
-      // field and the last one and rejoin what lies between.
-      if (parts[0] === "*") {
-        // The name and the signal are kept apart. They used to be joined into
-        // one string here and shown together, which is what made the bar read as
-        // a wall of numbers: an SSID welded to a percentage, on a bar whose
-        // neighbours are icons. The name is the label when there is room for one,
-        // and the percentage goes in the tooltip with it.
-        return {
-          ssid: parts.slice(1, parts.length - 1).join(":"),
-          signal: parseInt(parts[parts.length - 1], 10) || 0
-        }
-      }
-    }
-
-    return null
-  }
-
-  Process {
-    id: probe
-    running: true
-    command: ["nmcli", "-t", "-f", "IN-USE,SSID,SIGNAL", "device", "wifi", "list"]
-
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const active = root.parse(this.text)
-
-        if (active === null && root.emptyRuns < 2) {
-          root.emptyRuns += 1
-          retry.restart()
-          return
-        }
-
-        root.emptyRuns = 0
-        root.connected = active !== null
-        root.ssid = active ? active.ssid : ""
-        root.signal = active ? active.signal : 0
-
-        // Parsed output means the query worked, whatever an earlier run did.
-        // Without this a single failed attempt at startup would tint the icon
-        // for ever, alongside a perfectly good SSID.
-        if (active !== null) root.failed = false
-      }
-    }
-
-    onExited: function (exitCode) {
-      if (exitCode !== 0) {
-        root.failed = true
-        root.connected = false
-        root.ssid = ""
-        root.signal = 0
-      }
-    }
-  }
-
-  Timer {
-    id: retry
-    interval: 700
-    onTriggered: {
-      probe.running = false
-      probe.running = true
-    }
-  }
-
-  Timer {
-    running: true
-    interval: 10000
-    triggeredOnStart: true
-    onTriggered: {
-      // Optimistic: assume the next run works until it proves otherwise, so a
-      // recovered backend stops showing the failure without waiting for a
-      // second timer pass.
-      root.failed = false
-      probe.running = false
-      probe.running = true
-    }
-  }
-
-  // Declared as an id rather than built inline: `Component { ... }` is an
-  // object declaration, so it cannot be passed as a call argument.
-  Component {
-    id: wifiPanel
-    Network {}
-  }
 
   BarIconButton {
     id: readout
@@ -145,7 +70,7 @@ BarWidget {
 
     foreground: root.failed ? Theme.danger : Theme.fg
     tooltipText: root.failed
-      ? "Wi-Fi unavailable — nmcli failed"
+      ? "Wi-Fi unavailable"
       : (root.resolved
         ? root.ssid + " · " + root.signal + "% · click for networks"
         : "Wi-Fi off")
@@ -154,6 +79,15 @@ BarWidget {
       if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelHost.toggle(readout, wifiPanel)
       else if (button === Qt.RightButton) root.openSettings()
     }
+  }
+
+  // Declared as an id rather than built inline: `Component { ... }` is an
+  // object declaration, so it cannot be passed as a call argument.
+  Component {
+    id: wifiPanel
+    // Qualified: Quickshell.Networking has a `Network` of its own, and the later
+    // import wins, which made this the service's type and failed the whole bar.
+    Panels.Network {}
   }
 
   function openSettings() {
