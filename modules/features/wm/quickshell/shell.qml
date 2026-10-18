@@ -257,6 +257,52 @@ ShellRoot {
     function hide(): void { DockHost.hide() }
   }
 
+  // The screenshot preview. Bottom right, over the desktop, gone on its own after
+  // ten seconds unless it is pinned.
+  //
+  // `Ignore` for the exclusive zone and `None` for the keyboard, like the popups:
+  // it floats over whatever is there and must not push windows around or take the
+  // keyboard from the window being worked in. Only the two buttons want clicks,
+  // and they take them as buttons rather than by the window claiming input.
+  PanelWindow {
+    id: capturePreviewWindow
+
+    anchors.right: true
+    anchors.bottom: true
+    margins.right: Style.space(24)
+    margins.bottom: Style.space(24)
+    implicitWidth: previewCard.implicitWidth
+    implicitHeight: previewCard.implicitHeight
+
+    color: "transparent"
+    exclusionMode: ExclusionMode.Ignore
+    visible: CapturePreview.shown
+
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.namespace: "quickshell-capture-preview"
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+
+    CapturePreviewCard {
+      id: previewCard
+      anchors.fill: parent
+      source: CapturePreview.path
+      pinned: CapturePreview.pinned
+      onPinToggled: CapturePreview.togglePin()
+      onDismissed: CapturePreview.hide()
+    }
+  }
+
+  // What `shot` calls in through, after it has saved a capture. Driven by the
+  // capture rather than by a key of its own, so a screenshot taken from a shell or
+  // from the capture menu previews the same way one taken from Print does.
+  IpcHandler {
+    target: "capture"
+
+    function preview(path: string): void { CapturePreview.reveal(path) }
+    function togglePin(): void { CapturePreview.togglePin() }
+    function hide(): void { CapturePreview.hide() }
+  }
+
   // Notification popups. Top right, over everything, and taking no keyboard:
   // a notification is there to be read, not typed into. Sized to its stack, so
   // an empty one leaves no window behind to swallow clicks.

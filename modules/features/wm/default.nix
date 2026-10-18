@@ -9,8 +9,7 @@
     ./mixer
     ./reminder
     ./quickshell
-    ./screenshot
+    ./capture
     ./menu
-    ./screenshare
   ];
 }

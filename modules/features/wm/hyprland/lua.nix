@@ -54,6 +54,17 @@ in
       hl.bind(key, hl.dsp.exec_cmd(command), { description = description })
     end
 
+    -- Same, for a handler function rather than a shell command.
+    --
+    -- The picker binds need the "picker" submap entered and left again around a
+    -- command, which is two dispatches around one exec — more than `bind`'s
+    -- single exec_cmd can express. They go through here so they still unbind
+    -- first and stay idempotent across a reload like every other bind.
+    local function bind_handler(key, description, handler)
+      hl.unbind(key)
+      hl.bind(key, handler, { description = description })
+    end
+
     -- Same, for a dispatcher rather than a shell command.
     --
     -- The dispatcher is named with dots — "window.move", "focus" — because that
@@ -75,10 +86,12 @@ in
       hl.bind(key, args ~= nil and dsp(args) or dsp(), { description = description })
     end
 
-    -- Runs a command, but only if it exists; otherwise the fallback. Used
-    -- throughout the capture binds so this shell can grow into the reference
-    -- shell's commands one at a time, without the keys going dead in the
-    -- meantime.
+    -- Runs a command, but only if it exists; otherwise the fallback.
+    --
+    -- Two whole commands, not a command and its arguments: the result is spliced
+    -- into a bind's shell line as-is, so `or_else("shot", "shot") .. " smart"`
+    -- would produce `... else shot; fi smart`, and the trailing argument after
+    -- `fi` is a syntax error rather than a fallback.
     local function or_else(command, fallback)
       return "if command -v " .. command .. " >/dev/null 2>&1; then "
         .. command .. "; else " .. fallback .. "; fi"
@@ -188,7 +201,13 @@ in
     bind(mod .. " + SHIFT + RETURN", "Browser",
       or_else("xdg-open", "$EDITOR https://example.com"))
 
-    bind(mod .. " + SHIFT + N", "Editor", "${EDITOR:-nvim}")
+    -- The editor command is escaped so Nix leaves it alone. Inside this string an
+    -- unescaped dollar-brace is Nix interpolation, and Nix reads what sits between
+    -- the braces — `EDITOR:-nvim` — as a URI literal, the same shape as a web
+    -- address. It interpolates to the plain text `EDITOR:-nvim`, the dollar sign is
+    -- gone, and the bind runs `EDITOR:-nvim` as a command, which is nothing. The
+    -- two single quotes before the dollar-brace are what keep it a shell expansion.
+    bind(mod .. " + SHIFT + N", "Editor", "''${EDITOR:-nvim}")
 
     -- ------------------------------------------------------------------
     -- The screenshot picker
@@ -213,6 +232,66 @@ in
       name = "picker-noanim",
       match = { namespace = "hyprpicker" },
       no_anim = true,
+    })
+
+    -- ------------------------------------------------------------------
+    -- The webcam overlay
+    --
+    -- A pinned portrait window in the corner of whatever is being recorded, drawn
+    -- by mpv. Three sizes, each a share of the *recording's* height rather than
+    -- the monitor's, so the camera takes the same part of a 1080p capture as of a
+    -- 6K one.
+    --
+    -- These rules only apply when the window first appears, which is why the
+    -- resize binds move and resize the client directly instead of switching it
+    -- between rules. The app-id carries the size, and mpv is started with it, so
+    -- the rule that matches is the one for the size it was started at.
+    --
+    --   small   h*9/50 tall, 8:9 wide
+    --   medium  h/4    tall, 8:9 wide
+    --   large   h*27/80 tall, 8:9 wide
+    --
+    -- The 40 is the margin from the corner, matching MARGIN in
+    -- features/wm/capture/webcam-overlay.sh, which has to agree with it or the
+    -- first size and every later resize would land in different places.
+    -- ------------------------------------------------------------------
+    hl.window_rule({
+      name = "webcam-overlay-small",
+      match = { class = "^WebcamOverlay-small$" },
+      size = { "(monitor_h*4/25)", "(monitor_h*9/50)" },
+      move = { "(monitor_w-monitor_h*4/25-40)", "(monitor_h-monitor_h*9/50-40)" },
+    })
+    hl.window_rule({
+      name = "webcam-overlay-medium",
+      match = { class = "^WebcamOverlay-medium$" },
+      size = { "(monitor_h*2/9)", "(monitor_h/4)" },
+      move = { "(monitor_w-monitor_h*2/9-40)", "(monitor_h-monitor_h/4-40)" },
+    })
+    hl.window_rule({
+      name = "webcam-overlay-large",
+      match = { class = "^WebcamOverlay-large$" },
+      size = { "(monitor_h*3/10)", "(monitor_h*27/80)" },
+      move = { "(monitor_w-monitor_h*3/10-40)", "(monitor_h-monitor_h*27/80-40)" },
+    })
+
+    -- Float, pin and leave alone. `no_initial_focus` keeps the camera from taking
+    -- focus when it appears — otherwise starting a recording would interrupt
+    -- whatever is being recorded — and `no_dim` keeps it from dimming with the
+    -- rest when something else is focused.
+    --
+    -- Matched on class and title together: the class alone would also catch an
+    -- mpv window whose app-id happened to be set the same way, and the title is
+    -- the fixed string the overlay is always started with.
+    hl.window_rule({
+      name = "webcam-overlay-behaviour",
+      match = {
+        class = "^WebcamOverlay-(small|medium|large)$",
+        title = "^WebcamOverlay$",
+      },
+      float = true,
+      pin = true,
+      no_initial_focus = true,
+      no_dim = true,
     })
 
     hl.on("layer.closed", function(layer)
@@ -278,27 +357,37 @@ in
     -- Capture
     --
     -- Keys and modes are the reference shell's, so the habits carry across.
-    -- Every one falls back to `shot`, so nothing here depends on commands this
-    -- shell does not have.
+    --
+    -- Every bind that opens the picker goes through `capture`, which is what
+    -- enters the "picker" submap for the duration. A bind that calls `shot`
+    -- directly still takes the shot, but Return, Tab and the arrows — the whole
+    -- keyboard side of the picker — are only bound inside the submap, so they do
+    -- nothing. That is why every one of them is wrapped, not just PRINT.
     --
     -- PRINT is spelled as a keysym. No keycode, no leading comma, and none of
     -- the positional-field trouble that made it a workaround in hyprlang.
     -- ------------------------------------------------------------------
-    hl.unbind("PRINT")
-    hl.bind("PRINT", capture("shot smart"), { description = "Screenshot" })
+    bind_handler("PRINT", "Screenshot", capture("shot smart"))
 
-    bind(mod .. " + SHIFT + S", "Screenshot", or_else("shot", "shot") .. " smart")
+    -- The same capture as PRINT, for a keyboard without a Print key. It used to
+    -- be `or_else("shot", "shot") .. " smart"`, which rendered as
+    -- `if command -v shot; then shot; else shot; fi smart` — `fi` followed by an
+    -- argument, a shell syntax error, so the key did nothing at all.
+    bind_handler(mod .. " + SHIFT + S", "Screenshot", capture("shot smart"))
 
-    bind(mod .. " + SHIFT + W", "Screenshot window", "shot windows")
+    bind_handler(mod .. " + SHIFT + W", "Screenshot window", capture("shot windows"))
 
     -- Fullscreen capture is SUPER+SHIFT+G, not SUPER+SHIFT+F: in the reference
     -- shell F is the file manager, and two binds on one key means one of them
     -- is never going to work.
+    --
+    -- No picker, so no submap: the monitor is already known and there is nothing
+    -- to aim at.
     bind(mod .. " + SHIFT + G", "Screenshot fullscreen", "shot fullscreen")
 
     -- Straight to the clipboard, for pasting a screenshot into whatever is
-    -- focused.
-    bind(mod .. " + SHIFT + C", "Screenshot to clipboard", "shot smart copy")
+    -- focused. Still a picker — "smart copy" means pick, then copy.
+    bind_handler(mod .. " + SHIFT + C", "Screenshot to clipboard", capture("shot smart copy"))
 
     -- Marked up before it is saved: handed to satty, which opens already in crop
     -- mode, so this crops and annotates rather than capturing everything and
@@ -306,11 +395,46 @@ in
     --
     -- CTRL, not SHIFT: SUPER+SHIFT+A used to be both this and the lock, which
     -- is one key doing two unrelated things.
-    bind(mod .. " + CTRL + A", "Screenshot annotation", "shot smart annotate")
+    bind_handler(mod .. " + CTRL + A", "Screenshot annotation", capture("shot smart annotate"))
 
     -- The colour under the pointer, as a hex code. hyprpicker does this on its
     -- own; pkill first, because one left running would eat the next press.
     bind(mod .. " + PRINT", "Color picker", "pkill hyprpicker 2>/dev/null || hyprpicker -a")
+
+    -- The text inside a region, OCR'd to the clipboard.
+    bind_handler(mod .. " + CTRL + PRINT", "Extract text", capture("capture-text"))
+
+    -- Everything above, and the recording keys, in one list. The family has grown
+    -- past what is worth a key each, and this is how the rest stay reachable.
+    --
+    -- Wrapped like the others: an entry that opens the picker needs the submap
+    -- that the entry before it was opened under.
+    bind_handler(mod .. " + CTRL + C", "Capture menu", capture("capture-menu"))
+
+    -- Shrink a picture or a video before sending it. No picker — it asks through
+    -- fuzzel for the file, the format and the size — so it is a plain bind.
+    bind(mod .. " + CTRL + PERIOD", "Transcode", "transcode")
+
+    -- ------------------------------------------------------------------
+    -- Recording
+    --
+    -- ALT+PRINT starts one, or stops the one that is running — the same key both
+    -- ways, like PRINT for screenshots. It asks about audio first, then opens the
+    -- same picker as a screenshot, so the region keys are already known.
+    --
+    -- Wrapped in `capture` because it *is* the picker: it needs the submap up for
+    -- Return and the arrows. When the key is stopping a recording instead, the
+    -- submap goes up and straight back down, which is harmless.
+    -- ------------------------------------------------------------------
+    bind_handler(mod .. " + ALT + PRINT", "Screen record", capture("record"))
+
+    -- The overlay is resized while a recording runs, not chosen up front, so these
+    -- are plain binds rather than anything the picker owns.
+    --
+    -- `[` and `]` by keysym name: bracketleft and bracketright are what the X11
+    -- keysym table calls them, and Hyprland takes the name, not the character.
+    bind(mod .. " + ALT + bracketleft", "Webcam overlay smaller", "webcam-overlay resize smaller")
+    bind(mod .. " + ALT + bracketright", "Webcam overlay larger", "webcam-overlay resize larger")
 
     -- ------------------------------------------------------------------
     -- Focus

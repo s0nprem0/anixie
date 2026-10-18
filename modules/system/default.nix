@@ -8,6 +8,7 @@
     ./fonts.nix
     ./users.nix
     ./desktop.nix
+    ./screenrecord.nix
     ./lock.nix
     ./bluetooth.nix
     ./printing.nix

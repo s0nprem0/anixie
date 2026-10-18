@@ -12,6 +12,14 @@ let
     statix
   ];
 
+  # The shell scripts the desktop modules install — the screenshot and recording
+  # commands, the launcher, the reminder — are shellcheck's subject. Nothing ran
+  # it before, so the two `shellcheck disable` comments already in shot.sh were
+  # advice nobody was taking.
+  shellTools = with pkgs; [
+    shellcheck
+  ];
+
   # Everyday CLI with no configuration of its own. Shared with
   # features/shell/tools so `nix develop` and the user profile stay in step.
   cliTools = import ../features/shell/tools/packages.nix { inherit pkgs; };
@@ -39,13 +47,13 @@ in
   # standard library, matching the `nil` LSP.
   default = {
     name = "nix-dots-dev";
-    packages = nixTools ++ cliTools ++ fullStack;
+    packages = nixTools ++ shellTools ++ cliTools ++ fullStack;
     RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
   };
 
   # Everything except the toolchains, for quick shellcheck-style work.
   lite = {
     name = "nix-dots-dev-lite";
-    packages = nixTools ++ cliTools;
+    packages = nixTools ++ shellTools ++ cliTools;
   };
 }

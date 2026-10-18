@@ -6,10 +6,14 @@
 #   pick smart                freeform, but a bare click snaps to what it lands in
 #   pick fullscreen           the focused monitor, no interaction
 #
-#   pick --keep-freeze        leave the freeze running and print its pid first
+#   pick --keep-freeze        leave the freeze running and write its pid to
+#                             <runtime dir>/anixie-pick-freeze.pid, so a capture
+#                             that follows sees the frame that was aimed at
+#   pick --match-monitor      print "monitor:NAME" or "region:WxH+X+Y" instead of
+#                             the raw rectangle, which is what a recorder wants
 #
 # While the picker is open, these are driven by keys (see the binds scoped to the
-# selection layer in features/wm/hyprland/keybinds.nix):
+# "picker" submap in features/wm/hyprland/lua.nix):
 #
 #   pick --take-window        take whatever the pointer is over
 #   pick --take-fullscreen    take the focused monitor
@@ -24,9 +28,13 @@
 
 set -uo pipefail
 
-runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
+# Private to the user where there is a runtime directory, and a directory of our
+# own either way so the markers and the lock do not sit among the session's other
+# files.
+runtime_dir="${XDG_RUNTIME_DIR:-/tmp}/anixie"
 FULLSCREEN_MARKER="$runtime_dir/anixie-pick-fullscreen"
 WINDOW_MARKER="$runtime_dir/anixie-pick-window"
+FREEZE_PID_FILE="$runtime_dir/anixie-pick-freeze.pid"
 
 HYPRPICKER="@HYPERPICKER@"
 HYPRCTL="@HYPRCTL@"
@@ -73,7 +81,6 @@ if [ "${1:-}" = "--select-window" ]; then
   # window that cannot be reached is left out: hovering could not reach it either.
   WARP_X=0
   WARP_Y=0
-  reachable=""
   warp_points=()
 
   # Eighths of a rectangle, ordered by distance from its centre.
@@ -222,6 +229,30 @@ window_rects() {
     '[.[] | select(.workspace.id == ($ws | tonumber) and .hidden != true) | "\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"] | unique[]'
 }
 
+# Every rectangle worth snapping to, deduplicated across the two lists. A
+# maximized window reports the same rectangle as its monitor, and without the
+# sort -u that rectangle appears twice — which matters wherever the first match
+# wins rather than the smallest.
+all_rects() {
+  { monitor_rects; window_rects; } | sort -u
+}
+
+# Monitor name and rectangle, tab-separated, so a caller can go from a picked
+# rectangle back to the monitor it *is*. gpu-screen-recorder records a monitor by
+# name at native resolution, which is both cheaper and sharper than feeding it the
+# same rectangle as a region, so a whole-monitor pick should stay a monitor pick.
+monitor_named_rects() {
+  $HYPRCTL monitors -j | $JQ -r --arg ws "$(active_workspace)" '
+    def format_geo:
+      .x as $x | .y as $y |
+      (.width / .scale | floor) as $w |
+      (.height / .scale | floor) as $h |
+      .transform as $t |
+      if $t == 1 or $t == 3 then "\($x),\($y) \($h)x\($w)"
+      else "\($x),\($y) \($w)x\($h)" end;
+    .[] | select(.activeWorkspace.id == ($ws | tonumber)) | "\(.name)\t\(format_geo)"'
+}
+
 focused_monitor_geo() {
   $HYPRCTL monitors -j | $JQ -r '
     def format_geo:
@@ -275,8 +306,17 @@ rects_for_point() {
 
 FREEZE_PID=""
 freeze_screen() {
-  # -r keeps the frozen frame on screen after it is dismissed, so the capture
-  # that follows still sees what was picked rather than whatever moved since.
+  # hyprpicker is what freezes: it puts a still frame of the screen up before
+  # slurp draws on it, so the desktop cannot keep moving under the pointer while
+  # an edge is being lined up on something animating.
+  #
+  #   -r  render inactive displays as well, so a multi-monitor setup freezes as a
+  #       whole rather than only the focused output.
+  #   -z  no zoom lens. The lens magnifies under the cursor and would sit on top
+  #       of the very region being picked.
+  #
+  # It is killed on exit, so the frame comes down with the selection made against
+  # it and the capture that follows still sees what was picked.
   "$HYPRPICKER" -r -z >/dev/null 2>&1 &
   FREEZE_PID=$!
   sleep 0.1
@@ -309,9 +349,44 @@ pick() {
 
 # ---- modes -------------------------------------------------------------------
 
-MODE="${1:-smart}"
+MODE=""
 KEEP_FREEZE="false"
-[ "${2:-}" = "--keep-freeze" ] && KEEP_FREEZE="true"
+MATCH_MONITOR="false"
+
+# Flags are position-independent, so a caller can say `pick smart --match-monitor`
+# without having to know which argument the mode is.
+for arg in "$@"; do
+  case "$arg" in
+    smart | region | windows | fullscreen | window) MODE="$arg" ;;
+    --keep-freeze) KEEP_FREEZE="true" ;;
+    --match-monitor) MATCH_MONITOR="true" ;;
+  esac
+done
+MODE="${MODE:-smart}"
+
+# ---- one picker at a time ----------------------------------------------------
+#
+# The marker files carry fixed names, so two captures overlapping would clear each
+# other's markers and whichever lost the race would come back looking cancelled.
+# A marker orphaned by a crashed run is worse: it survives into the *next*
+# capture, which then silently becomes a fullscreen grab nobody asked for.
+#
+# `rm -f` only inside pick() is not enough for either — it runs after the freeze,
+# and a second capture can clear the markers in between. Serializing whole
+# selections here, with the markers cleared inside the lock, covers both.
+#
+# Only this path takes the lock. The `--take-*` and `--select-window` handlers
+# above run *while* this process is waiting on slurp, and would deadlock against
+# it if they waited for the lock too. `flock` on an fd held open for the rest of
+# the script releases when the script exits, however it exits.
+#
+# `exec` rather than a subshell because the lock has to be held across the whole
+# of the capture below, not just its acquisition.
+mkdir -p "$runtime_dir"
+exec 9>"$runtime_dir/anixie-pick.lock"
+flock 9 || printf 'pick: could not lock %s\n' "$runtime_dir/anixie-pick.lock" >&2
+
+rm -f "$FULLSCREEN_MARKER" "$WINDOW_MARKER"
 
 SELECTION=""
 
@@ -329,35 +404,54 @@ windows)
   # -r restricts the selection to the rectangles, so it can only ever end up
   # being exactly one window or monitor.
   freeze_screen
-  SELECTION=$(echo "$(monitor_rects; window_rects)" | pick -d -r)
+  SELECTION=$(all_rects | pick -d -r)
   ;;
 smart | *)
   # The rectangles are given to slurp so it highlights and snaps to them, but -r
   # is left off so a freeform drag is still allowed: you can either drag an edge
   # or click a window and get all of it.
-  RECTS=$(monitor_rects; window_rects)
+  RECTS=$(all_rects)
   freeze_screen
   SELECTION=$(echo "$RECTS" | pick -d)
 
   # A click rather than a drag comes back as a rectangle of almost no area, which
   # is never something anyone meant. Snapped to whichever rectangle it landed in.
+  #
+  # Which rectangle is `resolve_rect_at`'s question, not a first-match loop over
+  # the list: a click is always inside the monitor, so a first-match loop stops
+  # there and a click meant for a window captures the whole screen instead. The
+  # smallest rectangle containing the point is what slurp highlights, and it is
+  # what the keyboard path already uses, so both agree.
   if [[ $SELECTION =~ ^(-?[0-9]+),(-?[0-9]+)[[:space:]]([0-9]+)x([0-9]+)$ ]] &&
     ((BASH_REMATCH[3] * BASH_REMATCH[4] < 20)); then
-    click_x=${BASH_REMATCH[1]}
-    click_y=${BASH_REMATCH[2]}
-
-    while read -r rect; do
-      [[ $rect =~ ^(-?[0-9]+),(-?[0-9]+)[[:space:]]([0-9]+)x([0-9]+)$ ]] || continue
-      ((click_x >= BASH_REMATCH[1] && click_x < BASH_REMATCH[1] + BASH_REMATCH[3] &&
-        click_y >= BASH_REMATCH[2] && click_y < BASH_REMATCH[2] + BASH_REMATCH[4])) || continue
-      SELECTION="${BASH_REMATCH[1]},${BASH_REMATCH[2]} ${BASH_REMATCH[3]}x${BASH_REMATCH[4]}"
-      break
-    done <<<"$RECTS"
+    if resolve_rect_at "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" <<<"$RECTS"; then
+      SELECTION="$RESOLVED_RECT"
+    fi
   fi
   ;;
 esac
 
-[ "$KEEP_FREEZE" = "true" ] && echo "$FREEZE_PID"
+# The freeze's pid goes to a file rather than to stdout. A caller that keeps the
+# freeze wants it across a capture that happens after this process has exited, and
+# a pid line mixed into the output would have to be told apart from the geometry on
+# every read.
+if [ "$KEEP_FREEZE" = "true" ] && [ -n "$FREEZE_PID" ]; then
+  printf '%s' "$FREEZE_PID" >"$FREEZE_PID_FILE"
+fi
+
 [ -n "$SELECTION" ] || exit 1
+
+# `--match-monitor` re-expresses the rectangle as something gpu-screen-recorder
+# takes directly: `monitor:NAME` when the pick is exactly a monitor, and
+# `region:WxH+X+Y` otherwise. The offsets move to the end because that is the
+# order gsr's `-region` wants, and the comma slurp uses is not part of it.
+if [ "$MATCH_MONITOR" = "true" ]; then
+  matched_monitor=$(monitor_named_rects | awk -F'\t' -v sel="$SELECTION" '$2 == sel { print $1; exit }')
+  if [ -n "$matched_monitor" ]; then
+    SELECTION="monitor:$matched_monitor"
+  elif [[ $SELECTION =~ ^(-?[0-9]+),(-?[0-9]+)[[:space:]]([0-9]+)x([0-9]+)$ ]]; then
+    SELECTION="region:${BASH_REMATCH[3]}x${BASH_REMATCH[4]}+${BASH_REMATCH[1]}+${BASH_REMATCH[2]}"
+  fi
+fi
 
 echo "$SELECTION"

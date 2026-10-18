@@ -14,6 +14,7 @@
       { "id": "bar.clock" }
     ],
     "centerEnd": [
+      { "id": "recording", "type": "qml" },
       { "id": "bar.indicators" }
     ],
     "right": [

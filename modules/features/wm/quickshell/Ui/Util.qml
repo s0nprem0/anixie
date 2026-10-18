@@ -53,6 +53,13 @@ QtObject {
   readonly property string coffee: glyph("f0f4")
   readonly property string moon: glyph("f186")
 
+  // A video camera, shown while a screen recording runs.
+  readonly property string record: glyph("f03d")
+
+  // The screenshot preview: keep it on screen, or dismiss it.
+  readonly property string pin: glyph("f08d")
+  readonly property string close: glyph("f00d")
+
   // Calendar stepping.
   readonly property string chevronLeft: glyph("f053")
   readonly property string chevronRight: glyph("f054")
