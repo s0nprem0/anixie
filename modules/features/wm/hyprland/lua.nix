@@ -374,13 +374,24 @@ in
       dispatch(mod .. " + SHIFT + " .. i, "Send to workspace " .. i, "window.move", { workspace = tostring(i) })
     end
 
-    -- Comma and period step through all of them, so you are not boxed into the
-    -- first five.
+    -- Comma and shift+comma step through all of them, so you are not boxed into
+    -- the first five.
+    --
+    -- Not period. Hyprland key names are case-insensitive, so PERIOD and period
+    -- are the same keysym: binding workspace stepping to period unbinds and
+    -- replaces the emoji picker above, and it did so silently — the bind was
+    -- gone from hyprctl binds with no error anywhere. Which of the two you want
+    -- on that key is a choice, and the reference shell's choice is the emoji
+    -- picker, so step with comma instead.
     bind(mod .. " + comma", "Previous workspace", "hyprctl dispatch workspace -1")
-    bind(mod .. " + period", "Next workspace", "hyprctl dispatch workspace 1")
+    bind(mod .. " + SHIFT + comma", "Next workspace", "hyprctl dispatch workspace 1")
 
-    bind(mod .. " + SHIFT + LEFT", "Send to previous workspace", "hyprctl dispatch movetoworkspace -1")
-    bind(mod .. " + SHIFT + RIGHT", "Send to next workspace", "hyprctl dispatch movetoworkspace 1")
+    -- Note what is *not* here: SUPER+SHIFT+arrow does not also move the window to
+    -- the next workspace. It used to, alongside the swap above, and because a
+    -- key bound twice keeps whichever was registered last and says nothing
+    -- about the other, one of the two silently did not exist. Sending a window
+    -- to another workspace is SHIFT with a number, above; the arrows are for
+    -- swapping with the neighbour, which is the action you reach for more.
 
     -- The wheel moves between existing workspaces. mouse_up and mouse_down, not
     -- a bare "wheel": the key has to say which way the wheel turned, or the two
