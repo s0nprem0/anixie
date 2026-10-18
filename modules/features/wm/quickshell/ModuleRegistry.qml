@@ -20,6 +20,7 @@ QtObject {
   readonly property Component indicators: Component { Indicators {} }
   readonly property Component tray: Component { Tray {} }
   readonly property Component monitor: Component { Monitor {} }
+  readonly property Component bell: Component { Bell {} }
 
   readonly property var registry: ({
     "bar.workspaces": workspaces,
@@ -35,7 +36,8 @@ QtObject {
     "bar.bluetooth": bluetooth,
     "bar.indicators": indicators,
     "bar.tray": tray,
-    "bar.monitor": monitor
+    "bar.monitor": monitor,
+    "bar.bell": bell
   })
 
   function has(id) {

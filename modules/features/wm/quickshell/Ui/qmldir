@@ -4,6 +4,7 @@ singleton Commands 1.0 Commands.qml
 singleton Bar 1.0 Bar.qml
 singleton OsdHost 1.0 OsdHost.qml
 singleton NotificationHost 1.0 NotificationHost.qml
+singleton NotificationStore 1.0 NotificationStore.qml
 singleton PolkitHost 1.0 PolkitHost.qml
 Osd 1.0 Osd.qml
 NotificationCard 1.0 NotificationCard.qml

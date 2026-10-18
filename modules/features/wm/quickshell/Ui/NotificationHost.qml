@@ -10,8 +10,13 @@ import Quickshell.Services.Notifications
 //
 // A notification is tracked while it is on screen, which is what puts it in
 // `trackedNotifications` for the popups to draw and for anything to dismiss.
-// One arriving while silencing is on is simply left untracked, so it is
-// dropped rather than queued.
+// One arriving while silencing is on is left untracked, so it is dropped as a
+// popup — but it is still written to history, since silencing means "do not
+// interrupt me", not "pretend it never happened".
+//
+// NotificationStore mirrors each notification to disk for as long as it is
+// here, and archives the file once it goes, which is what gives the shell a
+// history it did not have before.
 QtObject {
   id: root
 
@@ -48,8 +53,29 @@ QtObject {
     keepOnReload: true
 
     onNotification: function (notification) {
+      NotificationStore.begin(notification)
       if (root.doNotDisturb) return
       notification.tracked = true
+    }
+  }
+
+  // Nothing calls us when a notification ends: the card expires or dismisses it,
+  // but the client is equally free to close its own notification, and that never
+  // reaches the shell at all. So the tracked list is polled and whatever has
+  // dropped out of it is archived. A second is far finer than a human can notice
+  // in the gap between a toast going and its entry appearing in the panel.
+  //
+  // Held as a property rather than declared as a child: a QtObject has no
+  // default property, so a bare `Timer { }` here has nowhere to go.
+  property Timer sweeper: Timer {
+    interval: 1000
+    running: true
+    repeat: true
+    triggeredOnStart: true
+    onTriggered: {
+      const ids = []
+      for (const notification of root.tracked) ids.push(notification.id)
+      NotificationStore.sweep(ids)
     }
   }
 }

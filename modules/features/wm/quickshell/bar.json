@@ -24,6 +24,7 @@
       { "id": "bar.wifi" },
       { "id": "bar.audio" },
       { "id": "bar.monitor" },
+      { "id": "bar.bell" },
       { "id": "bar.power" }
     ]
   }
