@@ -4,7 +4,9 @@
     "left": [
       { "id": "bar.menu" },
       { "id": "bar.spacer", "size": 12 },
-      { "id": "bar.workspaces" }
+      { "id": "bar.workspaces" },
+      { "id": "bar.spacer", "size": 12 },
+      { "id": "bar.active-window", "maxWidth": 220 }
     ],
     "centerBegin": [
       { "id": "weather", "type": "command", "exec": "sh $HOME/.config/quickshell/scripts/weather.sh", "interval": 1800, "tooltip": "Weather" }
@@ -13,7 +15,7 @@
       { "id": "bar.clock" }
     ],
     "centerEnd": [
-      { "id": "bar.media" },
+      { "id": "bar.media", "maxWidth": 240 },
       { "id": "recording", "type": "qml" },
       { "id": "bar.indicators" }
     ],

@@ -30,6 +30,16 @@ WidgetButton {
   // caller that has its own.
   property int labelMaxWidth: 240
 
+  // Scroll the label through its slot instead of cutting it off. For a title
+  // that is genuinely too long to elide usefully — a track name, where the end
+  // of the string is as informative as the start — and not for anything that
+  // wants to be read at a glance.
+  property bool marquee: false
+
+  // Held still while something it belongs to is open, so a popup does not sit
+  // over text that is sliding around underneath it.
+  property bool marqueePaused: false
+
   readonly property real visualIconSize: Style.bar.iconSize
   readonly property real canvasSize: Math.max(visualIconSize, opticalSize)
 
@@ -57,22 +67,66 @@ WidgetButton {
     width: root.canvasSize + (label.visible ? label.width + Style.space(4) : 0)
     height: root.canvasSize
 
-    Text {
-      id: label
-      visible: root.labelText !== ""
-      textFormat: Text.PlainText
-      text: root.labelText
-      // Capped, then elided. `width` rather than `implicitWidth` so the cap reaches
-      // the content box this sits in; the elide only happens because the width is
-      // smaller than the text.
-      width: root.labelMaxWidth > 0 ? Math.min(root.labelMaxWidth, implicitWidth) : implicitWidth
-      elide: Text.ElideRight
-      font.family: Style.font.family
-      font.pixelSize: Style.font.body
-      color: root.active && root.useActiveColor ? root.activeColor : root.foreground
-      y: (parent.height - height) / 2
-        + (labelMetrics.descent - labelMetrics.ascent + labelMetrics.tightBoundingRect("0").height) / 2
-      renderType: Text.NativeRendering
+    // The label's window: the label is exactly this wide, and in marquee mode it
+    // is clipped to it and slides through. Without the clip the text would draw
+    // straight over the glyph to its right.
+    Item {
+      id: labelBox
+      x: 0
+      width: label.width
+      height: parent.height
+      clip: root.marquee
+
+      Text {
+        id: label
+        visible: root.labelText !== ""
+        textFormat: Text.PlainText
+        text: root.labelText
+        // Capped, then elided. `width` rather than `implicitWidth` so the cap
+        // reaches the content box this sits in; the elide only happens because
+        // the width is smaller than the text.
+        width: root.labelMaxWidth > 0 ? Math.min(root.labelMaxWidth, implicitWidth) : implicitWidth
+        // A marquee shows the whole string by moving it, so there is nothing to
+        // elide — an ellipsis on text that is about to scroll past is noise.
+        elide: root.marquee ? Text.ElideNone : Text.ElideRight
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        color: root.active && root.useActiveColor ? root.activeColor : root.foreground
+        y: (parent.height - height) / 2
+          + (labelMetrics.descent - labelMetrics.ascent + labelMetrics.tightBoundingRect("0").height) / 2
+        renderType: Text.NativeRendering
+
+        // Only when it does not fit: a title that fits should sit still.
+        readonly property bool needsScroll: root.marquee && implicitWidth > labelBox.width
+
+        // Resting position, and where a label that fits stays. The animation
+        // below takes over x while it runs.
+        x: 0
+      }
+
+      // An explicit target and property rather than `NumberAnimation on x`.
+      //
+      // The value-source form with `from`/`to` and an infinite loop ran one pass
+      // and then stopped off the end, leaving the label blank — which is worse
+      // than not scrolling at all. Naming the target and the property leaves no
+      // doubt about what is being animated or how many times.
+      //
+      // Linear, because a marquee that eases reads as stopping rather than
+      // passing, and timed from the string's length so a long title does not
+      // whip past faster than a short one.
+      NumberAnimation {
+        id: scrollAnim
+
+        target: label
+        property: "x"
+
+        running: label.needsScroll && !root.marqueePaused && !Style.reduceMotion
+        loops: Animation.Infinite
+        duration: Math.max(6000, Math.round(label.implicitWidth * 25))
+        from: labelBox.width
+        to: -label.implicitWidth
+        easing.type: Easing.Linear
+      }
     }
 
     FontMetrics {
