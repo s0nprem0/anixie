@@ -31,7 +31,11 @@
     # --------------------------------------------------------------------
     # The primary binding. `smart` is the picker that can be both a drag and a
     # click on a window, which is the one worth having on a single key.
-    "PRINT, exec, shot smart"
+    #
+    # Spelled as a keycode rather than as PRINT, because this Hyprland reads
+    # PRINT as a modifier: the line then parsed as dispatcher "shot smart", and
+    # the whole bind failed with "Invalid dispatcher".
+    "code:133, exec, shot smart"
 
     # The same capture, for people who reach for the keyboard rather than the
     # keypad — also the reference shell's alias for it.
@@ -42,7 +46,7 @@
 
     # The colour under the pointer, as a hex code. hyprpicker does this on its
     # own; `pkill` first because one left running would eat the next press.
-    "$mod, PRINT, exec, pkill hyprpicker || hyprpicker -a"
+    "$mod, code:133, exec, pkill hyprpicker || hyprpicker -a"
 
     # Straight to the clipboard rather than a file, for pasting a screenshot
     # into whatever is focused.

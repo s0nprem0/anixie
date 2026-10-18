@@ -42,32 +42,15 @@ in
 
     misc.force_default_wallpaper = 0;
 
-    # Keys for the screenshot picker, scoped to slurp's layer surface so they do
-    # nothing at any other time.
+    # The screenshot picker's keys are NOT bound here. Binding them to slurp's
+    # layer needs `layerrule { matchlayer = ...; binds { ... } }`, which this
+    # Hyprland does not have: `hyprctl getoption layerrule` answers "no such
+    # option", and every key in such a block is reported as "config option does
+    # not exist". It was written from a shell that targets a newer Hyprland and
+    # it produced a config full of errors here rather than working quietly.
     #
-    # slurp names its layer "selection" — not "slurp", which is what you would
-    # guess, and which matches nothing. Without these the picker can only be
-    # driven with the mouse.
-    layerrule = {
-      name = "anixie-screenshot-picker";
-      matchlayer = "/^selection$/";
-
-      binds = {
-        # RETURN takes the whole window under the pointer, CTRL+RETURN the
-        # monitor. TAB moves between windows and CTRL+TAB goes back.
-        "code:36" = "exec, shot-pick --take-window";
-        "CTRL, code:36" = "exec, shot-pick --take-fullscreen";
-
-        "code:15" = "exec, shot-pick --select-window next";
-        "CTRL, code:15" = "exec, shot-pick --select-window prev";
-
-        # The nearest window in that direction, rather than the nearest window
-        # overall: moving left should find the one to the left.
-        "code:105" = "exec, shot-pick --select-window left";
-        "code:106" = "exec, shot-pick --select-window right";
-        "code:103" = "exec, shot-pick --select-window up";
-        "code:108" = "exec, shot-pick --select-window down";
-      };
-    };
+    # So the picker is mouse-only for now. The keys it would take — RETURN,
+    # CTRL+RETURN, TAB, CTRL+TAB and the arrows — are listed in the usage text of
+    # shot-pick, and become bindable the moment this Hyprland grows layerrule.
   };
 }
