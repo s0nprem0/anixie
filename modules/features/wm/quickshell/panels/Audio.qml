@@ -256,10 +256,14 @@ Item {
 
     // ---- per-application ----
     //
-    // The same shape as the two above, once per stream: name and level on one
-    // line, a slider under it. A mixer row is the one place a second line earns
-    // its keep, because the name is what tells you which of six identical
+    // The same shape as the two above, once per application: name and level on
+    // one line, a slider under it. A mixer row is the one place a second line
+    // earns its keep, because the name is what tells you which of six identical
     // sliders you are looking at.
+    //
+    // "Applications", not "Playing now": this is a mixer, and what is playing —
+    // the track, the artist, the transport — is the media widget's popup. Calling
+    // both of them now-playing made two different things look like the same one.
     PanelSeparator {
       visible: root.streams.length > 0
     }
@@ -267,7 +271,7 @@ Item {
     PanelSectionHeader {
       width: card.contentWidth
       visible: root.streams.length > 0
-      label: "Playing now"
+      label: "Applications"
     }
 
     Repeater {
