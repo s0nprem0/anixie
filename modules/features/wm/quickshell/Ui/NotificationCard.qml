@@ -22,17 +22,26 @@ Item {
   readonly property var actions: root.notification && root.notification.actions ? root.notification.actions : []
 
   // What the sender can ask for, as the protocol defines it: a positive timeout
-  // is seconds, zero means hold it until dismissed, and a negative one asks the
-  // server for its own default. Collapsing the last two would leave anything
-  // sent without an explicit timeout on screen forever.
+  // is seconds, zero means the sender will not say, and a negative one asks the
+  // server for its own default.
   readonly property int serverDefaultSeconds: 5
 
   readonly property real displaySeconds: {
-    if (!root.notification || root.notification.resident) return 0
+    if (!root.notification) return 0
 
+    // `resident` deliberately does NOT appear here. The protocol defines it as
+    // "do not remove the notification when an action is invoked" — it is about
+    // what happens after a click, not about how long the toast lives. Reading it
+    // as a lifetime is what left resident notifications from chat clients
+    // stacking up on screen indefinitely, with no way to clear them but clicking
+    // each one.
+    //
+    // A zero timeout is taken as the server default rather than literally
+    // forever, for the same reason: senders that pass 0 usually mean "no
+    // preference", and taking it literally leaves a toast on screen with nothing
+    // left to time it out.
     const timeout = root.notification.expireTimeout
     if (timeout > 0) return timeout
-    if (timeout === 0) return 0
     return root.serverDefaultSeconds
   }
 
@@ -133,7 +142,10 @@ Item {
 
               onPressed: function () {
                 actionButton.modelData.invoke()
-                if (root.notification) root.notification.dismiss()
+                // A resident notification outlives its actions by definition:
+                // that is the whole point of the hint, and dismissing it here
+                // would make the sender's request pointless.
+                if (root.notification && !root.notification.resident) root.notification.dismiss()
               }
             }
           }

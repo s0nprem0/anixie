@@ -96,16 +96,39 @@ esac
 if [ "$dest" = "copy" ]; then
   set -- "$@" --clipboard-only
 else
-  set -- "$@" -o "$shot_dir"
   mkdir -p "$shot_dir"
+  set -- "$@" -o "$shot_dir"
 fi
 
 # A command after `--` is run with the captured file appended, which is how
-# annotation and viewers are reached. Without one, the capture is saved (or
-# copied) as-is and hyprshot says so with its own notification.
+# annotation and viewers are reached. hyprshot's own status is not the command's,
+# so it is dropped here and the command's status is what leaves.
 if [ -n "$post" ]; then
   # shellcheck disable=SC2086
-  exec @HYPRSHOT@ "$@" -- $post
+  @HYPRSHOT@ "$@" -- $post >/dev/null 2>&1 || true
+  # shellcheck disable=SC2086
+  exec $post "$(ls -t "$shot_dir"/*.png 2>/dev/null | head -1)"
 fi
 
-exec @HYPRSHOT@ "$@"
+# hyprshot 1.3.0 always exits 1, having written the file perfectly well: its
+# wait loop ends with a bare `exit`, which takes the status of the `pkill` before
+# it, and `pkill` returns 1 when there was nothing left to kill. So its status is
+# no use either way, and the file is asked about instead.
+#
+# Naming the file here also drops the `_hyprshot` suffix its own default appends,
+# and puts a dash in the time so a timestamp sorts the way it reads.
+if [ "$dest" = "copy" ]; then
+  @HYPRSHOT@ "$@" || true
+  exit 0
+fi
+
+file="$shot_dir/$(date +%Y-%m-%d_%H-%M-%S).png"
+@HYPRSHOT@ "$@" -f "$(basename "$file")" || true
+
+if [ -s "$file" ]; then
+  printf 'Saved %s\n' "$file"
+  exit 0
+fi
+
+printf 'shot: nothing was captured (the selection may have been cancelled)\n' >&2
+exit 1
