@@ -9,13 +9,13 @@
       { "id": "bar.active-window", "maxWidth": 220 }
     ],
     "centerBegin": [
-      { "id": "bar.media" },
       { "id": "weather", "type": "command", "exec": "sh $HOME/.config/quickshell/scripts/weather.sh", "interval": 1800, "tooltip": "Weather" }
     ],
     "center": [
       { "id": "bar.clock" }
     ],
     "centerEnd": [
+      { "id": "bar.media" },
       { "id": "recording", "type": "qml" },
       { "id": "bar.indicators" }
     ],
