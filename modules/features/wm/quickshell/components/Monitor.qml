@@ -77,7 +77,8 @@ BarWidget {
     id: readout
     anchors.centerIn: parent
     text: Util.sun
-    labelText: root.percent + "%"
+    // Icon only; the level is in the tooltip and the OSD shows it while it changes.
+    labelText: ""
     tooltipText: "Brightness " + root.percent + "% · scroll to change"
 
     onPressed: function (button) {

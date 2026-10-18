@@ -21,6 +21,15 @@ WidgetButton {
   property string labelText: ""
   property bool debugOpticalBounds: false
 
+  // How wide the label may run before it is elided. Without a cap a label is as
+  // wide as its text, and the text is not always short: an MPRIS track title is
+  // whatever the page happens to be playing, and a YouTube video called "Call of
+  // Duty Modern Warfare 4 Campaign Gameplay Walkthrough Part 2 - CAPTAIN PRICE
+  // (PS5 Pro)" is 700px of bar. It pushed the centre section out over the
+  // workspaces on one side and the clock on the other. 0 means no cap, for a
+  // caller that has its own.
+  property int labelMaxWidth: 240
+
   readonly property real visualIconSize: Style.bar.iconSize
   readonly property real canvasSize: Math.max(visualIconSize, opticalSize)
 
@@ -45,7 +54,7 @@ WidgetButton {
     // odd-width slots.
     x: (root.width - width) / 2
     y: (root.height - height) / 2
-    width: root.canvasSize + (label.visible ? label.implicitWidth + Style.space(4) : 0)
+    width: root.canvasSize + (label.visible ? label.width + Style.space(4) : 0)
     height: root.canvasSize
 
     Text {
@@ -53,6 +62,11 @@ WidgetButton {
       visible: root.labelText !== ""
       textFormat: Text.PlainText
       text: root.labelText
+      // Capped, then elided. `width` rather than `implicitWidth` so the cap reaches
+      // the content box this sits in; the elide only happens because the width is
+      // smaller than the text.
+      width: root.labelMaxWidth > 0 ? Math.min(root.labelMaxWidth, implicitWidth) : implicitWidth
+      elide: Text.ElideRight
       font.family: Style.font.family
       font.pixelSize: Style.font.body
       color: root.active && root.useActiveColor ? root.activeColor : root.foreground

@@ -53,9 +53,30 @@ QtObject {
     return n
   }
 
+  // The steps a gap is allowed to land on. Small values snap to the nearest one,
+  // so a padding cannot be 14 here and 16 there for no reason — which is what it
+  // was: `space` used to round and nothing else, and seventeen distinct values
+  // between 2 and 48 came out of it.
+  readonly property var steps: [0, 2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48]
+
+  // A value above the last step is a *size* — a panel width, a list cap — not a
+  // gap, and passes through untouched. The two uses share this function because
+  // they always have; separating them would mean touching every call site to
+  // change nothing visible.
   function space(px) {
     const n = spaceReal(px)
-    return n <= 0 ? 0 : Math.max(1, Math.round(n))
+    if (n <= 0) return 0
+
+    const top = steps[steps.length - 1]
+    if (n > top) return Math.round(n)
+
+    // Nearest step, ties going to the smaller one, so a value exactly between two
+    // steps does not drift upward every time it is re-read.
+    let best = steps[0]
+    for (let i = 1; i < steps.length; i++) {
+      if (Math.abs(steps[i] - n) < Math.abs(best - n)) best = steps[i]
+    }
+    return best
   }
 
   // Every bar animation is routed through this, so reduce-motion can collapse

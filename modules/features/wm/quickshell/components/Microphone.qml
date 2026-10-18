@@ -44,10 +44,12 @@ BarWidget {
     id: readout
     anchors.centerIn: parent
     text: root.muted ? Util.micOff : Util.micOn
-    labelText: root.vertical ? "" : (root.muted ? "OFF" : root.percent + "%")
+    // Icon only: a microphone at 100% is noise, and the number is in the tooltip
+    labelText: ""
     active: root.listening
     foreground: root.listening ? Theme.danger : Theme.fg
     tooltipText: (root.source ? root.source.name : "No input")
+      + (root.muted ? " · muted" : " · " + root.percent + "%")
       + " · scroll to change · click to mute"
     onPressed: function (button) {
       if (button === Qt.LeftButton || button === Qt.MiddleButton) root.toggleMute()

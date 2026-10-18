@@ -50,11 +50,19 @@ BarWidget {
       // nmcli escapes a colon inside an SSID as "\:", so split on the first
       // field and the last one and rejoin what lies between.
       if (parts[0] === "*") {
-        return parts.slice(1, parts.length - 1).join(":") + " " + parts[parts.length - 1] + "%"
+        // The name and the signal are kept apart. They used to be joined into
+        // one string here and shown together, which is what made the bar read as
+        // a wall of numbers: an SSID welded to a percentage, on a bar whose
+        // neighbours are icons. The name is the label when there is room for one,
+        // and the percentage goes in the tooltip with it.
+        return {
+          ssid: parts.slice(1, parts.length - 1).join(":"),
+          signal: parseInt(parts[parts.length - 1], 10) || 0
+        }
       }
     }
 
-    return ""
+    return null
   }
 
   Process {
@@ -64,22 +72,23 @@ BarWidget {
 
     stdout: StdioCollector {
       onStreamFinished: {
-        const label = root.parse(this.text)
+        const active = root.parse(this.text)
 
-        if (label === "" && root.emptyRuns < 2) {
+        if (active === null && root.emptyRuns < 2) {
           root.emptyRuns += 1
           retry.restart()
           return
         }
 
         root.emptyRuns = 0
-        root.connected = label !== ""
-        root.ssid = label
+        root.connected = active !== null
+        root.ssid = active ? active.ssid : ""
+        root.signal = active ? active.signal : 0
 
         // Parsed output means the query worked, whatever an earlier run did.
         // Without this a single failed attempt at startup would tint the icon
         // for ever, alongside a perfectly good SSID.
-        if (label !== "") root.failed = false
+        if (active !== null) root.failed = false
       }
     }
 
@@ -88,6 +97,7 @@ BarWidget {
         root.failed = true
         root.connected = false
         root.ssid = ""
+        root.signal = 0
       }
     }
   }
@@ -126,11 +136,19 @@ BarWidget {
     id: readout
     anchors.centerIn: parent
     text: Util.wifi
-    labelText: root.vertical || root.failed ? "" : root.ssid
+
+    // An icon, with the name and the strength in the tooltip. The bar's right
+    // side is a row of glyphs; an SSID sitting in the middle of them was the
+    // widest and least scannable thing on it, and the one piece of information
+    // there that you read once rather than glance at.
+    labelText: ""
+
     foreground: root.failed ? Theme.danger : Theme.fg
     tooltipText: root.failed
       ? "Wi-Fi unavailable — nmcli failed"
-      : (root.resolved ? root.ssid : "Wi-Fi off")
+      : (root.resolved
+        ? root.ssid + " · " + root.signal + "% · click for networks"
+        : "Wi-Fi off")
 
     onPressed: function (button) {
       if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelHost.toggle(readout, wifiPanel)

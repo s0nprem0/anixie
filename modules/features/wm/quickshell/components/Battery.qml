@@ -25,7 +25,9 @@ BarWidget {
   readonly property bool charging: root.present
     && root.device.state === UPowerDeviceState.Charging
 
-  property bool showPercent: true
+  // Off by default, like the reference: a percentage is a slot on a 26px bar and
+  // the panel carries the number when it is wanted. Right-click brings it back.
+  property bool showPercent: false
 
   // Hidden on a machine with no battery, rather than a permanently blank slot.
   visible: root.present
@@ -55,7 +57,8 @@ BarWidget {
     labelText: !root.vertical && root.showPercent ? root.level + "%" : ""
     active: root.charging
     foreground: root.level >= 0 && root.level <= 15 && !root.charging ? Theme.danger : Theme.fg
-    tooltipText: "Battery · click for power panel"
+    tooltipText: (root.present ? "Battery " + root.level + "%" : "Battery")
+      + " · click for power panel · right-click for the percentage"
 
     // The percentage is a toggle rather than permanent chrome: it costs a slot
     // on a 26px bar, and the panel carries the number when it is wanted.

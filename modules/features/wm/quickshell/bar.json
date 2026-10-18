@@ -4,7 +4,9 @@
     "left": [
       { "id": "bar.menu" },
       { "id": "bar.spacer", "size": 12 },
-      { "id": "bar.workspaces" }
+      { "id": "bar.workspaces" },
+      { "id": "bar.spacer", "size": 12 },
+      { "id": "bar.active-window", "maxWidth": 220 }
     ],
     "centerBegin": [
       { "id": "bar.media" },
@@ -19,7 +21,6 @@
     ],
     "right": [
       { "id": "bar.tray" },
-      { "id": "bar.active-window", "maxWidth": 200 },
       { "id": "bar.microphone" },
       { "id": "bar.bluetooth" },
       { "id": "bar.wifi" },
