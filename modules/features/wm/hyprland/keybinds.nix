@@ -32,10 +32,18 @@
     # The primary binding. `smart` is the picker that can be both a drag and a
     # click on a window, which is the one worth having on a single key.
     #
-    # Spelled as a keycode rather than as PRINT, because this Hyprland reads
-    # PRINT as a modifier: the line then parsed as dispatcher "shot smart", and
-    # the whole bind failed with "Invalid dispatcher".
-    "code:133, exec, shot smart"
+    # Two mistakes are being avoided here, and the second is the one that bit.
+    #
+    # Not PRINT: this Hyprland reads PRINT as a modifier, so the line parsed as
+    # dispatcher "shot smart" and failed with "Invalid dispatcher".
+    #
+    # And not `code:133` in the modifier position either. A hyprlang bind is
+    # `mods, key, dispatcher, arg` and the fields are positional, so
+    # `bind=code:133, exec, shot smart` reads as modifier `code:133`, key
+    # `exec`, dispatcher `shot smart` — the same error, one field to the left.
+    # A bare keycode has to leave the modifier field empty, which is what the
+    # leading comma below does.
+    ", code:133, exec, shot smart"
 
     # The same capture, for people who reach for the keyboard rather than the
     # keypad — also the reference shell's alias for it.
