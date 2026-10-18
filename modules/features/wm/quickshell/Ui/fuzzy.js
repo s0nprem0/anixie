@@ -41,23 +41,27 @@ var MAX_LEADING_GAP = 24
 // gets the same bonus whether it starts a path or starts a word inside one. That
 // matters here because the paths are joined with "›", and treating it as a word
 // character would make the menu's own separators invisible to the matcher.
-function classify(ch) {
-  if (ch >= "a" && ch <= "z") return 1
-  if (ch >= "A" && ch <= "Z") return 2
-  if (ch >= "0" && ch <= "9") return 3
+//
+// On char codes rather than characters: `charAt` makes a one-character string
+// for every comparison, and the scorer makes a great many comparisons. Past the
+// end of the text — lowering can lengthen a string — charCodeAt is NaN, which
+// classifies as a separator, as the empty string from charAt did.
+function classify(code) {
+  if (code >= 97 && code <= 122) return 1 // a-z
+  if (code >= 65 && code <= 90) return 2 // A-Z
+  if (code >= 48 && code <= 57) return 3 // 0-9
   return 0
 }
 
-// The bonus for matching the character at `i`, given the text it is in. The
-// original casing is needed here even though matching is done case-insensitively:
-// "firefox" and "Firefox" have to match the same text, but only the second one
-// offers the camel bonus on its inner capitals.
-function bonusAt(text, classes, i) {
+// The bonus for matching the character at `i`. Classified from the original
+// casing even though matching is done case-insensitively: "firefox" and
+// "Firefox" have to match the same text, but only the second one offers the
+// camel bonus on its inner capitals.
+function bonusAt(text, i) {
   if (i === 0) return BONUS_BOUNDARY * BONUS_FIRST_MULTIPLIER
 
-  var prev = text.charAt(i - 1)
-  var prevClass = classes[i - 1]
-  var curClass = classes[i]
+  var prevClass = classify(text.charCodeAt(i - 1))
+  var curClass = classify(text.charCodeAt(i))
 
   if (prevClass === 0) return BONUS_BOUNDARY
   if (prevClass === 1 && curClass === 2) return BONUS_CAMEL
@@ -66,9 +70,23 @@ function bonusAt(text, classes, i) {
   return 0
 }
 
-function isSeparatorClass(c) {
-  return c === 0
-}
+// An empty cell. Scores are small integers either side of zero, so this is far
+// below any real one and stands in for the null the cells used to hold.
+var NONE = -2147483648
+
+// Scratch space for the table, kept between calls. The scorer runs once per row
+// per keystroke — four thousand times a key in the emoji picker — and allocating
+// a table for each was a large part of what a keystroke cost. Plain arrays
+// rather than typed ones, because this engine reads them faster.
+var occ = []
+var val = []
+var par = []
+var rowStart = []
+
+// The query, lowered and split, for the run of rows it is scored against.
+var lastQuery = null
+var lowerQ = ""
+var qChars = []
 
 // Match `query` against `text` as a subsequence, and score it.
 //
@@ -82,8 +100,14 @@ function score(text, query) {
 
   if (q.length === 0) return { score: 0, positions: [] }
 
+  if (q !== lastQuery) {
+    lastQuery = q
+    lowerQ = q.toLowerCase()
+    qChars = new Array(lowerQ.length)
+    for (var k = 0; k < lowerQ.length; k++) qChars[k] = lowerQ.charAt(k)
+  }
+
   var lowerT = t.toLowerCase()
-  var lowerQ = q.toLowerCase()
   var n = lowerT.length
   var m = lowerQ.length
 
@@ -108,92 +132,124 @@ function score(text, query) {
     }
   }
 
-  var classes = new Array(n)
-  for (var i = 0; i < n; i++) classes[i] = classify(t.charAt(i))
+  // Not a subsequence, not a match — and the table below can only say the same
+  // thing at far greater cost. In a long list this is most rows on most keys.
+  // One native search per query character rather than a loop over the label's.
+  var from = 0
+  for (var s = 0; s < m; s++) {
+    from = lowerT.indexOf(qChars[s], from)
+    if (from < 0) return null
+    from++
+  }
 
-  // dp[j][i] is the best score for matching the first j+1 query characters with
-  // query[j] landing exactly on text[i]. Flattened to one array per query
-  // character, because a list of 80 entries × 20 query characters is 1,600 cells
-  // and an object per cell would be a lot of garbage per keystroke.
-  var dp = new Array(m)
-  var parent = new Array(m)
+  // The table has a row per query character and, in that row, a cell for each
+  // place the character occurs in the text: a character can only land where it
+  // is. A cell holds the best score for matching the query up to that character
+  // with it landing there, and which cell of the row above that came from.
+  //
+  // Kept sparse because a dense row — a cell for every character of the text,
+  // nearly all of them empty — is what the matcher used to fill and then walk.
+  var total = 0
   for (var j = 0; j < m; j++) {
-    dp[j] = new Array(n).fill(null)
-    parent[j] = new Array(n).fill(-1)
+    rowStart[j] = total
+    var pos = lowerT.indexOf(qChars[j])
+    while (pos >= 0) {
+      occ[total++] = pos
+      pos = lowerT.indexOf(qChars[j], pos + 1)
+    }
+  }
+  rowStart[m] = total
+
+  for (var c0 = rowStart[0]; c0 < rowStart[1]; c0++) {
+    val[c0] = SCORE_MATCH + bonusAt(t, occ[c0])
+    par[c0] = -1
   }
 
-  var qChar = lowerQ.charAt(0)
-  for (var i0 = 0; i0 < n; i0++) {
-    if (lowerT.charAt(i0) !== qChar) continue
-    dp[0][i0] = SCORE_MATCH + bonusAt(t, classes, i0)
-  }
+  // A jump of MAX_LEADING_GAP or more skipped characters costs the same however
+  // long it is, so of all the earlier matches that far back the best is simply
+  // the highest-scoring one, kept as a running maximum. Only the nearer ones,
+  // whose penalty still depends on the distance, are walked.
+  var farPenalty = PENALTY_GAP_START + PENALTY_GAP_EXTENSION * (MAX_LEADING_GAP - 1)
 
   for (var j1 = 1; j1 < m; j1++) {
-    var want = lowerQ.charAt(j1)
-    var row = dp[j1]
-    var prevRow = dp[j1 - 1]
+    var prevStart = rowStart[j1 - 1]
+    var prevEnd = rowStart[j1]
 
-    for (var i1 = 0; i1 < n; i1++) {
-      if (lowerT.charAt(i1) !== want) continue
+    // The first cell of the row above at or past the current position, and the
+    // running best of those far enough behind it. Both only move forward, since
+    // the cells are in text order.
+    var ahead = prevStart
+    var farNext = prevStart
+    var farMax = NONE
+    var farArg = -1
 
-      var bonus = bonusAt(t, classes, i1)
-      var bestScore = null
+    for (var c1 = prevEnd; c1 < rowStart[j1 + 1]; c1++) {
+      var i1 = occ[c1]
+      var bonus = bonusAt(t, i1)
+      var bestScore = NONE
       var bestParent = -1
 
-      // Walking backwards from the current position, so an adjacent previous
-      // match is always considered before a distant one. The loop stops as soon
-      // as no earlier match could win: the gap penalty only gets worse with
-      // distance, so once the best available score has fallen that far behind,
-      // every remaining candidate is worse too.
-      for (var p = i1 - 1; p >= 0; p--) {
-        var carried = prevRow[p]
-        if (carried === null) continue
+      while (ahead < prevEnd && occ[ahead] < i1) ahead++
 
-        var gap = i1 - p - 1
-        var candidate
-        if (gap === 0) {
-          candidate = carried + bonus + BONUS_CONSECUTIVE
-        } else {
-          if (j1 === 0) continue
-          var skipped = gap > MAX_LEADING_GAP ? MAX_LEADING_GAP : gap
-          candidate =
-            carried +
-            SCORE_MATCH +
-            bonus +
-            PENALTY_GAP_START +
-            PENALTY_GAP_EXTENSION * (skipped - 1)
-        }
+      // Nearest first, so an adjacent previous match is considered before a
+      // distant one and wins a tie.
+      for (var p = ahead - 1; p >= prevStart; p--) {
+        var gap = i1 - occ[p] - 1
+        if (gap >= MAX_LEADING_GAP) break
 
-        if (bestScore === null || candidate > bestScore) {
+        var carried = val[p]
+        if (carried === NONE) continue
+
+        var candidate = gap === 0
+          ? carried + bonus + BONUS_CONSECUTIVE
+          : carried + SCORE_MATCH + bonus + PENALTY_GAP_START + PENALTY_GAP_EXTENSION * (gap - 1)
+
+        if (bestScore === NONE || candidate > bestScore) {
           bestScore = candidate
           bestParent = p
         }
       }
 
-      if (bestScore !== null) {
-        row[i1] = bestScore
-        parent[j1][i1] = bestParent
+      // Ties go to the later cell, as they did when the walk ran backwards over
+      // these too and only a strictly better score replaced the one it had.
+      while (farNext < prevEnd && i1 - occ[farNext] - 1 >= MAX_LEADING_GAP) {
+        var v = val[farNext]
+        if (v !== NONE && v >= farMax) {
+          farMax = v
+          farArg = farNext
+        }
+        farNext++
       }
+
+      if (farArg !== -1) {
+        var farCandidate = farMax + SCORE_MATCH + bonus + farPenalty
+        if (bestScore === NONE || farCandidate > bestScore) {
+          bestScore = farCandidate
+          bestParent = farArg
+        }
+      }
+
+      val[c1] = bestScore
+      par[c1] = bestParent
     }
   }
 
-  var best = null
-  var bestAt = -1
-  var last = dp[m - 1]
-  for (var i2 = 0; i2 < n; i2++) {
-    if (last[i2] !== null && (best === null || last[i2] > best)) {
-      best = last[i2]
-      bestAt = i2
+  var best = NONE
+  var bestCell = -1
+  for (var c2 = rowStart[m - 1]; c2 < rowStart[m]; c2++) {
+    if (val[c2] !== NONE && (best === NONE || val[c2] > best)) {
+      best = val[c2]
+      bestCell = c2
     }
   }
 
-  if (best === null) return null
+  if (best === NONE) return null
 
   var positions = new Array(m)
-  var walk = bestAt
+  var cell = bestCell
   for (var j2 = m - 1; j2 >= 0; j2--) {
-    positions[j2] = walk
-    walk = parent[j2][walk]
+    positions[j2] = occ[cell]
+    cell = par[cell]
   }
 
   return { score: best, positions: positions }
