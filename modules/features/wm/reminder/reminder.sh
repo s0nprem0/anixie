@@ -40,6 +40,14 @@ case "${1:-}" in
     exit 0
     ;;
 
+  count)
+    # How many are pending, for the bar's indicator. A count rather than the list
+    # itself so the widget is not parsing systemd's table on every poll.
+    systemctl --user list-timers --all --no-legend --no-pager "$prefix-*.timer" 2>/dev/null |
+      grep -c . || true
+    exit 0
+    ;;
+
   clear)
     systemctl --user list-units --all --plain --no-legend --no-pager "$prefix-*.timer" 2>/dev/null |
       awk '{ print $1 }' |
@@ -48,7 +56,7 @@ case "${1:-}" in
     ;;
 
   "" | *[!0-9]*)
-    printf 'Usage: reminder <minutes> [message] | -i | show | clear\n' >&2
+    printf 'Usage: reminder <minutes> [message] | -i | show | count | clear\n' >&2
     exit 1
     ;;
 esac

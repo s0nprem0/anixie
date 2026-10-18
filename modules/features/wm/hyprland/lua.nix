@@ -597,6 +597,21 @@ in
     bind(mod .. " + CTRL + SHIFT + SPACE", "Theme picker", "theme")
 
     -- ------------------------------------------------------------------
+    -- Toggles
+    --
+    -- The modes the bar's indicators show, on the keys the reference gives them.
+    -- Each is the same switch the indicator flips — `toggle` is what both call —
+    -- so the key and the glyph cannot end up disagreeing.
+    --
+    -- Night light warms to 4000K and back to 6500K; idle is the idle *lock*, so
+    -- turning it off is what leaves the machine awake.
+    -- ------------------------------------------------------------------
+    bind(mod .. " + CTRL + N", "Night light", "toggle nightlight")
+    bind(mod .. " + CTRL + I", "Stay awake", "toggle idle")
+    bind(mod .. " + CTRL + comma", "Silence notifications", "toggle dnd")
+    bind(mod .. " + CTRL + O", "Toggle menu", "toggle")
+
+    -- ------------------------------------------------------------------
     -- Focus
     -- mod + HJKL walks the layout; the arrows duplicate it for people who
     -- reach for those first.

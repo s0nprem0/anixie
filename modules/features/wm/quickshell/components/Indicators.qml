@@ -35,6 +35,10 @@ BarWidget {
   property bool idleStopped: false
   property int nightTemperature: 0
 
+  // How many reminders are queued. Counted rather than listed, so the poll is a
+  // number to compare rather than a table to parse.
+  property int reminderCount: 0
+
   // hyprsunset reports its current temperature, and identity — the value the
   // daytime profile uses — leaves that reading untouched rather than clearing
   // it, so "warmer than neutral" is what tells us a tint is actually applied.
@@ -45,6 +49,7 @@ BarWidget {
     if (root.wanted("Dnd") && (root.alwaysShow || root.dnd)) list.push("Dnd")
     if (root.wanted("Idle") && (root.alwaysShow || root.idleStopped)) list.push("Idle")
     if (root.wanted("NightLight") && (root.alwaysShow || root.nightlight)) list.push("NightLight")
+    if (root.wanted("Reminder") && (root.alwaysShow || root.reminderCount > 0)) list.push("Reminder")
     return list
   }
 
@@ -67,6 +72,7 @@ BarWidget {
 
         sourceComponent: modelData === "Dnd" ? dndIndicator
           : modelData === "NightLight" ? nightIndicator
+          : modelData === "Reminder" ? reminderIndicator
           : idleIndicator
       }
     }
@@ -112,6 +118,51 @@ BarWidget {
       dimmed: !root.nightlight
       onPressed: function () { nightToggle.running = true }
     }
+  }
+
+  Component {
+    id: reminderIndicator
+
+    // BarIconButton rather than WidgetButton: this one shows a glyph *and* a
+    // count, and a WidgetButton draws one or the other.
+    BarIconButton {
+      text: Util.clock
+      labelText: String(root.reminderCount)
+      fontSize: Style.bar.iconFont
+      tooltipText: root.reminderCount === 1
+        ? "1 reminder queued · click to see it"
+        : root.reminderCount + " reminders queued · click to see them"
+      active: true
+      selected: true
+      // Status rather than a switch: there is no mode to toggle, so a click
+      // shows what is queued instead of changing anything.
+      onPressed: function () { reminderShow.running = true }
+    }
+  }
+
+  // ---- queued reminders, via the reminder command ----
+  //
+  // The count only. `reminder show` prints a systemd table, and parsing that on
+  // every poll to find a number is work the command can do once.
+  Process {
+    id: reminderQuery
+    command: ["sh", "-c", "reminder count 2>/dev/null || echo 0"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const n = parseInt(this.text.trim(), 10)
+        root.reminderCount = isFinite(n) && n > 0 ? n : 0
+      }
+    }
+  }
+
+  // The list, as a notification: readable without leaving the desktop, and it
+  // goes into the history like anything else. Read once into a variable rather
+  // than piped, because notify-send takes the body as an argument.
+  Process {
+    id: reminderShow
+    command: ["sh", "-c",
+      "list=$(reminder show); notify-send -a reminders 'Queued reminders' \"$list\""]
+    onExited: reminderQuery.running = true
   }
 
   // ---- idle daemon stopped, via systemd ----
@@ -166,6 +217,7 @@ BarWidget {
     onTriggered: {
       idleQuery.running = true
       nightQuery.running = true
+      reminderQuery.running = true
     }
   }
 }

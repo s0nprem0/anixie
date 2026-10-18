@@ -10,6 +10,7 @@
     ./reminder
     ./quickshell
     ./capture
+    ./toggles
     ./menu
   ];
 }

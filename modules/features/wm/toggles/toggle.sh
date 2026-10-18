@@ -1,0 +1,171 @@
+#!/bin/bash
+# The modes you flip on for an hour and off again.
+#
+#   toggle                pick one, showing what is on
+#   toggle nightlight     warm the screen, or put it back
+#   toggle idle           stop the screen locking, or start it again
+#   toggle dnd            silence notifications, or let them through
+#   toggle status         one line per toggle, for the bar
+#
+# Each of these is the same switch the bar's indicator flips and the same state
+# the panel shows, so there is one answer to "is it on" rather than three. The
+# bar asks `toggle status`; the keys call `toggle <name>`.
+#
+# `idle` is the odd name: it means the idle *lock*, so turning it "off" is what
+# leaves the machine awake. That is the reference's naming, and it reads right
+# the moment you see the coffee-cup indicator appear.
+
+set -uo pipefail
+
+hyprctl="@HYPRCTL@"
+quickshell="@QUICKSHELL@"
+fuzzel="@FUZZEL@"
+
+
+usage() {
+  sed -n '2,/^[^#]/p' "$0" | sed -e '$d' -e '/^#!/d' -e 's/^# \{0,1\}//'
+}
+
+die() {
+  printf 'toggle: %s\n' "$1" >&2
+  exit 1
+}
+
+# ---- night light ----
+#
+# hyprsunset reports its current temperature, and identity — the value the
+# daytime profile uses — leaves that reading untouched rather than clearing it,
+# so "warmer than neutral" is what says a tint is actually applied.
+
+nightlight_state() {
+  local t
+  t=$("$hyprctl" hyprsunset temperature 2>/dev/null) || t=""
+  if [ -n "$t" ] && [ "$t" -lt 6000 ] 2>/dev/null; then
+    printf 'on'
+  else
+    printf 'off'
+  fi
+}
+
+nightlight_toggle() {
+  if [ "$(nightlight_state)" = "on" ]; then
+    "$hyprctl" hyprsunset temperature 6500 >/dev/null 2>&1
+  else
+    "$hyprctl" hyprsunset temperature 4000 >/dev/null 2>&1
+  fi
+}
+
+# ---- idle lock ----
+#
+# The daemon is the switch: running means the screen will blank and lock on its
+# own, stopped means it will not. Nothing else tracks it, so there is nothing
+# that can disagree.
+
+idle_state() {
+  if systemctl --user is-active --quiet hypridle; then
+    printf 'on'
+  else
+    printf 'off'
+  fi
+}
+
+idle_toggle() {
+  if systemctl --user is-active --quiet hypridle; then
+    systemctl --user stop hypridle
+  else
+    systemctl --user start hypridle
+  fi
+}
+
+# ---- do not disturb ----
+#
+# Owned by the shell, which is also what draws the toasts, so the switch is an
+# IPC call into it rather than a flag file somewhere it would have to watch.
+
+dnd_state() {
+  local state
+  state=$("$quickshell" ipc call notify status 2>/dev/null) || state="off"
+  case "$state" in
+    on) printf 'on' ;;
+    *) printf 'off' ;;
+  esac
+}
+
+dnd_toggle() {
+  "$quickshell" ipc call notify toggle >/dev/null 2>&1 || die "the shell is not running"
+}
+
+# ---- the group ----
+
+state_of() {
+  case "$1" in
+    nightlight) nightlight_state ;;
+    idle) idle_state ;;
+    dnd) dnd_state ;;
+    *) die "no toggle called \"$1\"" ;;
+  esac
+}
+
+label() {
+  case "$1" in
+    nightlight) printf 'Night light' ;;
+    idle) printf 'Idle lock' ;;
+    dnd) printf 'Silence notifications' ;;
+  esac
+}
+
+toggle_one() {
+  case "$1" in
+    nightlight) nightlight_toggle ;;
+    idle) idle_toggle ;;
+    dnd) dnd_toggle ;;
+    *) die "no toggle called \"$1\"" ;;
+  esac
+}
+
+names() {
+  printf '%s\n' nightlight idle dnd
+}
+
+case "${1:-}" in
+  -h | --help)
+    usage
+    ;;
+  status)
+    # `idle` prints its own state name so the bar does not have to know that
+    # "off" is the interesting one.
+    for name in $(names); do
+      printf '%s %s\n' "$name" "$(state_of "$name")"
+    done
+    ;;
+  list)
+    for name in $(names); do
+      printf '%s\t%s\n' "$(label "$name")" "$(state_of "$name")"
+    done
+    ;;
+  nightlight | idle | dnd)
+    toggle_one "$1"
+    printf '%s: %s\n' "$(label "$1")" "$(state_of "$1")"
+    ;;
+  "")
+    # The list carries its own state, so the picker says what is on before you
+    # choose rather than after.
+    choice=$(
+      for name in $(names); do
+        printf '%s — %s\n' "$(label "$name")" "$(state_of "$name")"
+      done | "$fuzzel" --dmenu --prompt='toggle  ' --width 30
+    ) || exit 0
+    [ -n "$choice" ] || exit 0
+
+    case "$choice" in
+      Night\ light*) toggle_one nightlight ;;
+      Idle\ lock*) toggle_one idle ;;
+      Silence\ notifications*) toggle_one dnd ;;
+      *) exit 1 ;;
+    esac
+    ;;
+  *)
+    printf 'toggle: unknown argument "%s" (try --help)\n' "$1" >&2
+    exit 2
+    ;;
+esac

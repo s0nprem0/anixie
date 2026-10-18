@@ -304,6 +304,19 @@ ShellRoot {
     function list(): string { return Theme.names().join(" ") }
   }
 
+  // Silencing notifications, for the `toggle` command's key.
+  //
+  // The daemon lives in this shell, so there is nothing to write to disk and
+  // nothing to watch — the switch is a call in, and `status` is the call back
+  // out, which is what stops the bar and the key from disagreeing.
+  IpcHandler {
+    target: "notify"
+
+    function toggle(): void { NotificationHost.toggle() }
+    function status(): string { return NotificationHost.doNotDisturb ? "on" : "off" }
+    function dismissAll(): void { NotificationHost.dismissAll() }
+  }
+
   // The screenshot preview. Bottom right, over the desktop, gone on its own after
   // ten seconds unless it is pinned.
   //

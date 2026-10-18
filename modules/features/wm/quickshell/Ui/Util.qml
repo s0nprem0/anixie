@@ -63,6 +63,9 @@ QtObject {
   // A secured network in the Wi-Fi list.
   readonly property string lock: glyph("f023")
 
+  // A queued reminder.
+  readonly property string clock: glyph("f017")
+
   // Calendar stepping.
   readonly property string chevronLeft: glyph("f053")
   readonly property string chevronRight: glyph("f054")
