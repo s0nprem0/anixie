@@ -60,7 +60,7 @@
     {
       "group": "System",
       "entries": [
-        { "label": "Clipboard history", "run": "cliphist list | fuzzel --dmenu | cliphist decode | wl-copy" },
+        { "label": "Clipboard history", "run": "clipboard" },
         { "label": "Reminder", "run": "reminder -i" },
         { "label": "Lock", "run": "hyprlock" },
         { "label": "Reload config", "run": "hyprctl reload" },

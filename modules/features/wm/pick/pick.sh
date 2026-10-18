@@ -92,12 +92,11 @@ done
 #
 # One trap rather than one per file: a second `trap ... EXIT` replaces the first
 # rather than adding to it, so the entries file was left behind the moment the
-# request file's trap was set.
+# request file's trap was set. The request file is not in here — the shell
+# removes that one, because it is the shell that reads it.
 entries_file=""
-request=""
 cleanup() {
   [ -n "$entries_file" ] && rm -f "$entries_file"
-  [ -n "$request" ] && rm -f "$request"
   return 0
 }
 trap cleanup EXIT
@@ -152,21 +151,30 @@ payload=$(
 # A single command-line argument is capped at 128KB by the kernel, and the emoji
 # list is twice that — inline it failed with a bare "Argument list too long"
 # from jq, which is a cliff to leave sitting in a picker at a size nobody can
-# predict. The shell reads it synchronously, so it is safe to delete the moment
-# the call returns.
+# predict.
+#
+# The file is deliberately *not* removed here on the way out. The shell reads it
+# asynchronously and removes it itself once it has the contents; deleting it here
+# raced the read, which showed up as the picker opening under the previous
+# caller's title, or not at all.
 request=$(mktemp)
 printf '%s' "$payload" >"$request"
 
-# `ipc call` is synchronous, so the reply is the shell saying it has the request
-# and has drawn nothing yet. A shell that is not running fails here, which is the
-# case worth reporting plainly: there is nothing to pick from and no fallback.
+# `ipc call` is synchronous, so the reply is the shell saying it has taken the
+# request. A shell that is not running fails here, which is the case worth
+# reporting plainly: there is nothing to pick from and no fallback — and nothing
+# will read the request, so this is the one path that has to clean it up.
 if ! reply=$("$quickshell" ipc call pick open "$request" 2>/dev/null); then
+  rm -f "$request"
   die "the shell is not running"
 fi
 
 case "$reply" in
   ok | '"ok"' | ok.*) ;;
-  *) die "the shell did not take the request${reply:+ (said: $reply)}" ;;
+  *)
+    rm -f "$request"
+    die "the shell did not take the request${reply:+ (said: $reply)}"
+    ;;
 esac
 
 exit 0

@@ -41,12 +41,32 @@ QtObject {
   id: root
 
   // The request file, set by open() before it is read.
+  //
+  // Read with a process rather than a FileView. A FileView's blockLoading gives a
+  // synchronous read when the path is set at construction — which is how the
+  // bar's config and the theme's state file use it — but not when the path is
+  // changed later: there the read is queued, so text() came back with the
+  // *previous* request or with nothing at all. That showed as a picker opening
+  // under the last caller's title, and then as no picker at all once the caller
+  // had deleted the file on its way out.
+  //
+  // A process is asynchronous either way, which is why the file now outlives the
+  // call and the shell removes it once it has the contents. `$1` rather than the
+  // path spliced into the command, so a path with a space in it needs no quoting.
   property string requestPath: ""
 
-  property FileView requestFile: FileView {
-    path: root.requestPath
-    printErrors: false
-    blockLoading: true
+  property Process requestReader: Process {
+    command: [
+      "sh",
+      "-c",
+      "cat -- \"$1\"; rm -f -- \"$1\"",
+      "read-request",
+      root.requestPath
+    ]
+
+    stdout: StdioCollector {
+      onStreamFinished: root.applyRequest(this.text)
+    }
   }
 
   // Shown. Gates the window's visibility and its keyboard focus: the picker only
@@ -93,20 +113,25 @@ QtObject {
   // entries are of one kind and the picker is a panel, not a window.
   readonly property int maxVisible: 12
 
-  // Read the request at `path` and show it. Returns the ack `pick` waits on.
+  // Take the request at `path` and show it. The ack is returned as soon as the
+  // read is under way rather than when it finishes: `pick` exits on it, and what
+  // the caller needs to know is that the shell has taken the request, not that a
+  // menu has been drawn — it has already gone by then either way.
   function open(path) {
     root.requestPath = String(path !== undefined && path !== null ? path : "")
 
-    let raw = ""
-    try {
-      raw = requestFile.text()
-    } catch (error) {
-      raw = ""
-    }
+    // Restarted rather than merely started: the process has to run again for a
+    // second request, and `running` stays true after the first.
+    requestReader.running = false
+    requestReader.running = true
 
+    return "ok"
+  }
+
+  function applyRequest(raw) {
     if (!raw || raw === "") {
       console.warn("pick: no request to read at " + root.requestPath)
-      return "error"
+      return
     }
 
     let request
@@ -114,7 +139,7 @@ QtObject {
       request = JSON.parse(raw)
     } catch (error) {
       console.warn("pick: could not read the request: " + error)
-      return "error"
+      return
     }
 
     // A request arriving while a picker is up replaces it. The alternative —
@@ -132,10 +157,6 @@ QtObject {
     root.shown = true
 
     root.apply()
-
-    // The ack. `pick` exits on this, so it has to mean "I have the entries" and
-    // not "I have finished" — the second is the user's problem, not the caller's.
-    return "ok"
   }
 
   function apply() {

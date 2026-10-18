@@ -222,14 +222,17 @@ fi
 # The request goes to the shell as a file rather than as the argument itself,
 # for the same reason `pick` does it: a single argument is capped at 128KB by
 # the kernel, and the applications alone are a fifth of that on a small profile.
-# The shell reads it synchronously, so it can go the moment the call returns.
+#
+# The shell removes the file once it has read it — it is read asynchronously, so
+# removing it here would race that read. This is the one path that has to clean
+# up, because nothing else will.
 request=$(mktemp)
-trap 'rm -f "$request"' EXIT
 
 printf '%s\n' "${shown[@]}" | "$jq" -s --arg title "$prompt" \
   '{ title: $title, grouped: true, entries: . }' >"$request"
 
 if ! "$quickshell" ipc call pick open "$request" >/dev/null 2>&1; then
+  rm -f "$request"
   printf 'menu-tree: the shell is not running\n' >&2
   exit 1
 fi

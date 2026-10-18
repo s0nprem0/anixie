@@ -8,7 +8,7 @@ import "../Ui"
 BarWidget {
   id: root
 
-  readonly property string launcher: String(root.setting("launcher", "fuzzel"))
+  readonly property string launcher: String(root.setting("launcher", "menu"))
   readonly property string terminal: String(root.setting("terminal", "kitty"))
 
   implicitWidth: readout.implicitWidth
