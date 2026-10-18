@@ -326,7 +326,6 @@ cleanup_freeze() {
   [ "${KEEP_FREEZE:-false}" = "true" ] && return
   [ -n "$FREEZE_PID" ] && kill "$FREEZE_PID" 2>/dev/null
 }
-trap cleanup_freeze EXIT
 
 # Run slurp and work out what was chosen. An empty result with a marker present
 # means a key was pressed rather than a drag made.
@@ -387,6 +386,38 @@ exec 9>"$runtime_dir/anixie-pick.lock"
 flock 9 || printf 'pick: could not lock %s\n' "$runtime_dir/anixie-pick.lock" >&2
 
 rm -f "$FULLSCREEN_MARKER" "$WINDOW_MARKER"
+
+# ---- the picker's keys -------------------------------------------------------
+#
+# The keys that drive the selection — Return takes the window under the pointer,
+# Tab walks the windows, the arrows extend — are bound to this script inside a
+# Hyprland submap, and a submap is only live while it is entered. Entering it here
+# rather than in the bind is what makes those keys work however the picker was
+# reached: from a key, from the menu, or from a terminal. They used to be the
+# bind's business, so a capture started from the menu had no keyboard at all.
+#
+# A submap that never comes down takes every other bind on the desktop with it —
+# Super+Return included — so the reset is on the way out as well, on every exit
+# path including a cancelled selection. The bind still resets afterwards as well;
+# this is the one that cannot miss.
+#
+# Only when there is a picker. `fullscreen` asks nothing, so there is nothing for
+# a submap to serve, and entering one would disable the desktop's keys for the
+# moment it took to work that out.
+entered_submap="false"
+if [ "$MODE" != "fullscreen" ]; then
+  $HYPRCTL dispatch 'hl.dsp.submap("picker")' >/dev/null 2>&1
+  entered_submap="true"
+fi
+
+# One exit handler for both, because a second `trap` would replace the first and
+# whichever was set last would be the only one that ran: the submap would come
+# down and the freeze would stay up, or the other way round.
+cleanup_picker() {
+  cleanup_freeze
+  [ "$entered_submap" = "true" ] && $HYPRCTL dispatch 'hl.dsp.submap("reset")' >/dev/null 2>&1
+}
+trap cleanup_picker EXIT HUP INT TERM
 
 SELECTION=""
 

@@ -132,8 +132,14 @@ case "${1:-}" in
     usage
     ;;
   status)
-    # `idle` prints its own state name so the bar does not have to know that
-    # "off" is the interesting one.
+    # A single toggle prints just its state, so a caller that wants one — the
+    # menu's labels — does not have to run the whole list and pick a line out of
+    # it.
+    if [ $# -ge 2 ]; then
+      state_of "$2"
+      exit 0
+    fi
+
     for name in $(names); do
       printf '%s %s\n' "$name" "$(state_of "$name")"
     done

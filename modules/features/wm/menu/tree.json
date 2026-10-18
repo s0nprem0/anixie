@@ -1,0 +1,71 @@
+{
+  "entries": [
+    { "label": "Applications", "list": "menu list", "run": "menu {}" },
+    { "label": "Terminal", "run": "kitty" },
+    { "label": "Files", "run": "thunar" },
+    { "label": "Editor", "run": "helix" },
+    { "label": "Browser", "run": "menu Firefox" },
+
+    {
+      "group": "Capture",
+      "entries": [
+        { "label": "Screenshot — region", "run": "shot region" },
+        { "label": "Screenshot — window", "run": "shot windows" },
+        { "label": "Screenshot — fullscreen", "run": "shot fullscreen" },
+        { "label": "Screenshot — to clipboard", "run": "shot smart copy" },
+        { "label": "Annotate a screenshot", "run": "shot smart annotate" },
+        { "label": "Extract text from a region", "run": "capture-text" },
+        { "label": "Scan a QR code", "run": "capture-qr" },
+        { "label": "Pick a colour", "run": "hyprpicker -a" },
+        { "label": "Transcode a picture or video", "run": "transcode" },
+        { "label": "Screen record", "run": "record" },
+        { "label": "Screen record — no audio", "run": "record --audio=none" },
+        { "label": "Screen record — desktop audio", "run": "record --audio=desktop" },
+        { "label": "Screen record — desktop and microphone", "run": "record --audio=desktop+mic" },
+        { "label": "Screen record — desktop, microphone and webcam", "run": "record --audio=desktop+mic+webcam" },
+        { "label": "Stop screen recording", "run": "record --stop", "when": "record --status" }
+      ]
+    },
+
+    {
+      "group": "Style",
+      "entries": [
+        { "label": "Theme", "list": "theme list", "run": "theme set {}" },
+        { "label": "Next theme", "run": "theme next" },
+        { "label": "Previous theme", "run": "theme prev" },
+        { "label": "Bar on or off", "run": "quickshell ipc call bar toggle" }
+      ]
+    },
+
+    {
+      "group": "Toggle",
+      "entries": [
+        { "label": "Night light", "run": "toggle nightlight", "state": "toggle status nightlight" },
+        { "label": "Idle lock", "run": "toggle idle", "state": "toggle status idle" },
+        { "label": "Silence notifications", "run": "toggle dnd", "state": "toggle status dnd" }
+      ]
+    },
+
+    {
+      "group": "Monitors",
+      "entries": [
+        { "label": "Scale up", "run": "monitors scale up" },
+        { "label": "Scale down", "run": "monitors scale down" },
+        { "label": "Scale — back to 1x", "run": "monitors scale reset" },
+        { "label": "Internal display on or off", "run": "monitors internal toggle" },
+        { "label": "Mirror displays", "run": "monitors mirror toggle" }
+      ]
+    },
+
+    {
+      "group": "System",
+      "entries": [
+        { "label": "Clipboard history", "run": "cliphist list | fuzzel --dmenu | cliphist decode | wl-copy" },
+        { "label": "Reminder", "run": "reminder -i" },
+        { "label": "Lock", "run": "hyprlock" },
+        { "label": "Reload config", "run": "hyprctl reload" },
+        { "label": "Log out", "run": "command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'" }
+      ]
+    }
+  ]
+}

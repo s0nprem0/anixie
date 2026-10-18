@@ -61,6 +61,34 @@ if [ ! -d "$apps" ]; then
   mv "$staging" "$cache"
 fi
 
+# The menu itself. `apps` is the icon-carrying launcher, kept because the menu is
+# text-only — fuzzel's dmenu mode draws no icons — and picking an application is
+# the one case where the icon is worth more than the search. `list` is what the
+# menu's Applications provider reads.
+case "${1:-}" in
+  "")
+    exec "@MENU_TREE@"
+    ;;
+  apps)
+    # fuzzel's launcher mode: it reads the applications directory itself, so each
+    # entry's own icon is resolved through the icon theme rather than by us, and
+    # the entry is launched exactly as its Exec line says.
+    XDG_DATA_DIRS="$cache:$XDG_DATA_DIRS" exec @FUZZEL@ --prompt='launch ' --width 60 --lines 12
+    ;;
+  list)
+    # Names, in the order the farm holds them, deduplicated: two desktop entries
+    # can carry the same Name, and the menu cannot tell those apart.
+    for candidate in "$apps"/*.desktop; do
+      [ -e "$candidate" ] || continue
+      awk -F= '
+        /^\[/ { inentry = ($0 == "[Desktop Entry]") }
+        inentry && /^Name=/ { print substr($0, 6); exit }
+      ' "$candidate"
+    done | awk '!seen[$0]++'
+    exit 0
+    ;;
+esac
+
 if [ $# -gt 0 ]; then
   # A named application is launched directly, so the launcher can be scripted.
   #
@@ -110,8 +138,3 @@ if [ $# -gt 0 ]; then
   fi
   exit 0
 fi
-
-# fuzzel's launcher mode: it reads the applications directory itself, so each
-# entry's own icon is resolved through the icon theme rather than by us, and the
-# entry is launched exactly as its Exec line says.
-XDG_DATA_DIRS="$cache:$XDG_DATA_DIRS" exec @FUZZEL@ --prompt='launch ' --width 60 --lines 12

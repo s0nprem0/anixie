@@ -76,12 +76,6 @@ let
   };
 
   transcode = render "transcode" ./transcode.sh { };
-
-  # The one list over all of the above, so the family is discoverable without
-  # thirteen separate keys.
-  captureMenu = render "capture-menu" ./menu.sh {
-    "@RECORD@" = "${record}/bin/record";
-  };
 in
 
 {
@@ -100,8 +94,6 @@ in
     captureText
     captureQr
     transcode
-    captureMenu
-
     # Annotation is satty's job. It is written for Wayland and opens in crop mode,
     # so the annotate bind goes straight to cropping rather than making you pick the
     # crop tool first.

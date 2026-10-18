@@ -258,7 +258,7 @@ in
     -- ------------------------------------------------------------------
     bind(mod .. " + RETURN", "Terminal", terminal)
 
-    bind(mod .. " + SPACE", "Launcher", menu)
+    bind(mod .. " + SPACE", "Menu", menu)
 
     -- Asks how long, then for a message, and the timer it sets keeps running
     -- after this shell is gone.
@@ -486,12 +486,16 @@ in
     -- The text inside a region, OCR'd to the clipboard.
     bind_handler(mod .. " + CTRL + PRINT", "Extract text", capture("capture-text"))
 
-    -- Everything above, and the recording keys, in one list. The family has grown
-    -- past what is worth a key each, and this is how the rest stay reachable.
+    -- The whole menu, filtered to the capture entries. The family has grown past
+    -- what is worth a key each, and this is how the rest stay reachable.
     --
-    -- Wrapped like the others: an entry that opens the picker needs the submap
-    -- that the entry before it was opened under.
-    bind_handler(mod .. " + CTRL + C", "Capture menu", capture("capture-menu"))
+    -- A plain bind, not one of the `capture` wrappers above. Those enter the
+    -- picker submap around the command, which is right when the command *is* the
+    -- picker — but the menu runs fuzzel first and then hands the picker off to a
+    -- detached process, and the wrapper would take the submap back down in the
+    -- gap between the two. The picker enters it itself now, so the wrapper is
+    -- only a backstop, and this path does not want one.
+    bind(mod .. " + CTRL + C", "Capture menu", "menu-tree --only Capture")
 
     -- Shrink a picture or a video before sending it. No picker — it asks through
     -- fuzzel for the file, the format and the size — so it is a plain bind.
