@@ -26,7 +26,7 @@
     settings = {
       "$mod" = "SUPER";
       "$terminal" = "kitty";
-      "$menu" = "fuzzel";
+      "$menu" = "menu";
     };
   };
 }

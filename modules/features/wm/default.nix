@@ -10,6 +10,7 @@
     ./reminder
     ./quickshell
     ./screenshot
+    ./menu
     ./screenshare
   ];
 }
