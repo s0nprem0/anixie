@@ -417,7 +417,7 @@ in
     dispatch(mod .. " + M", "Log out", "exit")
 
     bind(mod .. " + SHIFT + M", "Log out gracefully",
-      "command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"")
+      "command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'")
 
     -- Lock is SUPER+CTRL+L. It used to share SUPER+SHIFT+A with the annotation
     -- bind, which is one key with two meanings and whichever fired last.
