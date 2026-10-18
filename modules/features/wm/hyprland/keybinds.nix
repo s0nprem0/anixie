@@ -25,12 +25,23 @@
 
     # --------------------------------------------------------------------
     # Screen capture
-    # Two separate binds: swappy opens its crop/annotate overlay for area
-    # shots, while grim writes the whole screen straight to disk without a UI.
-    # Both land in ~/Pictures/Screenshots.
+    # One command, several modes, all through `shot` (features/wm/screenshot).
+    # The mode names are the reference shell's so the habits carry across.
     # --------------------------------------------------------------------
-    "$mod SHIFT, S, exec, swappy"
-    "$mod SHIFT, F, exec, sh -c 'mkdir -p \"$HOME/Pictures/Screenshots\" && grim \"$HOME/Pictures/Screenshots/$(date +%Y-%m-%d_%H-%M-%S).png\"'"
+    # Windows asks for the window to capture, so this is the general case.
+    "$mod SHIFT, S, exec, shot windows"
+
+    # No prompt at all: whatever has focus, or the whole screen if nothing does.
+    "$mod SHIFT, F, exec, shot"
+
+    # Straight to the clipboard rather than a file, for pasting a screenshot
+    # into whatever is focused.
+    "$mod SHIFT, C, exec, shot smart copy"
+
+    # Marked up before it is saved: swappy is handed the capture rather than the
+    # mode drawing its own selection, so this crops and annotates the focused
+    # window instead of the whole screen.
+    "$mod SHIFT, A, exec, shot smart -- swappy -f"
 
     # --------------------------------------------------------------------
     # Moving focus between windows
