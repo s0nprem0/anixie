@@ -309,6 +309,17 @@ ShellRoot {
   // The daemon lives in this shell, so there is nothing to write to disk and
   // nothing to watch — the switch is a call in, and `status` is the call back
   // out, which is what stops the bar and the key from disagreeing.
+  // The bar's indicators for state that lives outside the shell. `toggle` and
+  // `reminder` call these after they change something, so the bar is told rather
+  // than asking (see Ui/IndicatorHost.qml for why the night light is still read).
+  IpcHandler {
+    target: "indicator"
+
+    function nightlight(temperature: string): void { IndicatorHost.setNightlight(temperature) }
+    function idle(state: string): void { IndicatorHost.setIdle(state) }
+    function reminders(count: string): void { IndicatorHost.setReminders(count) }
+  }
+
   IpcHandler {
     target: "notify"
 

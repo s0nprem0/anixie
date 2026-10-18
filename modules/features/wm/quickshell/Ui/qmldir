@@ -30,3 +30,4 @@ ScrollBar 1.0 ScrollBar.qml
 PanelSectionHeader 1.0 PanelSectionHeader.qml
 PanelSeparator 1.0 PanelSeparator.qml
 ToggleSwitch 1.0 ToggleSwitch.qml
+singleton IndicatorHost 1.0 IndicatorHost.qml

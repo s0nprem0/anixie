@@ -4,7 +4,7 @@ import "../Ui"
 import Quickshell.Io
 
 // Indicators for state that is otherwise invisible from the bar: notifications
-// silenced, and the idle daemon stopped so the screen will not lock.
+// silenced, the idle lock off, the night light on, and reminders queued.
 //
 // Each shows only while its state is live, unless `alwaysShow` keeps it in place
 // dimmed — otherwise a bar whose layout is hand-written would reshuffle every
@@ -12,6 +12,10 @@ import Quickshell.Io
 //
 // The model holds only the indicators currently shown rather than every
 // indicator with the rest hidden, so there are no hidden children to lay out.
+//
+// Nothing here polls. The values come from IndicatorHost, which `toggle` and
+// `reminder` update when they change something. A click runs the same `toggle`
+// command the keys run, so the click and the key cannot disagree.
 BarWidget {
   id: root
 
@@ -24,25 +28,10 @@ BarWidget {
     return list.length === 0 || list.indexOf(id) !== -1
   }
 
-  // Re-read often enough that a change made elsewhere — systemd stopping the
-  // idle daemon, hyprsunset switching profile on its own timetable — is picked
-  // up. Those cannot be tracked from this widget's own clicks, which is why
-  // they are polled. Silencing is not: the notification daemon lives in this
-  // shell, so its state is read directly.
-  readonly property int pollMs: 4000
-
   readonly property bool dnd: NotificationHost.doNotDisturb
-  property bool idleStopped: false
-  property int nightTemperature: 0
-
-  // How many reminders are queued. Counted rather than listed, so the poll is a
-  // number to compare rather than a table to parse.
-  property int reminderCount: 0
-
-  // hyprsunset reports its current temperature, and identity — the value the
-  // daytime profile uses — leaves that reading untouched rather than clearing
-  // it, so "warmer than neutral" is what tells us a tint is actually applied.
-  readonly property bool nightlight: root.nightTemperature > 0 && root.nightTemperature < 6000
+  readonly property bool idleStopped: IndicatorHost.idleStopped
+  readonly property bool nightlight: IndicatorHost.nightlight
+  readonly property int reminderCount: IndicatorHost.reminderCount
 
   readonly property var shown: {
     const list = []
@@ -102,7 +91,7 @@ BarWidget {
       active: root.idleStopped
       selected: root.idleStopped
       dimmed: !root.idleStopped
-      onPressed: function () { idleToggle.running = true }
+      onPressed: function () { Commands.run("toggle idle") }
     }
   }
 
@@ -116,7 +105,7 @@ BarWidget {
       active: root.nightlight
       selected: root.nightlight
       dimmed: !root.nightlight
-      onPressed: function () { nightToggle.running = true }
+      onPressed: function () { Commands.run("toggle nightlight") }
     }
   }
 
@@ -136,88 +125,9 @@ BarWidget {
       selected: true
       // Status rather than a switch: there is no mode to toggle, so a click
       // shows what is queued instead of changing anything.
-      onPressed: function () { reminderShow.running = true }
-    }
-  }
-
-  // ---- queued reminders, via the reminder command ----
-  //
-  // The count only. `reminder show` prints a systemd table, and parsing that on
-  // every poll to find a number is work the command can do once.
-  Process {
-    id: reminderQuery
-    command: ["sh", "-c", "reminder count 2>/dev/null || echo 0"]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const n = parseInt(this.text.trim(), 10)
-        root.reminderCount = isFinite(n) && n > 0 ? n : 0
+      onPressed: function () {
+        Commands.run("list=$(reminder show); notify-send -a reminders 'Queued reminders' \"$list\"")
       }
-    }
-  }
-
-  // The list, as a notification: readable without leaving the desktop, and it
-  // goes into the history like anything else. Read once into a variable rather
-  // than piped, because notify-send takes the body as an argument.
-  Process {
-    id: reminderShow
-    command: ["sh", "-c",
-      "list=$(reminder show); notify-send -a reminders 'Queued reminders' \"$list\""]
-    onExited: reminderQuery.running = true
-  }
-
-  // ---- idle daemon stopped, via systemd ----
-  Process {
-    id: idleQuery
-    command: ["systemctl", "--user", "is-active", "hypridle"]
-    stdout: StdioCollector {
-      onStreamFinished: root.idleStopped = this.text.trim() !== "active"
-    }
-  }
-
-  // Toggled in one shell line so there is a single process to wait on; is-active
-  // exits non-zero when the unit is not running, which is what selects the arm.
-  Process {
-    id: idleToggle
-    command: ["sh", "-c",
-      "systemctl --user is-active --quiet hypridle"
-      + " && systemctl --user stop hypridle"
-      + " || systemctl --user start hypridle"]
-    onExited: idleQuery.running = true
-  }
-
-  // ---- night light, via hyprsunset ----
-  Process {
-    id: nightQuery
-    command: ["hyprctl", "hyprsunset", "temperature"]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const n = parseInt(this.text.trim(), 10)
-        root.nightTemperature = isFinite(n) ? n : 0
-      }
-    }
-  }
-
-  // 4000 is a warm tint; 6500 is the neutral it returns to. Read first so the
-  // direction is chosen from the same number the indicator is showing.
-  Process {
-    id: nightToggle
-    command: ["sh", "-c",
-      "t=$(hyprctl hyprsunset temperature 2>/dev/null)"
-      + " && if [ -n \"$t\" ] && [ \"$t\" -lt 6000 ]; then"
-      + " hyprctl hyprsunset temperature 6500 >/dev/null;"
-      + " else hyprctl hyprsunset temperature 4000 >/dev/null; fi"]
-    onExited: nightQuery.running = true
-  }
-
-  Timer {
-    interval: root.pollMs
-    running: true
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: {
-      idleQuery.running = true
-      nightQuery.running = true
-      reminderQuery.running = true
     }
   }
 }

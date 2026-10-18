@@ -15,6 +15,14 @@ set -eu
 
 prefix="reminder"
 
+# Tell the shell how many are queued, for the bar. Pushed after a change rather
+# than asked for on a timer. Best effort: a shell that is not running is no reason
+# to fail a reminder.
+push_count() {
+  n=$(systemctl --user list-timers --all --no-legend --no-pager "$prefix-*.timer" 2>/dev/null | grep -c . || true)
+  @QUICKSHELL@ ipc call indicator reminders "${n:-0}" >/dev/null 2>&1 || true
+}
+
 # Interactive: the duration off a short list, then the message typed.
 #
 # Two steps rather than one process asking twice, because the picker's answer
@@ -61,6 +69,7 @@ case "${1:-}" in
     systemctl --user list-units --all --plain --no-legend --no-pager "$prefix-*.timer" 2>/dev/null |
       awk '{ print $1 }' |
       xargs -r systemctl --user stop
+    push_count
     exit 0
     ;;
 
@@ -87,5 +96,7 @@ systemd-run --user --quiet \
   --description="Reminder: $message" \
   --on-active="${minutes}min" \
   "@NOTIFY_SEND@" "Reminder" "$message"
+
+push_count
 
 printf 'Reminder in %s minute(s): %s\n' "$minutes" "$message"

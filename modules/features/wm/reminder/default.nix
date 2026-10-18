@@ -14,9 +14,10 @@
     # runs as a service under the user manager and that does not necessarily
     # carry the path of whatever set the reminder.
     (pkgs.writeShellScriptBin "reminder" (
-      builtins.replaceStrings [ "@NOTIFY_SEND@" ] [ "${pkgs.libnotify}/bin/notify-send" ] (
-        builtins.readFile ./reminder.sh
-      )
+      builtins.replaceStrings
+        [ "@NOTIFY_SEND@" "@QUICKSHELL@" ]
+        [ "${pkgs.libnotify}/bin/notify-send" "${pkgs.quickshell}/bin/quickshell" ]
+        (builtins.readFile ./reminder.sh)
     ))
   ];
 }

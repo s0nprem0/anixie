@@ -52,6 +52,9 @@ nightlight_toggle() {
   else
     "$hyprctl" hyprsunset temperature 4000 >/dev/null 2>&1
   fi
+  # Push the temperature that is now in force, so the bar shows it without asking.
+  t=$("$hyprctl" hyprsunset temperature 2>/dev/null) || t=""
+  "$quickshell" ipc call indicator nightlight "${t:-0}" >/dev/null 2>&1 || true
 }
 
 # ---- idle lock ----
@@ -73,6 +76,12 @@ idle_toggle() {
     systemctl --user stop hypridle
   else
     systemctl --user start hypridle
+  fi
+  # Push the state that is now in force: "off" means the idle lock is off.
+  if systemctl --user is-active --quiet hypridle; then
+    "$quickshell" ipc call indicator idle on >/dev/null 2>&1 || true
+  else
+    "$quickshell" ipc call indicator idle off >/dev/null 2>&1 || true
   fi
 }
 
