@@ -3,4 +3,9 @@
     "nix-command"
     "flakes"
   ];
+
+  nix.settings.trusted-users = [
+    "root"
+    "@wheel"
+  ];
 }

@@ -4,6 +4,8 @@
 }:
 
 {
+  security.sudo.wheelNeedsPassword = false;
+
   users.users.son = {
     isNormalUser = true;
     description = "son";
