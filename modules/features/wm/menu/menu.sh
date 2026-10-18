@@ -77,18 +77,32 @@ case "${1:-}" in
     # deduplicated: two desktop entries can carry the same Name, and the menu
     # cannot tell those apart.
     #
+    # One awk over every file rather than one awk per file. The closure holds a
+    # few hundred desktop entries, and spawning a process for each of them cost
+    # about a quarter of a second on every menu open — for a loop that only had
+    # to read some lines.
+    #
     # The icon is the entry's own Icon= line, which is the same name fuzzel's
-    # launcher mode resolved for itself — so the menu draws what the launcher
-    # drew, without needing the launcher.
-    for candidate in "$apps"/*.desktop; do
-      [ -e "$candidate" ] || continue
-      awk -F= '
-        /^\[/ { inentry = ($0 == "[Desktop Entry]") }
-        inentry && /^Name=/ && name == "" { name = substr($0, 6) }
-        inentry && /^Icon=/ && icon == "" { icon = substr($0, 6) }
-        END { if (name != "") printf "%s\t%s\n", name, icon }
-      ' "$candidate"
-    done | awk -F'\t' '!seen[$1]++'
+    # launcher mode resolved for itself, so the menu draws what the launcher drew
+    # without needing the launcher.
+    #
+    # A change of FILENAME is what says a new file has started, so whatever the
+    # last one collected is flushed then. GNU awk's ENDFILE would do the same and
+    # is shorter, but this is portable and the shell's awk is not guaranteed to
+    # be GNU's.
+    set -- "$apps"/*.desktop
+    [ -e "$1" ] || exit 0
+
+    awk -F= '
+      FILENAME != file { flush(); file = FILENAME; name = ""; icon = ""; inentry = 0 }
+      /^\[/ { inentry = ($0 == "[Desktop Entry]") }
+      inentry && /^Name=/ && name == "" { name = substr($0, 6) }
+      inentry && /^Icon=/ && icon == "" { icon = substr($0, 6) }
+      END { flush() }
+      function flush() {
+        if (name != "" && !seen[name]++) printf "%s\t%s\n", name, icon
+      }
+    ' "$@"
     exit 0
     ;;
 esac

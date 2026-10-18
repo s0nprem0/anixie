@@ -24,6 +24,26 @@
 # lookup keyed on the row's exact text, which meant the text a row was *drawn*
 # with was also the key it was *found* by — so a state suffix on a label, or two
 # rows that happened to read the same, silently changed which command ran.
+#
+# ---------------------------------------------------------------------------
+# Why this is shaped the way it is
+#
+# It used to read one field at a time out of each leaf with its own jq, and
+# build each row with its own jq: seven jq processes per leaf, plus one per row.
+# Thirty-seven leaves and eighty-odd rows came to about 340 processes, and
+# opening the menu took three seconds. The work was never the work — it was 340
+# process startups.
+#
+# The whole tree is now flattened by one jq, the fields come back as one line
+# per leaf, and the rows are assembled in the shell. The processes that are left
+# are the ones that genuinely have to run — the `when` guards, the `state`
+# readings and the `list` providers — and each runs once, cached by its command
+# string however many entries name it.
+#
+# A leaf's fields are joined with 0x1f rather than a tab. bash treats tab as
+# whitespace when splitting, so empty fields collapse — and a row with no icon
+# and no state has three empty fields in a row. 0x1f is not whitespace, so they
+# survive.
 
 set -uo pipefail
 
@@ -31,6 +51,9 @@ tree="@TREE@"
 quickshell="@QUICKSHELL@"
 jq="@JQ@"
 sh="@SH@"
+
+# Unit separator. Not a tab: see above.
+sep=$'\x1f'
 
 usage() {
   sed -n '2,/^[^#]/p' "$0" | sed -e '$d' -e '/^#!/d' -e 's/^# \{0,1\}//'
@@ -59,17 +82,25 @@ while [ $# -gt 0 ]; do
       shift
       ;;
     *)
-      printf 'menu-tree: unknown argument "%s" (try --help)\n' >&2
+      printf 'menu-tree: unknown argument "%s" (try --help)\n' "$1" >&2
       exit 2
       ;;
   esac
 done
 
-rows=()
+# The rows, as parallel arrays. Parallel rather than one array of records
+# because bash has no records, and five arrays indexed the same way are what a
+# record is here.
+row_label=()
+row_group=()
+row_run=()
+row_icon=()
+row_state=()
 declare -A seen
 
-# label, group, command, icon, state
 add_row() {
+  # label, group, command, icon, state
+  #
   # First wins, so a provider that returns something twice does not push a
   # second copy of it into the list. Keyed on group and label together, since
   # two groups may each have an entry of the same name.
@@ -77,16 +108,14 @@ add_row() {
   [ -n "${seen[$key]:-}" ] && return 0
   seen["$key"]=1
 
-  rows+=("$("$jq" -nc \
-    --arg label "$1" \
-    --arg group "$2" \
-    --arg run "${3:-}" \
-    --arg icon "${4:-}" \
-    --arg state "${5:-}" \
-    '{ label: $label, group: $group, run: $run, icon: $icon, state: $state }')")
+  row_label+=("$1")
+  row_group+=("$2")
+  row_run+=("${3:-}")
+  row_icon+=("${4:-}")
+  row_state+=("${5:-}")
 }
 
-# Every leaf, with the group it came from, as one JSON object per line.
+# Every leaf, with the group it came from, as one line of fields.
 #
 # Groups are recursed into and contribute to the group path; they are not rows
 # themselves, because a row you can select that only opens another list is a step
@@ -104,37 +133,72 @@ add_row() {
 # `.label` inside it. There, `.` is the child being walked, so `.label` is the
 # child's name: reading it there built every path as "Screenshot — region ›
 # Screenshot — region", and left `--only Capture` matching nothing at all.
-leaves() {
-  "$jq" -c '
+flatten() {
+  "$jq" -r --arg sep "$sep" '
     def walk(prefix):
       .[] |
       if has("group")
       then .group as $g | (.entries | walk(prefix + $g + " › "))
       else . + { group: (prefix | sub(" › $"; "")), path: (prefix + .label) }
       end;
-    .entries | walk("")
+
+    .entries
+    | walk("")
+    | [.path, .label, .group, (.run // ""), (.list // ""), (.state // ""), (.when // "")]
+    | join($sep)
   ' "$tree"
 }
 
+# Command results, cached by the command string. Several entries can name the
+# same command — the toggle states, most of all — and running it once per entry
+# would put back most of the cost this file just shed.
+declare -A when_result
+declare -A state_result
+declare -A list_result
+
+# Run a `when` guard, once. True if it succeeded.
+when_ok() {
+  local cmd="$1"
+  if [ -z "${when_result[$cmd]+set}" ]; then
+    if "$sh" -c "$cmd" >/dev/null 2>&1; then
+      when_result["$cmd"]=1
+    else
+      when_result["$cmd"]=0
+    fi
+  fi
+  [ "${when_result[$cmd]}" = "1" ]
+}
+
+# A `state` command's output, once.
+state_of() {
+  local cmd="$1"
+  if [ -z "${state_result[$cmd]+set}" ]; then
+    state_result["$cmd"]=$("$sh" -c "$cmd" 2>/dev/null | tr -d '\n')
+  fi
+  printf '%s' "${state_result[$cmd]}"
+}
+
+# A `list` provider's output, once.
+list_of() {
+  local cmd="$1"
+  if [ -z "${list_result[$cmd]+set}" ]; then
+    list_result["$cmd"]=$("$sh" -c "$cmd" 2>/dev/null)
+  fi
+  printf '%s' "${list_result[$cmd]}"
+}
+
 build() {
-  local leaf label group path list_cmd run_cmd state_cmd when_cmd state child child_label child_icon
+  local path label group run_cmd list_cmd state_cmd when_cmd
+  local child child_label child_icon state
 
-  while IFS= read -r leaf; do
-    [ -n "$leaf" ] || continue
-
-    label=$("$jq" -r '.label' <<<"$leaf")
-    group=$("$jq" -r '.group' <<<"$leaf")
-    path=$("$jq" -r '.path' <<<"$leaf")
-    list_cmd=$("$jq" -r '.list // empty' <<<"$leaf")
-    run_cmd=$("$jq" -r '.run // empty' <<<"$leaf")
-    state_cmd=$("$jq" -r '.state // empty' <<<"$leaf")
-    when_cmd=$("$jq" -r '.when // empty' <<<"$leaf")
+  while IFS="$sep" read -r path label group run_cmd list_cmd state_cmd when_cmd; do
+    [ -n "$label" ] || continue
 
     # A row that only makes sense some of the time says so with a command that
     # succeeds when it does. "Stop screen recording" is the reason this exists:
     # offering it with nothing recording is an entry that can only fail.
-    if [ -n "$when_cmd" ]; then
-      "$sh" -c "$when_cmd" >/dev/null 2>&1 || continue
+    if [ -n "$when_cmd" ] && ! when_ok "$when_cmd"; then
+      continue
     fi
 
     if [ -n "$list_cmd" ]; then
@@ -152,7 +216,7 @@ build() {
         esac
 
         add_row "$child_label" "$path" "${run_cmd//'{}'/$child_label}" "$child_icon" ""
-      done < <("$sh" -c "$list_cmd" 2>/dev/null)
+      done <<<"$(list_of "$list_cmd")"
       continue
     fi
 
@@ -163,39 +227,68 @@ build() {
     # side where it reads as a readout instead of as part of the name — and so
     # that the name stays the thing you search for.
     state=""
-    if [ -n "$state_cmd" ]; then
-      state=$("$sh" -c "$state_cmd" 2>/dev/null | tr -d '\n')
-    fi
+    [ -n "$state_cmd" ] && state="$(state_of "$state_cmd")"
 
     add_row "$label" "$group" "$run_cmd" "" "$state"
-  done < <(leaves)
+  done < <(flatten)
 }
 
 build
 
-shown=("${rows[@]}")
-prompt="menu"
+# Filter once, into arrays of its own, so every output below uses one set.
+shown_label=()
+shown_group=()
+shown_run=()
+shown_icon=()
+shown_state=()
 
-if [ -n "$only" ]; then
-  # Prefix, not substring: `--only Style` must not pick up an entry that merely
-  # mentions Style somewhere in its group.
-  shown=()
-  for row in "${rows[@]}"; do
-    group=$("$jq" -r '.group' <<<"$row")
+for i in "${!row_label[@]}"; do
+  group="${row_group[$i]}"
+
+  if [ -n "$only" ]; then
+    # Prefix, not substring: `--only Style` must not pick up an entry that
+    # merely mentions Style somewhere in its group.
     case "$group" in
-      "$only" | "$only › "*) shown+=("$row") ;;
+      "$only" | "$only › "*) ;;
+      *) continue ;;
     esac
-  done
-  prompt="$only"
-fi
+  fi
 
-if [ "${#shown[@]}" -eq 0 ]; then
+  shown_label+=("${row_label[$i]}")
+  shown_group+=("$group")
+  shown_run+=("${row_run[$i]}")
+  shown_icon+=("${row_icon[$i]}")
+  shown_state+=("${row_state[$i]}")
+done
+
+if [ "${#shown_label[@]}" -eq 0 ]; then
   printf 'menu-tree: nothing to show%s\n' "${only:+ under \"$only\"}" >&2
   exit 1
 fi
 
+# The shown rows as a stream of separator-joined lines, for jq to read.
+rows() {
+  local i
+  for i in "${!shown_label[@]}"; do
+    printf '%s%s%s%s%s%s%s%s%s\n' \
+      "${shown_label[$i]}" "$sep" \
+      "${shown_group[$i]}" "$sep" \
+      "${shown_run[$i]}" "$sep" \
+      "${shown_icon[$i]}" "$sep" \
+      "${shown_state[$i]}"
+  done
+}
+
+# Rows to entries, in one jq rather than one per row.
+entries_filter='
+  split("\n")
+  | map(select(length > 0))
+  | map(split($sep))
+  | map({ label: .[0], group: .[1], run: .[2], icon: .[3], state: .[4] })
+'
+
 if [ "$output" = "json" ]; then
-  printf '%s\n' "${shown[@]}" | "$jq" -s .
+  rows | "$jq" -R -s --arg sep "$sep" "$entries_filter"
   exit 0
 fi
 
@@ -203,14 +296,10 @@ if [ "$output" = "list" ]; then
   # The human view: the same path the picker draws, with the state in
   # parentheses. This is what a test can read, and what `--only` can be checked
   # against without a picker on screen.
-  for row in "${shown[@]}"; do
-    label=$("$jq" -r '.label' <<<"$row")
-    group=$("$jq" -r '.group' <<<"$row")
-    state=$("$jq" -r '.state' <<<"$row")
-
-    path="$label"
-    [ -n "$group" ] && path="$group › $label"
-    [ -n "$state" ] && path="$path ($state)"
+  for i in "${!shown_label[@]}"; do
+    path="${shown_label[$i]}"
+    [ -n "${shown_group[$i]}" ] && path="${shown_group[$i]} › $path"
+    [ -n "${shown_state[$i]}" ] && path="$path (${shown_state[$i]})"
     printf '%s\n' "$path"
   done
   exit 0
@@ -223,13 +312,18 @@ fi
 # for the same reason `pick` does it: a single argument is capped at 128KB by
 # the kernel, and the applications alone are a fifth of that on a small profile.
 #
-# The shell removes the file once it has read it — it is read asynchronously, so
+# The shell removes the file once it has read it — the read is asynchronous, so
 # removing it here would race that read. This is the one path that has to clean
 # up, because nothing else will.
 request=$(mktemp)
 
-printf '%s\n' "${shown[@]}" | "$jq" -s --arg title "$prompt" \
-  '{ title: $title, grouped: true, entries: . }' >"$request"
+rows | "$jq" -R -s --arg sep "$sep" --arg title "$only" '
+  split("\n")
+  | map(select(length > 0))
+  | map(split($sep))
+  | map({ label: .[0], group: .[1], run: .[2], icon: .[3], state: .[4] })
+  | { title: (if $title == "" then "menu" else $title end), grouped: true, entries: . }
+' >"$request"
 
 if ! "$quickshell" ipc call pick open "$request" >/dev/null 2>&1; then
   rm -f "$request"
