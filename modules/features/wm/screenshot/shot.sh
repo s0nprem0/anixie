@@ -17,10 +17,10 @@
 #   shot windows copy         snap to a window, copy it, save nothing
 #   shot region -- satty      hand the capture to a viewer
 #
-# While the picker is open it can also be driven from the keyboard — TAB cycles
-# the windows, the arrows move between them, RETURN takes the one under the
-# pointer and Shift+RETURN takes the whole monitor. Those keys are bound to
-# `shot-pick` against slurp's layer in features/wm/hyprland/settings.nix.
+# While the picker is open it can also be driven from the keyboard: RETURN takes
+# the window under the pointer and CTRL+RETURN the monitor, TAB cycles the windows
+# and CTRL+TAB goes back, and the arrows move between them. Those keys are bound
+# to `shot-pick` against slurp's layer in features/wm/hyprland/settings.nix.
 
 set -eu
 

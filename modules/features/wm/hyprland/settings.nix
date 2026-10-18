@@ -53,21 +53,20 @@ in
       matchlayer = "/^selection$/";
 
       binds = {
-        # TAB / SHIFT+TAB: next and previous window.
-        "code:15" = "exec, shot-pick --select-window next";
-        "S, code:15" = "exec, shot-pick --select-window prev";
-
-        # RETURN: take the whole window under the pointer.
+        # RETURN takes the whole window under the pointer, CTRL+RETURN the
+        # monitor. TAB moves between windows and CTRL+TAB goes back.
         "code:36" = "exec, shot-pick --take-window";
+        "CTRL, code:36" = "exec, shot-pick --take-fullscreen";
 
-        # Arrows: the nearest window in that direction.
+        "code:15" = "exec, shot-pick --select-window next";
+        "CTRL, code:15" = "exec, shot-pick --select-window prev";
+
+        # The nearest window in that direction, rather than the nearest window
+        # overall: moving left should find the one to the left.
         "code:105" = "exec, shot-pick --select-window left";
         "code:106" = "exec, shot-pick --select-window right";
         "code:103" = "exec, shot-pick --select-window up";
         "code:108" = "exec, shot-pick --select-window down";
-
-        # The full monitor, without having to drag to its edge.
-        "S, code:36" = "exec, shot-pick --take-fullscreen";
       };
     };
   };

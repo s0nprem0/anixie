@@ -26,13 +26,23 @@
     # --------------------------------------------------------------------
     # Screen capture
     # One command, several modes, all through `shot` (features/wm/screenshot).
-    # The mode names are the reference shell's so the habits carry across.
+    # The mode names and the keys are the reference shell's, so the habits carry
+    # across: the Print key captures, exactly as it does there.
     # --------------------------------------------------------------------
-    # Windows asks for the window to capture, so this is the general case.
-    "$mod SHIFT, S, exec, shot windows"
+    # The primary binding. `smart` is the picker that can be both a drag and a
+    # click on a window, which is the one worth having on a single key.
+    "PRINT, exec, shot smart"
 
-    # No prompt at all: whatever has focus, or the whole screen if nothing does.
-    "$mod SHIFT, F, exec, shot"
+    # The same capture, for people who reach for the keyboard rather than the
+    # keypad — also the reference shell's alias for it.
+    "$mod SHIFT, S, exec, shot smart"
+
+    # Snap to a whole window or monitor with no dragging at all.
+    "$mod SHIFT, W, exec, shot windows"
+
+    # The colour under the pointer, as a hex code. hyprpicker does this on its
+    # own; `pkill` first because one left running would eat the next press.
+    "$mod, PRINT, exec, pkill hyprpicker || hyprpicker -a"
 
     # Straight to the clipboard rather than a file, for pasting a screenshot
     # into whatever is focused.
@@ -42,6 +52,9 @@
     # already in crop mode, so this crops and annotates the focused window rather
     # than the whole screen and then waits to be told what to do.
     "$mod SHIFT, A, exec, shot smart annotate"
+
+    # The whole screen with no picker at all, for when there is nothing to aim at.
+    "$mod SHIFT, F, exec, shot fullscreen"
 
     # --------------------------------------------------------------------
     # Moving focus between windows
