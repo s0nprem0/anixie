@@ -429,9 +429,12 @@ in
     -- mode, so this crops and annotates rather than capturing everything and
     -- then waiting to be told what to do.
     --
-    -- CTRL, not SHIFT: SUPER+SHIFT+A used to be both this and the lock, which
-    -- is one key doing two unrelated things.
-    bind_handler(mod .. " + CTRL + A", "Screenshot annotation", capture("shot smart annotate"))
+    -- ALT, not CTRL: the reference shell puts the audio panel on SUPER+CTRL+A, and
+    -- the panel keys are a set worth keeping together — A, W, B, D, P below. This
+    -- key had CTRL only because SUPER+SHIFT+A was taken by the lock at the time,
+    -- which is no longer true; ALT keeps it clear of the whole panel group. It is
+    -- also in the capture menu, so nothing depends on this key existing.
+    bind_handler(mod .. " + ALT + A", "Screenshot annotation", capture("shot smart annotate"))
 
     -- The colour under the pointer, as a hex code. hyprpicker does this on its
     -- own; pkill first, because one left running would eat the next press.
@@ -511,6 +514,32 @@ in
     dispatch(mod .. " + SHIFT + ALT + RIGHT", "Workspace to monitor right", "workspace.move", { monitor = "right" })
     dispatch(mod .. " + SHIFT + ALT + UP", "Workspace to monitor up", "workspace.move", { monitor = "up" })
     dispatch(mod .. " + SHIFT + ALT + DOWN", "Workspace to monitor down", "workspace.move", { monitor = "down" })
+
+    -- ------------------------------------------------------------------
+    -- Panels and the bar
+    --
+    -- Every panel already opens by clicking its glyph; these are the same panels
+    -- by key, so nobody has to aim at a 16-pixel target. They go through the
+    -- shell's IPC rather than a flag file, for the same reason the dock toggle
+    -- does: the panel should appear on the keypress, not on the next poll.
+    --
+    -- The name is what the widget registers itself under when it loads, so a panel
+    -- that is not on the bar logs a warning and does nothing rather than opening
+    -- something else.
+    --
+    -- A, W, B, D and P are the reference shell's letters for audio, network,
+    -- bluetooth, display and power. Calendar is the clock's panel.
+    -- ------------------------------------------------------------------
+    bind(mod .. " + CTRL + A", "Audio panel", "quickshell ipc call panel toggle audio")
+    bind(mod .. " + CTRL + W", "Network panel", "quickshell ipc call panel toggle network")
+    bind(mod .. " + CTRL + B", "Bluetooth panel", "quickshell ipc call panel toggle bluetooth")
+    bind(mod .. " + CTRL + D", "Display panel", "quickshell ipc call panel toggle display")
+    bind(mod .. " + CTRL + P", "Power panel", "quickshell ipc call panel toggle power")
+    bind(mod .. " + CTRL + ALT + D", "Calendar panel", "quickshell ipc call panel toggle calendar")
+
+    -- The bar on and off. The window stays mapped and only its contents hide, so
+    -- the panels above still open against it while it is out of the way.
+    bind(mod .. " + SHIFT + SPACE", "Toggle bar", "quickshell ipc call bar toggle")
 
     -- ------------------------------------------------------------------
     -- Focus

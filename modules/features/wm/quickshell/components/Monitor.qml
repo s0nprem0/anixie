@@ -16,6 +16,9 @@ import Quickshell.Io
 BarWidget {
   id: root
 
+  // Reachable by hotkey as well as by click.
+  Component.onCompleted: PanelRegistry.register("display", readout, controls)
+
   readonly property string displayDevice: String(root.setting("device", "amdgpu_bl1"))
   readonly property string keyboardDevice: String(root.setting("keyboard", "asus::kbd_backlight"))
   readonly property int step: Number(root.setting("step", 5))

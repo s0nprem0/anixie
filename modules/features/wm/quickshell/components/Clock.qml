@@ -11,6 +11,9 @@ import "../Ui"
 BarWidget {
   id: root
 
+  // Reachable by hotkey as well as by click.
+  Component.onCompleted: PanelRegistry.register("calendar", readout, calendar)
+
   property string stamp: ""
 
   // Which of the two formats the label is drawn with.

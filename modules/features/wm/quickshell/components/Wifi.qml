@@ -15,6 +15,9 @@ import Quickshell.Io
 BarWidget {
   id: root
 
+  // Reachable by hotkey as well as by click.
+  Component.onCompleted: PanelRegistry.register("network", readout, wifiPanel)
+
   property bool connected: false
   property string ssid: ""
   property int signal: 0

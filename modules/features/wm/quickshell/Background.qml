@@ -16,6 +16,12 @@ Item {
   id: root
   anchors.fill: parent
 
+  // Goes with the bar. The window is left mapped so panels keep their anchor, so
+  // the backdrop has to hide itself rather than rely on the window going away.
+  // Its MouseArea goes too, which is what stops a hidden bar from swallowing
+  // clicks along the top edge.
+  visible: BarContext.shown
+
   readonly property var modes: ["clear", "glassy", "opaque"]
 
   property string mode: BarConfig.config.background

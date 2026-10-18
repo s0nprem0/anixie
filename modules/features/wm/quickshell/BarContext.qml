@@ -17,6 +17,17 @@ QtObject {
 
   readonly property bool vertical: position === "left" || position === "right"
 
+  // Whether the bar is on screen. Hidden keeps the window itself — and the item
+  // every panel anchors to — alive, so a panel opened from a hotkey still has
+  // somewhere to attach, and the reserved strip is given back to the workspace.
+  // Unmapping the window instead would take the anchors with it and leave the
+  // panel with nothing to open against.
+  property bool shown: true
+
+  function toggle() {
+    shown = !shown
+  }
+
   // How far a module may run before it stops being worth showing.
   readonly property int maxBarSize: vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal
 }

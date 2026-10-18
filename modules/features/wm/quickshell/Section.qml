@@ -10,6 +10,11 @@ import "Ui"
 Item {
   id: root
 
+  // A section is part of the bar, so it goes when the bar goes. The window stays
+  // mapped behind it — that is what keeps a hotkey-opened panel's anchor alive —
+  // so hiding the contents is what actually makes the bar disappear.
+  visible: BarContext.shown
+
   property var entries: []
 
   // Which bar.json section this is, so a module can be told which edge of itself

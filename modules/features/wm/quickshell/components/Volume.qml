@@ -11,6 +11,10 @@ import Quickshell.Services.Pipewire
 BarWidget {
   id: root
 
+  // Reachable by hotkey as well as by click. Registered here because the anchor
+  // item and the panel component are both local to this file.
+  Component.onCompleted: PanelRegistry.register("audio", readout, mixer)
+
   readonly property var sink: Pipewire.defaultAudioSink
   readonly property var audio: sink ? sink.audio : null
   readonly property real volume: audio ? audio.volume : 0

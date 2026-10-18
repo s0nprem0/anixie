@@ -69,7 +69,14 @@ ShellRoot {
     // Popups (PanelHost's panel and curtain, TooltipHost's window) keep the
     // default of no exclusive zone on purpose: they float over the desktop and
     // must not push windows around when they open.
-    exclusiveZone: BarContext.vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal
+    //
+    // Zero while the bar is hidden, which is what gives the pixels back. The
+    // window itself stays mapped: unmapping it would take the anchor every panel
+    // hangs off with it, and a hotkey-opened panel would have nothing to attach
+    // to. Hiding the contents is what makes it invisible.
+    exclusiveZone: BarContext.shown
+      ? (BarContext.vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal)
+      : 0
 
     // The panel popup anchors to this item rather than to whichever button was
     // used, because a popup resolves its anchor once, at creation. It cannot
@@ -255,6 +262,35 @@ ShellRoot {
     function toggle(): void { DockHost.toggle() }
     function show(): void { DockHost.show() }
     function hide(): void { DockHost.hide() }
+  }
+
+  // The bar itself: hide and show it without touching the shell, so panels and
+  // hotkeys keep working and only the pixels change hands.
+  //
+  // `on` and `off` rather than `show` and `hide`, because `show` is a subcommand
+  // of `quickshell ipc` itself — `ipc call bar show` prints the target listing
+  // instead of calling anything. The dock target has the same trap in its own
+  // `show`; its bind uses `toggle`, so nothing has hit it yet.
+  IpcHandler {
+    target: "bar"
+
+    function toggle(): void { BarContext.toggle() }
+    function on(): void { BarContext.shown = true }
+    function off(): void { BarContext.shown = false }
+  }
+
+  // The panels, by name, for their hotkeys.
+  //
+  // One function taking a name rather than six named ones: the name is what the
+  // widget registers itself under, and `panel toggle audio` reads the same as the
+  // bind that calls it. A name nothing registered logs a warning and does nothing,
+  // which is what a panel that is not on the bar should do.
+  IpcHandler {
+    target: "panel"
+
+    function toggle(name: string): void { PanelRegistry.toggle(name) }
+    function names(): string { return PanelRegistry.names().join(" ") }
+    function close(): void { PanelHost.close() }
   }
 
   // The screenshot preview. Bottom right, over the desktop, gone on its own after
