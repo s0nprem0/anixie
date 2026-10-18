@@ -21,7 +21,6 @@ let
     "@GSR@" = "${pkgs.gpu-screen-recorder}/bin/gpu-screen-recorder";
     "@FFMPEG@" = "${pkgs.ffmpeg}/bin/ffmpeg";
     "@FFPROBE@" = "${pkgs.ffmpeg}/bin/ffprobe";
-    "@FUZZEL@" = "${pkgs.fuzzel}/bin/fuzzel";
     "@NOTIFY_SEND@" = "${pkgs.libnotify}/bin/notify-send";
     "@MPV@" = "${pkgs.mpv}/bin/mpv";
     "@SETSID@" = "${pkgs.util-linux}/bin/setsid";

@@ -12,7 +12,6 @@ let
         "@PALETTES@"
         "@STATE_DIR@"
         "@DEFAULT_THEME@"
-        "@FUZZEL@"
         "@QUICKSHELL@"
         "@HYPRCTL@"
         "@JQ@"
@@ -21,7 +20,6 @@ let
         "${./themes.json}"
         stateDir
         config.my.theme.theme
-        "${pkgs.fuzzel}/bin/fuzzel"
         "${pkgs.quickshell}/bin/quickshell"
         "${pkgs.hyprland}/bin/hyprctl"
         "${pkgs.jq}/bin/jq"

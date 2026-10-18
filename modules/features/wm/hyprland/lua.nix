@@ -264,13 +264,12 @@ in
     -- after this shell is gone.
     bind(mod .. " + R", "Reminder", "reminder -i")
 
-    bind(mod .. " + SHIFT + V", "Clipboard history",
-      "cliphist list | fuzzel --dmenu | cliphist decode | wl-copy")
+    bind(mod .. " + SHIFT + V", "Clipboard history", "clipboard")
 
-    -- bemoji draws its list through fuzzel and types the choice with wtype
-    -- rather than only putting it on the clipboard, so it lands in the focused
-    -- window instead of having to be pasted.
-    bind(mod .. " + PERIOD", "Emoji picker", "bemoji -t")
+    -- The emoji picker types the choice into the focused window rather than only
+    -- copying it, so it lands in the sentence being written instead of having to
+    -- be pasted.
+    bind(mod .. " + PERIOD", "Emoji picker", "emoji")
 
     -- The dock. Hyprland drives it, so the bind asks the shell over its IPC
     -- rather than writing a flag the shell would notice on a poll — the dock
@@ -491,14 +490,15 @@ in
     --
     -- A plain bind, not one of the `capture` wrappers above. Those enter the
     -- picker submap around the command, which is right when the command *is* the
-    -- picker — but the menu runs fuzzel first and then hands the picker off to a
-    -- detached process, and the wrapper would take the submap back down in the
+    -- picker — but the menu opens the picker for a region and then hands off to
+    -- a detached process, and the wrapper would take the submap back down in the
     -- gap between the two. The picker enters it itself now, so the wrapper is
     -- only a backstop, and this path does not want one.
     bind(mod .. " + CTRL + C", "Capture menu", "menu-tree --only Capture")
 
-    -- Shrink a picture or a video before sending it. No picker — it asks through
-    -- fuzzel for the file, the format and the size — so it is a plain bind.
+    -- Shrink a picture or a video before sending it. No picker of its own — it
+    -- asks the shell for the file, the format and the size — so it is a plain
+    -- bind.
     bind(mod .. " + CTRL + PERIOD", "Transcode", "transcode")
 
     -- ------------------------------------------------------------------
@@ -592,8 +592,8 @@ in
     -- Style
     --
     -- The theme picker. The shell, the window borders, the terminal and the
-    -- launcher all follow it; the shell and the borders follow the state file it
-    -- writes, kitty is signalled, and fuzzel reads it on its next launch.
+    -- picker all follow it; the shell and the borders follow the state file it
+    -- writes, and kitty is signalled.
     --
     -- The reference's key, and the reason it is this one: it is the only theme
     -- gesture that needs a picker, so it wants the space bar with everything held.

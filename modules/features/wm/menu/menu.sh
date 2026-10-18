@@ -1,11 +1,16 @@
 #!/bin/sh
-# The application launcher.
+# The application side of the menu.
 #
-#   menu                 search and launch an application
-#   menu firefox         launch it without asking
+#   menu                 the menu: every command and every application
+#   menu apps            the menu, applications only
+#   menu firefox         launch an application without asking
+#   menu list            names and icons, for the menu's own provider
 #
-# fuzzel does the searching, the icons and the launching; this only has to
-# answer the question NixOS makes awkward: which applications are installed.
+# The searching and the drawing are the shell's picker now, which is what makes
+# the applications able to carry their icons — the old launcher handed the whole
+# applications directory to fuzzel through XDG_DATA_DIRS and let fuzzel do both.
+# What is left here is the question NixOS makes awkward: which applications are
+# installed, and what each one's icon is called.
 #
 # A desktop entry on a normal Linux lives in one of the XDG data directories.
 # On NixOS it lives inside the store path of the package that ships it, and
@@ -13,11 +18,6 @@
 # finds five system utilities and misses Firefox. They are found instead by
 # asking Nix what the profile closes over, which is a few hundred paths and
 # takes about a second.
-#
-# The entries are then linked into a directory of their own and handed to fuzzel
-# through XDG_DATA_DIRS, so fuzzel sees an ordinary applications directory and
-# behaves exactly as it would anywhere else: it renders each entry's own icon,
-# and it launches the entry rather than a command line reconstructed from it.
 #
 # The farm is cached under the profile it was built from, so a rebuild
 # invalidates it and a keypress does not pay for it.
@@ -61,30 +61,34 @@ if [ ! -d "$apps" ]; then
   mv "$staging" "$cache"
 fi
 
-# The menu itself. `apps` is the icon-carrying launcher, kept because the menu is
-# text-only — fuzzel's dmenu mode draws no icons — and picking an application is
-# the one case where the icon is worth more than the search. `list` is what the
-# menu's Applications provider reads.
+# The menu itself. Bare `menu` is the menu; `menu apps` is the same menu with the
+# applications filter, which is now all the icon-carrying launcher needs to be —
+# the picker draws each entry's icon, so there is no separate launcher mode to
+# keep in step. `list` is what the menu's Applications provider reads.
 case "${1:-}" in
   "")
     exec "@MENU_TREE@"
     ;;
   apps)
-    # fuzzel's launcher mode: it reads the applications directory itself, so each
-    # entry's own icon is resolved through the icon theme rather than by us, and
-    # the entry is launched exactly as its Exec line says.
-    XDG_DATA_DIRS="$cache:$XDG_DATA_DIRS" exec @FUZZEL@ --prompt='launch ' --width 60 --lines 12
+    exec "@MENU_TREE@" --only Applications
     ;;
   list)
-    # Names, in the order the farm holds them, deduplicated: two desktop entries
-    # can carry the same Name, and the menu cannot tell those apart.
+    # Names and their icons, tab-separated, in the order the farm holds them,
+    # deduplicated: two desktop entries can carry the same Name, and the menu
+    # cannot tell those apart.
+    #
+    # The icon is the entry's own Icon= line, which is the same name fuzzel's
+    # launcher mode resolved for itself — so the menu draws what the launcher
+    # drew, without needing the launcher.
     for candidate in "$apps"/*.desktop; do
       [ -e "$candidate" ] || continue
       awk -F= '
         /^\[/ { inentry = ($0 == "[Desktop Entry]") }
-        inentry && /^Name=/ { print substr($0, 6); exit }
+        inentry && /^Name=/ && name == "" { name = substr($0, 6) }
+        inentry && /^Icon=/ && icon == "" { icon = substr($0, 6) }
+        END { if (name != "") printf "%s\t%s\n", name, icon }
       ' "$candidate"
-    done | awk '!seen[$0]++'
+    done | awk -F'\t' '!seen[$1]++'
     exit 0
     ;;
 esac

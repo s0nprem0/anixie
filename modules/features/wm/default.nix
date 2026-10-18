@@ -1,17 +1,18 @@
 {
   imports = [
     ./bluetooth
+    ./capture
+    ./clipboard
     ./display
-    ./fuzzel
+    ./emoji
     ./hypridle
     ./hyprland
     ./hyprsunset
-    ./mixer
-    ./reminder
-    ./quickshell
-    ./capture
-    ./toggles
     ./menu
+    ./mixer
     ./pick
+    ./quickshell
+    ./reminder
+    ./toggles
   ];
 }

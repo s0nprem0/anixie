@@ -9,7 +9,8 @@
 #   record --webcam-device=DEV  which camera, when the webcam is in the mix
 #   record --webcam-size=SIZE   small | medium | large
 #
-# With no --audio the audio question is asked first, through fuzzel: none, desktop,
+# With no --audio the audio question is asked first, through the shell's picker:
+# none, desktop,
 # desktop and microphone, or desktop, microphone and webcam. The webcam entry only
 # appears when a camera is actually attached.
 #
@@ -31,7 +32,6 @@ webcam_overlay="@WEBCAM_OVERLAY@"
 gsr="@GSR@"
 ffmpeg="@FFMPEG@"
 ffprobe="@FFPROBE@"
-fuzzel="@FUZZEL@"
 notify_send="@NOTIFY_SEND@"
 mpv="@MPV@"
 setsid="@SETSID@"
@@ -269,22 +269,18 @@ stop_recording() {
 # ---- starting ----------------------------------------------------------------
 
 choose_audio() {
-  options="No audio
-Desktop audio
-Desktop + microphone"
-  if [ -n "$("$webcam_overlay" list 2>/dev/null | head -1)" ]; then
-    options="$options
-Desktop + microphone + webcam"
-  fi
-
-  choice=$(printf '%s\n' "$options" | "$fuzzel" --dmenu --prompt='record audio  ' --width 34) || return 1
-  case "$choice" in
-    "No audio") audio="none" ;;
-    "Desktop audio") audio="desktop" ;;
-    "Desktop + microphone") audio="desktop+mic" ;;
-    "Desktop + microphone + webcam") audio="desktop+mic+webcam" ;;
-    *) return 1 ;;
-  esac
+  # The answer does not come back to this process, so this cannot return a
+  # choice the way it used to. The pick runs `record --audio=<which>`, and the
+  # choice arrives as an argument to a second `record` that starts the same way
+  # a keypress that already knew the answer does.
+  {
+    printf 'No audio\tnone\n'
+    printf 'Desktop audio\tdesktop\n'
+    printf 'Desktop + microphone\tdesktop+mic\n'
+    if [ -n "$("$webcam_overlay" list 2>/dev/null | head -1)" ]; then
+      printf 'Desktop + microphone + webcam\tdesktop+mic+webcam\n'
+    fi
+  } | pick --title 'record audio' --on-select 'record --audio={}'
 }
 
 # The audio flags gpu-screen-recorder wants.
@@ -445,9 +441,10 @@ fi
 rm -f "$cancel_file"
 
 if [ -z "$audio" ]; then
-  if ! choose_audio; then
-    exit 0
-  fi
+  # Asked, and then this process is done: the picker runs `record --audio=...`,
+  # which is the branch above.
+  choose_audio
+  exit 0
 fi
 
 printf '%s' "$$" >"$starting_file"

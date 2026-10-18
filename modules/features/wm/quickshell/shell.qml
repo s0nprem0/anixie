@@ -439,13 +439,14 @@ ShellRoot {
 
   // What `pick` calls in through, and what the menu calls for itself.
   //
-  // One entry point carrying the whole request as one JSON argument: the entries,
-  // the prompt, and what to run afterwards all arrive together, and a caller
-  // that had to make three separate calls could be half-served by a shell that
-  // restarted between them.
+  // One entry point taking the path to a file holding the whole request: the
+  // entries, the prompt and what to run afterwards all arrive together, and a
+  // caller that had to make three separate calls could be half-served by a shell
+  // that restarted between them. A file rather than the JSON itself because a
+  // single argument is capped at 128KB and the emoji list is past it.
   IpcHandler {
     target: "pick"
 
-    function open(payload: string): string { return PickHost.open(payload) }
+    function open(path: string): string { return PickHost.open(path) }
   }
 }

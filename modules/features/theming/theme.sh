@@ -27,7 +27,6 @@ palettes="@PALETTES@"
 state_dir="@STATE_DIR@"
 default_theme="@DEFAULT_THEME@"
 
-fuzzel="@FUZZEL@"
 quickshell="@QUICKSHELL@"
 hyprctl="@HYPRCTL@"
 jq="@JQ@"
@@ -57,10 +56,6 @@ colour() {
   "$jq" -r --arg n "$1" --arg k "$2" '.[$n][$k]' "$palettes"
 }
 
-bare() {
-  colour "$1" "$2" | tr -d '#'
-}
-
 current() {
   local name=""
   [ -f "$current_file" ] && name=$(tr -d '[:space:]' <"$current_file")
@@ -87,17 +82,6 @@ background $(colour "$name" background)
 foreground $(colour "$name" foreground)
 selection_background $(colour "$name" accent)
 selection_foreground $(colour "$name" background)
-EOF
-
-  # fuzzel takes a whole [colors] section, and reads it on each launch.
-  cat >"$state_dir/fuzzel.ini" <<EOF
-[colors]
-background=$(bare "$name" background)ff
-text=$(bare "$name" foreground)ff
-match=$(bare "$name" accent)ff
-selection=$(bare "$name" surface)ff
-selection-text=$(bare "$name" foreground)ff
-border=$(bare "$name" accent)ff
 EOF
 }
 
@@ -167,9 +151,10 @@ case "${1:-}" in
     step prev
     ;;
   "")
-    choice=$(names | "$fuzzel" --dmenu --prompt='theme  ' --width 28) || exit 0
-    [ -n "$choice" ] || exit 0
-    set_theme "$choice"
+    # The picker runs `theme set <name>` itself, so this has nothing left to do
+    # but hand over the names and be done.
+    names | pick --title 'theme' --on-select 'theme set {}'
+    exit 0
     ;;
   *)
     printf 'theme: unknown argument "%s" (try --help)\n' "$1" >&2

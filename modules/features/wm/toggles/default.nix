@@ -8,12 +8,10 @@ let
       [
         "@HYPRCTL@"
         "@QUICKSHELL@"
-        "@FUZZEL@"
       ]
       [
         "${pkgs.hyprland}/bin/hyprctl"
         "${pkgs.quickshell}/bin/quickshell"
-        "${pkgs.fuzzel}/bin/fuzzel"
       ]
       (builtins.readFile ./toggle.sh)
   );

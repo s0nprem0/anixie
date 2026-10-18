@@ -40,6 +40,7 @@ title=""
 placeholder=""
 mode="list"
 grouped="false"
+allow_empty="false"
 on_select=""
 on_cancel=""
 
@@ -63,6 +64,10 @@ while [ $# -gt 0 ]; do
       mode="input"
       shift
       ;;
+    --allow-empty)
+      allow_empty="true"
+      shift
+      ;;
     --grouped)
       grouped="true"
       shift
@@ -83,23 +88,32 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# Everything this script makes goes away on the way out, however it leaves.
+#
+# One trap rather than one per file: a second `trap ... EXIT` replaces the first
+# rather than adding to it, so the entries file was left behind the moment the
+# request file's trap was set.
+entries_file=""
+request=""
+cleanup() {
+  [ -n "$entries_file" ] && rm -f "$entries_file"
+  [ -n "$request" ] && rm -f "$request"
+  return 0
+}
+trap cleanup EXIT
+
 if [ "$mode" != "input" ]; then
+  # The caller's lines are read into a file rather than a variable, and jq is
+  # pointed at the file with --rawfile further down: the entries are the one
+  # part of a request that can be arbitrarily long, and passing them as an
+  # argument is what hits the kernel's per-argument cap.
+  entries_file=$(mktemp)
+  cat >"$entries_file"
+
   # Read before building the request, so a caller that has nothing to offer says
   # so here rather than opening a picker over an empty list.
-  entries=$(
-    "$jq" -R -s '
-      split("\n")
-      | map(select(length > 0) | split("\t"))
-      | map({
-          label: .[0],
-          value: (.[1] // .[0]),
-          icon: (.[2] // ""),
-          state: (.[3] // "")
-        })
-    '
-  )
-
-  [ "$entries" != "[]" ] || die "nothing to pick from"
+  count=$("$jq" -R -s 'split("\n") | map(select(length > 0)) | length' <"$entries_file")
+  [ "$count" -gt 0 ] || die "nothing to pick from"
 fi
 
 payload=$(
@@ -108,24 +122,45 @@ payload=$(
     --arg placeholder "$placeholder" \
     --arg mode "$mode" \
     --arg grouped "$grouped" \
+    --arg allowEmpty "$allow_empty" \
     --arg onSelect "$on_select" \
     --arg onCancel "$on_cancel" \
-    --argjson entries "${entries:-[]}" \
+    --rawfile entries "$entries_file" \
     '{
       title: $title,
       placeholder: $placeholder,
       mode: $mode,
       grouped: ($grouped == "true"),
+      allowEmpty: ($allowEmpty == "true"),
       onSelect: $onSelect,
       onCancel: $onCancel,
-      entries: $entries
+      entries: (
+        $entries
+        | split("\n")
+        | map(select(length > 0) | split("\t"))
+        | map({
+            label: .[0],
+            value: (.[1] // .[0]),
+            icon: (.[2] // ""),
+            state: (.[3] // "")
+          })
+      )
     }'
 )
+
+# The request goes to the shell as a file rather than as the argument itself.
+# A single command-line argument is capped at 128KB by the kernel, and the emoji
+# list is twice that — inline it failed with a bare "Argument list too long"
+# from jq, which is a cliff to leave sitting in a picker at a size nobody can
+# predict. The shell reads it synchronously, so it is safe to delete the moment
+# the call returns.
+request=$(mktemp)
+printf '%s' "$payload" >"$request"
 
 # `ipc call` is synchronous, so the reply is the shell saying it has the request
 # and has drawn nothing yet. A shell that is not running fails here, which is the
 # case worth reporting plainly: there is nothing to pick from and no fallback.
-if ! reply=$("$quickshell" ipc call pick open "$payload" 2>/dev/null); then
+if ! reply=$("$quickshell" ipc call pick open "$request" 2>/dev/null); then
   die "the shell is not running"
 fi
 

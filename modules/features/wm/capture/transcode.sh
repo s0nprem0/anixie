@@ -20,7 +20,6 @@ set -uo pipefail
 
 magick="@MAGICK@"
 ffmpeg="@FFMPEG@"
-fuzzel="@FUZZEL@"
 wl_copy="@WL_COPY@"
 
 # Where the picker looks when it is not told. Only these two, because a fuzzy
@@ -36,24 +35,9 @@ die() {
   exit 1
 }
 
-# Picked through fuzzel rather than a file dialog: it is already the launcher and
-# the clipboard picker, and it filters as you type, which is the whole job here.
-choose() {
-  # $1 is the prompt, the rest are the choices.
-  prompt="$1"
-  shift
-  printf '%s\n' "$@" | "$fuzzel" --dmenu --prompt="$prompt" --width 34
-}
-
-media_type() {
-  mime=$(file -b --mime-type "$1" 2>/dev/null)
-  case "$mime" in
-    image/*) printf 'picture' ;;
-    video/*) printf 'video' ;;
-    *) return 1 ;;
-  esac
-}
-
+# Picked through the shell's picker rather than a file dialog: it is already the
+# launcher and the clipboard picker, and it filters as you type, which is the
+# whole job here.
 choose_file() {
   candidates=$(
     for dir in "${search_paths[@]}"; do
@@ -67,7 +51,24 @@ choose_file() {
   )
   [ -n "$candidates" ] || die "no pictures or videos found in ${search_paths[*]}"
 
-  printf '%s\n' "$candidates" | "$fuzzel" --dmenu --prompt='transcode  ' --width 60
+  printf '%s\n' "$candidates" | pick --title 'transcode' --on-select 'transcode {}'
+}
+
+# Single-quotes a value for the command the picker will run. The picker quotes
+# the value it substitutes into `{}` and nothing else, so the arguments this
+# script carries forward — a path with spaces in it, most of all — have to be
+# quoted here.
+quote() {
+  printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+}
+
+media_type() {
+  mime=$(file -b --mime-type "$1" 2>/dev/null)
+  case "$mime" in
+    image/*) printf 'picture' ;;
+    video/*) printf 'video' ;;
+    *) return 1 ;;
+  esac
 }
 
 output_path() {
@@ -174,22 +175,49 @@ format="${positional[1]:-}"
 resolution="${positional[2]:-}"
 
 # ---- prompts -----------------------------------------------------------------
+#
+# Each step hands the next one its answer as an argument, because the picker's
+# answer goes to a process that has already exited: `transcode` with no arguments
+# picks a file and runs `transcode <file>`, that one picks a format and runs
+# `transcode <file> <format>`, and so on until all three are here and there is
+# nothing left to ask. The old version asked the same questions from one process
+# that sat and waited on three fuzzels in a row.
+#
+# The format list depends on what the file is, which is why the file has to be
+# settled before this can offer anything.
 
-[ -n "$input" ] || input=$(choose_file) || exit 1
-[ -n "$input" ] || exit 1
+if [ -z "$input" ]; then
+  choose_file
+  exit 0
+fi
+
 [ -f "$input" ] || die "no such file: $input"
 
 type=$(media_type "$input") || die "not a picture or a video: $(file -b --mime-type "$input")"
 
 if [ "$type" = "picture" ]; then
-  [ -n "$format" ] || format=$(choose 'format  ' jpg png) || exit 1
-  [ -n "$resolution" ] || resolution=$(choose 'size  ' high medium low) || exit 1
+  formats="jpg
+png"
+  sizes="high
+medium
+low"
 else
-  [ -n "$format" ] || format=$(choose 'format  ' mp4 gif) || exit 1
-  [ -n "$resolution" ] || resolution=$(choose 'size  ' 4k 1080p 720p) || exit 1
+  formats="mp4
+gif"
+  sizes="4k
+1080p
+720p"
 fi
 
-[ -n "$format" ] && [ -n "$resolution" ] || exit 1
+if [ -z "$format" ]; then
+  printf '%s\n' "$formats" | pick --title 'format' --on-select "transcode $(quote "$input") {}"
+  exit 0
+fi
+
+if [ -z "$resolution" ]; then
+  printf '%s\n' "$sizes" | pick --title 'size' --on-select "transcode $(quote "$input") $(quote "$format") {}"
+  exit 0
+fi
 
 output=$(output_path "$input" "$format" "$resolution")
 

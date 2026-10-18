@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import ".."
 
 // One row of the picker.

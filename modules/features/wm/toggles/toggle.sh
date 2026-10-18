@@ -19,7 +19,6 @@ set -uo pipefail
 
 hyprctl="@HYPRCTL@"
 quickshell="@QUICKSHELL@"
-fuzzel="@FUZZEL@"
 
 
 usage() {
@@ -155,20 +154,17 @@ case "${1:-}" in
     ;;
   "")
     # The list carries its own state, so the picker says what is on before you
-    # choose rather than after.
-    choice=$(
-      for name in $(names); do
-        printf '%s — %s\n' "$(label "$name")" "$(state_of "$name")"
-      done | "$fuzzel" --dmenu --prompt='toggle  ' --width 30
-    ) || exit 0
-    [ -n "$choice" ] || exit 0
-
-    case "$choice" in
-      Night\ light*) toggle_one nightlight ;;
-      Idle\ lock*) toggle_one idle ;;
-      Silence\ notifications*) toggle_one dnd ;;
-      *) exit 1 ;;
-    esac
+    # choose rather than after — and the state is the row's own trailing field
+    # rather than part of its text, so the shell draws it dimmed on the right.
+    #
+    # The value is the toggle's name, so choosing a row runs `toggle <name>`
+    # directly. It used to hand the chosen *line* back to a case arm that matched
+    # on its first word, which meant renaming a label here silently broke the
+    # picker: "Night light" became an unknown argument the day it was renamed.
+    for name in $(names); do
+      printf '%s\t%s\t\t%s\n' "$(label "$name")" "$name" "$(state_of "$name")"
+    done | pick --title 'toggle' --on-select 'toggle {}'
+    exit 0
     ;;
   *)
     printf 'toggle: unknown argument "%s" (try --help)\n' "$1" >&2

@@ -15,17 +15,26 @@ set -eu
 
 prefix="reminder"
 
-# Interactive: the duration off a short list, the message typed. The second
-# prompt is prompt-only, so fuzzel shows an input box with no list to choose
-# from and returns whatever was typed.
+# Interactive: the duration off a short list, then the message typed.
+#
+# Two steps rather than one process asking twice, because the picker's answer
+# goes to a command the shell runs — there is no shell left here to hold the
+# minutes while the second question is asked. So the first pick runs
+# `reminder --ask <minutes>`, and that one asks for the message.
+#
+# The message is allowed to be blank, and blank means "Reminder" further down;
+# without --allow-empty the picker would refuse to accept the field and there
+# would be no way to take the default.
 if [ "${1:-}" = "-i" ] || [ "${1:-}" = "--interactive" ]; then
-  minutes=$(printf '5\n10\n15\n30\n45\n60\n' | fuzzel --dmenu --prompt='remind in minutes: ') || exit 0
-  [ -n "$minutes" ] || exit 0
+  printf '5\n10\n15\n30\n45\n60\n' | pick --title 'remind in minutes' --on-select 'reminder --ask {}'
+  exit 0
+fi
 
-  message=$(fuzzel --dmenu --prompt-only='message: ' --placeholder='optional' </dev/null) || message=""
-  [ -n "$message" ] || message="Reminder"
-
-  set -- "$minutes" "$message"
+if [ "${1:-}" = "--ask" ]; then
+  [ $# -ge 2 ] || exit 1
+  pick --title 'message' --placeholder 'optional' --input --allow-empty \
+    --on-select "reminder $2 {}"
+  exit 0
 fi
 
 case "${1:-}" in

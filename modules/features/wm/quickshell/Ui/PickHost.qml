@@ -1,6 +1,7 @@
 pragma Singleton
 
 import QtQuick
+import Quickshell.Io
 import "fuzzy.js" as Fuzzy
 
 // The shell's picker: a searchable list, and the one way this shell asks the
@@ -23,6 +24,14 @@ import "fuzzy.js" as Fuzzy
 // into. A caller with more than one step chains them: the command for the first
 // pick opens the second.
 //
+// The request arrives as a *path* to a file holding the JSON, not as the JSON
+// itself. A single command-line argument is capped at 128KB by the kernel, and
+// the emoji list is twice that: passed inline it failed with a bare "Argument
+// list too long" from whichever tool happened to be moving it, which is a cliff
+// to leave sitting in a picker at a size nobody can predict. `blockLoading`
+// makes the read synchronous, so the shell has the request before the IPC call
+// returns and the caller can delete the file immediately afterwards.
+//
 // There is deliberately no fallback to fuzzel. A picker that only sometimes
 // exists is a picker whose keyboard layout you cannot learn; and the case that
 // would need a fallback — the shell not running — is the case where a broken
@@ -30,6 +39,15 @@ import "fuzzy.js" as Fuzzy
 // something to fix it with. `pick` fails loudly instead.
 QtObject {
   id: root
+
+  // The request file, set by open() before it is read.
+  property string requestPath: ""
+
+  property FileView requestFile: FileView {
+    path: root.requestPath
+    printErrors: false
+    blockLoading: true
+  }
 
   // Shown. Gates the window's visibility and its keyboard focus: the picker only
   // takes the keyboard while it is up, or the compositor would never deliver keys
@@ -39,6 +57,12 @@ QtObject {
   // "list" picks from the entries. "input" is a bare text field with no list —
   // what fuzzel's --prompt-only gave, and what a reminder's message needs.
   property string mode: "list"
+
+  // Whether Enter on an empty input field counts as an answer. Off by default,
+  // because an empty answer is usually no answer. On for a prompt with a
+  // sensible default — a reminder's message — where leaving it blank is a real
+  // choice and refusing to accept it would be the picker overriding the caller.
+  property bool allowEmpty: false
 
   // Draw a dimmed group line above each run of entries sharing a group. On for
   // the menu, where the group is a path prefix; off for the small pickers, whose
@@ -69,10 +93,25 @@ QtObject {
   // entries are of one kind and the picker is a panel, not a window.
   readonly property int maxVisible: 12
 
-  function open(payload) {
+  // Read the request at `path` and show it. Returns the ack `pick` waits on.
+  function open(path) {
+    root.requestPath = String(path !== undefined && path !== null ? path : "")
+
+    let raw = ""
+    try {
+      raw = requestFile.text()
+    } catch (error) {
+      raw = ""
+    }
+
+    if (!raw || raw === "") {
+      console.warn("pick: no request to read at " + root.requestPath)
+      return "error"
+    }
+
     let request
     try {
-      request = JSON.parse(String(payload || ""))
+      request = JSON.parse(raw)
     } catch (error) {
       console.warn("pick: could not read the request: " + error)
       return "error"
@@ -84,6 +123,7 @@ QtObject {
     root.title = String(request.title !== undefined ? request.title : "")
     root.placeholder = String(request.placeholder !== undefined ? request.placeholder : "")
     root.mode = String(request.mode !== undefined ? request.mode : "list")
+    root.allowEmpty = !!request.allowEmpty
     root.grouped = !!request.grouped
     root.onSelect = String(request.onSelect !== undefined ? request.onSelect : "")
     root.onCancel = String(request.onCancel !== undefined ? request.onCancel : "")
@@ -149,12 +189,17 @@ QtObject {
     const select = root.onSelect
 
     if (root.isInput) {
-      // Text mode's value is whatever was typed, and an empty one is a
-      // cancellation rather than a choice: Enter on an empty field should not
-      // run the caller's command with nothing in it.
+      // Text mode's value is whatever was typed. An empty one is a cancellation
+      // rather than a choice, unless the caller said an empty answer is one: a
+      // reminder whose message defaults to "Reminder" has to be able to accept
+      // a blank.
       const typed = String(root.query)
+      if (typed.length === 0 && !root.allowEmpty) {
+        root.dismiss()
+        return
+      }
       root.dismiss()
-      if (typed.length > 0) root.runTemplate(select, typed)
+      root.runTemplate(select, typed)
       return
     }
 

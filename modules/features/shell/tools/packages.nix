@@ -20,8 +20,9 @@ with pkgs;
   pciutils
   usbutils
 
-  # Emoji picker, and the key injection it types the chosen one through.
-  bemoji
+  # Key injection, for the emoji picker to type its choice through. The picker
+  # itself is `emoji` (see features/wm/emoji); bemoji used to be here for it, and
+  # went with the fuzzel it drew its list through.
   wtype
 
   # The notification client. The daemon that draws what it sends is the shell's.

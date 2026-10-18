@@ -15,6 +15,26 @@ import ".."
 Item {
   id: root
 
+  // The dim behind everything, then the curtain, and only then the card.
+  //
+  // The order is the whole of the click handling. A sibling declared later is
+  // drawn on top and takes input first, so with the curtain declared *after* the
+  // card it sat over it and swallowed every click — the card's own rows could
+  // not be clicked at all, and any click anywhere dismissed. Declared before it,
+  // the card takes clicks first and the curtain only gets the ones that land
+  // outside it, which is the gesture for "not this one".
+  Rectangle {
+    anchors.fill: parent
+    color: Qt.rgba(0, 0, 0, 0.35)
+  }
+
+  MouseArea {
+    anchors.fill: parent
+    onClicked: {
+      PickHost.dismiss()
+    }
+  }
+
   // The card. Centred, and narrower than the output so there is a curtain to
   // click, which is the gesture for "not this one".
   Rectangle {
@@ -246,19 +266,6 @@ Item {
         }
       }
     }
-  }
-
-  // The curtain. Only as wide as the card, so a click beside the card dismisses
-  // without covering it.
-  MouseArea {
-    anchors.fill: parent
-    onClicked: PickHost.dismiss()
-  }
-
-  Rectangle {
-    anchors.fill: parent
-    color: Qt.rgba(0, 0, 0, 0.35)
-    z: -1
   }
 
   // Shown again on every open. A window that has had focus once does not take it
