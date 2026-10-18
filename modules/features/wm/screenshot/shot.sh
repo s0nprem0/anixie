@@ -12,10 +12,12 @@
 #
 #   save      write a PNG into $SHOT_DIR (default ~/Pictures/Screenshots)
 #   copy      put it on the clipboard and write nothing
+#   annotate  open it in satty, which starts in crop mode, and save the result
 #   -- CMD    run CMD with the captured file, instead of saving or copying
 #
-#   shot region -- satty              hand the capture to a viewer
-#   shot windows copy                 pick a window, copy it, save nothing
+#   shot region annotate             drag a region, then crop and mark it up
+#   shot region -- satty            hand the capture to a viewer
+#   shot windows copy                pick a window, copy it, save nothing
 #
 # `scroll` is not a mode here. Capturing a window taller than the screen needs a
 # composition of the screen over time that neither grim nor hyprshot can do —
@@ -49,6 +51,9 @@ while [ $# -gt 0 ]; do
       ;;
     save | copy)
       dest="$1"
+      ;;
+    annotate)
+      dest="annotate"
       ;;
     scroll)
       printf 'shot: "scroll" is not supported — it needs a capture that extends past the screen.\n' >&2
@@ -100,14 +105,26 @@ else
   set -- "$@" -o "$shot_dir"
 fi
 
-# A command after `--` is run with the captured file appended, which is how
-# annotation and viewers are reached. hyprshot's own status is not the command's,
-# so it is dropped here and the command's status is what leaves.
-if [ -n "$post" ]; then
-  # shellcheck disable=SC2086
-  @HYPRSHOT@ "$@" -- $post >/dev/null 2>&1 || true
-  # shellcheck disable=SC2086
-  exec $post "$(ls -t "$shot_dir"/*.png 2>/dev/null | head -1)"
+# Annotation opens the capture in satty, which is written for Wayland and starts
+# in crop mode. swappy was the tool here before and drew nothing: it is an X11-era
+# GTK application, and run under XWayland its window never appeared.
+#
+# satty is told both ends explicitly rather than being handed the capture as a
+# trailing argument, because it takes the file as a named option and has no
+# positional form.
+if [ "$dest" = "annotate" ]; then
+  raw="$shot_dir/.annotate-$(date +%Y%m%d-%H%M%S)-$$.png"
+  @HYPRSHOT@ "$@" -f "$(basename "$raw")" >/dev/null 2>&1 || true
+
+  if [ ! -s "$raw" ]; then
+    printf 'shot: nothing was captured (the selection may have been cancelled)\n' >&2
+    exit 1
+  fi
+
+  @SATTY@ --filename "$raw" --output-filename "$shot_dir/$(date +%Y-%m-%d_%H-%M-%S).png" --initial-tool crop
+  status=$?
+  rm -f "$raw"
+  exit "$status"
 fi
 
 # hyprshot 1.3.0 always exits 1, having written the file perfectly well: its
@@ -120,6 +137,20 @@ fi
 if [ "$dest" = "copy" ]; then
   @HYPRSHOT@ "$@" || true
   exit 0
+fi
+
+# A command after `--` is run with the captured file appended. hyprshot's own
+# status is not the command's, so it is dropped here and the command's status is
+# what leaves.
+if [ -n "$post" ]; then
+  file="$shot_dir/$(date +%Y-%m-%d_%H-%M-%S).png"
+  @HYPRSHOT@ "$@" -f "$(basename "$file")" >/dev/null 2>&1 || true
+  if [ -s "$file" ]; then
+    # shellcheck disable=SC2086
+    exec $post "$file"
+  fi
+  printf 'shot: nothing was captured (the selection may have been cancelled)\n' >&2
+  exit 1
 fi
 
 file="$shot_dir/$(date +%Y-%m-%d_%H-%M-%S).png"

@@ -4,35 +4,33 @@
 }:
 
 {
-  # swappy is what the `-- CMD` route is used for when a capture needs marking
-  # up or blurring before it goes anywhere.
-  programs.swappy = {
-    enable = true;
-
-    settings.Default = {
-      # Matches $SHOT_DIR below, so a capture sent through swappy lands beside
-      # one saved directly. save_dir and save_filename_format are the key names
-      # present in the swappy 1.8 binary.
-      save_dir = "$HOME/Pictures/Screenshots";
-      save_filename_format = "shot-%Y%m%d-%H%M%S.png";
-    };
-  };
-
+  # Annotation is satty's job. It is written for Wayland and opens in crop mode,
+  # so Super+Shift+A goes straight to cropping rather than making you pick the
+  # crop tool first.
+  #
+  # swappy was here before and drew nothing at all: it is an X11-era GTK
+  # application, and under XWayland its window never appeared — the client was in
+  # hyprctl's list with nothing on screen. Worth knowing if an annotation tool
+  # ever looks like it launched and then vanished.
   home.packages = [
     # Screenshots go through one command with the mode vocabulary the reference
     # shell uses, so the binds and any habit carry over, while nothing depends on
     # its own vendored tooling. hyprshot covers the modes natively, including the
     # interactive window picker and clipboard-only capture that grim cannot do.
     #
-    # The path is substituted in rather than left to $PATH: these run from a
+    # The paths are substituted in rather than left to $PATH: these run from a
     # Hyprland bind, which does not necessarily carry the user's profile path.
     (pkgs.writeShellScriptBin "shot" (
       builtins.replaceStrings
-        [ "@HYPRSHOT@" ]
-        [ "${pkgs.hyprshot}/bin/hyprshot" ]
+        [ "@HYPRSHOT@" "@SATTY@" ]
+        [
+          "${pkgs.hyprshot}/bin/hyprshot"
+          "${pkgs.satty}/bin/satty"
+        ]
         (builtins.readFile ./shot.sh)
     ))
 
     pkgs.hyprshot
+    pkgs.satty
   ];
 }

@@ -38,10 +38,10 @@
     # into whatever is focused.
     "$mod SHIFT, C, exec, shot smart copy"
 
-    # Marked up before it is saved: swappy is handed the capture rather than the
-    # mode drawing its own selection, so this crops and annotates the focused
-    # window instead of the whole screen.
-    "$mod SHIFT, A, exec, shot smart -- swappy -f"
+    # Marked up before it is saved: the capture is handed to satty, which opens
+    # already in crop mode, so this crops and annotates the focused window rather
+    # than the whole screen and then waits to be told what to do.
+    "$mod SHIFT, A, exec, shot smart annotate"
 
     # --------------------------------------------------------------------
     # Moving focus between windows
