@@ -8,7 +8,13 @@ import ".."
 Slider {
   id: control
 
-  readonly property color trackColour: Theme.surface
+  // The unfilled track has to read against what the slider sits on, and every
+  // slider here sits on a panel — which is Theme.surface. A track of the same
+  // colour is invisible, so a slider at 11% drew as a stub of fill and a knob
+  // with nothing between them, and only a value over 100% (a full track) looked
+  // like a slider at all. A tint of the foreground instead of a fixed colour, so
+  // it stays a groove on any surface rather than only on this one.
+  readonly property color trackColour: Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.14)
   readonly property color fillColour: Theme.primary
   readonly property color knobColour: Theme.fg
   readonly property int trackThickness: 4

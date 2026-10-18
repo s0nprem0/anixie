@@ -40,6 +40,9 @@ Item {
   // is selected and nothing on screen would explain why.
   property bool profileFailed: false
 
+  // What powerprofilesctl said when it failed, for the message below.
+  property string profileError: ""
+
   Process {
     id: profileGet
     running: true
@@ -51,10 +54,16 @@ Item {
       }
     }
     stderr: StdioCollector {
-      onStreamFinished: root.profileFailed = true
+      // Kept for the message only. The exit code is what decides whether this
+      // failed — setting the flag here marked the daemon unavailable on every
+      // *successful* run, because a collector finishes when its stream closes
+      // whether or not anything came through it, and an empty stderr closes too.
+      // Whichever collector finished last decided the outcome, so the panel
+      // reported a daemon that was running perfectly well as missing.
+      onStreamFinished: root.profileError = this.text.trim()
     }
     onExited: function (exitCode) {
-      if (exitCode !== 0) root.profileFailed = true
+      root.profileFailed = exitCode !== 0
     }
   }
 
@@ -209,7 +218,12 @@ Item {
     title: "Power"
 
     // ---- profile ----
-    Component.onCompleted: profileGet.running = false
+    // The profile query starts itself: `profileGet` is declared with
+    // `running: true`, and PanelHost rebuilds this panel every time it opens, so
+    // each opening asks again. There used to be a `profileGet.running = false`
+    // here, which stopped the query the moment the card was built — the kill
+    // came back as a non-zero exit, and the panel announced a daemon that was
+    // running fine as unavailable.
 
     Text {
       width: card.contentWidth
@@ -225,10 +239,13 @@ Item {
       width: card.contentWidth
       height: implicitHeight
       visible: root.profileFailed
-      text: "power-profiles-daemon unavailable"
+      // powerprofilesctl's own explanation when it gave one, so a failure that
+      // says why is not replaced by a line that says only that it failed.
+      text: root.profileError !== "" ? root.profileError : "power-profiles-daemon unavailable"
       color: Theme.danger
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
+      wrapMode: Text.WordWrap
     }
 
     Row {
@@ -274,6 +291,7 @@ Item {
     PanelRow {
       id: brightnessRow
       width: card.contentWidth
+      hasControl: true
       label: "Brightness"
       value: root.brightness + "%"
 

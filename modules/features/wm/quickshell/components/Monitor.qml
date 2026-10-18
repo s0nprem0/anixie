@@ -134,6 +134,7 @@ BarWidget {
       PanelRow {
         id: displayRow
         width: card.contentWidth
+        hasControl: true
         label: "Brightness"
         value: root.percent + "%"
 
@@ -155,6 +156,7 @@ BarWidget {
       PanelRow {
         id: keyboardRow
         width: card.contentWidth
+        hasControl: true
         visible: root.keyboardPresent
         height: visible ? implicitHeight : 0
         label: "Keyboard"

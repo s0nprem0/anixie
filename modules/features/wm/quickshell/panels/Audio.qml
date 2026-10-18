@@ -48,6 +48,7 @@ Item {
     PanelRow {
       id: masterRow
       width: card.contentWidth
+      hasControl: true
       label: "Volume"
       value: root.defaultSink && root.defaultSink.audio
         ? Math.round(root.defaultSink.audio.volume * 100) + "%"
@@ -126,6 +127,7 @@ Item {
         id: streamRow
         required property var modelData
         width: card.contentWidth
+        hasControl: true
         label: root.displayName(modelData)
         value: Math.round(modelData.audio.volume * 100) + "%"
 
