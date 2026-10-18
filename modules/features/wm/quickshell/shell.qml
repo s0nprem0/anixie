@@ -10,6 +10,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
+import Quickshell.Hyprland
 
 import "."
 import "Ui"
@@ -463,5 +464,39 @@ ShellRoot {
     target: "pick"
 
     function open(path: string): string { return PickHost.open(path) }
+  }
+
+  // The menu's keys, as Hyprland global shortcuts rather than commands. A bind
+  // that runs `menu` starts a process, which starts `quickshell ipc`, which is a
+  // Qt application starting up to deliver one message — about 140ms before the
+  // shell has even heard of the keypress. A global shortcut is a Wayland event
+  // the shell is already listening for. The binds are in hyprland/lua.nix, as
+  // `hl.dsp.global("quickshell:<name>")`.
+  GlobalShortcut {
+    name: "menu"
+    description: "Open the menu"
+    onPressed: MenuHost.open("")
+
+    // Builds the menu's singleton and starts the desktop-entry scan now, rather
+    // than on the first keypress (see MenuHost.warm).
+    Component.onCompleted: MenuHost.warm()
+  }
+
+  GlobalShortcut {
+    name: "menu-capture"
+    description: "Open the capture menu"
+    onPressed: MenuHost.open("Capture")
+  }
+
+  // The menu, for scripts and for checking it without a picker on screen.
+  // `open` and `only` rather than one function with an optional group, because
+  // `ipc call` passes every argument a function declares.
+  IpcHandler {
+    target: "menu"
+
+    function open(): void { MenuHost.open("") }
+    function only(group: string): void { MenuHost.open(group) }
+    function list(group: string): string { return MenuHost.list(group) }
+    function launch(name: string): string { return MenuHost.launchByName(name) }
   }
 }

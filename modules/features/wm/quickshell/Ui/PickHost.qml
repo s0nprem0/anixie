@@ -142,6 +142,12 @@ QtObject {
       return
     }
 
+    root.present(request)
+  }
+
+  // Show a request that is already an object. `pick` arrives here by way of the
+  // file above; the menu, which is built in the shell, comes straight here.
+  function present(request) {
     // A request arriving while a picker is up replaces it. The alternative —
     // ignoring it — leaves the caller with a menu that never opens and no way
     // to tell that from one that was dismissed.
@@ -237,8 +243,13 @@ QtObject {
     // other caller runs the same command with a different argument.
     const own = String(entry.run !== undefined && entry.run !== null ? entry.run : "")
 
+    // An application from the menu carries its desktop entry, which runs without
+    // a shell in between.
+    const app = entry.app
+
     root.dismiss()
-    if (own.length > 0) Commands.run(own)
+    if (app) MenuHost.launch(app)
+    else if (own.length > 0) Commands.run(own)
     else root.runTemplate(select, value)
   }
 

@@ -22,7 +22,12 @@ BarWidget {
     tooltipText: "Launcher · right-click for a terminal"
 
     onPressed: function (button) {
-      if (button === Qt.LeftButton) Commands.run(root.launcher)
+      // The default launcher is the shell's own menu, opened by a call rather
+      // than by running `menu` to come back in over IPC.
+      if (button === Qt.LeftButton) {
+        if (root.launcher === "menu") MenuHost.open("")
+        else Commands.run(root.launcher)
+      }
       else if (button === Qt.RightButton) Commands.run(root.terminal)
     }
   }

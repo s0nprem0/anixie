@@ -1,10 +1,10 @@
 {
   "entries": [
-    { "label": "Applications", "list": "menu list", "run": "menu {}" },
+    { "label": "Applications", "list": "apps" },
     { "label": "Terminal", "run": "kitty" },
     { "label": "Files", "run": "thunar" },
     { "label": "Editor", "run": "helix" },
-    { "label": "Browser", "run": "menu Firefox" },
+    { "label": "Browser", "app": "firefox" },
 
     {
       "group": "Capture",
@@ -23,14 +23,14 @@
         { "label": "Screen record — desktop audio", "run": "record --audio=desktop" },
         { "label": "Screen record — desktop and microphone", "run": "record --audio=desktop+mic" },
         { "label": "Screen record — desktop, microphone and webcam", "run": "record --audio=desktop+mic+webcam" },
-        { "label": "Stop screen recording", "run": "record --stop", "when": "record --status" }
+        { "label": "Stop screen recording", "run": "record --stop", "when": "recording" }
       ]
     },
 
     {
       "group": "Style",
       "entries": [
-        { "label": "Theme", "list": "theme list", "run": "theme set {}" },
+        { "label": "Theme", "list": "themes", "run": "theme set {}" },
         { "label": "Next theme", "run": "theme next" },
         { "label": "Previous theme", "run": "theme prev" },
         { "label": "Bar on or off", "run": "quickshell ipc call bar toggle" }
@@ -40,9 +40,9 @@
     {
       "group": "Toggle",
       "entries": [
-        { "label": "Night light", "run": "toggle nightlight", "state": "toggle status nightlight" },
-        { "label": "Idle lock", "run": "toggle idle", "state": "toggle status idle" },
-        { "label": "Silence notifications", "run": "toggle dnd", "state": "toggle status dnd" }
+        { "label": "Night light", "run": "toggle nightlight", "state": "nightlight" },
+        { "label": "Idle lock", "run": "toggle idle", "state": "idle" },
+        { "label": "Silence notifications", "run": "toggle dnd", "state": "dnd" }
       ]
     },
 

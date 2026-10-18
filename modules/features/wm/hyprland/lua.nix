@@ -41,7 +41,6 @@ in
   wayland.windowManager.hyprland.extraConfig = render ''
     local mod = "SUPER"
     local terminal = "kitty"
-    local menu = "menu"
 
     -- ------------------------------------------------------------------
     -- Bind helpers
@@ -64,6 +63,14 @@ in
     -- command, which is two dispatches around one exec — more than `bind`'s
     -- single exec_cmd can express. They go through here so they still unbind
     -- first and stay idempotent across a reload like every other bind.
+    -- Same, for a key the shell catches itself as a global shortcut. No process
+    -- runs between the key and the shell, which is what makes the menu open on
+    -- the keypress rather than after a `quickshell ipc` call has started up.
+    local function bind_global(key, description, name)
+      hl.unbind(key)
+      hl.bind(key, hl.dsp.global("quickshell:" .. name), { description = description })
+    end
+
     local function bind_handler(key, description, handler)
       hl.unbind(key)
       hl.bind(key, handler, { description = description })
@@ -258,7 +265,7 @@ in
     -- ------------------------------------------------------------------
     bind(mod .. " + RETURN", "Terminal", terminal)
 
-    bind(mod .. " + SPACE", "Menu", menu)
+    bind_global(mod .. " + SPACE", "Menu", "menu")
 
     -- Asks how long, then for a message, and the timer it sets keeps running
     -- after this shell is gone.
@@ -494,7 +501,7 @@ in
     -- a detached process, and the wrapper would take the submap back down in the
     -- gap between the two. The picker enters it itself now, so the wrapper is
     -- only a backstop, and this path does not want one.
-    bind(mod .. " + CTRL + C", "Capture menu", "menu-tree --only Capture")
+    bind_global(mod .. " + CTRL + C", "Capture menu", "menu-capture")
 
     -- Shrink a picture or a video before sending it. No picker of its own — it
     -- asks the shell for the file, the format and the size — so it is a plain
