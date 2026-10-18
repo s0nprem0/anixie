@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 
 // The dock's state, and the three things a click can do to a window.
 //
@@ -15,19 +16,21 @@ import Quickshell.Io
 // initialClass, the workspace id, whether the window is mapped, where it is and
 // how large it is, which is everything the dock needs.
 //
-// Polled rather than event-driven, which is the trade for that: a window
-// opening or closing shows up within a second instead of immediately. Every
-// other module here that has to read Hyprland's state does the same thing
-// (Indicators polls hyprsunset and hypridle), so this is the established
-// pattern rather than a new concession.
+// That data still comes from `hyprctl`, but the timing comes from the module's
+// event socket: `Hyprland.rawEvent` says when a window opened, closed, moved or
+// took focus, and those are the moments the list is worth asking for again. The
+// module's own state cannot be the trigger for the list — it is the list the
+// module cannot provide — but its events are exactly right for saying when to
+// fetch one.
 QtObject {
   id: root
 
   property bool shown: false
 
-  // Long enough to feel immediate, short enough that a couple of processes an
-  // hour is invisible next to everything else the shell runs.
-  readonly property int pollMs: 1000
+  // A backstop between events, and only while the dock is on screen. Events
+  // make it responsive; this is what covers the changes Hyprland does not
+  // announce.
+  readonly property int pollMs: 3000
 
   property var clients: []
 
@@ -208,7 +211,6 @@ QtObject {
   // ---- the poll ----
 
   property Process query: Process {
-    running: true
     command: ["sh", "-c", "hyprctl clients -j; echo; hyprctl activeworkspace -j"]
     stdout: StdioCollector {
       onStreamFinished: root.onOutput(this.text)
@@ -232,19 +234,59 @@ QtObject {
     }
   }
 
-  // Held as a property rather than declared as a child: a QtObject has no default
-  // property, so a bare `Timer { }` here has nowhere to go.
+  // ---- refreshing ----
+  //
+  // The list is only wanted while the dock is on screen, and asking for it
+  // unconditionally was the largest single thing this shell did at idle: two
+  // processes a second, forever — `hyprctl clients -j` is a full JSON dump of
+  // every window — for a dock that is hidden most of the time.
+
+  // Which events change what the dock should show. Hyprland's event socket is
+  // the trigger now rather than a clock: a window opening, closing, moving or
+  // taking focus is exactly what changes the list, and those are the events it
+  // emits.
+  readonly property var refreshOn: ({
+    openwindow: true,
+    closewindow: true,
+    movewindow: true,
+    activewindow: true,
+    workspace: true,
+    moveworkspace: true,
+    fullscreen: true,
+    changefloatingmode: true,
+    urgent: true,
+    minimize: true,
+    windowtitle: true
+  })
+
+  function refresh() {
+    if (!root.shown) return
+
+    if (!root.query.running) root.query.running = true
+    // Where the pointer is matters for a dock: it is what decides which window
+    // a click counts as hitting. Asked for alongside the list.
+    if (!root.focusQuery.running) root.focusQuery.running = true
+  }
+
+  onShownChanged: if (root.shown) root.refresh()
+
+  property Connections hyprlandEvents: Connections {
+    target: Hyprland
+
+    function onRawEvent(event) {
+      if (root.refreshOn[event.name]) root.refresh()
+    }
+  }
+
+  // A backstop, not the mechanism. Some things that change the list do not emit
+  // an event — the module's own docs say as much about toplevel state — and a
+  // dock that is visibly wrong is worse than two processes every few seconds
+  // while it is open.
   property Timer poll: Timer {
     interval: root.pollMs
-    running: true
+    running: root.shown
     repeat: true
-    triggeredOnStart: true
-    onTriggered: {
-      root.query.running = true
-      // Where the pointer is matters for a dock: it is what decides which window
-      // a click counts as hitting. Asked for on the same tick as the list.
-      root.focusQuery.running = true
-    }
+    onTriggered: root.refresh()
   }
 
   property Process focusQuery: Process {
@@ -261,5 +303,6 @@ QtObject {
     }
   }
 
-  Component.onCompleted: root.query.running = true
+  // Nothing here: the dock is hidden at startup, and the first refresh is
+  // `onShownChanged`'s job.
 }

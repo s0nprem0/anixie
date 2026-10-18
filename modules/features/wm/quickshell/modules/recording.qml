@@ -10,21 +10,19 @@ import Quickshell.Io
 // modules/ rather than in components/ — those are reached through the id registry,
 // and this one is meant to be droppable without touching it.
 //
-// State is polled rather than signalled. A recording is started by a Hyprland
-// bind, stopped by that same bind, by this button, or by `record --stop` from a
-// shell, so there is no one place to hook onto. `record --status` is a cheap
-// question — it reads a pid file and checks that the process is still a recorder —
-// and it is the same answer the stop path uses, so the bar cannot disagree with
-// what a stop would do.
+// The state lives in the shell (RecorderHost) and `record` pushes it in when a
+// recording starts or stops. It used to be asked for: `record --status` every
+// 1.5 seconds, which is a 456-line bash script parsed twice a second to answer a
+// question whose answer changes twice a day. That was about 4% of a core, spent
+// drawing a dot that is absent almost all of the time.
+//
+// The push is what makes this work from every entry point — a Hyprland bind,
+// this button, or `record --stop` from a shell — because the one thing they all
+// have in common is that they run `record`, which is what reports the change.
 BarWidget {
   id: root
 
-  property bool recording: false
-
-  // Often enough that a recording started from the keyboard shows up promptly,
-  // rare enough not to be worth noticing. The click path re-queries directly, so
-  // stopping never waits for a tick.
-  readonly property int pollMs: 1500
+  readonly property bool recording: RecorderHost.recording
 
   visible: root.recording
   implicitWidth: readout.implicitWidth
@@ -40,8 +38,7 @@ BarWidget {
     tooltipText: "Recording · click to stop"
 
     onPressed: function () {
-      // A Process of this module's own, the same shape as the status query below,
-      // and not `bar.run`.
+      // A Process of this module's own, and not `bar.run`.
       //
       // `bar.run` is the documented way for a drop-in module to run something, and
       // it is what this used at first — but the bar's handle is handed to a module
@@ -50,35 +47,17 @@ BarWidget {
       // threw "Cannot read property 'run' of undefined" every time: a stop button
       // that looked right, sat in the bar, and did nothing at all.
       //
-      // Running the command directly has no such gap, and it is the mechanism
-      // already proven here — the status query spawns `record` the same way on
-      // every tick.
+      // Running the command directly has no such gap.
       stopQuery.running = true
     }
   }
 
+  // The dot is not cleared here. `record --stop` reports the change itself, once
+  // the recorder is really gone, so the dot follows the recorder rather than the
+  // click — which is the same reason the old version re-queried after stopping
+  // instead of trusting the stop to have worked.
   Process {
     id: stopQuery
     command: ["record", "--stop"]
-    // The dot is cleared by the status query rather than here, so it reflects
-    // whether the recorder is really gone instead of whether the stop returned.
-    onExited: function () { statusQuery.running = true }
-  }
-
-  Process {
-    id: statusQuery
-    command: ["record", "--status"]
-    // Exit 0 means a recorder of ours is up. Anything else — a stale pid, no pid
-    // file, the command missing — is "not recording", which is the safe reading:
-    // a dot that never appears is a smaller problem than one that will not go away.
-    onExited: function (exitCode) { root.recording = exitCode === 0 }
-  }
-
-  Timer {
-    interval: root.pollMs
-    running: true
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: statusQuery.running = true
   }
 }

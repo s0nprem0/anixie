@@ -36,6 +36,20 @@ notify_send="@NOTIFY_SEND@"
 mpv="@MPV@"
 setsid="@SETSID@"
 
+# Tell the shell whether a recording is running, for the bar's record dot.
+#
+# The dot used to ask: `record --status` every 1.5 seconds, which meant parsing
+# this whole file twice a second to answer a question whose answer changes twice
+# a day. The shell holds the state now and this pushes it in, the same way
+# `toggle dnd` tells the shell about the notification state.
+#
+# Best effort on purpose. A shell that is not running is not a reason to fail a
+# recording — and `|| true` is what says so, since `set -uo pipefail` would
+# otherwise carry the failure out of this function.
+shell_recording() {
+  @QUICKSHELL@ ipc call capture recording "$1" >/dev/null 2>&1 || true
+}
+
 # Private to the user. XDG_RUNTIME_DIR is 0700 and lives for the session, which is
 # what a recording's pid and filename want. The fallback is the state directory
 # rather than /tmp: these paths are read back and used as paths — the filename is
@@ -264,6 +278,10 @@ stop_recording() {
   fi
 
   rm -f "$pid_file" "$name_file" "$region_file"
+
+  # Reported here rather than where the stop was asked for: the dot is about
+  # whether a recorder is running, not about whether a stop returned.
+  shell_recording stop
 }
 
 # ---- starting ----------------------------------------------------------------
@@ -450,6 +468,7 @@ fi
 printf '%s' "$$" >"$starting_file"
 if start_recording; then
   rm -f "$starting_file"
+  shell_recording start
 else
   rm -f "$starting_file" "$cancel_file"
   exit 1

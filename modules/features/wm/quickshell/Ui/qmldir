@@ -16,6 +16,7 @@ singleton PanelHost 1.0 PanelHost.qml
 singleton PanelRegistry 1.0 PanelRegistry.qml
 singleton DockHost 1.0 DockHost.qml
 singleton PickHost 1.0 PickHost.qml
+singleton RecorderHost 1.0 RecorderHost.qml
 Picker 1.0 Picker.qml
 PickRow 1.0 PickRow.qml
 BarWidget 1.0 BarWidget.qml

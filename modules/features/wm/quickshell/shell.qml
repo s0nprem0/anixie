@@ -355,12 +355,16 @@ ShellRoot {
   // What `shot` calls in through, after it has saved a capture. Driven by the
   // capture rather than by a key of its own, so a screenshot taken from a shell or
   // from the capture menu previews the same way one taken from Print does.
+  //
+  // `recording` is the same idea for the record dot: `record` says when a
+  // recording starts and stops instead of the bar asking it every 1.5 seconds.
   IpcHandler {
     target: "capture"
 
     function preview(path: string): void { CapturePreview.reveal(path) }
     function togglePin(): void { CapturePreview.togglePin() }
     function hide(): void { CapturePreview.hide() }
+    function recording(state: string): void { RecorderHost.set(state === "start") }
   }
 
   // Notification popups. Top right, over everything, and taking no keyboard:
