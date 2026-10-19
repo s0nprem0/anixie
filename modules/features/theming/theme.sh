@@ -30,6 +30,7 @@ default_theme="@DEFAULT_THEME@"
 quickshell="@QUICKSHELL@"
 hyprctl="@HYPRCTL@"
 jq="@JQ@"
+wallpaper="@WALLPAPER@"
 
 current_file="$state_dir/current"
 
@@ -94,6 +95,10 @@ tell_apps() {
   "$quickshell" ipc call theme set "$name" >/dev/null 2>&1 || true
   "$hyprctl" reload >/dev/null 2>&1 || true
   pkill -USR1 -x kitty 2>/dev/null || true
+
+  # The wallpaper follows the palette unless one of your own is set, in which
+  # case this is a no-op — the `wallpaper` command owns that decision.
+  "$wallpaper" apply >/dev/null 2>&1 || true
 }
 
 set_theme() {

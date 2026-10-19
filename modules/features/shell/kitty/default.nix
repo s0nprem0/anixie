@@ -11,7 +11,14 @@ in
     # `theme` command writes, and lands after them — kitty takes the last value it
     # reads, so a theme set at runtime wins without a rebuild. SIGUSR1 makes a
     # running kitty re-read it.
-    extraConfig = "include ${config.my.theme.stateDir}/kitty.conf";
+    #
+    # The second include is the same arrangement for the text size, written by the
+    # `textsize` command. Both are defaulted by Home Manager so a fresh login
+    # never includes a file that is not there yet.
+    extraConfig = ''
+      include ${config.my.theme.stateDir}/kitty.conf
+      include ${config.my.theme.stateDir}/kitty-font.conf
+    '';
 
     font = {
       name = "GohuFont 11 Nerd Font Mono";

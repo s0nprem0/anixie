@@ -1,20 +1,53 @@
 pragma Singleton
 
 import QtQuick
+import Quickshell
+import Quickshell.Io
 
 // Bar geometry and the spacing step. The numbers come from the reference
 // design the bar is modelled on: a 26px horizontal bar whose icons are fitted
 // to 12px of painted glyph rather than trusting the font's point size.
 QtObject {
+  id: style
+
+  // The global text size, as a multiplier over the sizes below. The `textsize`
+  // command owns the value: it writes a state file the shell reads once at
+  // startup (for a restart) and pushes changes through the shell's IPC (for a
+  // running one). Bar geometry itself does not scale — only what is read.
+  property real textScale: 1.0
+
   readonly property QtObject font: QtObject {
     readonly property string family: "JetBrainsMono Nerd Font"
-    readonly property int caption: 10
-    readonly property int bodySmall: 11
-    readonly property int body: 12
-    readonly property int subtitle: 13
+    readonly property int caption: Math.round(10 * style.textScale)
+    readonly property int bodySmall: Math.round(11 * style.textScale)
+    readonly property int body: Math.round(12 * style.textScale)
+    readonly property int subtitle: Math.round(13 * style.textScale)
   }
 
   readonly property string fontFamily: font.family
+
+  function setTextScale(scale) {
+    const n = Number(scale)
+    if (isFinite(n) && n > 0) style.textScale = n
+  }
+
+  readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state")
+    + "/anixie/theme"
+
+  // Read once, not watched: the live path is the IPC call, which is the same
+  // arrangement the theme uses and for the same reason — a FileView watch on
+  // these files never fired on this Quickshell.
+  property FileView textSizeFile: FileView {
+    path: Qt.resolvedUrl(style.stateDir + "/textscale")
+    printErrors: false
+    blockLoading: true
+    Component.onCompleted: {
+      try {
+        style.setTextScale(Number(String(style.textSizeFile.text()).trim()) / 100)
+      } catch (e) {
+      }
+    }
+  }
 
   readonly property QtObject bar: QtObject {
     readonly property int sizeHorizontal: 26

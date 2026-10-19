@@ -309,6 +309,16 @@ ShellRoot {
     function list(): string { return Theme.names().join(" ") }
   }
 
+  // The global text size, by multiplier. The `textsize` command writes the state
+  // file and calls this, so a running shell resizes at once and a restarted one
+  // comes back on the saved value.
+  IpcHandler {
+    target: "text"
+
+    function set(scale: string): void { Style.setTextScale(scale) }
+    function current(): string { return String(Style.textScale) }
+  }
+
   // Silencing notifications, for the `toggle` command's key.
   //
   // The daemon lives in this shell, so there is nothing to write to disk and
