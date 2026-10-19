@@ -71,7 +71,13 @@ property bool selected: false
     // Selected before hover, as elsewhere: pointing at the row you are already
     // on should not repaint it as though it were somewhere else.
     color: root.selected
-      ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.selectedFillAlpha)
+      // Selected rows hover too. The selection fill used to win outright, so the
+      // one row the pointer is most likely to cross — the network you are on —
+      // was the only one that never answered it.
+      ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b,
+          mouse.containsMouse && root.available
+            ? Style.control.pressedFillAlpha
+            : Style.control.selectedFillAlpha)
       : (mouse.containsMouse && root.available
         ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha)
         : "transparent")
