@@ -11,7 +11,17 @@ Item {
 
   property var notification: null
 
-  readonly property string appName: root.notification ? String(root.notification.appName || "") : ""
+  // The rest of the group, oldest included; one notification when it is alone.
+  property var group: []
+
+  readonly property string appName: {
+    if (!root.notification) return ""
+    const name = String(root.notification.appName || "")
+    // The count rides on the app name rather than a badge of its own: it is the
+    // same fact — who this is from, and how much of it there is — and it needs no
+    // new geometry in a card laid out by hand.
+    return root.group.length > 1 ? name + "  ·  " + root.group.length : name
+  }
   readonly property string summary: root.notification ? String(root.notification.summary || "") : ""
   readonly property string body: root.notification ? String(root.notification.body || "") : ""
   readonly property string image: root.notification ? String(root.notification.image || "") : ""
@@ -53,7 +63,15 @@ Item {
   MouseArea {
     anchors.fill: parent
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton
-    onClicked: if (root.notification) root.notification.dismiss()
+    // A group goes together: one click on a stack of five chat messages puts
+    // five away, which is what the click means when they are drawn as one card.
+    onClicked: {
+      if (root.group.length > 0) {
+        for (const item of root.group) item.dismiss()
+      } else if (root.notification) {
+        root.notification.dismiss()
+      }
+    }
   }
 
   Rectangle {

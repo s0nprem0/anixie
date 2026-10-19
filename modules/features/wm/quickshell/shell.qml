@@ -452,7 +452,7 @@ ShellRoot {
       spacing: Style.space(8)
 
       Repeater {
-        model: NotificationHost.stacked
+        model: NotificationHost.groups
 
         delegate: NotificationCard {
           required property var modelData
@@ -460,7 +460,8 @@ ShellRoot {
           // Width comes from the card's own implicit width, which is what sizes
           // the column and so the window. Binding it back to the column would be
           // circular and collapse both.
-          notification: modelData
+          notification: modelData.items.length > 0 ? modelData.items[0] : null
+          group: modelData.items
         }
       }
     }

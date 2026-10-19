@@ -31,6 +31,25 @@ QtObject {
     return list
   }
 
+  // Consecutive notifications from one application, collapsed into one card.
+  // A chat that sends five messages should take one card and a number, not five
+  // cards that push everything else off the screen. Only consecutive ones: two
+  // messages from one app either side of one from another are two moments, not
+  // one.
+  readonly property var groups: {
+    const out = []
+    for (const item of root.stacked) {
+      const app = String(item.appName || "").toLowerCase()
+      const last = out.length > 0 ? out[out.length - 1] : null
+      if (last && last.app === app) {
+        last.items.push(item)
+        continue
+      }
+      out.push({ app: app, items: [item] })
+    }
+    return out
+  }
+
   function dismiss(item) {
     if (item) item.dismiss()
   }
