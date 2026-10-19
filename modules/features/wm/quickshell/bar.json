@@ -27,6 +27,8 @@
       { "id": "bar.audio" },
       { "id": "bar.monitor" },
       { "id": "bar.bell" },
+      { "id": "bar.passwordless-sudo" },
+      { "id": "bar.remote-session" },
       { "id": "bar.power" }
     ]
   }

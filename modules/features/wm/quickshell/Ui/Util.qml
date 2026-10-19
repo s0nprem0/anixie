@@ -66,6 +66,12 @@ QtObject {
   // A secured network in the Wi-Fi list.
   readonly property string lock: glyph("f023")
 
+  // A key, for the indicator that says sudo is not asking for a password.
+  readonly property string key: glyph("f084")
+
+  // A laptop, for the indicator that says someone is logged in from elsewhere.
+  readonly property string laptop: glyph("f109")
+
   // A queued reminder.
   readonly property string clock: glyph("f017")
 

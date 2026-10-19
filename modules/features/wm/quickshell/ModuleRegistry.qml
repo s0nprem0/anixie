@@ -21,6 +21,8 @@ QtObject {
   readonly property Component tray: Component { Tray {} }
   readonly property Component monitor: Component { Monitor {} }
   readonly property Component bell: Component { Bell {} }
+  readonly property Component passwordlessSudo: Component { PasswordlessSudo {} }
+  readonly property Component remoteSession: Component { RemoteSession {} }
 
   readonly property var registry: ({
     "bar.workspaces": workspaces,
@@ -37,7 +39,9 @@ QtObject {
     "bar.indicators": indicators,
     "bar.tray": tray,
     "bar.monitor": monitor,
-    "bar.bell": bell
+    "bar.bell": bell,
+    "bar.passwordless-sudo": passwordlessSudo,
+    "bar.remote-session": remoteSession
   })
 
   function has(id) {

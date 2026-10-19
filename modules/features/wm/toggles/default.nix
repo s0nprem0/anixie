@@ -15,9 +15,36 @@ let
       ]
       (builtins.readFile ./toggle.sh)
   );
+
+  # Whether sudo asks for a password, which it does not on this machine: the
+  # wheel group carries NOPASSWD, and `son` is in wheel. Asked of sudo itself
+  # rather than read out of /etc/sudoers, which is root-only and unreadable by the
+  # user the indicator is trying to tell.
+  passwordlessSudo = pkgs.writeShellScriptBin "passwordless-sudo" (
+    builtins.replaceStrings
+      [ "@SUDO@" "@TERMINAL@" ]
+      [
+        "/run/wrappers/bin/sudo"
+        "${pkgs.kitty}/bin/kitty"
+      ]
+      (builtins.readFile ./passwordless-sudo.sh)
+  );
+
+  # Who is logged in, and from somewhere else or not. logind rather than any one
+  # remote tool's own idea of who is connected — no remote desktop is installed
+  # here, and the bar should still say something if SSH ever is.
+  remoteSession = pkgs.writeShellScriptBin "remote-session" (
+    builtins.replaceStrings [ "@LOGINCTL@" ] [ "${pkgs.systemd}/bin/loginctl" ] (
+      builtins.readFile ./remote-session.sh
+    )
+  );
 in
 {
-  home.packages = [ toggle ];
+  home.packages = [
+    toggle
+    passwordlessSudo
+    remoteSession
+  ];
 
   # The inhibitor behind `toggle stayawake`. A unit rather than a backgrounded
   # process so it survives the shell that started it and stops exactly when it
