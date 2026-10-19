@@ -29,9 +29,12 @@ Item {
   // underneath it.
   default property alias trailing: trailingRow.data
 
-  // Whether this is the entry currently in use. Filled and outlined, so it reads
-  // as chosen at a glance from across the panel.
-  property bool selected: false
+// Whether this is the entry currently in use. The shell's own rule for that:
+// the same soft fill over the foreground the bar uses for an active module, and
+// no outline. An accent-tinted block with a frame around it was the loudest
+// thing in the panel and the only outlined one anywhere in the shell, which
+// reads as a different control rather than as the chosen entry.
+property bool selected: false
 
   // Whether the row does anything. A list you cannot act on right now — the
   // radio is off — is dimmed rather than hidden: the entries are still what is
@@ -51,13 +54,13 @@ Item {
   Rectangle {
     anchors.fill: parent
     radius: Theme.cornerRadius
+    // Selected before hover, as elsewhere: pointing at the row you are already
+    // on should not repaint it as though it were somewhere else.
     color: root.selected
-      ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, Style.control.selectedFillAlpha)
+      ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.selectedFillAlpha)
       : (mouse.containsMouse && root.available
         ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha)
         : "transparent")
-    border.color: root.selected ? Theme.accent : "transparent"
-    border.width: 1
 
     Behavior on color { NumberAnimation { duration: Style.duration(120) } }
   }
@@ -76,9 +79,13 @@ Item {
       id: labelText
       width: parent.width - (root.hasGlyph ? glyphText.implicitWidth + Style.space(6) : 0)
       text: root.label
+      // The accent is for the label of the entry in use, which is what accent
+      // means everywhere else here — a bar module's active glyph, a switch that
+      // is on. The fill says chosen; this says which one, without a frame.
       color: root.selected ? Theme.accent : Theme.fg
       font.family: Style.font.family
       font.pixelSize: Style.font.body
+      font.weight: root.selected ? Font.DemiBold : Font.Normal
       elide: Text.ElideMiddle
       renderType: Text.NativeRendering
     }
