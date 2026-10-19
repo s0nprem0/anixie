@@ -77,6 +77,7 @@ in
   imports = [
     ./colors.nix
     ./template.nix
+    ./apps.nix
     ./cursor.nix
     ./fonts.nix
     ./gtk.nix

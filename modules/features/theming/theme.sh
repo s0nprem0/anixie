@@ -12,6 +12,14 @@
 # the launcher. The shell switches the instant the state file changes — it watches
 # it — and the rest are told: Hyprland reloads, kitty takes SIGUSR1.
 #
+# Everything else is themed when the system is built, from the module's `theme`
+# option: the editor (helix), the file manager (yazi), the monitor (btop), tmux
+# and the lock screen. Those are store symlinks in ~/.config, which is the point
+# of them — a runtime writer would fight the link — so switching at runtime
+# leaves them on the palette of the last build until you rebuild. The shell
+# switching instantly and the editor waiting for a build is the honest split;
+# the alternative is a config file nobody can reproduce.
+#
 # The palettes are a JSON file rather than a Nix expression because this script
 # has to read the same list the shell was built from, and a shell script cannot
 # evaluate Nix. One file, two readers, nothing to keep in step by hand.
