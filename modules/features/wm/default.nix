@@ -10,6 +10,7 @@
     ./hyprsunset
     ./menu
     ./mixer
+    ./network
     ./pick
     ./quickshell
     ./reminder

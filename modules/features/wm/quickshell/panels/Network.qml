@@ -46,6 +46,47 @@ Item {
   // trustworthy.
   readonly property bool busy: root.actionKind !== ""
 
+  // ---- share by QR ----
+  //
+  // The QR holds the network password, so it is off by default, generated only
+  // when switched on, and the file it draws is removed again when it is switched
+  // off. `qrPath` is what SizedImage is given and only set once a file exists.
+  property bool qrVisible: false
+  property string qrPath: ""
+  readonly property bool qrReady: root.qrPath !== ""
+
+  readonly property string connected: root.activeSsid !== ""
+
+  function setQr(on) {
+    root.qrVisible = on
+
+    if (on) {
+      qrQuery.running = false
+      qrQuery.running = true
+    } else {
+      root.qrPath = ""
+      // Take the image away with the toggle. Leaving a password-bearing QR in the
+      // state directory after the switch that put it there is off is the kind of
+      // thing nobody remembers to clean up.
+      rmQr.running = true
+    }
+  }
+
+  Process {
+    id: qrQuery
+    command: ["wifi-qr"]
+    stdout: StdioCollector {
+      onStreamFinished: root.qrPath = String(this.text || "").trim()
+    }
+  }
+
+  Process {
+    id: rmQr
+    command: ["sh", "-c", 'rm -f "$1"', "_", root.stateDir + "/wifi-qr.png"]
+  }
+
+  readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/anixie"
+
   // A scan reports networks the device has not seen yet; connecting to a hidden
   // network is out of scope, so only listed ones are offered.
   function parse(raw) {
@@ -104,7 +145,14 @@ Item {
       onStreamFinished: {
         const found = root.parse(this.text)
         root.networks = found
+        const wasSsid = root.activeSsid
         root.activeSsid = found.length && found[0].inUse ? found[0].ssid : ""
+
+        // A code for one network is not a code for another. When the network
+        // changes while the QR is up, take it away rather than leave a phone
+        // pointed at the wrong credentials. Only on a change, not on every poll —
+        // the scan runs periodically and would switch it off each time otherwise.
+        if (root.qrVisible && root.activeSsid !== wasSsid) root.setQr(false)
         root.scanning = false
 
         if (found.length > 0) {
@@ -512,6 +560,50 @@ Item {
         cursorShape: root.radioEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
         onClicked: if (root.radioEnabled) root.rescan()
       }
+    }
+
+    // The QR, behind a toggle. It carries the network's password in the clear, so
+    // it is drawn only while this is on, and generated only then — the image is
+    // not sitting in the state directory waiting for a panel to be open.
+    PanelSeparator {
+      visible: root.qrVisible
+    }
+
+    Toggle {
+      id: qrToggle
+      width: card.contentWidth
+      visible: root.connected
+      height: visible ? implicitHeight : 0
+      label: "Share this network"
+      description: "a QR code another device can scan to join"
+      checked: root.qrVisible
+      onToggled: root.setQr(!root.qrVisible)
+    }
+
+    Item {
+      width: card.contentWidth
+      height: root.qrVisible && root.qrReady ? qrImage.implicitHeight : 0
+      visible: height > 0
+
+      SizedImage {
+        id: qrImage
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Style.space(180)
+        height: width
+        source: root.qrPath
+        fillMode: Image.PreserveAspectFit
+      }
+    }
+
+    Text {
+      width: card.contentWidth
+      height: visible ? implicitHeight : 0
+      visible: root.qrVisible && !root.qrReady
+      text: "Could not read the network password"
+      color: Theme.danger
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      renderType: Text.NativeRendering
     }
   }
 }
