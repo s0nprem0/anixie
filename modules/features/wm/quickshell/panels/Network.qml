@@ -686,9 +686,12 @@ Item {
               width: 3
               height: 4 + index * 3
               radius: Theme.cornerRadius
-              anchors.verticalCenter: parent.verticalCenter
+              // Standing on the same line, not floating around their own middles:
+              // centre-aligned bars of four different heights read as dashes, not
+              // as a staircase, which is the whole point of the glyph.
+              anchors.bottom: parent.bottom
               color: index < root.signalLevel(rowItem.modelData.signal)
-                ? (rowItem.modelData.inUse ? Theme.primary : Theme.muted)
+                ? (rowItem.selected ? Theme.accent : Theme.muted)
                 : Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.12)
             }
           }
