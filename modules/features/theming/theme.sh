@@ -36,6 +36,8 @@ state_dir="@STATE_DIR@"
 default_theme="@DEFAULT_THEME@"
 
 quickshell="@QUICKSHELL@"
+matugen="@MATUGEN@"
+generated="@GENERATED@"
 hyprctl="@HYPRCTL@"
 jq="@JQ@"
 wallpaper="@WALLPAPER@"
@@ -56,13 +58,20 @@ names() {
 }
 
 has() {
+  # `wallpaper` is not in the file: it is whatever matugen last made of the
+  # current picture, and it exists once a palette has been generated.
+  [ "$1" = "wallpaper" ] && return 0
   "$jq" -e --arg n "$1" 'has($n)' "$palettes" >/dev/null 2>&1
 }
 
 # One colour out of a palette, and the same without its '#' for the formats that
 # want it bare.
 colour() {
-  "$jq" -r --arg n "$1" --arg k "$2" '.[$n][$k]' "$palettes"
+  if [ "$1" = "wallpaper" ]; then
+    "$jq" -r --arg k "$2" '.[$k]' "$generated"
+  else
+    "$jq" -r --arg n "$1" --arg k "$2" '.[$n][$k]' "$palettes"
+  fi
 }
 
 current() {
@@ -105,7 +114,14 @@ EOF
 # other way to hear about the change.
 tell_apps() {
   local name="$1"
-  "$quickshell" ipc call theme set "$name" >/dev/null 2>&1 || true
+
+  # A generated palette cannot be named to the shell — the shell was built with
+  # the curated ones — so it is handed over whole.
+  if [ "$name" = "wallpaper" ]; then
+    "$quickshell" ipc call theme palette "$(tr -d '\n' <"$generated")" >/dev/null 2>&1 || true
+  else
+    "$quickshell" ipc call theme set "$name" >/dev/null 2>&1 || true
+  fi
   "$hyprctl" reload >/dev/null 2>&1 || true
   pkill -USR1 -x kitty 2>/dev/null || true
 
@@ -114,8 +130,21 @@ tell_apps() {
   "$wallpaper" apply >/dev/null 2>&1 || true
 }
 
+# Read the current wallpaper into a palette. Deliberately last in the order of
+# things that can fail: a wallpaper matugen cannot parse leaves the previous
+# palette in place rather than half-applying a new one.
+generate() {
+  local wp
+  wp=$("$wallpaper" current 2>/dev/null || true)
+  [ -n "$wp" ] && [ -f "$wp" ] || die "no wallpaper to read a palette from"
+
+  "$matugen" image "$wp" >/dev/null 2>&1 || die "matugen could not read $wp"
+  [ -f "$generated" ] || die "matugen wrote no palette"
+}
+
 set_theme() {
   local name="$1"
+  [ "$name" = "wallpaper" ] && generate
   has "$name" || die "no theme called \"$name\" (try: theme list)"
   materialise "$name"
   tell_apps "$name"
@@ -161,6 +190,9 @@ case "${1:-}" in
   set)
     [ $# -ge 2 ] || die "set needs a theme name"
     set_theme "$2"
+    ;;
+  wallpaper)
+    set_theme wallpaper
     ;;
   next)
     step next

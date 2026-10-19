@@ -24,7 +24,14 @@ QtObject {
 
   property string name: defaultName
 
-  readonly property var palette: palettes[name] !== undefined ? palettes[name] : palettes[defaultName]
+  // A palette generated from the wallpaper, handed over by the `theme` command
+  // because the shell was built before the colours existed. Named `wallpaper`
+  // so switching back to a curated theme simply stops using it.
+  property var custom: null
+
+  readonly property var palette: root.name === "wallpaper" && root.custom !== null
+    ? root.custom
+    : (palettes[name] !== undefined ? palettes[name] : palettes[defaultName])
 
   readonly property color bg: palette.background
   readonly property color surface: palette.surface
@@ -64,7 +71,25 @@ QtObject {
 
   // The live switch, reached through the shell's IPC by the `theme` command.
   function set(next) {
+    if (next === "wallpaper") {
+      if (root.custom !== null) root.name = next
+      return
+    }
+
     if (palettes[next] !== undefined) root.name = next
+  }
+
+  // Ten colours from an image, in the same shape as the built-in ones.
+  function setCustom(json) {
+    try {
+      const parsed = typeof json === "string" ? JSON.parse(json) : json
+      if (parsed && typeof parsed === "object") {
+        root.custom = parsed
+        root.name = "wallpaper"
+      }
+    } catch (e) {
+      console.warn("theme: the generated palette is not valid JSON")
+    }
   }
 
   function reload() {

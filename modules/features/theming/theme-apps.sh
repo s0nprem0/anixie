@@ -12,12 +12,17 @@ palettes="@PALETTES@"
 state_dir="@STATE_DIR@"
 jq="@JQ@"
 tmux="@TMUX@"
+generated="@STATE_DIR@/palette.json"
 
 name="${1:-}"
 [ -n "$name" ] || exit 0
 
 colour() {
-  "$jq" -r --arg n "$name" --arg k "$1" '.[$n][$k]' "$palettes"
+  if [ "$name" = "wallpaper" ] && [ -f "$generated" ]; then
+    "$jq" -r --arg k "$1" '.[$k]' "$generated"
+  else
+    "$jq" -r --arg n "$name" --arg k "$1" '.[$n][$k]' "$palettes"
+  fi
 }
 
 bg=$(colour background)

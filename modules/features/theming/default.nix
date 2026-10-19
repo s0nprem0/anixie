@@ -76,6 +76,8 @@ let
         "@JQ@"
         "@WALLPAPER@"
         "@THEME_APPS@"
+        "@MATUGEN@"
+        "@GENERATED@"
       ]
       [
         "${./themes.json}"
@@ -86,6 +88,8 @@ let
         "${pkgs.jq}/bin/jq"
         "${wallpaper}/bin/wallpaper"
         "${themeApps}/bin/theme-apps"
+        "${pkgs.matugen}/bin/matugen"
+        "${stateDir}/palette.json"
       ]
       (builtins.readFile ./theme.sh)
   );
@@ -95,6 +99,7 @@ in
     ./colors.nix
     ./template.nix
     ./apps.nix
+    ./matugen.nix
     ./cursor.nix
     ./fonts.nix
     ./gtk.nix

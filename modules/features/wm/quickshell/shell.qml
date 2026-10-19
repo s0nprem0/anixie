@@ -332,6 +332,9 @@ ShellRoot {
     target: "theme"
 
     function set(name: string): void { Theme.set(name) }
+
+    // A palette that was made after the shell was built, handed over whole.
+    function palette(json: string): void { Theme.setCustom(json) }
     function current(): string { return Theme.name }
     function list(): string { return Theme.names().join(" ") }
   }
