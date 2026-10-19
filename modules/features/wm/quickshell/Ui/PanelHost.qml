@@ -45,8 +45,8 @@ QtObject {
 
   // Taken from the bar's own window rather than from Quickshell.screens, whose
   // entries on this version expose only model and name.
-  readonly property real screenWidth: root.host ? root.host.Screen.width : 1920
-  readonly property real screenHeight: root.host ? root.host.Screen.height : 1080
+  readonly property real screenWidth: root.host && root.host.Screen.width ? root.host.Screen.width : 1920
+  readonly property real screenHeight: root.host && root.host.Screen.height ? root.host.Screen.height : 1080
   readonly property real barHeight: Style.bar.sizeHorizontal
 
   // The most room a panel may take below the bar, less a margin so its bottom

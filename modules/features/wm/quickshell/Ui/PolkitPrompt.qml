@@ -31,7 +31,6 @@ Item {
   }
 
   onDetailChanged: root.sending = false
-  onVisibleChanged: if (!root.visible) root.sending = false
   signal cancelled()
 
   Rectangle {
@@ -151,6 +150,9 @@ Item {
   // Cleared on every appearance so a previous attempt's password is never left
   // sitting in the field, and focused straight away so typing works at once.
   onVisibleChanged: {
+    // A new prompt is a new attempt: nothing is being checked, and the last
+    // password must not still be sitting in the field.
+    root.sending = false
     if (!visible) return
     password.text = ""
     password.forceActiveFocus()
