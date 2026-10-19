@@ -87,7 +87,10 @@ property bool selected: false
     anchors.right: trailingRow.left
     anchors.rightMargin: Style.space(8)
     anchors.verticalCenter: parent.verticalCenter
-    height: childrenRect.height
+    // Counted explicitly: `childrenRect` includes the detail line whether or not
+    // it is shown, so a row without one was two pixels taller than its text and
+    // pushed the label up out of the middle of its own row.
+    height: labelText.height + (root.hasDetail ? Style.space(2) + detailText.height : 0)
     opacity: root.available ? 1 : 0.45
 
     Text {
@@ -118,6 +121,7 @@ property bool selected: false
     }
 
     Text {
+      id: detailText
       anchors.top: labelText.bottom
       anchors.topMargin: root.hasDetail ? Style.space(2) : 0
       width: parent.width
