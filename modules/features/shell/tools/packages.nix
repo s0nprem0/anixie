@@ -58,4 +58,32 @@ with pkgs;
   tmux
   wget
   yq
+
+  # Everyday shell: the alternatives that change what typing feels like — fuzzy
+  # finding, a listing with icons, a directory jump, and fast file search.
+  fd
+  eza
+  fzf
+  zoxide
+
+  # Diagnostics for when something is wrong: the hardware, the IO, the power, and
+  # the network in the order they are usually suspected.
+  lshw
+  inxi
+  iotop
+  powertop
+  psmisc
+  dnsutils
+  iperf3
+  nmap
+  netcat-openbsd
+  socat
+
+  # Archives the file manager cannot open on its own. p7zip provides 7z; the
+  # package is old, so `_7zz` is the drop-in if it is ever marked insecure.
+  p7zip
+  unrar
+
+  # The GPU. One integrated card on this laptop, so the basic view is enough.
+  nvtopPackages.full
 ]
