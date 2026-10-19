@@ -612,6 +612,16 @@ in
     -- and a second screen appearing is not a brightness problem.
     bind(mod .. " + CTRL + SHIFT + D", "Displays panel", "quickshell ipc call panel toggle displays")
 
+    -- The same panels by number, the way Omarchy numbers them: CTRL+1 is the
+    -- first panel icon from the left, CTRL+2 the next, counting only the widgets
+    -- that have a panel at all. The letters above are quicker once they are
+    -- learned; these are what you can find without knowing which letter a panel
+    -- was given.
+    for i = 1, 9 do
+      bind(mod .. " + CTRL + " .. i, "Panel " .. i .. " from the left",
+        "quickshell ipc call panel position " .. i)
+    end
+
     -- The bar on and off. The window stays mapped and only its contents hide, so
     -- the panels above still open against it while it is out of the way.
     bind(mod .. " + SHIFT + SPACE", "Toggle bar", "quickshell ipc call bar toggle")

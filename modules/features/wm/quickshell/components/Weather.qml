@@ -94,7 +94,7 @@ BarWidget {
       : "Weather · click for the forecast"
 
     onPressed: function (button) {
-      if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelHost.toggle(readout, forecastPanel)
+      if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelRegistry.toggle("weather")
     }
   }
 

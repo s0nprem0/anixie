@@ -27,6 +27,22 @@ Item {
 
   signal changed(real value)
 
+  // ---- the keyboard ----
+  //
+  // A stepper is a slider in clicks, so the same keys do the same thing: left and
+  // right nudge the value a step, and Return nudges it up, which is the more
+  // common direction.
+  readonly property bool panelFocusable: true
+
+  function activate() {
+    root.move(1)
+  }
+
+  function keyStep(direction) {
+    root.move(direction)
+    return true
+  }
+
   readonly property bool canDecrease: root.value > root.from
   readonly property bool canIncrease: root.value < root.to
 

@@ -44,6 +44,20 @@ property bool selected: false
 
   signal clicked()
 
+  // ---- the keyboard ----
+  //
+  // Being walked to by the panel's keys, and what a key does when it lands here.
+  // A row is a choice, so Return is a click and the sideways keys mean nothing.
+  readonly property bool panelFocusable: root.available
+
+  function activate() {
+    root.clicked()
+  }
+
+  function keyStep(direction) {
+    return false
+  }
+
   readonly property bool hasDetail: root.detail !== ""
   readonly property bool hasGlyph: root.glyph !== ""
 

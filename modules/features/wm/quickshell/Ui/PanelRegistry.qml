@@ -33,7 +33,34 @@ QtObject {
       return
     }
 
-    PanelHost.toggle(entry.anchor, entry.builder)
+    PanelHost.toggle(name, entry.anchor, entry.builder)
+  }
+
+  // Panels left to right, by where their buttons are on the bar rather than by
+  // the order the widgets happened to register. This is what the numbered hotkeys
+  // count, so the number matches the icon you would point at — the same promise
+  // Omarchy's `Super+Ctrl+1-9` makes.
+  function ordered() {
+    const list = []
+
+    for (const name in root.entries) {
+      const entry = root.entries[name]
+      if (!entry || !entry.anchor || !PanelHost.host) continue
+      list.push({ name: name, x: entry.anchor.mapToItem(PanelHost.host, 0, 0).x })
+    }
+
+    list.sort(function (a, b) { return a.x - b.x })
+    return list.map(function (entry) { return entry.name })
+  }
+
+  // One-based, as the key that calls it is: `panel position 3` is the third
+  // panel from the left.
+  function togglePosition(position) {
+    const names = root.ordered()
+    const index = parseInt(position, 10) - 1
+    if (!(index >= 0 && index < names.length)) return
+
+    root.toggle(names[index])
   }
 
   function names() {

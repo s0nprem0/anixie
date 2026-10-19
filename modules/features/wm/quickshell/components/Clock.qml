@@ -83,7 +83,7 @@ BarWidget {
     tooltipText: "Calendar · right-click to change the format"
 
     onPressed: function (button) {
-      if (button === Qt.LeftButton) PanelHost.toggle(readout, calendar)
+      if (button === Qt.LeftButton) PanelRegistry.toggle("calendar")
       else if (button === Qt.RightButton) {
         root.altFormat = !root.altFormat
         root.refresh()

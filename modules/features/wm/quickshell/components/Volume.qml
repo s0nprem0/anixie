@@ -70,7 +70,7 @@ BarWidget {
     // Left opens the mixer; mute moves to the right button so clicking the
     // volume is not destructive. Clicking the module again closes it.
     onPressed: function (button) {
-      if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelHost.toggle(readout, mixer)
+      if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelRegistry.toggle("audio")
       else if (button === Qt.RightButton) root.toggleMute()
     }
     onWheelMoved: function (delta) {

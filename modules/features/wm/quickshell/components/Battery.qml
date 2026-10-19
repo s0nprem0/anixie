@@ -64,7 +64,7 @@ BarWidget {
     // on a 26px bar, and the panel carries the number when it is wanted.
     onPressed: function (button) {
       if (button === Qt.LeftButton || button === Qt.MiddleButton) {
-        PanelHost.toggle(readout, powerPanel)
+        PanelRegistry.toggle("power")
       } else if (button === Qt.RightButton) {
         root.showPercent = !root.showPercent
       }

@@ -28,6 +28,20 @@ Item {
 
   signal actionTriggered()
 
+  // ---- the keyboard ----
+  //
+  // Only a heading that carries an action is a stop: a heading that only names
+  // something is a label, and the keys should walk past it.
+  readonly property bool panelFocusable: root.hasAction && root.actionEnabled
+
+  function activate() {
+    if (root.hasAction && root.actionEnabled) root.actionTriggered()
+  }
+
+  function keyStep(direction) {
+    return false
+  }
+
   readonly property bool hasAction: root.action !== ""
 
   implicitWidth: Math.max(labelText.implicitWidth, actionHit.implicitWidth)

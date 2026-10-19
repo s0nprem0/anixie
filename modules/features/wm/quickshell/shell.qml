@@ -295,7 +295,13 @@ ShellRoot {
 
     function toggle(name: string): void { PanelRegistry.toggle(name) }
     function names(): string { return PanelRegistry.names().join(" ") }
-    function close(): void { PanelHost.close() }
+
+    // The nth panel from the left, for Super+Ctrl+1-9: the number is the order the
+    // icons sit on the bar, not the order the widgets registered in.
+    function position(number: string): void { PanelRegistry.togglePosition(number) }
+
+    // Everything, which is what `close` has always meant here.
+    function close(): void { PanelHost.closeAll() }
   }
 
   // What the shell is actually drawing with. The theme follows a state file on

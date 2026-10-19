@@ -60,7 +60,7 @@ function detail(device) {
         : "Bluetooth on · left-click for devices")
 
     onPressed: function (button) {
-      if (button === Qt.LeftButton) PanelHost.toggle(readout, popup)
+      if (button === Qt.LeftButton) PanelRegistry.toggle("bluetooth")
       else if (button === Qt.RightButton) root.togglePower()
     }
   }

@@ -26,6 +26,19 @@ Item {
 
   signal toggled()
 
+  // ---- the keyboard ----
+  //
+  // A bare switch, so the panel's Return flips it, exactly as a click would.
+  readonly property bool panelFocusable: !root.busy
+
+  function activate() {
+    if (!root.busy) root.toggled()
+  }
+
+  function keyStep(direction) {
+    return false
+  }
+
   readonly property bool hot: mouse.containsMouse
   readonly property bool rounded: Theme.cornerRadius > 0
 

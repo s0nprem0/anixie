@@ -20,6 +20,32 @@ Item {
 
   signal activated(int index)
 
+  // ---- the keyboard ----
+  //
+  // Return opens the list, and the list then takes the keyboard itself — arrows
+  // walk the entries, Return picks one, Escape puts it away — which is Qt's own
+  // popup doing what it already knows how to do. The sideways keys step the
+  // choice without opening anything, for when the answer is "the next one".
+  readonly property bool panelFocusable: root.model.length > 0
+
+  function activate() {
+    if (list.opened) list.close()
+    else list.open()
+  }
+
+  function keyStep(direction) {
+    if (root.model.length === 0) return false
+
+    const from = root.currentIndex < 0 ? 0 : root.currentIndex
+    const next = Math.max(0, Math.min(root.model.length - 1, from + direction))
+    if (next !== root.currentIndex) root.activated(next)
+
+    // The key stays here whether or not it moved anything: at the end of the
+    // list there is nowhere to go, and handing it back to the panel would walk
+    // the focus off the thing being chosen.
+    return true
+  }
+
   readonly property var currentEntry: {
     if (root.model.length === 0 || root.currentIndex < 0) return null
     const entry = root.model[Math.min(root.currentIndex, root.model.length - 1)]

@@ -18,6 +18,26 @@ Item {
 
   signal activated(int index)
 
+  // ---- the keyboard ----
+  //
+  // A row of chips is a choice, so the sideways keys are what moves it — the same
+  // gesture as a slider, for the same reason: left and right step through a set
+  // laid out left to right. Return has nothing of its own to do.
+  readonly property bool panelFocusable: root.available && root.model.length > 1
+
+  function activate() {
+  }
+
+  function keyStep(direction) {
+    if (root.model.length === 0) return false
+
+    const from = root.currentIndex < 0 ? 0 : root.currentIndex
+    const next = Math.max(0, Math.min(root.model.length - 1, from + direction))
+    if (next !== root.currentIndex) root.activated(next)
+
+    return true
+  }
+
   readonly property var currentEntry: {
     if (root.model.length === 0 || root.currentIndex < 0) return null
     return root.model[Math.min(root.currentIndex, root.model.length - 1)]

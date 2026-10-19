@@ -26,6 +26,20 @@ Item {
 
   signal toggled()
 
+  // ---- the keyboard ----
+  //
+  // Focusable while it can be used, which is the same condition the switch
+  // itself is live under: a row that swallows the click swallows the key too.
+  readonly property bool panelFocusable: root.interactive
+
+  function activate() {
+    root.toggled()
+  }
+
+  function keyStep(direction) {
+    return false
+  }
+
   readonly property bool hasDescription: root.description !== ""
   readonly property bool interactive: root.available && !root.busy
 

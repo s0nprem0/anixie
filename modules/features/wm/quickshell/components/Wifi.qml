@@ -76,7 +76,7 @@ BarWidget {
         : "Wi-Fi off")
 
     onPressed: function (button) {
-      if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelHost.toggle(readout, wifiPanel)
+      if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelRegistry.toggle("network")
       else if (button === Qt.RightButton) root.openSettings()
     }
   }

@@ -42,6 +42,33 @@ Item {
 
   readonly property bool hasLabel: root.label !== ""
 
+  // ---- the keyboard ----
+  //
+  // The sideways keys are the level, one step at a time, which is what they mean
+  // on a slider everywhere else. Return has nothing to do here.
+  readonly property bool panelFocusable: root.available
+
+  function activate() {
+  }
+
+  function nudge(direction) {
+    if (!root.available) return
+
+    const next = Math.max(root.from, Math.min(root.to, slider.value + direction * root.stepSize))
+    if (next === slider.value) return
+
+    // Through the slider rather than around it, so a level the slider would
+    // round or clamp arrives the way a drag would have delivered it — and
+    // reported as a move, because that is what the panel above listens for.
+    slider.value = next
+    root.moved(next)
+  }
+
+  function keyStep(direction) {
+    root.nudge(direction)
+    return true
+  }
+
   implicitWidth: headerRow.implicitWidth
   // `height`, not `implicitHeight`: the header row states its own height from
   // the texts in it, and an Item's implicit size is 0 unless it says otherwise.

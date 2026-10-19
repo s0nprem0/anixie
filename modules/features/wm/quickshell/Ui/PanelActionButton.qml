@@ -36,6 +36,17 @@ Item {
 
   signal clicked()
 
+  // ---- the keyboard ----
+  readonly property bool panelFocusable: root.available
+
+  function activate() {
+    root.clicked()
+  }
+
+  function keyStep(direction) {
+    return false
+  }
+
   readonly property color foreground: root.danger ? Theme.danger : Theme.fg
 
   implicitWidth: labelText.implicitWidth + Style.space(12) + valueText.implicitWidth
