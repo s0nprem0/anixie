@@ -84,11 +84,17 @@ BarWidget {
   implicitHeight: readout.implicitHeight
   wantsSlot: root.temperature !== ""
 
-  BarIconButton {
+  // A plain button rather than a BarIconButton: that one draws its `text`
+  // through OpticalGlyph, which fits whatever it is given into the glyph canvas
+  // — a single icon. "30°C" arriving there was scaled to the size of an icon,
+  // which is why the temperature read as a speck beside the clock. This is text,
+  // so it is drawn as text, at the same size as the clock.
+  WidgetButton {
     id: readout
     anchors.centerIn: parent
     text: root.temperature
-    labelText: ""
+    fontSize: Style.font.body
+    centerFigures: false
     tooltipText: root.conditions !== ""
       ? root.conditions + " · click for the forecast"
       : "Weather · click for the forecast"

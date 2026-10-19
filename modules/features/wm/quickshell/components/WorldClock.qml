@@ -73,11 +73,16 @@ BarWidget {
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
 
-  BarIconButton {
+  // Text, not a glyph: see Weather.qml. A BarIconButton would scale "20:04" to
+  // the size of an icon, and the time is the whole point of this widget.
+  WidgetButton {
     id: readout
     anchors.centerIn: parent
-    text: root.stamp
-    labelText: root.vertical ? "" : root.zone.label
+    text: root.vertical
+      ? root.stamp
+      : root.stamp + "  " + root.zone.label
+    fontSize: Style.font.body
+    centerFigures: false
     tooltipText: root.zone.label + " · " + root.zone.zone
       + " · click for the next zone"
 
