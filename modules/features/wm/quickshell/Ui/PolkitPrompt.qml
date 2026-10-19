@@ -17,6 +17,21 @@ Item {
   property bool detailIsError: false
 
   signal submitted(string value)
+
+  // Between handing the password to PAM and hearing back. It stays true until
+  // something changes on the prompt — the detail turning into an error, the
+  // prompt going away — because there is no "authentication finished" signal to
+  // hang it on.
+  property bool sending: false
+
+  function send() {
+    if (root.sending) return
+    root.sending = true
+    root.submitted(password.text)
+  }
+
+  onDetailChanged: root.sending = false
+  onVisibleChanged: if (!root.visible) root.sending = false
   signal cancelled()
 
   Rectangle {
@@ -93,6 +108,9 @@ Item {
         TextInput {
           id: password
 
+    enabled: !root.sending
+    Keys.onEscapePressed: root.cancelled()
+
           anchors.fill: parent
           anchors.leftMargin: Style.space(8)
           anchors.rightMargin: Style.space(8)
@@ -104,7 +122,7 @@ Item {
           selectByMouse: true
           clip: true
 
-          onAccepted: root.submitted(password.text)
+          onAccepted: root.send()
         }
       }
 
@@ -124,7 +142,7 @@ Item {
           fontSize: Style.font.body
           centerFigures: false
           useActiveColor: false
-          onPressed: function () { root.submitted(password.text) }
+          onPressed: function () { root.send() }
         }
       }
     }
