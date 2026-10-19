@@ -16,7 +16,7 @@ BarWidget {
 
   readonly property var items: SystemTray.items ? SystemTray.items.values : []
 
-  visible: root.items.length > 0
+  wantsSlot: root.items.length > 0
   implicitWidth: row.implicitWidth
   implicitHeight: Style.bar.sizeHorizontal
 

@@ -3,25 +3,23 @@
   "layout": {
     "left": [
       { "id": "bar.menu" },
-      { "id": "bar.spacer", "size": 12 },
-      { "id": "bar.workspaces" },
-      { "id": "bar.spacer", "size": 12 },
-      { "id": "bar.active-window", "maxWidth": 220 }
+      { "id": "bar.workspaces" }
     ],
     "centerBegin": [
-      { "id": "bar.weather", "interval": 1800 }
+      { "id": "bar.indicators" }
     ],
     "center": [
-      { "id": "bar.clock" }
+      { "id": "bar.clock" },
+      { "id": "bar.world-clock" }
     ],
     "centerEnd": [
-      { "id": "bar.media", "maxWidth": 240 },
-      { "id": "recording", "type": "qml" },
-      { "id": "bar.indicators" }
+      { "id": "bar.weather", "interval": 1800 },
+      { "id": "bar.update", "interval": 300 }
     ],
     "right": [
       { "id": "bar.tray" },
-      { "id": "bar.microphone" },
+      { "id": "bar.keyboard-layout" },
+      { "id": "bar.agents" },
       { "id": "bar.bluetooth" },
       { "id": "bar.wifi" },
       { "id": "bar.audio" },

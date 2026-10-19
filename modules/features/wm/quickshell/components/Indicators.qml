@@ -46,7 +46,7 @@ BarWidget {
 
   readonly property bool anyShown: root.shown.length > 0
 
-  visible: root.anyShown
+  wantsSlot: root.anyShown
   implicitWidth: row.implicitWidth
   implicitHeight: Style.bar.sizeHorizontal
 

@@ -82,7 +82,7 @@ BarWidget {
 
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
-  visible: root.temperature !== ""
+  wantsSlot: root.temperature !== ""
 
   BarIconButton {
     id: readout

@@ -61,6 +61,14 @@ Repeater {
     required property var modelData
     required property int index
 
+    // A module that hides itself takes its slot with it. A Loader measures the
+    // width of what it loaded whether or not that thing is drawn, and the bar
+    // lays out the Loaders — so a widget that sets `visible: false` (the tray
+    // with nothing in it, the sudo key on a machine that asks for a password, an
+    // indicator that is off, the weather before its first reading) used to leave
+    // a gap exactly the size of itself on the bar.
+    visible: item ? item.wantsSlot : false
+
     Component {
       id: commandFactory
       CommandModule { entry: loader.modelData }

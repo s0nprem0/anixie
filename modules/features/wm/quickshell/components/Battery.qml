@@ -30,7 +30,7 @@ BarWidget {
   property bool showPercent: false
 
   // Hidden on a machine with no battery, rather than a permanently blank slot.
-  visible: root.present
+  wantsSlot: root.present
 
   readonly property string glyph: {
     if (root.level <= 10) return Util.batteryEmpty

@@ -28,7 +28,7 @@ BarWidget {
   }
   readonly property int connectedCount: root.connected.length
 
-  visible: root.available
+  wantsSlot: root.available
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
 

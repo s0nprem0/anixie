@@ -44,7 +44,7 @@ BarWidget {
 
   // Shown only while it is true, so on a machine where sudo does ask, this costs
   // the bar nothing.
-  visible: root.passwordless
+  wantsSlot: root.passwordless
 
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight

@@ -48,7 +48,7 @@ BarWidget {
     onTriggered: root.refresh()
   }
 
-  visible: root.remote
+  wantsSlot: root.remote
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
 

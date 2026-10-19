@@ -62,7 +62,7 @@ BarWidget {
   // still while it is being read.
   readonly property bool popupOpen: PanelHost.isOpen("media")
 
-  visible: root.hasPlayer && !root.vertical
+  wantsSlot: root.hasPlayer && !root.vertical
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
 

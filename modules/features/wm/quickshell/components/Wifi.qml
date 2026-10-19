@@ -52,7 +52,7 @@ BarWidget {
 
   // Offline hides the module, since a bar that reflows every time the network
   // drops is noisier than one that simply loses a module.
-  visible: resolved
+  wantsSlot: resolved
 
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight

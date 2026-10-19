@@ -20,7 +20,7 @@ BarWidget {
   readonly property bool listening: !muted && percent > 0
 
   // Hidden on a machine with no capture device rather than left as a dead slot.
-  visible: source !== null
+  wantsSlot: source !== null
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
 

@@ -60,7 +60,7 @@ BarWidget {
     return Math.ceil(((d - yearStart) / 86400000 + 1) / 7)
   }
 
-  visible: stamp !== ""
+  wantsSlot: stamp !== ""
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
 

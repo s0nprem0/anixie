@@ -13,7 +13,7 @@ BarWidget {
   readonly property string title: toplevel ? (toplevel.title || "") : ""
   readonly property int maxLabelWidth: Number(setting("maxWidth", 200))
 
-  visible: title !== "" && !root.vertical
+  wantsSlot: title !== "" && !root.vertical
   implicitWidth: Math.min(maxLabelWidth, label.implicitWidth) + 16
   implicitHeight: barSize
 

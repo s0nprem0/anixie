@@ -75,6 +75,18 @@ QtObject {
   // A queued reminder.
   readonly property string clock: glyph("f017")
 
+  // A world clock: another place's time beside this one.
+  readonly property string globe: glyph("f0ac")
+
+  // The keyboard layout indicator.
+  readonly property string keyboard: glyph("f11c")
+
+  // The tree is newer than the running system.
+  readonly property string update: glyph("f2f1")
+
+  // An agent working on this machine.
+  readonly property string agents: glyph("f544")
+
   // Calendar stepping.
   readonly property string chevronLeft: glyph("f053")
   readonly property string chevronRight: glyph("f054")

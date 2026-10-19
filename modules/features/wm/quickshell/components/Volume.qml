@@ -27,7 +27,7 @@ BarWidget {
     ? Util.volumeMute
     : (percent > 66 ? Util.volumeHigh : Util.volumeLow)
 
-  visible: sink !== null
+  wantsSlot: sink !== null
 
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight

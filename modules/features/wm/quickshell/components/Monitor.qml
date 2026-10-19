@@ -81,7 +81,7 @@ BarWidget {
     if (next !== root.percent) root.setDisplay(next)
   }
 
-  visible: root.present && !root.vertical
+  wantsSlot: root.present && !root.vertical
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
 
