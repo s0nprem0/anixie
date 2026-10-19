@@ -134,9 +134,15 @@ tell_apps() {
 # things that can fail: a wallpaper matugen cannot parse leaves the previous
 # palette in place rather than half-applying a new one.
 generate() {
-  local wp
-  wp=$("$wallpaper" current 2>/dev/null || true)
-  [ -n "$wp" ] && [ -f "$wp" ] || die "no wallpaper to read a palette from"
+  local wp="${1:-}"
+
+  # A picture can be named, and otherwise the current one is used — but only if it
+  # is a file. The generated wallpaper is a gradient made *from* the palette, so
+  # reading a palette out of it is a circle; saying so is better than reporting
+  # that there is no wallpaper at all.
+  [ -n "$wp" ] || wp=$("$wallpaper" current 2>/dev/null || true)
+
+  [ -n "$wp" ] && [ -f "$wp" ] || die "no picture to read a palette from — set one with `wallpaper set FILE`, or name one: `theme wallpaper FILE`"
 
   "$matugen" image "$wp" >/dev/null 2>&1 || die "matugen could not read $wp"
   [ -f "$generated" ] || die "matugen wrote no palette"
@@ -144,7 +150,7 @@ generate() {
 
 set_theme() {
   local name="$1"
-  [ "$name" = "wallpaper" ] && generate
+  [ "$name" = "wallpaper" ] && generate "${2:-}"
   has "$name" || die "no theme called \"$name\" (try: theme list)"
   materialise "$name"
   tell_apps "$name"
@@ -192,7 +198,7 @@ case "${1:-}" in
     set_theme "$2"
     ;;
   wallpaper)
-    set_theme wallpaper
+    set_theme wallpaper "${2:-}"
     ;;
   next)
     step next
