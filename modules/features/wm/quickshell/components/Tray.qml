@@ -27,12 +27,8 @@ BarWidget {
   implicitWidth: row.implicitWidth
   implicitHeight: Style.bar.sizeHorizontal
 
-  // Dragging a widget here parks it, and the command line can open the drawer the
-  // same way a click does.
-  Component.onCompleted: {
-    BarContext.registerDropZone("tray", root)
-    BarContext.trayItem = root
-  }
+  // The drawer opens from the handle below, and from the command line by name.
+  Component.onCompleted: BarContext.trayItem = root
 
   function openMenu(button) {
     if (!button.item || !button.item.hasMenu) return

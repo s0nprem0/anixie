@@ -69,60 +69,6 @@ Repeater {
     // a gap exactly the size of itself on the bar.
     visible: item ? item.wantsSlot : false
 
-    // Dragging a widget moves it. The handler takes the pointer only after a
-    // short hold-and-move, so clicking a module still clicks it; while it is
-    // held the module dims (it is the thing being carried, and the bar is not
-    // previewing the move), and on release the drop point decides the section
-    // and the place in it.
-    // Lifted, not dimmed: a ghost would mean a second copy of a widget that may
-    // own a Process, so the tile it is drawn on lifts instead — slightly larger,
-    // with the surface behind it and an accent edge.
-    scale: drag.active ? 1.08 : 1
-    z: drag.active ? 10 : 0
-    Behavior on scale { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
-
-    Rectangle {
-      visible: drag.active
-      z: -1
-      anchors.fill: parent
-      anchors.margins: -Style.space(4)
-      radius: Theme.cornerRadius
-      color: Theme.surface
-      border.color: Theme.primary
-      border.width: 1
-    }
-
-    // The preview is updated while the pointer moves rather than on every
-    // pointer event: a light timer is enough to make the line follow, and it
-    // cannot outrun the drop it is describing.
-    Timer {
-      interval: 60
-      repeat: true
-      running: drag.active
-      onTriggered: {
-        const point = drag.centroid.scenePosition
-        BarContext.dropPreview = BarContext.dropTarget(point.x, point.y)
-      }
-    }
-
-    DragHandler {
-      id: drag
-      target: null
-      acceptedButtons: Qt.LeftButton
-      grabPermissions: PointerHandler.CanTakeOverFromAnything
-
-      onActiveChanged: {
-        if (drag.active) return
-
-        const point = drag.centroid.scenePosition
-        const target = BarContext.dropTarget(point.x, point.y)
-        BarContext.dropPreview = null
-        if (!target || !loader.modelData) return
-
-        BarConfig.move(loader.modelData.id, target.section, target.index)
-      }
-    }
-
     Component {
       id: commandFactory
       CommandModule { entry: loader.modelData }
