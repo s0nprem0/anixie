@@ -1,10 +1,28 @@
-{ pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 {
-  boot.loader = {
-    systemd-boot.enable = true;
-    efi.canTouchEfiVariables = true;
-  };
+  boot = {
+    loader = {
+      systemd-boot.enable = true;
+      efi.canTouchEfiVariables = true;
+    };
 
-  boot.kernelPackages = pkgs.linuxPackages_latest;
+    kernelPackages = pkgs.linuxPackages_latest;
+
+    # Hibernation's resume partition. Taken from the swap device declared in
+    # hardware-configuration.nix rather than repeated here, so the two cannot
+    # drift apart. The filter keeps the disk swap: zram's swap is added by
+    # zram-generator and is not a resume target — an image written to RAM is
+    # exactly what a power loss throws away. A swap *file* would need
+    # boot.resumeDevice plus a resume_offset; a partition, like this one, does
+    # not.
+    resumeDevice = lib.findFirst (d: lib.hasPrefix "/dev/disk/by-uuid/" d) "" (
+      map (swap: swap.device) config.swapDevices
+    );
+  };
 }

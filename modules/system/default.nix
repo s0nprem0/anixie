@@ -8,6 +8,8 @@
     ./fonts.nix
     ./craftapps.nix
     ./users.nix
+    ./auth.nix
+    ./snapshot.nix
     ./desktop.nix
     ./screenrecord.nix
     ./lock.nix
