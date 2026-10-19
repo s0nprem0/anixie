@@ -73,7 +73,7 @@ Item {
         radius: Theme.cornerRadius
 
         color: chip.selected
-          ? Theme.primary
+          ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, Style.control.selectedFillAlpha)
           : (chipMouse.containsMouse && root.available
             ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha)
             : "transparent")
@@ -87,7 +87,9 @@ Item {
           id: chipLabel
           anchors.centerIn: parent
           text: root.labelFor(chip.modelData)
-          color: chip.selected ? Theme.bg : Theme.muted
+          // The foreground, not the background: the fill is a tint now, so the
+          // label has to read against the panel rather than against the accent.
+          color: chip.selected ? Theme.fg : Theme.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.bodySmall
           renderType: Text.NativeRendering

@@ -57,6 +57,7 @@ Item {
     color: Theme.muted
     font.family: Style.font.family
     font.pixelSize: Style.font.bodySmall
+    elide: Text.ElideRight
     renderType: Text.NativeRendering
   }
 
