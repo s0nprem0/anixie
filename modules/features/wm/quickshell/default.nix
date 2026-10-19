@@ -26,6 +26,11 @@ let
       (render ./Theme.qml)
   );
 
+  # The low-battery warning's shell path to notify-send, rendered in the same pass
+  # as the theme so the QML can call it without depending on the shell service's
+  # PATH (see Ui/PowerAlert.qml and the @NOTIFY_SEND@ placeholder below).
+  powerAlert = pkgs.writeText "PowerAlert.qml" (render ./Ui/PowerAlert.qml);
+
   # Quickshell resolves `import "components"` relative to the directory holding
   # shell.qml. Home Manager deploys every xdg.configFile entry as a separate
   # symlink, which would scatter the QML tree across the store, so the config is
@@ -34,6 +39,7 @@ let
     cp -rL ${./.} $out
     chmod -R u+w $out
     cp ${theme} $out/Theme.qml
+    cp ${powerAlert} $out/Ui/PowerAlert.qml
     rm -f $out/default.nix
   '';
 in
@@ -60,6 +66,10 @@ in
   # bar's position the same way: a placeholder the theme module substitutes.
   config = {
     my.theme.template.placeholders."@POSITION@" = config.features.wm.quickshell.position;
+
+    # The warning's notify-send, by full path: the shell service runs under the
+    # user manager, whose PATH is not guaranteed to carry the profile.
+    my.theme.template.placeholders."@NOTIFY_SEND@" = "${pkgs.libnotify}/bin/notify-send";
 
     home.packages = [ pkgs.quickshell ];
 

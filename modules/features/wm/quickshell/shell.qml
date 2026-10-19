@@ -154,6 +154,10 @@ ShellRoot {
     }
   }
 
+  // The low-battery warning. Lives on the shell rather than on the bar's readout
+  // so it keeps working regardless of which modules the bar is showing.
+  PowerAlert {}
+
   // The polkit prompt. A surface of its own rather than anything to do with the
   // bar: a privilege request is not a bar event, and this has to cover the whole
   // output and hold the keyboard for as long as it is up.
