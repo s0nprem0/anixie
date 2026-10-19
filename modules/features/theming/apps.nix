@@ -151,52 +151,14 @@ in
 
   # ---- btop ----
   #
-  # A theme file as well as the setting: btop only ships its own names, and a
-  # generated file under themes/ is what `color_theme` is pointed at.
+  # btop only ships its own theme names, so `color_theme` names one that is
+  # generated. The file itself is written by theme-apps on every switch — at
+  # ~/.config/btop/themes/anixie.theme, which is the only place btop looks — so
+  # btop follows the palette at its next start rather than the next rebuild.
   programs.btop = {
     enable = true;
     settings.color_theme = "anixie";
   };
-
-  xdg.configFile."btop/themes/anixie.theme".text = ''
-    theme[main_bg]="${c.background}"
-    theme[main_fg]="${c.foreground}"
-    theme[title]="${c.primary}"
-    theme[hi_fg]="${c.primary}"
-    theme[selected_bg]="${c.surface}"
-    theme[selected_fg]="${c.foreground}"
-    theme[inactive_fg]="${c.muted}"
-    theme[proc_misc]="${c.accent}"
-    theme[cpu_box]="${c.surface}"
-    theme[mem_box]="${c.surface}"
-    theme[net_box]="${c.surface}"
-    theme[proc_box]="${c.surface}"
-    theme[div_line]="${c.surface}"
-    theme[temp_start]="${c.success}"
-    theme[temp_mid]="${c.accentAlt}"
-    theme[temp_end]="${c.danger}"
-    theme[cpu_start]="${c.success}"
-    theme[cpu_mid]="${c.accentAlt}"
-    theme[cpu_end]="${c.danger}"
-    theme[free_start]="${c.surface}"
-    theme[free_mid]="${c.muted}"
-    theme[free_end]="${c.muted}"
-    theme[cached_start]="${c.surface}"
-    theme[cached_mid]="${c.muted}"
-    theme[cached_end]="${c.muted}"
-    theme[available_start]="${c.muted}"
-    theme[available_mid]="${c.muted}"
-    theme[available_end]="${c.surface}"
-    theme[used_start]="${c.primary}"
-    theme[used_mid]="${c.accent}"
-    theme[used_end]="${c.accentAlt}"
-    theme[download_start]="${c.primary}"
-    theme[download_mid]="${c.accent}"
-    theme[download_end]="${c.accentAlt}"
-    theme[upload_start]="${c.primary}"
-    theme[upload_mid]="${c.accent}"
-    theme[upload_end]="${c.accentAlt}"
-  '';
 
   # ---- tmux ----
   #
@@ -205,21 +167,10 @@ in
   programs.tmux = {
     enable = true;
 
-    extraConfig = render ''
-      set -g status-style "bg=@SURFACE@,fg=@FG@"
-      set -g status-left-style "bg=@SURFACE@,fg=@MUTED@"
-      set -g status-right-style "bg=@SURFACE@,fg=@MUTED@"
-      set -g window-status-style "bg=@SURFACE@,fg=@MUTED@"
-      set -g window-status-current-style "bg=@PRIMARY@,fg=@BG@,bold"
-      set -g pane-border-style "fg=@SURFACE@"
-      set -g pane-active-border-style "fg=@PRIMARY@"
-      set -g message-style "bg=@SURFACE@,fg=@FG@"
-      set -g message-command-style "bg=@SURFACE@,fg=@FG@"
-      set -g mode-style "bg=@PRIMARY@,fg=@BG@"
-      set -g clock-mode-colour "@PRIMARY@"
-      set -g copy-mode-match-style "bg=@SURFACE@,fg=@ACCENT@"
-      set -g copy-mode-current-match-style "bg=@ACCENT@,fg=@BG@"
-    '';
+    # The colours are not here: theme-apps rewrites them on every switch, and
+    # this config only says where to find them. `-q` so a server that starts
+    # before the first `theme apply` has no error to report.
+    extraConfig = "source-file -q ${config.my.theme.stateDir}/tmux.conf";
   };
 
   # ---- the lock screen ----

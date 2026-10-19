@@ -50,6 +50,21 @@ let
       (builtins.readFile ./textsize.sh)
   );
 
+  # The theme files for the applications that are not the shell, the compositor
+  # or kitty. Separate from `theme` because it runs on every switch and only the
+  # applications it names should pay for it.
+  themeApps = pkgs.writeShellScriptBin "theme-apps" (
+    builtins.replaceStrings
+      [ "@PALETTES@" "@STATE_DIR@" "@JQ@" "@TMUX@" ]
+      [
+        "${./themes.json}"
+        stateDir
+        "${pkgs.jq}/bin/jq"
+        "${pkgs.tmux}/bin/tmux"
+      ]
+      (builtins.readFile ./theme-apps.sh)
+  );
+
   theme = pkgs.writeShellScriptBin "theme" (
     builtins.replaceStrings
       [
@@ -60,6 +75,7 @@ let
         "@HYPRCTL@"
         "@JQ@"
         "@WALLPAPER@"
+        "@THEME_APPS@"
       ]
       [
         "${./themes.json}"
@@ -69,6 +85,7 @@ let
         "${pkgs.hyprland}/bin/hyprctl"
         "${pkgs.jq}/bin/jq"
         "${wallpaper}/bin/wallpaper"
+        "${themeApps}/bin/theme-apps"
       ]
       (builtins.readFile ./theme.sh)
   );

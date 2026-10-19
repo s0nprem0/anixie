@@ -92,6 +92,11 @@ foreground $(colour "$name" foreground)
 selection_background $(colour "$name" accent)
 selection_foreground $(colour "$name" background)
 EOF
+
+  # tmux, btop, and whichever others have learned to read the state directory.
+  # A failure here must not take the theme switch with it — the shell and the
+  # terminal have already changed by this point.
+  "@THEME_APPS@" "$name" >/dev/null 2>&1 || true
 }
 
 # The compositor and the terminal have to be told. The shell is told through its
