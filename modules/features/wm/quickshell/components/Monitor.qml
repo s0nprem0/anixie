@@ -1,6 +1,7 @@
 import QtQuick
 import ".."
 import "../Ui"
+import "../panels"
 import Quickshell
 import Quickshell.Io
 
@@ -16,8 +17,15 @@ import Quickshell.Io
 BarWidget {
   id: root
 
-  // Reachable by hotkey as well as by click.
-  Component.onCompleted: PanelRegistry.register("display", readout, controls)
+  // Reachable by hotkey as well as by click. Two panels, both anchored to this
+  // button: the brightness one the click opens, and the per-screen one the keys
+  // reach. They are separate because a brightness slider has no business carrying
+  // a row for every attached output, and a second screen appearing is not a
+  // brightness problem.
+  Component.onCompleted: {
+    PanelRegistry.register("display", readout, controls)
+    PanelRegistry.register("displays", readout, screens)
+  }
 
   readonly property string displayDevice: String(root.setting("device", "amdgpu_bl1"))
   readonly property string keyboardDevice: String(root.setting("keyboard", "asus::kbd_backlight"))
@@ -217,5 +225,14 @@ BarWidget {
         }
       }
     }
+  }
+
+  // The per-screen panel. A Component rather than the panel inline, because
+  // PanelRegistry needs it by name and a bare object declaration is not a value
+  // that can be passed around — the same reason the brightness panel above is one.
+  Component {
+    id: screens
+
+    Displays {}
   }
 }

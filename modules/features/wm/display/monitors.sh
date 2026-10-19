@@ -4,18 +4,31 @@
 #   monitors scale [up|down|set N|reset]   step the focused monitor's scale
 #   monitors internal [on|off|toggle]      the laptop panel's power
 #   monitors mirror [on|off|toggle]        mirror the laptop onto an external
+#   monitors list                         every output as JSON, for the panel
+#   monitors set OUTPUT scale VALUE        one output's scale
+#   monitors set OUTPUT transform VALUE    rotation and flipping
+#   monitors set OUTPUT disabled yes|no    turn one output off or on
 #   monitors status                        one line per monitor
 #
 # Scaling steps through 1x, 1.25x, 1.6x, 2x, 3x and 4x — the ratios worth having
 # between "this is a 1080p panel" and "this is a 6K one". Only the focused monitor
 # is stepped, which is what makes the keys usable with a second screen attached.
 #
-# The chosen scale is written to a state file that features/wm/hyprland/lua.nix
-# reads when it loads, so it survives a config reload and a reboot instead of
-# snapping back to 1x. There is nowhere else to keep it: `hyprctl keyword` is
-# refused by the Lua config manager — "keyword can't work with non-legacy parsers"
-# — and Hyprland has no runtime monitor dispatcher to set a scale with. `hl.monitor`
-# through `hyprctl eval` is the only way in, and it remembers nothing by itself.
+# `set` is the same machinery aimed at a named output rather than the focused one,
+# which is what the Displays panel needs: it lists every screen and changes this
+# one, and a panel that could only reach whichever was focused would be useless
+# with two.
+#
+# The chosen values are written to a state file that features/wm/hyprland/lua.nix
+# reads when it loads, so they survive a config reload and a reboot instead of
+# snapping back. There is nowhere else to keep them: `hyprctl keyword` is refused
+# by the Lua config manager — "keyword can't work with non-legacy parsers" — and
+# Hyprland has no runtime monitor dispatcher. `hl.monitor` through `hyprctl eval`
+# is the only way in, and it remembers nothing by itself.
+
+# Every jq program below is single-quoted on purpose: they are jq, not shell, and
+# $n / $k are jq's own variables rather than the shell expanding anything.
+# shellcheck disable=SC2016
 
 set -uo pipefail
 
@@ -28,6 +41,11 @@ state_file="$state_dir/display.conf"
 # The ladder, as words so membership can be tested with `case` rather than a float
 # comparison bash cannot do.
 ladder="1 1.25 1.6 2 3 4"
+
+# Rotation, as Hyprland numbers them. hl.monitor takes the index into this list,
+# not the degrees, and rejects a transform above its own maximum — so these are
+# the names to show and the indices to send.
+transform_names="normal 90 180 270 flipped flipped-90 flipped-180 flipped-270"
 
 usage() {
   sed -n '2,/^[^#]/p' "$0" | sed -e '$d' -e '/^#!/d' -e 's/^# \{0,1\}//'
@@ -71,18 +89,64 @@ apply_scale() {
   "$hyprctl" eval "hl.monitor({ output = \"$1\", mode = \"preferred\", position = \"auto\", scale = $2 })" >/dev/null
 }
 
-save_scale() {
-  local name="$1" scale="$2" tmp
-  mkdir -p "$state_dir" || die "could not create $state_dir"
-  tmp=$(mktemp "${TMPDIR:-/tmp}/monitors.XXXXXX") || die "could not make a temporary file"
+# A monitor's current scale, transform and whether it is on, as a JSON object —
+# what the Displays panel binds each row to.
+monitor_fields() {
+  "$jq" -c --arg n "$1" '
+    .[] | select(.name == $n)
+    | { name, scale, transform, disabled,
+        width, height, description, focused, x, y, refreshRate }' <<<"$(monitors_json)"
+}
 
-  # Every other output's line is kept and this one is replaced. Written through a
-  # temporary file and renamed, so a failure halfway cannot leave a truncated file
-  # that the config would read as "no saved scales" and silently reset everything.
+# A monitor's field as a bare value.
+field_of() {
+  "$jq" -r --arg n "$1" --arg k "$2" '.[] | select(.name == $n) | .[$k]' <<<"$(monitors_json)"
+}
+
+# Every output, as a JSON array the panel renders as one row each.
+list_action() {
+  "$jq" '[.[] | { name, description, width, height, scale, transform, disabled, focused, x, y, refreshRate }]' <<<"$(monitors_json)"
+}
+
+# Read a transform's index out of the names list above.
+transform_index() {
+  local want="$1" i=0 name
+  for name in $transform_names; do
+    [ "$name" = "$want" ] && { printf '%s' "$i"; return 0; }
+    i=$((i + 1))
+  done
+  return 1
+}
+
+# Write one output's line into the state file, keeping every other output's.
+# The line is `name scale transform disabled`; transform is the index and disabled
+# is 0/1. Written through a temp file and renamed, so a failure part-way cannot
+# leave a truncated file the config would read as "nothing saved" and reset all of
+# it.
+save_field() {
+  local name="$1" key="$2" value="$3" tmp scale transform disabled
+  mkdir -p "$state_dir" || die "could not create $state_dir"
+
+  scale=1; transform=0; disabled=0
+  if [ -f "$state_file" ]; then
+    # Keep the other three fields of this output's existing line; only the one
+    # being changed is replaced. A line with the old two-field shape still reads,
+    # with the two new fields at their defaults.
+    read -r scale transform disabled <<<"$(awk -v n="$name" '$1 == n { print ($2 == "" ? 1 : $2), ($3 == "" ? 0 : $3), ($4 == "" ? 0 : $4) }' "$state_file")"
+  fi
+
+  case "$key" in
+    scale) scale="$value" ;;
+    transform) transform="$value" ;;
+    disabled) disabled="$value" ;;
+    *) die "unknown monitor setting \"$key\"" ;;
+  esac
+
+  tmp=$(mktemp "${TMPDIR:-/tmp}/monitors.XXXXXX") || die "could not make a temporary file"
   if [ -f "$state_file" ]; then
     awk -v n="$name" '$1 != n' "$state_file" >"$tmp"
   fi
-  printf '%s %s\n' "$name" "$scale" >>"$tmp"
+  printf '%s %s %s %s\n' "$name" "$scale" "$transform" "$disabled" >>"$tmp"
   mv "$tmp" "$state_file"
 }
 
@@ -132,7 +196,7 @@ scale_action() {
         return 0
       fi
       apply_scale "$name" "$target"
-      save_scale "$name" "$target"
+      save_field "$name" scale "$target"
       printf '%s at %sx\n' "$name" "$target"
       ;;
     set)
@@ -145,7 +209,7 @@ scale_action() {
       name=$(focused_name)
       [ -n "$name" ] || die "no focused monitor"
       apply_scale "$name" "$target"
-      save_scale "$name" "$target"
+      save_field "$name" scale "$target"
       printf '%s at %sx\n' "$name" "$target"
       ;;
     reset)
@@ -210,6 +274,51 @@ status_action() {
   "$jq" -r '.[] | "\(.name)\t\(.width)x\(.height)\tscale \(.scale)\t\(if (.mirrorOf // "none") == "none" then "extended" else "mirror of \(.mirrorOf)" end)\(if .focused then "\tfocused" else "" end)"' <<<"$(monitors_json)"
 }
 
+# One output, one setting, from the panel. Applied through hl.monitor like the
+# keys do — there is no other way in — and then written to the state file so it
+# outlives the session.
+set_action() {
+  local output="${1:-}" key="${2:-}" value="${3:-}"
+  [ -n "$output" ] && [ -n "$key" ] && [ -n "$value" ] ||
+    die "set needs an output, a setting and a value"
+
+  # Refuse an output that is not attached, rather than silently adding a monitor
+  # rule for a name that will never come back.
+  [ -n "$(field_of "$output" name)" ] || die "no output called \"$output\""
+
+  local index
+  case "$key" in
+    scale)
+      case " $ladder " in
+        *" $value "*) ;;
+        *) die "scale must be one of: $ladder" ;;
+      esac
+      apply_scale "$output" "$value"
+      save_field "$output" scale "$value"
+      ;;
+    transform)
+      index=$(transform_index "$value") ||
+        die "transform must be one of: $transform_names"
+      "$hyprctl" eval "hl.monitor({ output = \"$output\", mode = \"preferred\", position = \"auto\", scale = $(field_of "$output" scale), transform = $index })" >/dev/null
+      save_field "$output" transform "$index"
+      ;;
+    disabled)
+      case "$value" in
+        yes | true | on) index=1 ;;
+        no | false | off) index=0 ;;
+        *) die "disabled takes yes or no" ;;
+      esac
+      "$hyprctl" eval "hl.monitor({ output = \"$output\", mode = \"preferred\", position = \"auto\", scale = $(field_of "$output" scale), disabled = $([ "$index" = 1 ] && echo true || echo false) })" >/dev/null
+      save_field "$output" disabled "$index"
+      ;;
+    *)
+      die "set takes scale, transform or disabled"
+      ;;
+  esac
+
+  printf '%s %s %s\n' "$output" "$key" "$value"
+}
+
 case "${1:-}" in
   -h | --help)
     usage
@@ -225,6 +334,13 @@ case "${1:-}" in
   mirror)
     shift
     mirror_action "${1:-toggle}"
+    ;;
+  list)
+    list_action
+    ;;
+  set)
+    shift
+    set_action "$@"
     ;;
   status)
     status_action

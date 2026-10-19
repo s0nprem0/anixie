@@ -203,14 +203,20 @@ in
     -- to ask, and `hyprctl keyword` is refused outright by the Lua config manager.
     hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
 
-    -- The saved scales, one rule per output that has one. Read with io rather than
-    -- through a helper because Hyprland exposes no config reader, and io is
+    -- The saved settings, one rule per output that has any. Read with io rather
+    -- than through a helper because Hyprland exposes no config reader, and io is
     -- available to the config: it is the same Lua state `hyprctl eval` runs in.
     --
-    -- Both halves of a line have to look right before it is used. A hand-edited or
-    -- truncated file should not be able to ask Hyprland for an output name or a
-    -- scale that nothing here knows about, so a malformed line is skipped rather
-    -- than passed on.
+    -- A line is `output scale transform disabled`. The last two were added after
+    -- the first, so a line written by the older format is still two fields: the
+    -- pattern's optional groups leave them nil, and the rule falls back to no
+    -- rotation and the output on. That way a machine updating from the earlier
+    -- version keeps its scales without the file having to be rewritten.
+    --
+    -- Every field has to look right before it is used. A hand-edited or truncated
+    -- file should not be able to ask Hyprland for an output name or a scale that
+    -- nothing here knows about, so a malformed line is skipped rather than passed
+    -- on.
     do
       local state_home = os.getenv("XDG_STATE_HOME")
         or ((os.getenv("HOME") or "") .. "/.local/state")
@@ -218,13 +224,18 @@ in
 
       if file then
         for line in file:lines() do
-          local output, scale = line:match("^(%S+)%s+(%S+)$")
+          local output, scale, transform, disabled =
+            line:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)$")
+            or line:match("^(%S+)%s+(%S+)$")
+
           if output and scale and scale:match("^%d+%.?%d*$") then
             hl.monitor({
               output = output,
               mode = "preferred",
               position = "auto",
               scale = tonumber(scale),
+              transform = tonumber(transform or "0"),
+              disabled = disabled == "1",
             })
           end
         end
@@ -595,6 +606,11 @@ in
     bind(mod .. " + CTRL + D", "Display panel", "quickshell ipc call panel toggle display")
     bind(mod .. " + CTRL + P", "Power panel", "quickshell ipc call panel toggle power")
     bind(mod .. " + CTRL + ALT + D", "Calendar panel", "quickshell ipc call panel toggle calendar")
+
+    -- The per-screen panel, separate from the brightness one on CTRL+D: a
+    -- brightness slider has no business carrying a row for every attached output,
+    -- and a second screen appearing is not a brightness problem.
+    bind(mod .. " + CTRL + SHIFT + D", "Displays panel", "quickshell ipc call panel toggle displays")
 
     -- The bar on and off. The window stays mapped and only its contents hide, so
     -- the panels above still open against it while it is out of the way.

@@ -19,9 +19,15 @@ Item {
   property bool busy: false
   property color accent: Theme.accent
 
+  // Whether the row takes input at all. Separate from `busy`, which keeps the row
+  // looking live while one operation is in flight; this greys it out because the
+  // control makes no sense for what is being asked here.
+  property bool available: true
+
   signal toggled()
 
   readonly property bool hasDescription: root.description !== ""
+  readonly property bool interactive: root.available && !root.busy
 
   implicitWidth: labelText.implicitWidth + Style.space(12) + switchItem.implicitWidth
   implicitHeight: Math.max(switchItem.implicitHeight, textColumn.implicitHeight)
@@ -34,7 +40,7 @@ Item {
     checked: root.checked
     busy: root.busy
     accent: root.accent
-    onToggled: root.toggled()
+    onToggled: if (root.interactive) root.toggled()
   }
 
   Item {
@@ -48,7 +54,7 @@ Item {
     Text {
       id: labelText
       text: root.label
-      color: Theme.fg
+      color: root.available ? Theme.fg : Theme.muted
       font.family: Style.font.family
       font.pixelSize: Style.font.body
       renderType: Text.NativeRendering

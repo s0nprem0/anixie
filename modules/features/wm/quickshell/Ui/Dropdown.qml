@@ -143,7 +143,10 @@ Item {
           anchors.fill: parent
           hoverEnabled: true
           onClicked: {
-            root.currentIndex = row.index
+            // Only the choice is reported; `currentIndex` is the caller's to set.
+            // Writing it here would replace whatever binding put it there, and the
+            // dropdown would then stop following the value it was meant to be
+            // showing — the same trap a stepper falls into.
             root.activated(row.index)
             list.close()
           }
