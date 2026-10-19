@@ -59,6 +59,14 @@ QtObject {
   readonly property real screenHeight: root.host ? root.host.Screen.height : 1080
   readonly property real barHeight: Style.bar.sizeHorizontal
 
+  // The most room a panel may take below the bar, less a margin so its bottom
+  // edge is never flush against the screen's. Panel cards cap themselves at the
+  // same figure; this is the backstop for one that measures its own height some
+  // other way, because a window taller than the screen does not scroll — it
+  // simply has its bottom off the display, out of reach of the pointer and of
+  // the eye.
+  readonly property int panelMaxHeight: Math.max(Style.space(120), Math.round(screenHeight - barHeight - Style.space(16)))
+
   // Centred under the owning button, then pulled back inside the screen so a
   // button near either edge still opens a fully visible panel.
   readonly property rect panelRect: {
@@ -101,7 +109,8 @@ QtObject {
     anchor.item: root.host
     anchor.rect: root.panelRect
     implicitWidth: contentLoader.item ? contentLoader.item.implicitWidth : 320
-    implicitHeight: contentLoader.item ? contentLoader.item.implicitHeight : 0
+    implicitHeight: Math.min(root.panelMaxHeight,
+      contentLoader.item ? contentLoader.item.implicitHeight : 0)
 
     Loader {
       id: contentLoader
