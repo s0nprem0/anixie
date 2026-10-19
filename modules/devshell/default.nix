@@ -25,7 +25,9 @@ let
   cliTools = import ../features/shell/tools/packages.nix { inherit pkgs; };
 
   # Language runtimes and build toolchains. ~2.3 GiB unpacked, realised only
-  # when the default shell is entered, never by `nixos-rebuild switch`.
+  # when the default shell is entered, never by `nixos-rebuild switch`. python3
+  # is not here: it lives in the shared CLI list, so it is on the user's PATH
+  # too, and appears in the lite shell as well.
   fullStack = with pkgs; [
     cargo
     clippy
@@ -36,7 +38,6 @@ let
     nodejs
     openssl
     pkg-config
-    python3
     rustc
     rustfmt
     uv

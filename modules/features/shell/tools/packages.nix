@@ -32,6 +32,10 @@ with pkgs;
   github-cli
   gnumake
 
+  # The interpreter on PATH, for scripts and one-off venvs. uv, which builds the
+  # venvs the skills use, stays in the dev shell with the other toolchains.
+  python3
+
   # GNUPGHOME is already set in the zsh session variables, so signing is
   # intended here; the binary was simply never pulled in.
   gnupg
