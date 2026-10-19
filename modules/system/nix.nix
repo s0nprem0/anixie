@@ -19,12 +19,14 @@
       auto-optimise-store = true;
     };
 
-    # Old generations are the store's growth. Nothing reclaimed them, so the
-    # weekly sweep keeps a month of rollbacks before pruning the rest.
+    # Old generations are the store's growth. The weekly sweep keeps two weeks of
+    # rollbacks — more than enough to undo a bad rebuild — and the boot menu is
+    # capped at ten separately. A month was keeping generations nobody would ever
+    # boot.
     gc = {
       automatic = true;
       dates = "weekly";
-      options = "--delete-older-than 30d";
+      options = "--delete-older-than 14d";
     };
 
     # The root channel was a stale 26.05 while the machine runs 26.11, and the

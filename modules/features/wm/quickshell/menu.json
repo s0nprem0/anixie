@@ -157,6 +157,10 @@
       "group": "System",
       "entries": [
         {
+          "label": "Clean up generations\u2026",
+          "run": "kitty -e nh clean all --keep 5"
+        },
+        {
           "label": "Power menu\u2026",
           "run": "quickshell ipc call panel toggle session"
         },
