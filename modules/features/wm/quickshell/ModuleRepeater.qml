@@ -86,8 +86,20 @@ Repeater {
         loader.source = repeater.qmlSource(entry)
       } else {
         const component = ModuleRegistry.registry[entry.id]
-        if (component) loader.sourceComponent = component
-        else console.warn("quickshell bar: unknown module id " + entry.id)
+        if (component) {
+          loader.sourceComponent = component
+          return
+        }
+
+        // Not a built-in: the manifest may name a file for it. That is the whole
+        // plugin path — a widget is a source and a section, not a registry edit.
+        const plugin = BarConfig.plugin(entry.id)
+        if (plugin && plugin.source) {
+          loader.source = plugin.source
+          return
+        }
+
+        console.warn("quickshell bar: unknown module id " + entry.id)
       }
     }
 

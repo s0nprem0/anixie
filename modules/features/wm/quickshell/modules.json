@@ -1,10 +1,10 @@
 {
-  "bar.active-window": "left",
-  "bar.media": "centerEnd",
-  "bar.microphone": "right",
-  "bar.weather": "centerEnd",
-  "bar.world-clock": "center",
-  "bar.update": "centerEnd",
-  "bar.keyboard-layout": "right",
-  "bar.agents": "right"
+  "bar.active-window": { "section": "left", "source": "components/ActiveWindow.qml" },
+  "bar.media": { "section": "centerEnd", "source": "components/Media.qml" },
+  "bar.microphone": { "section": "right", "source": "components/Microphone.qml" },
+  "bar.weather": { "section": "centerEnd", "source": "components/Weather.qml" },
+  "bar.world-clock": { "section": "center", "source": "components/WorldClock.qml" },
+  "bar.update": { "section": "centerEnd", "source": "components/UpdateBadge.qml" },
+  "bar.keyboard-layout": { "section": "right", "source": "components/KeyboardLayout.qml" },
+  "bar.agents": { "section": "right", "source": "components/Agents.qml" }
 }

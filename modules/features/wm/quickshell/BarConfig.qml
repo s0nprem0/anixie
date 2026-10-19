@@ -161,6 +161,23 @@ QtObject {
     }
   }
 
+  // A widget the manifest knows, as an object. The manifest is what lets a
+  // widget be added without a line in ModuleRegistry: it names the QML file, and
+  // ModuleRepeater loads it as a component rather than looking it up by type.
+  function plugin(id) {
+    const entry = root.defaults[id]
+    return entry && typeof entry === "object" ? entry : null
+  }
+
+  // Where a widget belongs, from either manifest shape — a bare section name or
+  // the object with one.
+  function sectionOf(id) {
+    const entry = root.defaults[id]
+    if (typeof entry === "string") return entry
+    if (entry && typeof entry === "object" && entry.section) return String(entry.section)
+    return "right"
+  }
+
   function isEnabled(id) {
     for (const name in root.layout) {
       const list = root.layout[name]
@@ -230,7 +247,7 @@ QtObject {
       const list = next.layout[section]
       list.splice(Math.max(0, Math.min(slot.index, list.length)), 0, slot.entry)
     } else {
-      const section = root.defaults[id] || "right"
+      const section = root.sectionOf(id)
       next.layout[section] = next.layout[section] || []
       next.layout[section].push({ id: id })
     }
