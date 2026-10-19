@@ -41,6 +41,11 @@ Item {
   property string actionSsid: ""
   property string actionKind: ""
 
+  // A secured network that would not join because it has no stored key. The
+  // panel asks here rather than failing silently: NetworkManager wants secrets
+  // through a secret agent, and this shell is not one.
+  property string askingSsid: ""
+
   // One action at a time. Two connects racing each other is not a faster connect,
   // it is two nmcli processes fighting over the device and neither result
   // trustworthy.
@@ -349,11 +354,20 @@ Item {
       // the panel settles quickly either way.
       onStreamFinished: root.refresh()
     }
-    onExited: function () {
+    onExited: function (exitCode) {
+      // A connect that failed on a secured network is almost always a missing
+      // key. Ask for it rather than leaving the row to quietly snap back.
+      const failedConnect = exitCode !== 0
+        && root.actionKind === "connect"
+        && root.actionSsid !== ""
+
+      const ssid = root.actionSsid
+
       // Cleared on exit rather than on the re-read, so a failed connect still
       // takes the row out of its "Connecting…" state instead of leaving it there.
       root.actionSsid = ""
       root.actionKind = ""
+      if (failedConnect) root.askingSsid = ssid
       root.refresh()
     }
   }
@@ -433,6 +447,21 @@ Item {
     root.actionSsid = ssid
     root.actionKind = "disconnect"
     actionProc.command = ["nmcli", "device", "disconnect", root.wifiDevice]
+    actionProc.running = true
+    settle.restart()
+  }
+
+  // The secret goes on the command line, which is visible in the process list
+  // for the moment nmcli runs. That is the price of not being a secret agent;
+  // the alternative is a D-Bus agent and a keyring.
+  function connectSecret(secret) {
+    if (root.askingSsid === "" || secret === "") return
+
+    const ssid = root.askingSsid
+    root.askingSsid = ""
+    root.actionSsid = ssid
+    root.actionKind = "connect"
+    actionProc.command = ["nmcli", "device", "wifi", "connect", ssid, "password", secret]
     actionProc.running = true
     settle.restart()
   }
@@ -630,6 +659,54 @@ Item {
       action: root.scanning ? "Scanning…" : "Rescan"
       actionEnabled: root.radioEnabled && !root.scanning && !root.failed && !root.busy
       onActionTriggered: root.rescan()
+    }
+
+    Column {
+      width: card.contentWidth
+      spacing: Style.space(6)
+      visible: root.askingSsid !== ""
+
+      onVisibleChanged: {
+        if (!visible) return
+        secretField.text = ""
+        Qt.callLater(function () { secretField.forceActiveFocus() })
+      }
+
+      Text {
+        width: parent.width
+        text: "Password for " + root.askingSsid
+        color: Theme.fg
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        elide: Text.ElideRight
+        renderType: Text.NativeRendering
+      }
+
+      TextField {
+        id: secretField
+        width: parent.width
+        echoMode: TextInput.Password
+        placeholderText: "network password"
+        Keys.onEscapePressed: root.askingSsid = ""
+        onAccepted: root.connectSecret(secretField.text)
+      }
+
+      PanelActionButton {
+        width: parent.width
+        label: "Connect"
+        navigational: false
+        available: secretField.text !== ""
+        onClicked: root.connectSecret(secretField.text)
+      }
+
+      PanelActionButton {
+        width: parent.width
+        label: "Cancel"
+        navigational: false
+        onClicked: root.askingSsid = ""
+      }
+
+      PanelSeparator {}
     }
 
     ListView {
