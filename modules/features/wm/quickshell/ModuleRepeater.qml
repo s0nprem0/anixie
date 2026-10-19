@@ -69,6 +69,31 @@ Repeater {
     // a gap exactly the size of itself on the bar.
     visible: item ? item.wantsSlot : false
 
+    // Dragging a widget moves it. The handler takes the pointer only after a
+    // short hold-and-move, so clicking a module still clicks it; while it is
+    // held the module dims (it is the thing being carried, and the bar is not
+    // previewing the move), and on release the drop point decides the section
+    // and the place in it.
+    opacity: drag.active ? 0.4 : 1
+    Behavior on opacity { NumberAnimation { duration: Style.duration(120) } }
+
+    DragHandler {
+      id: drag
+      target: null
+      acceptedButtons: Qt.LeftButton
+      grabPermissions: PointerHandler.CanTakeOverFromAnything
+
+      onActiveChanged: {
+        if (drag.active) return
+
+        const point = drag.centroid.scenePosition
+        const target = BarContext.dropTarget(point.x, point.y)
+        if (!target || !loader.modelData) return
+
+        BarConfig.move(loader.modelData.id, target.section, target.index)
+      }
+    }
+
     Component {
       id: commandFactory
       CommandModule { entry: loader.modelData }

@@ -282,6 +282,13 @@ ShellRoot {
     function toggle(): void { BarContext.toggle() }
     function on(): void { BarContext.shown = true }
     function off(): void { BarContext.shown = false }
+
+    // Rearranging from a script, which is what a drag persists and what makes
+    // the saved layout testable without a pointer.
+    function move(id: string, section: string, index: string): void {
+      BarConfig.move(id, section, Number(index))
+    }
+    function reset(): void { BarConfig.reset() }
   }
 
   // The panels, by name, for their hotkeys.

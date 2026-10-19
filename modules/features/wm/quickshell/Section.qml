@@ -23,6 +23,27 @@ Item {
 
   readonly property bool vertical: BarContext.vertical
 
+  // Where a scene-x would land in this section's array: before the first module
+  // whose centre it has not passed, after the last one it has. Computed against
+  // the modules themselves rather than their positions in the array, because a
+  // hidden module has no position to compare against and still owns an index.
+  function indexFor(sceneX) {
+    const items = root.vertical ? column.children : row.children
+    let index = 0
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      if (!item || item.visible === false) continue
+
+      const centre = item.mapToItem(null, item.width / 2, 0).x
+      if (sceneX > centre) index = i + 1
+    }
+
+    return index
+  }
+
+  Component.onCompleted: BarContext.registerSection(root.name, root)
+
   implicitWidth: vertical ? Style.bar.sizeVertical : row.implicitWidth
   implicitHeight: vertical ? column.implicitHeight : Style.bar.sizeHorizontal
 
