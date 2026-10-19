@@ -58,14 +58,30 @@ Item {
     return out
   }
 
+  // The pointer, without taking it: a HoverHandler leaves clicks to whatever
+  // already handles them, and every other list in the shell lights up under the
+  // cursor — this one, the menu, was the exception.
+  HoverHandler {
+    id: pointer
+  }
+
   Rectangle {
     anchors.fill: parent
     anchors.leftMargin: Style.space(4)
     anchors.rightMargin: Style.space(4)
     radius: Theme.cornerRadius
     color: root.selected
-      ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.selectedFillAlpha)
-      : "transparent"
+      ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b,
+          pointer.hovered
+            ? Style.control.selectedFillAlpha + 0.12
+            : Style.control.selectedFillAlpha)
+      : (pointer.hovered
+        ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha + 0.05)
+        : "transparent")
+
+    Behavior on color {
+      ColorAnimation { duration: Style.duration(140); easing.type: Easing.OutCubic }
+    }
   }
 
   Image {
