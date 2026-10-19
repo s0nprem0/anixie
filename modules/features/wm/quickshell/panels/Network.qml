@@ -82,6 +82,78 @@ Item {
   property string dns: ""
   property bool dnsBusy: false
 
+  // What the connection actually is, rather than what it is called.
+  property string address: ""
+  property string gateway: ""
+  property string wired: ""
+  property string vpn: ""
+
+  function refreshDetails() {
+    if (!root.connected) {
+      root.address = ""
+      root.gateway = ""
+      root.wired = ""
+      root.vpn = ""
+      return
+    }
+
+    details.running = false
+    details.running = true
+  }
+
+  function forget() {
+    if (!root.connected) return
+    forgetProc.command = ["nmcli", "connection", "delete", root.activeSsid]
+    forgetProc.running = true
+  }
+
+  // One read for the three facts the panel did not have: the address, the other
+  // links that are up, and the VPN. Colons separate nmcli's fields, and a name
+  // may contain one, so the worst that happens is a truncated label.
+  Process {
+    id: details
+    running: false
+    command: ["sh", "-c",
+      'nmcli -g IP4.ADDRESS,IP4.GATEWAY con show "$1" 2>/dev/null; echo ---; '
+      + 'nmcli -t -f TYPE,STATE,CONNECTION device status 2>/dev/null | grep -E "^(ethernet|wireguard|tun|vpn):" || true',
+      "_", root.activeSsid]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const parts = String(this.text).split("---")
+        const head = String(parts[0] || "").trim().split("\n")
+
+        root.address = String(head[0] || "").split("/")[0].trim()
+        root.gateway = String(head[1] || "").trim()
+
+        let wired = ""
+        let vpn = ""
+        const links = String(parts[1] || "").trim().split("\n")
+        for (let i = 0; i < links.length; i++) {
+          const fields = links[i].split(":")
+          if (fields[1] !== "connected") continue
+          if (fields[0] === "ethernet") wired = fields[2] || "connected"
+          if (fields[0] === "wireguard" || fields[0] === "tun" || fields[0] === "vpn") {
+            vpn = fields[2] || fields[0]
+          }
+        }
+
+        root.wired = wired
+        root.vpn = vpn
+      }
+    }
+  }
+
+  Process {
+    id: forgetProc
+    running: false
+    onExited: {
+      root.activeSsid = ""
+      root.refresh()
+      root.refreshDns()
+      root.refreshDetails()
+    }
+  }
+
   // Addresses as a set, so "1.1.1.1 1.0.0.1" and "1.0.0.1,1.1.1.1" are the same
   // answer rather than two different ones.
   function dnsKey(value) {
@@ -138,7 +210,10 @@ Item {
     }
   }
 
-  onActiveSsidChanged: root.refreshDns()
+  onActiveSsidChanged: {
+    root.refreshDns()
+    root.refreshDetails()
+  }
 
   readonly property int qrSize: Style.space(180)
 
@@ -633,6 +708,46 @@ Item {
         currentIndex: root.dnsIndex()
         onActivated: function (index) { root.setDns(root.dnsProviders[index].value) }
       }
+    }
+
+    PanelRow {
+      width: card.contentWidth
+      visible: root.connected && root.address !== ""
+      label: "Address"
+      value: root.address
+    }
+
+    PanelRow {
+      width: card.contentWidth
+      visible: root.connected && root.gateway !== ""
+      label: "Gateway"
+      value: root.gateway
+    }
+
+    // The links the Wi-Fi panel is not about, but is the only network surface the
+    // shell has: an Ethernet cable on a dock and a VPN that is up both change the
+    // answer to "is this machine online".
+    PanelRow {
+      width: card.contentWidth
+      visible: root.wired !== ""
+      label: "Wired"
+      value: root.wired
+    }
+
+    PanelRow {
+      width: card.contentWidth
+      visible: root.vpn !== ""
+      label: "VPN"
+      value: root.vpn
+    }
+
+    PanelActionButton {
+      width: card.contentWidth
+      visible: root.connected
+      label: "Forget this network"
+      danger: true
+      navigational: false
+      onClicked: root.forget()
     }
 
     // A failure with no way out of it is a dead end. nmcli exits non-zero for a
