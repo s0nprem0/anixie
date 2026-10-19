@@ -109,18 +109,27 @@ Item {
       anchors.verticalCenter: textRow.verticalCenter
     }
 
-    Repeater {
-      model: root.spans
+    // The label's spans live in a Row of their own with no spacing. A Row spaces
+    // every child, and the spans are one word cut into pieces — matched and
+    // unmatched runs — so the outer spacing put a gap at each highlight
+    // boundary: searching `sy` drew "Sy stem" instead of "System". The spacing
+    // stays on the outer row so the group keeps its gap from the label.
+    Row {
+      spacing: 0
+      anchors.verticalCenter: textRow.verticalCenter
 
-      Text {
-        required property var modelData
+      Repeater {
+        model: root.spans
 
-        text: modelData.text
-        color: modelData.hit ? Theme.accent : Theme.fg
-        font.family: Style.font.family
-        font.pixelSize: Style.font.subtitle
-        font.weight: modelData.hit ? Font.DemiBold : Font.Normal
-        anchors.verticalCenter: textRow.verticalCenter
+        Text {
+          required property var modelData
+
+          text: modelData.text
+          color: modelData.hit ? Theme.accent : Theme.fg
+          font.family: Style.font.family
+          font.pixelSize: Style.font.subtitle
+          font.weight: modelData.hit ? Font.DemiBold : Font.Normal
+        }
       }
     }
   }
