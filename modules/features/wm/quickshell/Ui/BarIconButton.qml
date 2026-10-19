@@ -40,6 +40,14 @@ WidgetButton {
   // over text that is sliding around underneath it.
   property bool marqueePaused: false
 
+  // Tuning for `marquee`: hold the opening of the string still long enough to
+  // read a word of it, leave a little air before the next pass, and scroll at a
+  // steady per-pixel rate so a longer title takes more time rather than moving
+  // faster.
+  property int marqueeDwell: 1600
+  property int marqueeGap: 24
+  property real marqueeSpeed: 22
+
   readonly property real visualIconSize: Style.bar.iconSize
   readonly property real canvasSize: Math.max(visualIconSize, opticalSize)
 
@@ -88,7 +96,9 @@ WidgetButton {
         width: root.labelMaxWidth > 0 ? Math.min(root.labelMaxWidth, implicitWidth) : implicitWidth
         // A marquee shows the whole string by moving it, so there is nothing to
         // elide — an ellipsis on text that is about to scroll past is noise.
-        elide: root.marquee ? Text.ElideNone : Text.ElideRight
+        // But when it is *not* moving — a title that fits, or reduce-motion —
+        // the overflow has to be elided again, or a long title is simply cut.
+        elide: label.scrolling ? Text.ElideNone : Text.ElideRight
         font.family: Style.font.family
         font.pixelSize: Style.font.body
         color: root.active && root.useActiveColor ? root.activeColor : root.foreground
@@ -96,36 +106,53 @@ WidgetButton {
           + (labelMetrics.descent - labelMetrics.ascent + labelMetrics.tightBoundingRect("0").height) / 2
         renderType: Text.NativeRendering
 
-        // Only when it does not fit: a title that fits should sit still.
+        // Only when it does not fit: a title that fits should sit still. Nor
+        // under reduce-motion, where a label that moves is the very thing that
+        // was turned off — the elide above comes back for the overflow.
         readonly property bool needsScroll: root.marquee && implicitWidth > labelBox.width
+        readonly property bool scrolling: needsScroll && !Style.reduceMotion
 
-        // Resting position, and where a label that fits stays. The animation
-        // below takes over x while it runs.
-        x: 0
+        // The animated scroll offset, which `x` follows only while scrolling.
+        // The old form animated `x` directly, and an explicit animation
+        // permanently breaks a property's binding: once the label had scrolled,
+        // a later track short enough to fit left it where the last frame ended,
+        // which is off the edge — the title vanished instead of sitting still.
+        property real scrollX: 0
+        x: label.scrolling ? label.scrollX : 0
       }
 
-      // An explicit target and property rather than `NumberAnimation on x`.
+      // Dwell, then slide out, and repeat. A bare `from: width; to: -text`
+      // opens on a blank slot while the string travels in from off-screen, and
+      // times the pass by text length, so a wide slot scrolled slower than a
+      // narrow one. This names every step instead:
       //
-      // The value-source form with `from`/`to` and an infinite loop ran one pass
-      // and then stopped off the end, leaving the label blank — which is worse
-      // than not scrolling at all. Naming the target and the property leaves no
-      // doubt about what is being animated or how many times.
+      //   * the PropertyAction guarantees a readable opening frame — the start
+      //     of the string, on screen, before anything moves;
+      //   * the dwell holds it there long enough to read a word or two;
+      //   * the slide is timed per pixel, so a long and a short title move at
+      //     the same speed rather than the long one whipping past.
       //
       // Linear, because a marquee that eases reads as stopping rather than
-      // passing, and timed from the string's length so a long title does not
-      // whip past faster than a short one.
-      NumberAnimation {
+      // passing. The loop restarts from the PropertyAction, and the snap back
+      // to the start happens while the string is off the far edge, so the wrap
+      // is never seen.
+      SequentialAnimation {
         id: scrollAnim
 
-        target: label
-        property: "x"
-
-        running: label.needsScroll && !root.marqueePaused && !Style.reduceMotion
+        running: label.scrolling && !root.marqueePaused
         loops: Animation.Infinite
-        duration: Math.max(6000, Math.round(label.implicitWidth * 25))
-        from: labelBox.width
-        to: -label.implicitWidth
-        easing.type: Easing.Linear
+
+        PropertyAction { target: label; property: "scrollX"; value: 0 }
+        PauseAnimation { duration: root.marqueeDwell }
+
+        NumberAnimation {
+          target: label
+          property: "scrollX"
+          from: 0
+          to: -(label.implicitWidth + root.marqueeGap)
+          duration: Math.round((label.implicitWidth + root.marqueeGap) * root.marqueeSpeed)
+          easing.type: Easing.Linear
+        }
       }
     }
 
