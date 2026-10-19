@@ -71,6 +71,11 @@ Item {
 
   PanelActionStep {
     id: minusButton
+    // Anchored to its own edge. Both steps used to sit at x = 0 with only the
+    // value centred between them, so the plus was drawn on top of the minus and
+    // the stepper looked like it only went up.
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
     width: root.button
     height: root.button
     glyph: "−"
@@ -80,8 +85,9 @@ Item {
 
   Text {
     id: valueText
-    anchors.centerIn: parent
-    width: Math.min(implicitWidth, root.width - root.button * 2 - Style.space(12))
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.verticalCenter: parent.verticalCenter
+    width: Math.max(0, Math.min(implicitWidth, root.width - root.button * 2 - Style.space(12)))
     text: root.display()
     color: Theme.fg
     font.family: Style.font.family
@@ -93,6 +99,8 @@ Item {
 
   PanelActionStep {
     id: plusButton
+    anchors.right: parent.right
+    anchors.verticalCenter: parent.verticalCenter
     width: root.button
     height: root.button
     glyph: "+"
