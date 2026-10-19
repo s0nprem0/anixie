@@ -9,7 +9,7 @@
       { "id": "bar.active-window", "maxWidth": 220 }
     ],
     "centerBegin": [
-      { "id": "weather", "interval": 1800 }
+      { "id": "bar.weather", "interval": 1800 }
     ],
     "center": [
       { "id": "bar.clock" }

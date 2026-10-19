@@ -33,18 +33,24 @@ BarWidget {
   // The forecast, held as the parsed object once a request lands.
   property var forecast: null
 
-  // Which of the two requests a running process is for, so a bar refresh and a
-  // panel open do not overwrite each other's result with the wrong shape.
-  property string pending: ""
+  // Whether a forecast request is in flight, so the panel can say it is looking
+  // rather than that there is nothing — the two look identical otherwise, and a
+  // panel that reports a failure it has not established is worse than a blank.
+  property bool fetching: false
 
+  // Each request carries its own result to its own collector, so there is nothing
+  // to tell apart and nothing to guard: a shared "which request is this" flag was
+  // one, and it threw results away. The two overlap at startup — the bar's own
+  // fetch and the panel's, from a hotkey — and whichever finished second was
+  // dropped on the grounds that its flag was no longer set, which is how the bar
+  // sat empty with the weather working perfectly well.
   function refreshBar() {
-    root.pending = "bar"
     barQuery.running = false
     barQuery.running = true
   }
 
   function refreshForecast() {
-    root.pending = "forecast"
+    root.fetching = true
     forecastQuery.running = false
     forecastQuery.running = true
   }
@@ -88,13 +94,7 @@ BarWidget {
       : "Weather · click for the forecast"
 
     onPressed: function (button) {
-      if (button === Qt.LeftButton || button === Qt.MiddleButton) {
-        // Asked for here rather than on a timer, so opening the panel shows
-        // something and the half-hourly refresh stays the bar's only background
-        // work.
-        root.refreshForecast()
-        PanelHost.toggle(readout, forecastPanel)
-      }
+      if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelHost.toggle(readout, forecastPanel)
     }
   }
 
@@ -103,9 +103,7 @@ BarWidget {
     command: ["sh", Quickshell.env("HOME") + "/.config/quickshell/scripts/weather-forecast.sh", "bar"]
     running: true
     stdout: StdioCollector {
-      onStreamFinished: {
-        if (root.pending === "bar") root.applyBar(this.text)
-      }
+      onStreamFinished: root.applyBar(this.text)
     }
   }
 
@@ -114,15 +112,20 @@ BarWidget {
     command: ["sh", Quickshell.env("HOME") + "/.config/quickshell/scripts/weather-forecast.sh", "forecast"]
     stdout: StdioCollector {
       onStreamFinished: {
-        if (root.pending === "forecast") root.applyForecast(this.text)
+        root.applyForecast(this.text)
+        root.fetching = false
       }
     }
+    // Nothing came back at all — no collector, no collector's stream. The panel
+    // stops saying it is looking either way, so it does not look stuck.
+    onExited: root.fetching = false
   }
 
   readonly property Timer watch: Timer {
     interval: root.interval
     running: true
     repeat: true
+    triggeredOnStart: true
     onTriggered: root.refreshBar()
   }
 
@@ -133,6 +136,14 @@ BarWidget {
       id: card
 
       readonly property var days: root.forecast && root.forecast.days ? root.forecast.days : []
+
+      // Asked for as the panel is built, rather than by the click that usually
+      // opens it. Opening by hotkey goes straight to PanelHost and never touches
+      // this handler, so a forecast fetched there was only ever fetched for the
+      // one way in that people use less. It costs nothing: a panel only exists
+      // while it is open, and the half-hourly timer stays the bar's only
+      // background work.
+      Component.onCompleted: root.refreshForecast()
 
       implicitWidth: Style.space(320)
       implicitHeight: panel.implicitHeight
@@ -151,13 +162,20 @@ BarWidget {
             : ""
         }
 
-        PanelSeparator {}
+        PanelSeparator {
+          // Only between the hero and a forecast. A rule with nothing under it is
+          // a divider for a section that is not there.
+          visible: card.days.length > 0
+        }
 
         Text {
           width: panel.contentWidth
-          visible: !root.forecast
-          height: visible ? implicitHeight : 0
-          text: "Forecast unavailable"
+          visible: !card.days.length
+          height: implicitHeight
+          // A request in flight and a request that failed are not the same, and
+          // saying "unavailable" while one is still running is the panel telling
+          // you something it does not yet know.
+          text: root.fetching ? "Fetching…" : "Forecast unavailable"
           color: Theme.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.body
