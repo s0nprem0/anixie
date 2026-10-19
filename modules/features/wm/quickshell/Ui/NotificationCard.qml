@@ -29,7 +29,30 @@ Item {
   readonly property bool critical: root.notification
     ? root.notification.urgency === NotificationUrgency.Critical
     : false
-  readonly property var actions: root.notification && root.notification.actions ? root.notification.actions : []
+  // The protocol's default action — the one a click on the body should run — is
+  // not a property in this Quickshell, only an entry in the action list with the
+  // identifier "default". It is pulled out here so the click can honour it and
+  // the buttons can show the actions the sender actually labelled.
+  readonly property var defaultAction: {
+    if (!root.notification || !root.notification.actions) return null
+    for (const action of root.notification.actions) {
+      if (String(action.identifier) === "default") return action
+    }
+    return null
+  }
+
+  readonly property var actions: {
+    const out = []
+    if (!root.notification || !root.notification.actions) return out
+    for (const action of root.notification.actions) {
+      // "default" has no button: it is the body, and a sender that offers it
+      // usually leaves its text empty, which drew an empty button.
+      if (String(action.identifier) === "default") continue
+      if (String(action.text || "") === "") continue
+      out.push(action)
+    }
+    return out
+  }
 
   // What the sender can ask for, as the protocol defines it: a positive timeout
   // is seconds, zero means the sender will not say, and a negative one asks the
@@ -63,9 +86,12 @@ Item {
   MouseArea {
     anchors.fill: parent
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton
-    // A group goes together: one click on a stack of five chat messages puts
-    // five away, which is what the click means when they are drawn as one card.
+    // A click runs the default action if the sender offered one, then puts the
+    // card away — clicking a message opens it, it does not merely hide it. A
+    // group goes together: one click on a stack of five puts five away.
     onClicked: {
+      if (root.defaultAction) root.defaultAction.invoke()
+
       if (root.group.length > 0) {
         for (const item of root.group) item.dismiss()
       } else if (root.notification) {
