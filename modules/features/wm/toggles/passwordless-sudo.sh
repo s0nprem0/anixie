@@ -39,7 +39,22 @@ case "${1:-}" in
     # visudo, not a plain editor: it syntax-checks before it writes, so a typo in
     # a sudoers edit cannot lock you out of the machine entirely. Run it where a
     # password can be typed, which is what a terminal is for.
-    exec "$TERMINAL" -e visudo
+    #
+    # Through sudo, because visudo reads the sudoers file before it can check it
+    # and that file is 0440 and root-owned — run as the user it dies with
+    # "Permission denied" the instant it opens, and the window closes with it,
+    # which from the bar looks exactly like the click did nothing. With sudo it
+    # can read what it is about to check, and where a password is needed this is
+    # the window it gets typed in.
+    #
+    # kitty takes `--hold`, which keeps the window up once the command exits.
+    # That is what turns "it flashed and disappeared" into a reason you can read:
+    # a syntax error, a missing editor, a sudo that is not there. The others take
+    # the command after `-e`, which is the shape this was written with.
+    case "$(basename "$TERMINAL")" in
+      kitty) exec "$TERMINAL" --hold -e "$SUDO" visudo ;;
+      *) exec "$TERMINAL" -e "$SUDO" visudo ;;
+    esac
     ;;
   *)
     printf 'passwordless-sudo: unknown argument "%s" (try --help)\n' "$1" >&2
