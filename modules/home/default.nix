@@ -23,6 +23,6 @@
       XDG_STATE_HOME = config.xdg.stateHome;
     };
 
-    stateVersion = "26.05";
+    stateVersion = "26.11";
   };
 }
