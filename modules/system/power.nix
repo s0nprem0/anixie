@@ -1,6 +1,15 @@
 {
   services.power-profiles-daemon.enable = true;
 
+  # The power key opens a menu, not the off switch. logind's default is to power
+  # off the moment the key is pressed, which is the right answer for a server and
+  # the wrong one for a laptop whose power key sits next to the keyboard: one
+  # press should ask, and a deliberate hold still forces it.
+  services.logind.settings.Login = {
+    HandlePowerKey = "ignore";
+    HandlePowerKeyLongPress = "poweroff";
+  };
+
   # Compressed swap in RAM. The disk swap partition still exists for suspend,
   # but this keeps the common case off the slow device when memory fills.
   zramSwap.enable = true;

@@ -759,6 +759,11 @@ in
     -- belong on one key, and the two that lose something ask first.
     bind(mod .. " + M", "Session menu", "quickshell ipc call panel toggle session")
 
+    -- The power button means the same thing now: logind is told to ignore it
+    -- (modules/system/power.nix), and this is what it opens instead. A long press
+    -- still powers off, which is the fallback a stuck session needs.
+    bind("XF86PowerOff", "Session menu", "quickshell ipc call panel toggle session")
+
     -- Super+Shift+M was a second way out through hyprshutdown, which is not
     -- installed: it silently fell back to killing the compositor. One path, and
     -- it is the menu.
