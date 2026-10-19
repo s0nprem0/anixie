@@ -27,6 +27,9 @@ OpticalGlyph 1.0 OpticalGlyph.qml
 Panel 1.0 Panel.qml
 PanelRow 1.0 PanelRow.qml
 Slider 1.0 Slider.qml
+SliderField 1.0 SliderField.qml
+ChoiceRow 1.0 ChoiceRow.qml
+SegmentedControl 1.0 SegmentedControl.qml
 ScrollBar 1.0 ScrollBar.qml
 PanelSectionHeader 1.0 PanelSectionHeader.qml
 PanelSeparator 1.0 PanelSeparator.qml

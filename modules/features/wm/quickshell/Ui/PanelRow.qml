@@ -31,11 +31,16 @@ Item {
     id: labelText
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
+    // Everything up to the value, less the gap between them. Without a bound the
+    // label runs under the value and on out of the card, which is what a long
+    // application name or a long state did to the power panel's own rows.
+    width: Math.max(0, valueText.x - Style.space(8))
     text: root.label
     color: Theme.fg
     font.family: Style.font.family
     font.pixelSize: Style.font.body
     renderType: Text.NativeRendering
+    elide: Text.ElideRight
   }
 
   Text {

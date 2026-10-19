@@ -30,13 +30,22 @@ Item {
   readonly property bool interactive: root.available && !root.busy
 
   implicitWidth: labelText.implicitWidth + Style.space(12) + switchItem.implicitWidth
-  implicitHeight: Math.max(switchItem.implicitHeight, textColumn.implicitHeight)
+  // `textColumn.height`, not its implicit height: the column states its own
+  // height from the texts inside it, and an Item's implicit size is 0 unless it
+  // says otherwise. Measuring the wrong one left a row with a description under
+  // it exactly as tall as the switch, so the description was drawn outside the
+  // row and ran into whatever came next in the panel.
+  implicitHeight: Math.max(switchItem.implicitHeight, textColumn.height)
   height: implicitHeight
 
   ToggleSwitch {
     id: switchItem
     anchors.right: parent.right
+    // On the row's top edge, level with the label's line: the row is as tall as
+    // the switch for a label alone, and one line taller for a label with a
+    // description under it.
     anchors.top: parent.top
+    opacity: root.available ? 1 : 0.45
     checked: root.checked
     busy: root.busy
     accent: root.accent

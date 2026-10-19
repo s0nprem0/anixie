@@ -21,8 +21,8 @@ Item {
   signal activated(int index)
 
   readonly property var currentEntry: {
-    if (root.model.length === 0) return null
-    const entry = root.model[Math.max(0, Math.min(root.model.length - 1, root.currentIndex))]
+    if (root.model.length === 0 || root.currentIndex < 0) return null
+    const entry = root.model[Math.min(root.currentIndex, root.model.length - 1)]
     return typeof entry === "string" ? { label: entry, value: entry } : entry
   }
 
