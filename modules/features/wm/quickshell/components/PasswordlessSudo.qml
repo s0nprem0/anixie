@@ -5,12 +5,12 @@ import Quickshell.Io
 
 // The key, lit while sudo takes no password.
 //
-// On this machine it always is: `wheelNeedsPassword = false` puts NOPASSWD on the
-// wheel group, and `son` is in wheel. So this is not a warning about something
-// that went wrong — it is the standing statement that anyone who can reach this
-// session already has root, which is the thing to remember when a laptop travels
-// somewhere else. The reference shell shows the same thing for the same reason,
-// and hides it when it is off.
+// It is a warning about a machine, not a switch: where NOPASSWD is on, anyone
+// who can reach the session already has root, and that is the thing to remember
+// when a laptop travels somewhere else. On this machine it is off — sudo asks,
+// see modules/system/users.nix — so the key is not on the bar at all; it is
+// here for the machine where it is the other way round, and hides itself the
+// moment sudo asks for a password again.
 //
 // A click opens visudo rather than toggling anything. Changing sudo is an edit of
 // a root file and a deliberate act, not a state to flip from a panel: sudoers has

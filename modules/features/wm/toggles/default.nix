@@ -16,10 +16,11 @@ let
       (builtins.readFile ./toggle.sh)
   );
 
-  # Whether sudo asks for a password, which it does not on this machine: the
-  # wheel group carries NOPASSWD, and `son` is in wheel. Asked of sudo itself
-  # rather than read out of /etc/sudoers, which is root-only and unreadable by the
-  # user the indicator is trying to tell.
+  # Whether sudo asks for a password, so the bar can say when it does not. On
+  # this machine it does, since users.nix sets wheelNeedsPassword — but the
+  # reading is asked of sudo itself rather than assumed from the setting, because
+  # a rule can arrive from a group, a drop-in or another module, and the answer
+  # wanted is the one sudo will actually give.
   passwordlessSudo = pkgs.writeShellScriptBin "passwordless-sudo" (
     builtins.replaceStrings
       [ "@SUDO@" "@TERMINAL@" ]
