@@ -291,6 +291,12 @@ ShellRoot {
     function reset(): void { BarConfig.reset() }
     function background(mode: string): void { BarConfig.setBackground(mode) }
 
+    // Taking a widget off the bar and putting it back. The place it came from is
+    // remembered, so `enable` restores rather than appends; a widget that was
+    // never on the bar goes where modules.json says.
+    function enable(id: string): void { BarConfig.enable(id) }
+    function disable(id: string): void { BarConfig.disable(id) }
+
     // The tray drawer, for a script or a key: what a click on the parked count
     // opens.
     function tray(): void {

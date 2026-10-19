@@ -1,0 +1,10 @@
+{
+  "bar.active-window": "left",
+  "bar.media": "centerEnd",
+  "bar.microphone": "right",
+  "bar.weather": "centerEnd",
+  "bar.world-clock": "center",
+  "bar.update": "centerEnd",
+  "bar.keyboard-layout": "right",
+  "bar.agents": "right"
+}

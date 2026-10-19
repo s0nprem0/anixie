@@ -139,6 +139,105 @@ QtObject {
     root.save(next)
   }
 
+  // ---- the manifest ----
+  //
+  // Where a widget goes when it is enabled and has never been on the bar. The
+  // shipped layout decides the rest; this is only the answer to "put it back"
+  // for the widgets the default no longer shows. Kept as data so adding one is a
+  // line here rather than another branch in the bar.
+  readonly property var defaults: {
+    let raw = ""
+    try {
+      raw = root.modulesFile.text()
+    } catch (e) {
+      return ({})
+    }
+
+    try {
+      const parsed = JSON.parse(raw)
+      return parsed && typeof parsed === "object" ? parsed : ({})
+    } catch (e) {
+      return ({})
+    }
+  }
+
+  function isEnabled(id) {
+    for (const name in root.layout) {
+      const list = root.layout[name]
+      for (let i = 0; i < list.length; i++) {
+        if (list[i] && list[i].id === id) return true
+      }
+    }
+    return false
+  }
+
+  // Off the bar, remembered with the place it came from so enabling it puts it
+  // back there rather than at the end of a section.
+  function disable(id) {
+    if (!id || !root.isEnabled(id)) return
+
+    const next = JSON.parse(JSON.stringify(root.config))
+    next.layout = next.layout || {}
+
+    let entry = null
+    let from = ""
+    let at = -1
+
+    for (const name in next.layout) {
+      const list = next.layout[name]
+      for (let i = 0; i < list.length; i++) {
+        if (list[i] && list[i].id === id) {
+          entry = list[i]
+          from = name
+          at = i
+          list.splice(i, 1)
+          break
+        }
+      }
+      if (entry) break
+    }
+
+    if (!entry) return
+    next.disabled = next.disabled || []
+    next.disabled.push({ section: from, index: at, entry: entry })
+    root.save(next)
+  }
+
+  // Back on the bar: where it was if it was put away, otherwise where the
+  // manifest says.
+  function enable(id) {
+    if (!id || root.isEnabled(id)) return
+
+    const next = JSON.parse(JSON.stringify(root.config))
+    next.layout = next.layout || {}
+
+    const parked = next.disabled || []
+    let found = -1
+    for (let i = 0; i < parked.length; i++) {
+      if (parked[i] && parked[i].entry && parked[i].entry.id === id) {
+        found = i
+        break
+      }
+    }
+
+    if (found >= 0) {
+      const slot = parked[found]
+      parked.splice(found, 1)
+      next.disabled = parked
+
+      const section = slot.section || "right"
+      next.layout[section] = next.layout[section] || []
+      const list = next.layout[section]
+      list.splice(Math.max(0, Math.min(slot.index, list.length)), 0, slot.entry)
+    } else {
+      const section = root.defaults[id] || "right"
+      next.layout[section] = next.layout[section] || []
+      next.layout[section].push({ id: id })
+    }
+
+    root.save(next)
+  }
+
   function setBackground(mode) {
     if (!mode) return
     const next = JSON.parse(JSON.stringify(root.config))
@@ -188,6 +287,12 @@ QtObject {
 
   // A FileView held as a property rather than a child: a QtObject has no
   // default property, so a bare child declaration would never attach.
+  property FileView modulesFile: FileView {
+    path: Qt.resolvedUrl("modules.json")
+    printErrors: false
+    blockLoading: true
+  }
+
   property FileView builtinFile: FileView {
     path: Qt.resolvedUrl("bar.json")
     printErrors: false
