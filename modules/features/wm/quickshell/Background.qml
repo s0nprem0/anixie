@@ -9,9 +9,9 @@ import "Ui"
 //   glassy - translucent fill, tinted
 //   opaque - solid fill across the whole bar
 //
-// The choice lives in bar.json as "background". Double-clicking overrides it
-// for the rest of the session; it is not written back, because QML has no
-// write path for its own config.
+// The choice lives in bar.json as "background". Double-clicking cycles it and
+// writes the result to the saved layout, so it survives a restart — the bar owns
+// a writable copy of its own config now (see BarConfig).
 Item {
   id: root
   anchors.fill: parent
@@ -24,12 +24,15 @@ Item {
 
   readonly property var modes: ["clear", "glassy", "opaque"]
 
-  property string mode: BarConfig.config.background
-                        ? String(BarConfig.config.background)
-                        : "clear"
+  readonly property string mode: BarConfig.config.background
+                                 ? String(BarConfig.config.background)
+                                 : "clear"
 
+  // Written rather than assigned: `mode` reads the config, and assigning it here
+  // would break that binding and leave the bar drawing a look the config does not
+  // have.
   function cycle() {
-    root.mode = root.modes[(root.modes.indexOf(root.mode) + 1) % root.modes.length]
+    BarConfig.setBackground(root.modes[(root.modes.indexOf(root.mode) + 1) % root.modes.length])
   }
 
   Rectangle {

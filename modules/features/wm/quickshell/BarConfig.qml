@@ -139,6 +139,13 @@ QtObject {
     root.save(next)
   }
 
+  function setBackground(mode) {
+    if (!mode) return
+    const next = JSON.parse(JSON.stringify(root.config))
+    next.background = String(mode)
+    root.save(next)
+  }
+
   function save(next) {
     // The in-memory layout moves immediately, before the file is written. The
     // write goes through a process and a file adapter, and a second move in that

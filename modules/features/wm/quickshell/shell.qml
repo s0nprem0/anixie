@@ -289,6 +289,7 @@ ShellRoot {
       BarConfig.move(id, section, Number(index))
     }
     function reset(): void { BarConfig.reset() }
+    function background(mode: string): void { BarConfig.setBackground(mode) }
 
     // The tray drawer, for a script or a key: what a click on the parked count
     // opens.

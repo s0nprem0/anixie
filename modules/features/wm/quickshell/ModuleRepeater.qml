@@ -74,8 +74,23 @@ Repeater {
     // held the module dims (it is the thing being carried, and the bar is not
     // previewing the move), and on release the drop point decides the section
     // and the place in it.
-    opacity: drag.active ? 0.4 : 1
-    Behavior on opacity { NumberAnimation { duration: Style.duration(120) } }
+    // Lifted, not dimmed: a ghost would mean a second copy of a widget that may
+    // own a Process, so the tile it is drawn on lifts instead — slightly larger,
+    // with the surface behind it and an accent edge.
+    scale: drag.active ? 1.08 : 1
+    z: drag.active ? 10 : 0
+    Behavior on scale { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
+
+    Rectangle {
+      visible: drag.active
+      z: -1
+      anchors.fill: parent
+      anchors.margins: -Style.space(4)
+      radius: Theme.cornerRadius
+      color: Theme.surface
+      border.color: Theme.primary
+      border.width: 1
+    }
 
     // The preview is updated while the pointer moves rather than on every
     // pointer event: a light timer is enough to make the line follow, and it
