@@ -33,3 +33,11 @@ PanelSeparator 1.0 PanelSeparator.qml
 ToggleSwitch 1.0 ToggleSwitch.qml
 singleton IndicatorHost 1.0 IndicatorHost.qml
 PowerAlert 1.0 PowerAlert.qml
+SizedImage 1.0 SizedImage.qml
+Toggle 1.0 Toggle.qml
+PanelHero 1.0 PanelHero.qml
+PanelActionButton 1.0 PanelActionButton.qml
+TextField 1.0 TextField.qml
+NumberField 1.0 NumberField.qml
+Dropdown 1.0 Dropdown.qml
+ConfirmDialog 1.0 ConfirmDialog.qml
