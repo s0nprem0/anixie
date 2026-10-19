@@ -493,6 +493,15 @@ Item {
   // Tall enough to say something in when there is nothing to list.
   readonly property int emptyListHeight: Style.space(32)
 
+  // A row and the gap after it. The list's height is built from these rather than
+  // from the cap, so it ends on a whole row: a 220px cap used to cut the eighth
+  // network in half, which reads as a rendering fault rather than as "there is
+  // more below".
+  readonly property int rowHeight: Style.space(26)
+  readonly property int rowGap: Style.space(2)
+  readonly property int rowStep: root.rowHeight + root.rowGap
+  readonly property int visibleRows: Math.max(1, Math.floor((root.maxListHeight + root.rowGap) / root.rowStep))
+
   implicitWidth: Style.space(320)
   implicitHeight: card.implicitHeight
 
@@ -624,18 +633,22 @@ Item {
     ListView {
       id: list
       width: card.contentWidth
-      // Tall enough to hold a row when there is one, capped so a crowded street
-      // cannot push the rest of the panel off the screen — and never zero, or the
-      // reason there is nothing to list has nowhere to be said.
+      // Whole rows only: `visibleRows` rows and the gaps between them, capped.
       height: Math.max(
-        count > 0 ? Math.min(contentHeight, root.maxListHeight) : 0,
+        count > 0 ? Math.min(count, root.visibleRows) * root.rowStep - root.rowGap : 0,
         root.emptyMessage !== "" ? root.emptyListHeight : 0)
       clip: true
       model: root.networks
-      spacing: Style.space(2)
+      spacing: root.rowGap
+      rightMargin: Style.space(8)
       boundsBehavior: Flickable.StopAtBounds
 
-      ScrollBar.vertical: ScrollBar {}
+      // Visible while it can scroll, rather than only while it is being used:
+      // eight networks behind a list that looks like it ends is a list you do not
+      // know to scroll.
+      ScrollBar.vertical: ScrollBar {
+        policy: list.contentHeight > list.height + 1 ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
+      }
 
       delegate: ChoiceRow {
         id: rowItem
@@ -643,8 +656,8 @@ Item {
 
         readonly property bool inFlight: root.actionSsid === rowItem.modelData.ssid && root.busy
 
-        width: list.width
-        height: Style.space(26)
+        width: list.width - list.rightMargin
+        height: root.rowHeight
         available: root.radioEnabled && !root.busy
 
         // Only for networks that need a key. An open network gets no glyph rather
