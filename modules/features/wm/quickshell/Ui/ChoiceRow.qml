@@ -70,19 +70,25 @@ property bool selected: false
     radius: Theme.cornerRadius
     // Selected before hover, as elsewhere: pointing at the row you are already
     // on should not repaint it as though it were somewhere else.
+    // The alphas are the point. 0.08 of the foreground is invisible on a dark
+    // surface, and selected-versus-hovered was 0.18 against 0.22 — a step nobody
+    // can see, animated or not. These are spaced far enough to read: a row under
+    // the pointer is clearly lighter, and a selected row under it is lighter
+    // again without losing its selection.
     color: root.selected
-      // Selected rows hover too. The selection fill used to win outright, so the
-      // one row the pointer is most likely to cross — the network you are on —
-      // was the only one that never answered it.
       ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b,
           mouse.containsMouse && root.available
-            ? Style.control.pressedFillAlpha
+            ? Style.control.selectedFillAlpha + 0.12
             : Style.control.selectedFillAlpha)
       : (mouse.containsMouse && root.available
-        ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha)
+        ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha + 0.05)
         : "transparent")
 
-    Behavior on color { NumberAnimation { duration: Style.duration(120) } }
+    // Short but eased, so the fill arrives rather than snaps. Reduce-motion
+    // collapses it to zero like every other duration in the shell.
+    Behavior on color {
+      ColorAnimation { duration: Style.duration(140); easing.type: Easing.OutCubic }
+    }
   }
 
   Item {
