@@ -58,7 +58,7 @@ BarWidget {
     active: root.charging
     foreground: root.level >= 0 && root.level <= 15 && !root.charging ? Theme.danger : Theme.fg
     tooltipText: (root.present ? "Battery " + root.level + "%" : "Battery")
-      + " · click for power panel · right-click for the percentage"
+      + " · Super+Ctrl+P · right-click for the percentage"
 
     // The percentage is a toggle rather than permanent chrome: it costs a slot
     // on a 26px bar, and the panel carries the number when it is wanted.

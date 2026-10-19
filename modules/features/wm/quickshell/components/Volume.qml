@@ -58,7 +58,7 @@ BarWidget {
     labelText: ""
     tooltipText: (root.sink ? root.sink.name : "No output")
       + (root.muted ? " · muted" : " · " + root.percent + "%")
-      + " · click for mixer · right-click to mute · scroll to change"
+      + " · Super+Ctrl+A · right-click to mute · scroll to change"
 
     // Declared as an id rather than built inline: `Component { ... }` is an
     // object declaration, so it cannot be passed as a call argument.

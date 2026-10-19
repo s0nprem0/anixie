@@ -91,7 +91,7 @@ BarWidget {
     text: Util.sun
     // Icon only; the level is in the tooltip and the OSD shows it while it changes.
     labelText: ""
-    tooltipText: "Brightness " + root.percent + "% · scroll to change"
+    tooltipText: "Brightness " + root.percent + "% · Super+Ctrl+D · scroll to change"
 
     onPressed: function (button) {
       if (button === Qt.LeftButton || button === Qt.MiddleButton) {

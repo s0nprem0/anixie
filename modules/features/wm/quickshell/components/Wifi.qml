@@ -70,10 +70,10 @@ BarWidget {
 
     foreground: root.failed ? Theme.danger : Theme.fg
     tooltipText: root.failed
-      ? "Wi-Fi unavailable"
+      ? "Wi-Fi unavailable · Super+Ctrl+W"
       : (root.resolved
-        ? root.ssid + " · " + root.signal + "% · click for networks"
-        : "Wi-Fi off")
+        ? root.ssid + " · " + root.signal + "% · Super+Ctrl+W"
+        : "Wi-Fi off · Super+Ctrl+W")
 
     onPressed: function (button) {
       if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelRegistry.toggle("network")

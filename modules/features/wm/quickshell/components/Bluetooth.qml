@@ -54,10 +54,10 @@ function detail(device) {
     active: root.powered && root.connectedCount > 0
     dimmed: !root.powered
     tooltipText: !root.powered
-      ? "Bluetooth off · right-click to turn on"
+      ? "Bluetooth off · Super+Ctrl+B · right-click to turn on"
       : (root.connectedCount > 0
-        ? root.connectedCount + " connected · left-click for devices"
-        : "Bluetooth on · left-click for devices")
+        ? root.connectedCount + " connected · Super+Ctrl+B"
+        : "Bluetooth on · Super+Ctrl+B")
 
     onPressed: function (button) {
       if (button === Qt.LeftButton) PanelRegistry.toggle("bluetooth")

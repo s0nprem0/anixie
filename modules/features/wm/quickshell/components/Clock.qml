@@ -80,7 +80,7 @@ BarWidget {
     centerFigures: false
     active: true
     useActiveColor: false
-    tooltipText: "Calendar · right-click to change the format"
+    tooltipText: "Calendar · Super+Ctrl+Alt+D · right-click to change the format"
 
     onPressed: function (button) {
       if (button === Qt.LeftButton) PanelRegistry.toggle("calendar")
