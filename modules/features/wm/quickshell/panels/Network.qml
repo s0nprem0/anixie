@@ -60,6 +60,81 @@ Item {
   // of it is concerned — so the QR toggle was offered for a network the panel
   // had just said was unavailable, and the hero's subtitle was empty rather than
   // naming the state.
+  // ---- DNS ----
+  //
+  // Per connection, not global: nmcli keeps it on the connection profile, which
+  // is why it follows the network rather than the machine. An empty list means
+  // "whatever the router hands out", and that is a choice worth offering by name
+  // — the alternative is a panel that can only ever add a resolver, never go
+  // back to the one DHCP gave you.
+  readonly property var dnsProviders: [
+    { label: "Automatic", value: "" },
+    { label: "Cloudflare", value: "1.1.1.1 1.0.0.1" },
+    { label: "Quad9", value: "9.9.9.9 149.112.112.112" },
+    { label: "Google", value: "8.8.8.8 8.8.4.4" }
+  ]
+
+  property string dns: ""
+  property bool dnsBusy: false
+
+  // Addresses as a set, so "1.1.1.1 1.0.0.1" and "1.0.0.1,1.1.1.1" are the same
+  // answer rather than two different ones.
+  function dnsKey(value) {
+    return String(value || "")
+      .split(/[,\s]+/)
+      .filter(function (part) { return part !== "" })
+      .sort()
+      .join(" ")
+  }
+
+  function dnsIndex() {
+    const current = root.dnsKey(root.dns)
+    for (let i = 0; i < root.dnsProviders.length; i++) {
+      if (root.dnsKey(root.dnsProviders[i].value) === current) return i
+    }
+    return -1
+  }
+
+  function refreshDns() {
+    if (!root.connected) {
+      root.dns = ""
+      return
+    }
+
+    dnsGet.command = ["sh", "-c",
+      'nmcli -g ipv4.dns con show "$1" 2>/dev/null || true', "_", root.activeSsid]
+    dnsGet.running = false
+    dnsGet.running = true
+  }
+
+  function setDns(value) {
+    root.dnsBusy = true
+    dnsSet.command = ["sh", "-c",
+      'nmcli con mod "$1" ipv4.dns "$2" ipv4.ignore-auto-dns "$3" >/dev/null && nmcli con up "$1" >/dev/null',
+      "_", root.activeSsid, value, value === "" ? "no" : "yes"]
+    dnsSet.running = true
+  }
+
+  Process {
+    id: dnsGet
+    running: false
+    stdout: StdioCollector {
+      onStreamFinished: root.dns = String(this.text).trim().split("\n")[0].trim()
+    }
+  }
+
+  Process {
+    id: dnsSet
+    running: false
+    onExited: function () {
+      root.dnsBusy = false
+      root.refreshDns()
+      root.refresh()
+    }
+  }
+
+  onActiveSsidChanged: root.refreshDns()
+
   readonly property bool connected: root.activeSsid !== ""
 
   // What the empty list means, said in the list rather than in a line below it.
@@ -472,6 +547,25 @@ Item {
       navigational: false
       available: !root.busy
       onClicked: root.disconnect(root.activeSsid)
+    }
+
+    PanelRow {
+      id: dnsRow
+      width: card.contentWidth
+      visible: root.connected
+      hasControl: true
+      label: "DNS"
+
+      Dropdown {
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        width: dnsRow.controlWidth
+        model: root.dnsProviders
+        placeholder: "custom"
+        enabled: !root.dnsBusy
+        currentIndex: root.dnsIndex()
+        onActivated: function (index) { root.setDns(root.dnsProviders[index].value) }
+      }
     }
 
     // A failure with no way out of it is a dead end. nmcli exits non-zero for a

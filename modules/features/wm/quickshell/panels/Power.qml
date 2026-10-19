@@ -209,6 +209,31 @@ Item {
     blockLoading: true
   }
 
+  // ---- the system ----
+  //
+  // What the panel is running on. Omarchy prints this too, and it earns its place
+  // here: the panel is already where you look when the machine feels slow, and
+  // "which kernel is this, how much memory is there" is the first question.
+  property string kernel: ""
+  property string cpu: ""
+  property string memory: ""
+
+  Process {
+    id: sysinfo
+    command: ["sh", "-c",
+      "uname -r; awk -F': ' '/model name/{print $2; exit}' /proc/cpuinfo; "
+      + "awk '/MemTotal/{t=$2} /MemAvailable/{a=$2} END{printf \"%.1f / %.1f GB\", (t-a)/1048576, t/1048576}' /proc/meminfo"]
+    running: true
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const lines = String(this.text).trim().split("\n")
+        root.kernel = lines[0] || ""
+        root.cpu = lines[1] || ""
+        root.memory = lines[2] || ""
+      }
+    }
+  }
+
   implicitWidth: Style.space(320)
   implicitHeight: card.implicitHeight
 
@@ -339,6 +364,31 @@ Item {
       visible: root.present && root.cycles >= 0
       label: "Charge cycles"
       value: root.cycles >= 0 ? String(root.cycles) : "—"
+    }
+
+    PanelSeparator {}
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      label: "System"
+    }
+
+    PanelRow {
+      width: card.contentWidth
+      label: "Kernel"
+      value: root.kernel
+    }
+
+    PanelRow {
+      width: card.contentWidth
+      label: "Processor"
+      value: root.cpu
+    }
+
+    PanelRow {
+      width: card.contentWidth
+      label: "Memory"
+      value: root.memory
     }
   }
 }

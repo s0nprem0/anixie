@@ -15,5 +15,6 @@
     ./quickshell
     ./reminder
     ./toggles
+    ./webapps
   ];
 }

@@ -41,6 +41,7 @@ Groups:
   snapshot     btrfs snapshots of /home: create, list, restore, prune
   update       rebuild and switch the system
   bar          the status bar: toggle, on, off
+  webapp       websites as applications: add, list, remove
 EOF
 }
 
@@ -89,6 +90,10 @@ case "${1:-}" in
   menu)
     shift
     exec menu "$@"
+    ;;
+  webapp)
+    shift
+    exec webapp "$@"
     ;;
   pick)
     shift
