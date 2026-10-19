@@ -66,6 +66,35 @@ WidgetButton {
     ? slotSize
     : content.width + scaledHorizontalMargin * 2
 
+  Component.onCompleted: restartMarquee()
+
+  // The marquee restarts from the top whenever the label changes, so a new
+  // track opens at its own beginning rather than wherever the last one was
+  // caught mid-slide — "now playing" is the one label here whose text turns
+  // over underneath the animation. It restarts on the other changes too — the
+  // widget pausing, reduced motion, a title that now fits — so the label is
+  // never left stranded off the edge.
+  //
+  // `running` is driven from here rather than bound: a bound `running` cannot be
+  // restarted with `restart()` without that call breaking the binding, and the
+  // sequence has to be re-entered from its first step for the reset to happen.
+  function restartMarquee() {
+    scrollAnim.stop()
+    label.scrollX = 0
+    if (label.scrolling && !marqueePaused) scrollAnim.restart()
+  }
+
+  Connections {
+    target: label
+    function onTextChanged() { root.restartMarquee() }
+    function onScrollingChanged() { root.restartMarquee() }
+  }
+
+  Connections {
+    target: root
+    function onMarqueePausedChanged() { root.restartMarquee() }
+  }
+
   Item {
     id: content
     // Exact coordinates rather than anchors, to preserve the centre of
@@ -139,7 +168,7 @@ WidgetButton {
       SequentialAnimation {
         id: scrollAnim
 
-        running: label.scrolling && !root.marqueePaused
+        // Started by `restartMarquee`, not bound — see the comment there.
         loops: Animation.Infinite
 
         PropertyAction { target: label; property: "scrollX"; value: 0 }
