@@ -6,7 +6,7 @@
     ./documents
     ./files
     ./media
-    ./photocraft
+    ./craftapps
     ./printer
   ];
 }

@@ -1,12 +1,25 @@
 { ... }:
 
 {
-  # PhotoCraft is an open-source, clean-room Photoshop reimplementation. It
-  # comes from the nix-craftapps flake (see flake.nix), which ships upstream's
-  # prebuilt binaries rather than building the Rust workspace from source.
+  # The Craft apps — clean-room takes on the creative suite — from the
+  # nix-craftapps flake (see flake.nix), which ships upstream's prebuilt binaries
+  # rather than building the Rust workspace from source. Enabled here, in a Home
+  # Manager module, so they land in the user profile: the NixOS side of the same
+  # module exists only to link /usr/share/fonts, and installs nothing.
+  #
+  # All five share the toolkit, so all five have the same Wayland limitation as
+  # PhotoCraft: native file drag-and-drop. Only PhotoCraft's desktop entry carries
+  # the XWayland workaround below — add the same for another if dropping files on
+  # it matters.
   programs.craftapps = {
     enable = true;
-    apps.photocraft.enable = true;
+    apps = {
+      photocraft.enable = true;
+      vectorcraft.enable = true;
+      effectcraft.enable = true;
+      filmcraft.enable = true;
+      soundcraft.enable = true;
+    };
   };
 
   # Native file drag-and-drop does not exist on Wayland yet — a window cannot
