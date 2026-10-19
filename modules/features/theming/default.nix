@@ -12,6 +12,7 @@ let
     builtins.replaceStrings
       [
         "@STATE_DIR@"
+        "@DATA_DIR@"
         "@PALETTES@"
         "@DEFAULT_THEME@"
         "@JQ@"
@@ -23,6 +24,7 @@ let
       ]
       [
         stateDir
+        "${config.xdg.dataHome}/anixie"
         "${./themes.json}"
         config.my.theme.theme
         "${pkgs.jq}/bin/jq"
