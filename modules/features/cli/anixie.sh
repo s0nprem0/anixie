@@ -107,8 +107,11 @@ case "${1:-}" in
     exec snapshot "$@"
     ;;
   update)
+    # `-e auto` is nh finding sudo by itself and elevating only the activation,
+    # which writes /nix/var/nix/profiles/system as root. Without it this fails
+    # with a permission error on the profile symlink.
     shift
-    exec nh os switch "$@"
+    exec nh -e auto os switch "$@"
     ;;
   bar)
     shift
