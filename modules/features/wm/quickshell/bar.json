@@ -9,7 +9,7 @@
       { "id": "bar.active-window", "maxWidth": 220 }
     ],
     "centerBegin": [
-      { "id": "weather", "type": "command", "exec": "sh $HOME/.config/quickshell/scripts/weather.sh", "interval": 1800, "tooltip": "Weather" }
+      { "id": "weather", "interval": 1800 }
     ],
     "center": [
       { "id": "bar.clock" }
