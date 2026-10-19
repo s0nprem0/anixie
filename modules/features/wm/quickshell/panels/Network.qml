@@ -266,7 +266,12 @@ Item {
         if (root.qrVisible && root.activeSsid !== wasSsid) root.setQr(false)
         root.scanning = false
 
-        if (found.length > 0) {
+        // Success is the exit code, not the number of networks. This used to
+        // clear the failure only when it found something, so the first query of
+        // a session — nmcli before NetworkManager is up — left "Unavailable" on
+        // the panel for the rest of the session, however healthy the network was
+        // afterwards and however empty the room.
+        if (found.length > 0 || !root.scanning) {
           root.failed = false
           root.failure = ""
         }
@@ -286,15 +291,37 @@ Item {
     }
 
     onExited: function (exitCode) {
-      if (exitCode !== 0) {
-        root.failed = true
-        if (root.failure === "") root.failure = "nmcli exited with " + exitCode
+      // A successful read is a successful read whether or not it found anything.
+      if (exitCode === 0) {
+        root.failed = false
+        root.failure = ""
+        return
+      }
 
-        // Nothing that was read before the failure can still be true. Saying
-        // "Unavailable" while a connection, a password and a QR code for it are
-        // all still on screen is worse than saying nothing at all.
-        root.activeSsid = ""
-        if (root.qrVisible) root.setQr(false)
+      // The radio being off is not a failure: nmcli says so by exiting non-zero,
+      // and the list already says "Wireless is off". Painting the panel red for
+      // it made a switch look like a fault.
+      if (!root.radioEnabled) {
+        root.failed = false
+        root.failure = ""
+        return
+      }
+
+      root.failed = true
+      if (root.failure === "") root.failure = "nmcli exited with " + exitCode
+
+      // Nothing that was read before the failure can still be true. Saying
+      // "Unavailable" while a connection, a password and a QR code for it are
+      // all still on screen is worse than saying nothing at all.
+      root.activeSsid = ""
+      if (root.qrVisible) root.setQr(false)
+
+      // NetworkManager is still coming up on the first open of a session, and a
+      // failure that fixes itself in a second should not sit there for ten. The
+      // same budget as an empty list: three quick retries, then the slow poll.
+      if (root.emptyRetries < 3) {
+        root.emptyRetries += 1
+        emptyRetry.restart()
       }
     }
   }
