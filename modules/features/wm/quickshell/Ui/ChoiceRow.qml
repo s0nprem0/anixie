@@ -81,8 +81,9 @@ property bool selected: false
 
   Item {
     id: textColumn
+    // Flush with the panel's own rows and section headers. The 8px inset made
+    // every list sit a little to the right of the heading that named it.
     anchors.left: parent.left
-    anchors.leftMargin: Style.space(8)
     anchors.right: trailingRow.left
     anchors.rightMargin: Style.space(8)
     anchors.verticalCenter: parent.verticalCenter
@@ -107,7 +108,7 @@ property bool selected: false
     Text {
       id: glyphText
       anchors.right: parent.right
-      anchors.top: parent.top
+      anchors.verticalCenter: labelText.verticalCenter
       visible: root.hasGlyph
       text: root.glyph
       color: root.glyphColor
@@ -133,7 +134,6 @@ property bool selected: false
   Row {
     id: trailingRow
     anchors.right: parent.right
-    anchors.rightMargin: Style.space(8)
     anchors.verticalCenter: parent.verticalCenter
     height: implicitHeight
     opacity: root.available ? 1 : 0.45
