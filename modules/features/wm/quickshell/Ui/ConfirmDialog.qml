@@ -64,6 +64,13 @@ Item {
       root.close()
     }
 
+    // The shell is keyboard-first everywhere else; a dialog that needs a pointer
+    // is the one place that would break the habit.
+    Keys.onReturnPressed: {
+      root.confirmed()
+      root.close()
+    }
+
     Column {
       id: cardColumn
       anchors.centerIn: parent
@@ -98,7 +105,7 @@ Item {
         ConfirmButton {
           id: confirmButton
           anchors.right: parent.right
-          width: confirmButton.label.implicitWidth + Style.space(24)
+          width: confirmButton.implicitWidth
           height: parent.height
           label: root.confirmText
           danger: root.danger
@@ -109,23 +116,15 @@ Item {
         }
 
         ConfirmButton {
+          id: cancelButton
           anchors.right: confirmButton.left
           anchors.rightMargin: Style.space(8)
-          width: cancelButton.label.implicitWidth + Style.space(24)
+          width: implicitWidth
           height: parent.height
+          label: root.cancelText
           onClicked: {
             root.cancelled()
             root.close()
-          }
-
-          Text {
-            id: cancelButton
-            anchors.centerIn: parent
-            text: root.cancelText
-            color: Theme.fg
-            font.family: Style.font.family
-            font.pixelSize: Style.font.body
-            renderType: Text.NativeRendering
           }
         }
       }
@@ -134,8 +133,14 @@ Item {
 
   component ConfirmButton: Item {
     id: button
-    property alias label: buttonLabel
+    // A plain property, not an alias: the alias pointed at the Text and was
+    // read-only, so every caller's `label:` failed the moment this file was used.
+    property string label: ""
     property bool danger: false
+
+    // Sized by its own label, so a caller does not have to reach into the Text.
+    implicitWidth: labelText.implicitWidth + Style.space(24)
+    implicitHeight: Style.space(28)
 
     signal clicked()
 
@@ -149,8 +154,9 @@ Item {
     }
 
     Text {
-      id: buttonLabel
+      id: labelText
       anchors.centerIn: parent
+      text: button.label
       color: button.danger ? Theme.danger : Theme.fg
       font.family: Style.font.family
       font.pixelSize: Style.font.body

@@ -755,10 +755,13 @@ in
     -- SHIFT + M is the graceful logout: it prefers a shutdown helper when one
     -- exists and falls back to a plain compositor exit.
     -- ------------------------------------------------------------------
-    dispatch(mod .. " + M", "Log out", "exit")
+    -- The session menu rather than a bare exit: locking, sleeping and leaving
+    -- belong on one key, and the two that lose something ask first.
+    bind(mod .. " + M", "Session menu", "quickshell ipc call panel toggle session")
 
-    bind(mod .. " + SHIFT + M", "Log out gracefully",
-      "command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'")
+    -- Super+Shift+M was a second way out through hyprshutdown, which is not
+    -- installed: it silently fell back to killing the compositor. One path, and
+    -- it is the menu.
 
     -- Lock is SUPER+CTRL+L. It used to share SUPER+SHIFT+A with the annotation
     -- bind, which is one key with two meanings and whichever fired last.

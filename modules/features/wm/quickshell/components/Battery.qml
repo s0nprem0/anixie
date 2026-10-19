@@ -12,7 +12,10 @@ BarWidget {
   id: root
 
   // Reachable by hotkey as well as by click.
-  Component.onCompleted: PanelRegistry.register("power", readout, powerPanel)
+  Component.onCompleted: {
+    PanelRegistry.register("power", readout, powerPanel)
+    PanelRegistry.register("session", readout, sessionPanel)
+  }
 
   readonly property var device: UPower.displayDevice
   readonly property bool present: root.device !== null && root.device.ready && root.device.isPresent
@@ -45,6 +48,11 @@ BarWidget {
 
   // Declared as an id rather than built inline: `Component { ... }` is an
   // object declaration, so it cannot be passed as a call argument.
+  Component {
+    id: sessionPanel
+    Session {}
+  }
+
   Component {
     id: powerPanel
     Power {}
