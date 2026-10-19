@@ -215,7 +215,22 @@ Item {
   Panel {
     id: card
     anchors.fill: parent
-    title: "Power"
+
+    // ---- the hero ----
+    //
+    // What this laptop is doing, stated before anything is set: charging, on
+    // mains, running down. A panel about power that opens with a list of things
+    // you can change, and no sentence saying where you currently are, makes you
+    // read the whole thing to find the number you came for.
+    PanelHero {
+      width: card.contentWidth
+      glyph: root.charging ? Util.charging
+        : (root.present ? Util.batteryFull : Util.bolt)
+      title: "Power"
+      subtitle: root.present ? root.stateLabel : ""
+    }
+
+    PanelSeparator {}
 
     // ---- profile ----
     // The profile query starts itself: `profileGet` is declared with
@@ -241,67 +256,28 @@ Item {
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       wrapMode: Text.WordWrap
+      renderType: Text.NativeRendering
     }
 
-    Row {
+    SegmentedControl {
       width: card.contentWidth
-      spacing: Style.space(6)
-
-      Repeater {
-        model: root.profiles
-
-        delegate: Rectangle {
-          id: chip
-          required property var modelData
-
-          readonly property bool selected: root.profile === modelData
-
-          width: profileLabel.implicitWidth + Style.space(16)
-          height: Style.space(24)
-          radius: height / 2
-          color: selected ? Theme.primary : Theme.bg
-          border.color: selected ? Theme.primary : Theme.muted
-          border.width: 1
-
-          Text {
-            id: profileLabel
-            anchors.centerIn: parent
-            text: chip.modelData
-            color: chip.selected ? Theme.bg : Theme.muted
-            font.family: Style.font.family
-            font.pixelSize: Style.font.bodySmall
-            renderType: Text.NativeRendering
-          }
-
-          MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.setProfile(chip.modelData)
-          }
-        }
-      }
+      model: root.profiles
+      currentIndex: root.profiles.indexOf(root.profile)
+      available: !root.profileFailed
+      onActivated: function (index) { root.setProfile(root.profiles[index]) }
     }
 
     // ---- brightness ----
-    PanelRow {
-      id: brightnessRow
+    SliderField {
       width: card.contentWidth
-      hasControl: true
       label: "Brightness"
       value: root.brightness + "%"
-
-      Slider {
-        id: brightnessSlider
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        width: brightnessRow.controlWidth
-        from: 0
-        to: 100
-        stepSize: 1
-        enabled: root.brightnessMax > 0
-        value: root.brightness
-        onMoved: root.setBrightness(value)
-      }
+      from: 0
+      to: 100
+      stepSize: 1
+      level: root.brightness
+      available: root.brightnessMax > 0
+      onMoved: function (value) { root.setBrightness(value) }
     }
 
     // ---- battery ----
@@ -319,8 +295,10 @@ Item {
       id: chargeRow
       width: card.contentWidth
       visible: root.present
-      label: root.stateLabel
-      value: root.present ? root.capacity + "%" : "—"
+      // The state itself is the hero's line — charging, on mains, on battery —
+      // so this row is only the number that goes with it.
+      label: "Charge"
+      value: root.capacity + "%"
     }
 
     PanelRow {

@@ -141,51 +141,42 @@ BarWidget {
 
     Panel {
       id: card
-      title: "Display"
-      maxWidth: Style.space(320)
 
-      PanelRow {
-        id: displayRow
+      PanelHero {
         width: card.contentWidth
-        hasControl: true
-        label: "Brightness"
-        value: root.percent + "%"
+        glyph: Util.sun
+        title: "Display"
+        subtitle: root.present ? root.percent + "% brightness" : "no backlight"
+      }
 
-        Slider {
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          width: displayRow.controlWidth
-          from: 0
-          to: 100
-          stepSize: 1
-          enabled: root.present
-          value: root.percent
-          onMoved: root.setDisplay(value)
-        }
+      PanelSeparator {}
+
+      SliderField {
+        width: card.contentWidth
+        label: "Brightness"
+        value: root.present ? root.percent + "%" : "—"
+        from: 0
+        to: 100
+        stepSize: 1
+        level: root.percent
+        available: root.present
+        onMoved: function (value) { root.setDisplay(value) }
       }
 
       // Only for hardware that has one; the device is named in settings so a
       // machine without a backlit keyboard simply shows nothing here.
-      PanelRow {
-        id: keyboardRow
+      SliderField {
         width: card.contentWidth
-        hasControl: true
         visible: root.keyboardPresent
-        height: visible ? implicitHeight : 0
+        height: implicitHeight
         label: "Keyboard"
         value: root.keyboardPercent + "%"
-
-        Slider {
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          width: keyboardRow.controlWidth
-          from: 0
-          to: 100
-          stepSize: 1
-          enabled: root.keyboardPresent
-          value: root.keyboardPercent
-          onMoved: root.setKeyboard(value)
-        }
+        from: 0
+        to: 100
+        stepSize: 1
+        level: root.keyboardPercent
+        available: root.keyboardPresent
+        onMoved: function (value) { root.setKeyboard(value) }
       }
 
       PanelSeparator {}
@@ -203,7 +194,8 @@ BarWidget {
         width: card.contentWidth
         hasControl: true
         label: "Text size"
-        value: root.textSize + "%"
+        // No value beside the stepper: the stepper says the number itself, and a
+        // second copy of it with a gap in between is the same fact twice.
 
         NumberField {
           anchors.right: parent.right

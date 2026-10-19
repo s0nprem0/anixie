@@ -113,81 +113,57 @@ BarWidget {
     id: popup
 
     Panel {
-      title: "Now playing"
-      maxWidth: Style.space(360)
+      id: card
+
+      PanelHero {
+        width: card.contentWidth
+        art: root.artUrl
+        // The play state is the icon when there is no sleeve to show, so a
+        // player that has no artwork still says whether it is making noise.
+        glyph: root.artUrl === "" ? (root.playing ? Util.glyph("f04c") : Util.glyph("f04b")) : ""
+        title: root.title !== "" ? root.title : "Now playing"
+        subtitle: root.artist !== "" ? root.artist : (root.hasPlayer ? "Unknown artist" : "")
+      }
+
+      // Only when there is one: an "Unknown album" line under "Unknown
+      // artist" is three lines of saying nothing, and an album line repeating the
+      // title above it says the same thing twice.
+      Text {
+        width: card.contentWidth
+        visible: root.album !== "" && root.album !== root.title
+        height: implicitHeight
+        text: root.album
+        color: Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.bodySmall
+        elide: Text.ElideRight
+        renderType: Text.NativeRendering
+      }
 
       Row {
-        spacing: Style.space(12)
+        width: card.contentWidth
+        spacing: Style.space(8)
+        topPadding: Style.space(4)
 
-        Image {
-          width: Style.space(64)
-          height: Style.space(64)
-          source: root.artUrl
-          fillMode: Image.PreserveAspectCrop
-          visible: root.artUrl !== ""
+        WidgetButton {
+          text: Util.glyph("f048")
+          fontSize: Style.bar.iconFont
+          tooltipText: "Previous"
+          onPressed: function () { root.previous() }
         }
 
-        Column {
-          spacing: Style.space(4)
+        WidgetButton {
+          text: root.playing ? Util.glyph("f04c") : Util.glyph("f04b")
+          fontSize: Style.bar.iconFont
+          tooltipText: root.playing ? "Pause" : "Play"
+          onPressed: function () { root.toggle() }
+        }
 
-          Text {
-            text: root.title !== "" ? root.title : "Unknown track"
-            color: Theme.fg
-            font.family: Style.font.family
-            font.pixelSize: Style.font.subtitle
-            font.weight: Font.DemiBold
-            width: Style.space(260)
-            elide: Text.ElideRight
-            renderType: Text.NativeRendering
-          }
-
-          Text {
-            text: root.artist !== "" ? root.artist : "Unknown artist"
-            color: Theme.muted
-            font.family: Style.font.family
-            font.pixelSize: Style.font.body
-            width: Style.space(260)
-            elide: Text.ElideRight
-            renderType: Text.NativeRendering
-          }
-
-          // Only when there is one: an "Unknown album" line under "Unknown
-          // artist" is three lines of saying nothing.
-          Text {
-            text: root.album
-            visible: root.album !== ""
-            color: Theme.muted
-            font.family: Style.font.family
-            font.pixelSize: Style.font.bodySmall
-            width: Style.space(260)
-            elide: Text.ElideRight
-            renderType: Text.NativeRendering
-          }
-
-          Row {
-            spacing: Style.space(8)
-
-            WidgetButton {
-              text: Util.glyph("f048")
-              fontSize: Style.bar.iconFont
-              tooltipText: "Previous"
-              onPressed: function () { root.previous() }
-            }
-
-            WidgetButton {
-              text: root.playing ? Util.glyph("f04c") : Util.glyph("f04b")
-              fontSize: Style.bar.iconFont
-              tooltipText: root.playing ? "Pause" : "Play"
-              onPressed: function () { root.toggle() }
-            }
-
-            WidgetButton {
-              text: Util.glyph("f051")
-              fontSize: Style.bar.iconFont
-              tooltipText: "Next"
-              onPressed: function () { root.next() }
-            }
-          }
+        WidgetButton {
+          text: Util.glyph("f051")
+          fontSize: Style.bar.iconFont
+          tooltipText: "Next"
+          onPressed: function () { root.next() }
         }
       }
 
@@ -201,7 +177,7 @@ BarWidget {
       }
 
       PanelSectionHeader {
-        width: parent ? parent.width : 0
+        width: card.contentWidth
         visible: root.players.length > 1
         label: "Players"
       }
@@ -209,78 +185,18 @@ BarWidget {
       Repeater {
         model: root.players.length > 1 ? root.players : []
 
-        delegate: Rectangle {
+        delegate: ChoiceRow {
           id: playerRow
           required property var modelData
 
-          readonly property bool selected: root.player === playerRow.modelData
-
-          width: Style.space(320)
-          height: Style.space(30)
-          radius: Theme.cornerRadius
-          color: selected
-            ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, Style.control.selectedFillAlpha)
-            : (rowMouse.containsMouse
-              ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha)
-              : "transparent")
-          border.color: selected ? Theme.accent : "transparent"
-          border.width: 1
-
-          Row {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: Style.space(8)
-            anchors.rightMargin: Style.space(8)
-            spacing: Style.space(8)
-
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              text: playerRow.modelData.playbackState === MprisPlaybackState.Playing
-                ? Util.glyph("f04c")
-                : Util.glyph("f04b")
-              color: playerRow.selected ? Theme.accent : Theme.muted
-              font.family: Style.font.family
-              font.pixelSize: Style.font.body
-              renderType: Text.NativeRendering
-            }
-
-            Column {
-              width: parent.width - Style.space(26)
-              anchors.verticalCenter: parent.verticalCenter
-              spacing: Style.space(1)
-
-              Text {
-                width: parent.width
-                text: root.playerName(playerRow.modelData)
-                color: Theme.fg
-                font.family: Style.font.family
-                font.pixelSize: Style.font.bodySmall
-                font.weight: playerRow.selected ? Font.DemiBold : Font.Normal
-                elide: Text.ElideRight
-                renderType: Text.NativeRendering
-              }
-
-              Text {
-                width: parent.width
-                text: root.playerDetail(playerRow.modelData)
-                visible: text !== ""
-                color: Theme.muted
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
-                elide: Text.ElideRight
-                renderType: Text.NativeRendering
-              }
-            }
-          }
-
-          MouseArea {
-            id: rowMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.chosen = playerRow.modelData
-          }
+          width: card.contentWidth
+          label: root.playerName(playerRow.modelData)
+          detail: root.playerDetail(playerRow.modelData)
+          glyph: playerRow.modelData.playbackState === MprisPlaybackState.Playing
+            ? Util.glyph("f04c")
+            : ""
+          selected: root.player === playerRow.modelData
+          onClicked: root.chosen = playerRow.modelData
         }
       }
     }

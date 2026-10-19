@@ -13,6 +13,9 @@ import Quickshell
 BarWidget {
   id: root
 
+  // Reachable by hotkey as well as by click, like every other panel.
+  Component.onCompleted: PanelRegistry.register("notifications", readout, historyPanel)
+
   readonly property bool silenced: NotificationHost.doNotDisturb
 
   implicitWidth: readout.implicitWidth

@@ -28,12 +28,12 @@ Item {
   // dependency. The floor is the card's own measurement, kept so an empty panel
   // still gets its title.
   readonly property int rowHeight: 62
-  readonly property int chromeHeight: Style.space(28) + Style.space(22) + Style.space(10) + Style.space(26)
 
   implicitWidth: Style.space(340)
-  implicitHeight: root.empty
-    ? card.implicitHeight
-    : root.entries.length * root.rowHeight + root.chromeHeight
+  // The card sizes itself, and caps what it will show: a week of notifications
+  // is longer than a screen, and what will not fit scrolls rather than running
+  // off the bottom of the display.
+  implicitHeight: card.implicitHeight
 
   // Reload when the panel is reopened on the same instance, which happens
   // whenever another module's panel is closed and this one is opened again from
@@ -59,24 +59,34 @@ Item {
 
   Panel {
     id: card
-
     anchors.fill: parent
-    title: root.empty ? "Notifications" : "Notifications · " + root.entries.length
+
+    PanelHero {
+      width: card.contentWidth
+      glyph: Util.bell
+      title: "Notifications"
+      subtitle: root.empty
+        ? ""
+        : root.entries.length + (root.entries.length === 1 ? " entry" : " entries")
+    }
 
     Text {
       width: card.contentWidth
       visible: root.empty
+      height: implicitHeight
       text: "Nothing yet. Notifications show up here once they have been dismissed."
       color: Theme.muted
       font.family: Style.font.family
       font.pixelSize: Style.font.body
       wrapMode: Text.WordWrap
+      renderType: Text.NativeRendering
     }
 
     // Newest first, which is the order the store already sorted them in.
     Column {
       width: card.contentWidth
       height: root.entries.length * root.rowHeight
+      visible: !root.empty
 
       Repeater {
         model: root.entries
@@ -89,88 +99,90 @@ Item {
           width: parent.width
           height: root.rowHeight
 
-        Column {
-          id: rowBody
+          Column {
+            id: rowBody
 
-          width: parent.width
-          height: root.rowHeight - Style.space(12)
-          spacing: Style.space(2)
-
-          Row {
             width: parent.width
-            height: implicitHeight
-            spacing: Style.space(6)
+            height: root.rowHeight - Style.space(12)
+            spacing: Style.space(2)
+
+            Row {
+              width: parent.width
+              height: implicitHeight
+              spacing: Style.space(6)
+
+              Text {
+                width: Math.max(0, parent.width - timeText.implicitWidth - Style.space(6))
+                // Explicit, like every other row in this repo: a Column positions
+                // its children by their height rather than their implicit height,
+                // and Text leaves `height` at 0 unless it is stated.
+                height: implicitHeight
+                text: row.modelData.summary !== "" ? row.modelData.summary : "(no summary)"
+                color: Theme.fg
+                font.family: Style.font.family
+                font.pixelSize: Style.font.body
+                font.weight: Font.DemiBold
+                elide: Text.ElideRight
+              }
+
+              Text {
+                id: timeText
+
+                height: implicitHeight
+                text: root.ago(row.modelData.timestamp)
+                color: Theme.muted
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+              }
+            }
 
             Text {
-              width: Math.max(0, parent.width - timeText.implicitWidth - Style.space(6))
-              // Explicit, like every other row in this repo: a Column positions
-              // its children by their height rather than their implicit height,
-              // and Text leaves `height` at 0 unless it is stated.
+              width: parent.width
               height: implicitHeight
-              text: row.modelData.summary !== "" ? row.modelData.summary : "(no summary)"
-              color: Theme.fg
+              visible: row.modelData.body !== ""
+              text: row.modelData.body
+              color: Theme.muted
               font.family: Style.font.family
-              font.pixelSize: Style.font.body
-              font.weight: Font.DemiBold
+              font.pixelSize: Style.font.bodySmall
+              wrapMode: Text.WordWrap
+              maximumLineCount: 2
               elide: Text.ElideRight
             }
 
             Text {
-              id: timeText
-
+              width: parent.width
               height: implicitHeight
-              text: root.ago(row.modelData.timestamp)
+              visible: row.modelData.app !== ""
+              text: row.modelData.app
               color: Theme.muted
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
+              elide: Text.ElideRight
             }
           }
 
-          Text {
+          // A separator rather than padding, so the rows read as a list instead of
+          // a stack of unrelated cards.
+          Rectangle {
+            anchors.bottom: parent.bottom
             width: parent.width
-            height: implicitHeight
-            visible: row.modelData.body !== ""
-            text: row.modelData.body
+            height: 1
+            visible: row.index < root.entries.length - 1
             color: Theme.muted
-            font.family: Style.font.family
-            font.pixelSize: Style.font.bodySmall
-            wrapMode: Text.WordWrap
-            maximumLineCount: 2
-            elide: Text.ElideRight
+            opacity: 0.3
           }
-
-          Text {
-            width: parent.width
-            height: implicitHeight
-            visible: row.modelData.app !== ""
-            text: row.modelData.app
-            color: Theme.muted
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            elide: Text.ElideRight
-          }
-        }
-
-        // A separator rather than padding, so the rows read as a list instead of
-        // a stack of unrelated cards.
-        Rectangle {
-          anchors.bottom: parent.bottom
-          width: parent.width
-          height: 1
-          visible: row.index < root.entries.length - 1
-          color: Theme.muted
-          opacity: 0.3
-        }
         }
       }
     }
 
     // Only offered when there is something to clear.
-    WidgetButton {
+    PanelActionButton {
+      width: card.contentWidth
       visible: !root.empty
-      text: "Clear history"
-      fontSize: Style.font.bodySmall
-      onPressed: NotificationStore.clear()
+      height: implicitHeight
+      label: "Clear history"
+      navigational: false
+      onClicked: NotificationStore.clear()
     }
   }
 }

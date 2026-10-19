@@ -63,11 +63,15 @@ Item {
     root.query()
   }
 
+  // -1 when the current value is not one of the offered ones, rather than 0 —
+  // falling back to the first entry showed "1x" on a screen set to something
+  // else, which is a panel telling you the wrong thing in order to have
+  // something to draw.
   function indexOf(list, value) {
     for (let i = 0; i < list.length; i++) {
       if (list[i].value === String(value)) return i
     }
-    return 0
+    return -1
   }
 
   Process {
@@ -95,24 +99,27 @@ Item {
   Panel {
     id: card
     anchors.fill: parent
-    maxWidth: Style.space(340)
 
     PanelHero {
       width: card.contentWidth
       glyph: Util.sun
       title: "Displays"
-      subtitle: root.ready && root.outputs.length > 0
-        ? root.outputs.length + (root.outputs.length === 1 ? " screen" : " screens")
-        : ""
+      subtitle: !root.ready
+        ? "reading…"
+        : (root.outputs.length > 0
+          ? root.outputs.length + (root.outputs.length === 1 ? " screen" : " screens")
+          : "none found")
     }
 
-    PanelSeparator {}
+    PanelSeparator {
+      visible: root.ready && root.outputs.length > 0
+    }
 
     Text {
       width: card.contentWidth
       visible: !root.ready || root.outputs.length === 0
-      height: visible ? implicitHeight : 0
-      text: "No screens found"
+      height: implicitHeight
+      text: root.ready ? "No screens found" : "Looking for screens…"
       color: Theme.muted
       font.family: Style.font.family
       font.pixelSize: Style.font.body
@@ -132,9 +139,19 @@ Item {
 
         readonly property string name: block.modelData.name
         readonly property bool off: block.modelData.disabled === true
+        readonly property bool focused: block.modelData.focused === true
+
+        // Between screens. The last one needs no gap under it, and a rule is
+        // clearer than space for a list of separate objects.
+        PanelSeparator {
+          anchors.top: parent.top
+          visible: block.index > 0
+        }
 
         Column {
           id: body
+          anchors.top: parent.top
+          anchors.topMargin: block.index > 0 ? Style.space(12) : 0
           width: parent.width
           spacing: Style.space(8)
 
@@ -143,7 +160,7 @@ Item {
           Text {
             width: parent.width
             text: block.name
-                  + (block.modelData.focused ? "  ·  focused" : "")
+                  + (block.focused ? "  ·  focused" : "")
                   + (block.off ? "  ·  off" : "")
             color: block.off ? Theme.muted : Theme.fg
             font.family: Style.font.family
@@ -165,18 +182,21 @@ Item {
             elide: Text.ElideRight
           }
 
+          // No value beside these two: the dropdown says what is chosen, and a
+          // second copy of it on the other side of the row is the same fact
+          // twice, with a gap between the two halves of it.
           PanelRow {
             id: scaleRow
             width: parent.width
             hasControl: true
             label: "Scale"
-            value: (block.modelData.scale || 1) + "x"
 
             Dropdown {
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
               width: scaleRow.controlWidth
               model: root.scales
+              placeholder: "unknown"
               currentIndex: root.indexOf(root.scales, block.modelData.scale)
               onActivated: function (index) { root.set(block.name, "scale", root.scales[index].value) }
             }
@@ -193,6 +213,7 @@ Item {
               anchors.verticalCenter: parent.verticalCenter
               width: rotationRow.controlWidth
               model: root.transforms
+              placeholder: "unknown"
               currentIndex: root.indexOf(root.transforms, block.modelData.transform)
               onActivated: function (index) { root.set(block.name, "transform", root.transforms[index].value) }
             }
@@ -203,17 +224,12 @@ Item {
             width: parent.width
             label: "Screen on"
             checked: !block.off
-            description: block.modelData.focused === true ? "the screen you are reading this on" : ""
             // The one screen you are looking at cannot be turned off from a panel
-            // that is drawn on it. Everything else can.
-            available: block.modelData.focused !== true
+            // that is drawn on it. Everything else can, and says so rather than
+            // offering a switch that quietly does nothing.
+            available: !block.focused
+            description: block.focused ? "this is the screen you are reading on" : ""
             onToggled: root.set(block.name, "disabled", block.off ? "no" : "yes")
-          }
-
-          // Between screens. The last row needs no gap under it.
-          Item {
-            width: 1
-            height: block.index === root.outputs.length - 1 ? 0 : Style.space(12)
           }
         }
       }

@@ -55,7 +55,20 @@ Item {
   property string qrPath: ""
   readonly property bool qrReady: root.qrPath !== ""
 
-  readonly property string connected: root.activeSsid !== ""
+  // A bool, and it has to be one. Declared as a string this held the *text*
+  // "false" when there was no connection, which is truthy as far as every test
+  // of it is concerned — so the QR toggle was offered for a network the panel
+  // had just said was unavailable, and the hero's subtitle was empty rather than
+  // naming the state.
+  readonly property bool connected: root.activeSsid !== ""
+
+  // What the empty list means, said in the list rather than in a line below it.
+  // Four reasons to be empty and each says which it is, including "there is
+  // nothing to connect to because the radio is off" — which was the case that
+  // used to render nothing at all, because the list has no height to say it in.
+  readonly property string emptyMessage: !root.radioEnabled
+    ? "Wireless is off"
+    : (root.failed ? "" : (root.scanning ? "Scanning…" : "No networks found"))
 
   function setQr(on) {
     root.qrVisible = on
@@ -178,6 +191,12 @@ Item {
       if (exitCode !== 0) {
         root.failed = true
         if (root.failure === "") root.failure = "nmcli exited with " + exitCode
+
+        // Nothing that was read before the failure can still be true. Saying
+        // "Unavailable" while a connection, a password and a QR code for it are
+        // all still on screen is worse than saying nothing at all.
+        root.activeSsid = ""
+        if (root.qrVisible) root.setQr(false)
       }
     }
   }
@@ -284,6 +303,14 @@ Item {
   function setRadio(on) {
     root.radioBusy = true
     root.radioEnabled = on
+
+    // Nothing the radio was connected to survives it going off, so neither does
+    // the claim to be connected, or the code for that connection.
+    if (!on) {
+      root.activeSsid = ""
+      if (root.qrVisible) root.setQr(false)
+    }
+
     radioSet.command = ["nmcli", "radio", "wifi", on ? "on" : "off"]
     radioSet.running = true
   }
@@ -322,7 +349,14 @@ Item {
     return 1
   }
 
+  // A cap on the list's height, so a crowded street does not push the rest of the
+  // panel off the screen. The panel itself scrolls; this is what keeps the list
+  // from swallowing the whole of it, and the two scroll together rather than one
+  // inside the other.
   readonly property int maxListHeight: Style.space(220)
+
+  // Tall enough to say something in when there is nothing to list.
+  readonly property int emptyListHeight: Style.space(32)
 
   implicitWidth: Style.space(320)
   implicitHeight: card.implicitHeight
@@ -330,23 +364,17 @@ Item {
   Panel {
     id: card
     anchors.fill: parent
-    title: "Wi-Fi"
 
     // ---- the radio ----
-    Item {
+    //
+    // The one control worth reaching for without aiming, so it is in the hero
+    // where the glyph you clicked this panel by leads the eye.
+    PanelHero {
       width: card.contentWidth
-      height: Math.max(radioLabel.implicitHeight, radioSwitch.implicitHeight)
-
-      Text {
-        id: radioLabel
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        text: "Wireless"
-        color: Theme.fg
-        font.family: Style.font.family
-        font.pixelSize: Style.font.body
-        renderType: Text.NativeRendering
-      }
+      glyph: Util.wifi
+      title: "Wi-Fi"
+      subtitle: root.connected ? root.activeSsid : (root.radioEnabled ? "not connected" : "wireless off")
+      controlWidth: radioSwitch.implicitWidth
 
       ToggleSwitch {
         id: radioSwitch
@@ -358,63 +386,58 @@ Item {
       }
     }
 
-    PanelSeparator {}
+    PanelSeparator {
+      visible: root.connected
+    }
 
     // ---- what is in use ----
     PanelSectionHeader {
       width: card.contentWidth
+      visible: root.connected
       label: "Connection"
     }
 
-    PanelRow {
+    // The status line doubles as the error surface: when nmcli is broken it is
+    // the only place the reason can be read, since the list below is empty for
+    // exactly the same reason either way.
+    Text {
       width: card.contentWidth
-      // The status line doubles as the error surface: when nmcli is broken it is
-      // the only place the reason can be read, since the list below is empty for
-      // exactly the same reason either way.
-      label: root.failed
-        ? "Unavailable"
-        : (root.activeSsid !== "" ? root.activeSsid : "Not connected")
-      value: root.failed ? "" : root.networks.length + " found"
+      height: implicitHeight
+      visible: root.failed
+      text: "Unavailable"
+      color: Theme.danger
+      font.family: Style.font.family
+      font.pixelSize: Style.font.body
+      renderType: Text.NativeRendering
     }
 
+    // What nmcli said, under the fact that it failed. A failure that explains
+    // itself is not the same as one that does not, and a half-dozen lines of
+    // nmcli's own prose is not something to put in a panel either: the first
+    // line, which is the reason.
     Text {
       width: card.contentWidth
       height: implicitHeight
       visible: root.failed && root.failure !== ""
-      text: root.failure
-      color: Theme.danger
+      text: String(root.failure).split("\n")[0]
+      color: Theme.muted
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
-      elide: Text.ElideRight
       wrapMode: Text.WordWrap
-      topPadding: Style.space(2)
+      maximumLineCount: 2
+      elide: Text.ElideRight
+      renderType: Text.NativeRendering
     }
 
-    Rectangle {
+    PanelActionButton {
       id: disconnectButton
       width: card.contentWidth
-      height: Style.space(24)
-      radius: Theme.cornerRadius
-      visible: root.activeSsid !== "" && !root.failed
-      color: disconnectMouse.containsMouse ? Theme.danger : "transparent"
-      border.color: Theme.danger
-      border.width: 1
-
-      Text {
-        anchors.centerIn: parent
-        text: root.busy && root.actionKind === "disconnect" ? "Disconnecting…" : "Disconnect"
-        color: disconnectMouse.containsMouse ? Theme.bg : Theme.danger
-        font.family: Style.font.family
-        font.pixelSize: Style.font.bodySmall
-      }
-
-      MouseArea {
-        id: disconnectMouse
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: if (!root.busy) root.disconnect(root.activeSsid)
-      }
+      visible: root.connected && !root.failed
+      label: root.busy && root.actionKind === "disconnect" ? "Disconnecting…" : "Disconnect"
+      danger: true
+      navigational: false
+      available: !root.busy
+      onClicked: root.disconnect(root.activeSsid)
     }
 
     PanelSeparator {}
@@ -428,65 +451,46 @@ Item {
     ListView {
       id: list
       width: card.contentWidth
-      height: Math.min(contentHeight, root.maxListHeight)
+      // Tall enough to hold a row when there is one, capped so a crowded street
+      // cannot push the rest of the panel off the screen — and never zero, or the
+      // reason there is nothing to list has nowhere to be said.
+      height: Math.max(
+        count > 0 ? Math.min(contentHeight, root.maxListHeight) : 0,
+        root.emptyMessage !== "" ? root.emptyListHeight : 0)
       clip: true
       model: root.networks
       spacing: Style.space(2)
+      boundsBehavior: Flickable.StopAtBounds
 
-      delegate: Rectangle {
+      ScrollBar.vertical: ScrollBar {}
+
+      delegate: ChoiceRow {
         id: rowItem
         required property var modelData
 
-        readonly property bool inFlight: root.actionSsid === modelData.ssid && root.busy
+        readonly property bool inFlight: root.actionSsid === rowItem.modelData.ssid && root.busy
 
         width: list.width
         height: Style.space(26)
-        radius: Theme.cornerRadius
-        color: rowMouse.containsMouse ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha) : "transparent"
-
-        Text {
-          id: ssidText
-          anchors.left: parent.left
-          anchors.leftMargin: Style.space(6)
-          anchors.right: lockGlyph.left
-          anchors.rightMargin: Style.space(6)
-          anchors.verticalCenter: parent.verticalCenter
-          // The row says what it is doing while it does it. Without this a click
-          // on a network that takes a second looks like nothing happened.
-          text: rowItem.inFlight
-            ? (root.actionKind === "connect" ? "Connecting…" : "Disconnecting…")
-            : rowItem.modelData.ssid
-          elide: Text.ElideMiddle
-          color: rowItem.inFlight
-            ? Theme.accent
-            : (rowItem.modelData.inUse ? Theme.primary : Theme.fg)
-          font.family: Style.font.family
-          font.pixelSize: Style.font.body
-          renderType: Text.NativeRendering
-        }
+        available: root.radioEnabled && !root.busy
 
         // Only for networks that need a key. An open network gets no glyph rather
-        // than an open padlock: the absence says "open" more quietly than a symbol
-        // repeated on every row would.
-        Text {
-          id: lockGlyph
-          anchors.right: signalBars.left
-          anchors.rightMargin: Style.space(6)
-          anchors.verticalCenter: parent.verticalCenter
-          visible: root.secured(rowItem.modelData)
-          text: Util.lock
-          color: Theme.muted
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-          renderType: Text.NativeRendering
+        // than an open padlock: the absence says "open" more quietly than a
+        // symbol repeated on every row would.
+        glyph: root.secured(rowItem.modelData) ? Util.lock : ""
+        label: rowItem.inFlight
+          // The row says what it is doing while it does it. Without this a click
+          // on a network that takes a second looks like nothing happened.
+          ? (root.actionKind === "connect" ? "Connecting…" : "Disconnecting…")
+          : rowItem.modelData.ssid
+        selected: rowItem.modelData.inUse && !rowItem.inFlight
+        onClicked: {
+          if (rowItem.modelData.inUse) root.disconnect(rowItem.modelData.ssid)
+          else root.connect(rowItem.modelData.ssid)
         }
 
         // Four ascending bars, the filled count set by the signal percentage.
         Row {
-          id: signalBars
-          anchors.right: parent.right
-          anchors.rightMargin: Style.space(6)
-          anchors.verticalCenter: parent.verticalCenter
           spacing: 2
 
           Repeater {
@@ -503,63 +507,29 @@ Item {
             }
           }
         }
-
-        MouseArea {
-          id: rowMouse
-          anchors.fill: parent
-          hoverEnabled: true
-          cursorShape: Qt.PointingHandCursor
-          onClicked: {
-            if (root.busy) return
-            if (rowItem.modelData.inUse) root.disconnect(rowItem.modelData.ssid)
-            else root.connect(rowItem.modelData.ssid)
-          }
-        }
       }
 
-      ScrollBar.vertical: ScrollBar {}
-
-      // What an empty list means, rather than an empty box. Three different
-      // reasons to be empty, and each says which it is.
+      // What an empty list means, rather than an empty box. Said in here,
+      // where the entries would have been.
       Text {
-        anchors.centerIn: parent
+        anchors.fill: parent
         visible: list.count === 0
-        width: parent.width
         horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
         wrapMode: Text.WordWrap
-        text: !root.radioEnabled
-          ? "Wireless is off"
-          : (root.scanning ? "Scanning…" : (root.failed ? "" : "No networks found"))
+        text: root.emptyMessage
         color: Theme.muted
         font.family: Style.font.family
         font.pixelSize: Style.font.bodySmall
       }
     }
 
-    Rectangle {
+    PanelActionButton {
       width: card.contentWidth
-      height: Style.space(24)
-      radius: Theme.cornerRadius
-      color: rescanMouse.containsMouse ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha) : "transparent"
-      border.color: Theme.muted
-      border.width: 1
-      opacity: root.radioEnabled ? 1 : 0.45
-
-      Text {
-        anchors.centerIn: parent
-        text: root.scanning ? "Scanning…" : "Scan for networks"
-        color: Theme.muted
-        font.family: Style.font.family
-        font.pixelSize: Style.font.bodySmall
-      }
-
-      MouseArea {
-        id: rescanMouse
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: root.radioEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-        onClicked: if (root.radioEnabled) root.rescan()
-      }
+      label: root.scanning ? "Scanning…" : "Scan for networks"
+      navigational: false
+      available: root.radioEnabled && !root.failed
+      onClicked: root.rescan()
     }
 
     // The QR, behind a toggle. It carries the network's password in the clear, so
@@ -573,7 +543,7 @@ Item {
       id: qrToggle
       width: card.contentWidth
       visible: root.connected
-      height: visible ? implicitHeight : 0
+      height: implicitHeight
       label: "Share this network"
       description: "a QR code another device can scan to join"
       checked: root.qrVisible
@@ -597,7 +567,7 @@ Item {
 
     Text {
       width: card.contentWidth
-      height: visible ? implicitHeight : 0
+      height: implicitHeight
       visible: root.qrVisible && !root.qrReady
       text: "Could not read the network password"
       color: Theme.danger

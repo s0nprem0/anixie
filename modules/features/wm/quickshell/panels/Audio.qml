@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import ".."
 import "../Ui"
 import Quickshell
@@ -8,19 +7,14 @@ import Quickshell.Services.Pipewire
 // Audio panel: what you are playing to, what you are recording from, and what
 // each application is doing on its own.
 //
-// The shape follows the reference's: a hero that says what the output is and
-// carries the one switch worth reaching for — everything, or nothing — then a
-// section per level, each with its number in the header and a slider that spans
-// the panel.
-//
-// Full-width sliders rather than a control crammed into the right of a labelled
-// row. A slider three-quarters of the width is easier to hit and easier to read,
-// and it leaves the number somewhere it can actually be seen: in the header,
-// with room, instead of fighting the handle for the same few pixels.
-//
 // Everything here reads straight off PipeWire: the node list is change-
 // notifying, so plugging in headphones moves the default sink and its row
 // without anything polling.
+//
+// Levels are set with SliderField rather than a control in the right of a
+// labelled row: a full-width slider is easier to hit and easier to read, and it
+// leaves the number somewhere it can actually be seen — in the header, with
+// room — instead of fighting the handle for the same few pixels.
 Item {
   id: root
 
@@ -33,6 +27,7 @@ Item {
 
   readonly property int outputPercent: root.sinkAudio ? Math.round(root.sinkAudio.volume * 100) : 0
   readonly property bool outputMuted: root.sinkAudio ? root.sinkAudio.muted : true
+  readonly property bool outputReady: root.sinkAudio !== null
 
   readonly property int inputPercent: root.sourceAudio ? Math.round(root.sourceAudio.volume * 100) : 0
   readonly property bool inputMuted: root.sourceAudio ? root.sourceAudio.muted : true
@@ -59,6 +54,11 @@ Item {
     return out
   }
 
+  // The device list is only worth a section when there is a choice to make: one
+  // output is not a list, and a row naming the thing the hero already named is
+  // noise.
+  readonly property bool multipleSinks: root.sinks.length > 1
+
   // Names carry a device suffix that means nothing in a menu.
   function displayName(node) {
     return String(node.description || node.name || "")
@@ -76,73 +76,55 @@ Item {
     return Util.micOn
   }
 
+  function level(node) {
+    return node && node.audio ? node.audio.volume : 0
+  }
+
+  function percent(node) {
+    return node && node.audio ? Math.round(node.audio.volume * 100) : 0
+  }
+
+  function setLevel(node, value) {
+    if (node && node.audio) node.audio.volume = value
+  }
+
+  function setMuted(node, muted) {
+    if (node && node.audio) node.audio.muted = muted
+  }
+
   implicitWidth: Style.space(340)
   implicitHeight: card.implicitHeight
 
   Panel {
     id: card
     anchors.fill: parent
-    title: "Audio"
 
     // ---- the hero ----
     //
-    // The output's name and level, and the switch that mutes everything. This is
-    // the one control on the panel worth reaching for without aiming, so it sits
-    // at the top where it can be hit from the glyph you already clicked.
-    Item {
+    // The output's name and the switch that mutes everything. This is the one
+    // control on the panel worth reaching for without aiming, so it sits at the
+    // top where it can be hit from the glyph the module was clicked by. The
+    // level itself is stated in the Output header below rather than here: it is
+    // said once, next to the slider that sets it, instead of twice.
+    PanelHero {
       width: card.contentWidth
-      height: Style.space(30)
+      glyph: root.outputIcon()
+      title: "Audio"
+      subtitle: !root.outputReady
+        ? "no output device"
+        : root.displayName(root.defaultSink)
+      controlWidth: powerSwitch.implicitWidth
 
-      Text {
-        id: heroIcon
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        text: root.outputIcon()
-        color: Theme.fg
-        font.family: Style.font.family
-        font.pixelSize: Style.font.subtitle
-        // Dimmed rather than swapped: the glyph keeps saying *which* output, and
-        // the dimming says it is not currently heard.
-        opacity: root.outputMuted ? 0.5 : 1
-        renderType: Text.NativeRendering
-      }
-
-      Column {
-        anchors.left: heroIcon.right
-        anchors.leftMargin: Style.space(12)
-        anchors.right: powerSwitch.left
-        anchors.rightMargin: Style.space(12)
-        anchors.verticalCenter: parent.verticalCenter
-        spacing: Style.space(2)
-
-        Text {
-          width: parent.width
-          text: root.defaultSink ? root.displayName(root.defaultSink) : "No output"
-          color: Theme.fg
-          font.family: Style.font.family
-          font.pixelSize: Style.font.body
-          elide: Text.ElideRight
-          renderType: Text.NativeRendering
-        }
-
-        Text {
-          width: parent.width
-          text: root.outputMuted ? "MUTED" : root.outputPercent + "%"
-          color: Theme.muted
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-          font.weight: Font.DemiBold
-          elide: Text.ElideRight
-          renderType: Text.NativeRendering
-        }
-      }
-
+      // The glyph is dimmed rather than swapped: it keeps saying *which* output
+      // this is, and the dimming says it is not currently heard.
       ToggleSwitch {
         id: powerSwitch
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
+        enabled: root.outputReady
+        opacity: root.outputReady ? 1 : 0.45
         checked: !root.outputMuted
-        onToggled: if (root.sinkAudio) root.sinkAudio.muted = !root.sinkAudio.muted
+        onToggled: root.setMuted(root.defaultSink, !root.outputMuted)
       }
     }
 
@@ -151,107 +133,44 @@ Item {
     // ---- output ----
     //
     // The level is stated in the header and set below it. The header is where the
-    // number has room; the slider is where the hand goes, and it can have the
-    // whole width because nothing is competing with it for the end of the row.
-    Item {
+    // number has room; the slider is where the hand goes.
+    SliderField {
       width: card.contentWidth
-      height: outputHeader.implicitHeight
-
-      PanelSectionHeader {
-        id: outputHeader
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        label: "Output"
-      }
-
-      Text {
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        text: root.outputMuted ? "muted" : root.outputPercent + "%"
-        color: Theme.muted
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.weight: Font.DemiBold
-        renderType: Text.NativeRendering
-      }
-    }
-
-    Slider {
-      id: outputSlider
-      width: card.contentWidth
+      label: "Output"
+      value: !root.outputReady ? "—" : (root.outputMuted ? "muted" : root.outputPercent + "%")
       from: 0
       to: 1
       stepSize: 0.02
-      enabled: root.sinkAudio !== null
-      value: root.sinkAudio ? root.sinkAudio.volume : 0
-      onMoved: if (root.sinkAudio) root.sinkAudio.volume = value
+      level: root.level(root.defaultSink)
+      available: root.outputReady
+      onMoved: function (value) { root.setLevel(root.defaultSink, value) }
     }
 
-    // The device list, and only when there is a choice to make: one output is not
-    // a list, and a row naming the thing already named in the hero is noise.
+    // The device list, and only when there is a choice to make.
     Repeater {
-      model: root.sinks.length > 1 ? root.sinks : []
+      model: root.multipleSinks ? root.sinks : []
 
-      delegate: PanelRow {
+      delegate: ChoiceRow {
         required property var modelData
+
         width: card.contentWidth
         label: root.displayName(modelData)
-
-        Rectangle {
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          width: 8
-          height: 8
-          radius: Theme.cornerRadius
-          color: root.defaultSink === modelData ? Theme.primary : Theme.muted
-
-          MouseArea {
-            anchors.fill: parent
-            anchors.margins: -10
-            cursorShape: Qt.PointingHandCursor
-            onClicked: Pipewire.defaultAudioSink = modelData
-          }
-        }
+        selected: root.defaultSink === modelData
+        onClicked: Pipewire.defaultAudioSink = modelData
       }
     }
-
-    PanelSeparator {}
 
     // ---- input ----
-    Item {
+    SliderField {
       width: card.contentWidth
-      height: inputHeader.implicitHeight
-
-      PanelSectionHeader {
-        id: inputHeader
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        label: "Input"
-      }
-
-      Text {
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        text: root.defaultSource === null
-          ? "none"
-          : (root.inputMuted ? "muted" : root.inputPercent + "%")
-        color: Theme.muted
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.weight: Font.DemiBold
-        renderType: Text.NativeRendering
-      }
-    }
-
-    Slider {
-      id: inputSlider
-      width: card.contentWidth
+      label: "Input"
+      value: root.defaultSource === null ? "none" : (root.inputMuted ? "muted" : root.inputPercent + "%")
       from: 0
       to: 1
       stepSize: 0.02
-      enabled: root.sourceAudio !== null
-      value: root.sourceAudio ? root.sourceAudio.volume : 0
-      onMoved: if (root.sourceAudio) root.sourceAudio.volume = value
+      level: root.level(root.defaultSource)
+      available: root.defaultSource !== null
+      onMoved: function (value) { root.setLevel(root.defaultSource, value) }
     }
 
     // ---- per-application ----
@@ -277,52 +196,20 @@ Item {
     Repeater {
       model: root.streams
 
-      delegate: Column {
-        id: streamBlock
+      delegate: SliderField {
+        id: streamField
         required property var modelData
 
         width: card.contentWidth
-        spacing: Style.space(4)
-
-        Item {
-          width: parent.width
-          height: Math.max(streamName.implicitHeight, streamPercent.implicitHeight)
-
-          Text {
-            id: streamName
-            anchors.left: parent.left
-            anchors.right: streamPercent.left
-            anchors.rightMargin: Style.space(8)
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.displayName(streamBlock.modelData)
-            color: Theme.fg
-            font.family: Style.font.family
-            font.pixelSize: Style.font.bodySmall
-            elide: Text.ElideRight
-            renderType: Text.NativeRendering
-          }
-
-          Text {
-            id: streamPercent
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            text: Math.round(streamBlock.modelData.audio.volume * 100) + "%"
-            color: Theme.muted
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            font.weight: Font.DemiBold
-            renderType: Text.NativeRendering
-          }
-        }
-
-        Slider {
-          width: parent.width
-          from: 0
-          to: 1
-          stepSize: 0.02
-          value: streamBlock.modelData.audio.volume
-          onMoved: streamBlock.modelData.audio.volume = value
-        }
+        // Named by the stream itself, so the header says the application rather
+        // than a heading repeated above every row.
+        label: root.displayName(modelData)
+        value: root.percent(modelData) + "%"
+        from: 0
+        to: 1
+        stepSize: 0.02
+        level: root.level(modelData)
+        onMoved: function (value) { root.setLevel(modelData, value) }
       }
     }
   }

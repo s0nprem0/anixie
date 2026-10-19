@@ -36,11 +36,15 @@ BarWidget {
     if (root.adapter) root.adapter.enabled = !root.adapter.enabled
   }
 
-  function label(device) {
-    const name = device.name !== undefined && device.name !== "" ? device.name : device.address
-    const battery = device.battery !== undefined && device.battery > 0 ? "  " + device.battery + "%" : ""
-    return name + battery
-  }
+function label(device) {
+  return device.name !== undefined && device.name !== "" ? device.name : device.address
+}
+
+function detail(device) {
+  const state = device.connected ? "connected" : "paired"
+  const battery = device.battery !== undefined && device.battery > 0 ? " · " + device.battery + "%" : ""
+  return state + battery
+}
 
   BarIconButton {
     id: readout
@@ -65,51 +69,82 @@ BarWidget {
     id: popup
 
     Panel {
-      title: "Bluetooth"
-      maxWidth: Style.space(320)
+      id: card
 
-      Column {
-        spacing: Style.space(4)
-        width: Style.space(272)
+      PanelHero {
+        width: card.contentWidth
+        glyph: Util.bluetooth
+        title: "Bluetooth"
+        subtitle: root.available
+          ? (root.adapter.name || "Adapter")
+          : "No adapter"
+        controlWidth: radioSwitch.implicitWidth
 
-        Text {
-          text: root.adapter
-            ? (root.adapter.name || "Adapter") + (root.powered ? " · on" : " · off")
-            : "No adapter"
-          color: root.powered ? Theme.muted : Theme.danger
-          font.family: Style.font.family
-          font.pixelSize: Style.font.bodySmall
+        // The radio, in the panel as well as on the bar. Turning it off from the
+        // bar needs a right-click on a sixteen-pixel glyph; turning it on and off
+        // is what this panel is for, so the control belongs here too.
+        ToggleSwitch {
+          id: radioSwitch
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          visible: root.available
+          checked: root.powered
+          onToggled: root.togglePower()
         }
+      }
 
-        Text {
-          visible: root.devices.length === 0
-          text: "No devices"
-          color: Theme.muted
-          font.family: Style.font.family
-          font.pixelSize: Style.font.body
-        }
+      PanelSeparator {}
 
-        Repeater {
-          model: root.devices
+      PanelSectionHeader {
+        width: card.contentWidth
+        label: "Devices"
+      }
 
-          delegate: WidgetButton {
-            id: row
-            required property var modelData
+      Text {
+        width: card.contentWidth
+        visible: !root.available
+        height: implicitHeight
+        text: "This machine has no Bluetooth adapter"
+        color: Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        wrapMode: Text.WordWrap
+        renderType: Text.NativeRendering
+      }
 
-            readonly property var device: modelData
+      Text {
+        width: card.contentWidth
+        visible: root.available && root.devices.length === 0
+        height: implicitHeight
+        // Two different reasons to be empty, and each says which it is: a radio
+        // that is off finds nothing because nothing is looking.
+        text: root.powered ? "No devices paired" : "Bluetooth is off"
+        color: Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        renderType: Text.NativeRendering
+      }
 
-            fixedWidth: Style.space(272)
-            fixedHeight: Style.space(26)
-            text: root.label(row.device)
-            fontSize: Style.font.bodySmall
-            foreground: row.device.connected ? Theme.accent : Theme.fg
-            active: false
-            tooltipText: row.device.connected ? "Click to disconnect" : "Click to connect"
+      Repeater {
+        model: root.devices
 
-            onPressed: function () {
-              if (row.device.connected) row.device.disconnect()
-              else row.device.connect()
-            }
+        delegate: ChoiceRow {
+          id: deviceRow
+          required property var modelData
+
+          readonly property var device: modelData
+          readonly property bool connected: deviceRow.device.connected
+
+          width: card.contentWidth
+          label: root.label(deviceRow.device)
+          detail: root.detail(deviceRow.device)
+          // Connected is a state, not a selection: the row is what you click to
+          // change it, so it is filled the way a chosen one is.
+          selected: deviceRow.connected
+          available: root.powered
+          onClicked: {
+            if (deviceRow.connected) deviceRow.device.disconnect()
+            else deviceRow.device.connect()
           }
         }
       }
