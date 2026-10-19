@@ -78,10 +78,10 @@ property bool selected: false
     color: root.selected
       ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b,
           mouse.containsMouse && root.available
-            ? Style.control.selectedFillAlpha + 0.12
+            ? Style.control.rowSelectedHoverAlpha
             : Style.control.selectedFillAlpha)
       : (mouse.containsMouse && root.available
-        ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha + 0.05)
+        ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.rowHoverAlpha)
         : "transparent")
 
     // Short but eased, so the fill arrives rather than snaps. Reduce-motion

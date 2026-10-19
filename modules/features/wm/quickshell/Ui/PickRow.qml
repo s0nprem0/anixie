@@ -73,10 +73,10 @@ Item {
     color: root.selected
       ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b,
           pointer.hovered
-            ? Style.control.selectedFillAlpha + 0.12
+            ? Style.control.rowSelectedHoverAlpha
             : Style.control.selectedFillAlpha)
       : (pointer.hovered
-        ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha + 0.05)
+        ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.rowHoverAlpha)
         : "transparent")
 
     Behavior on color {

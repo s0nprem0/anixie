@@ -75,6 +75,12 @@ QtObject {
     readonly property real hoverFillAlpha: 0.08
     readonly property real selectedFillAlpha: 0.18
     readonly property real pressedFillAlpha: 0.22
+
+    // Rows need more than the bar's chrome: 0.08 of the foreground is invisible
+    // on a panel, so a list row that only used that read as dead. These are the
+    // strengths a row uses, named here so the next one does not invent a fourth.
+    readonly property real rowHoverAlpha: 0.13
+    readonly property real rowSelectedHoverAlpha: 0.30
   }
 
   // Spacing scale. `space` rounds so callers can pass loose pixel values and
