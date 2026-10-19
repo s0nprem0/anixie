@@ -135,6 +135,8 @@ Item {
 
   onActiveSsidChanged: root.refreshDns()
 
+  readonly property int qrSize: Style.space(180)
+
   readonly property bool connected: root.activeSsid !== ""
 
   // What the empty list means, said in the list rather than in a line below it.
@@ -731,16 +733,19 @@ Item {
       onToggled: root.setQr(!root.qrVisible)
     }
 
+    // The box is the size the code is drawn at, not the size of the file behind
+    // it: an Image's implicit height is the source's own, and a QR that arrives
+    // as 512px made a 512px row that the panel then had to cut.
     Item {
       width: card.contentWidth
-      height: root.qrVisible && root.qrReady ? qrImage.implicitHeight : 0
+      height: root.qrVisible && root.qrReady ? root.qrSize : 0
       visible: height > 0
 
       SizedImage {
         id: qrImage
         anchors.horizontalCenter: parent.horizontalCenter
-        width: Style.space(180)
-        height: width
+        width: root.qrSize
+        height: root.qrSize
         source: root.qrPath
         fillMode: Image.PreserveAspectFit
       }
