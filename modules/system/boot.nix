@@ -10,6 +10,11 @@
     loader = {
       systemd-boot.enable = true;
       efi.canTouchEfiVariables = true;
+
+      # Every rebuild adds an entry and a kernel to the ESP, and nothing removes
+      # them. Ten generations is months of rollbacks on this machine and still
+      # nowhere near filling a 512MB /boot.
+      systemd-boot.configurationLimit = 10;
     };
 
     kernelPackages = pkgs.linuxPackages_latest;

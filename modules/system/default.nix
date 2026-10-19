@@ -6,6 +6,7 @@
     ./networking.nix
     ./audio.nix
     ./fonts.nix
+    ./firmware.nix
     ./craftapps.nix
     ./users.nix
     ./auth.nix

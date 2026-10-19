@@ -1,3 +1,5 @@
+{ pkgs, ... }:
+
 {
   nix = {
     settings = {
@@ -31,5 +33,33 @@
     # through the registry to the nixpkgs the system was actually built from.
     nixPath = [ "nixpkgs=flake:nixpkgs" ];
     channel.enable = false;
+  };
+
+  # A flake pins nixpkgs, so security updates arrive only when someone runs
+  # `nix flake update` and rebuilds. The bar's badge says the tree is newer than
+  # the system; nothing says the tree itself is stale. This does, once a week,
+  # and does nothing else — updating and rebuilding stays a deliberate act.
+  systemd.user.services.flake-age = {
+    description = "Notice when the pinned flake is a month old";
+    serviceConfig.Type = "oneshot";
+    script = ''
+      lock="$HOME/nix-dots/flake.lock"
+      [ -f "$lock" ] || exit 0
+
+      days=$(( ( $(date +%s) - $(stat -c %Y "$lock") ) / 86400 ))
+      [ "$days" -ge 30 ] || exit 0
+
+      ${pkgs.libnotify}/bin/notify-send -a NixOS \
+        "Updates are $days days old" "nix flake update && anixie update"
+    '';
+  };
+
+  systemd.user.timers.flake-age = {
+    description = "Weekly check on the flake's age";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "weekly";
+      Persistent = true;
+    };
   };
 }

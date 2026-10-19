@@ -10,6 +10,21 @@
     HandlePowerKeyLongPress = "poweroff";
   };
 
+  # A laptop that lives on a desk spends its life at 100%, which is the fastest
+  # way to wear a battery out. The charge controller accepts a ceiling; 80% is the
+  # usual compromise between wear and having enough to leave the house with.
+  # Re-asserted at boot because the setting lives in the controller, not on disk.
+  systemd.services.battery-charge-limit = {
+    description = "Cap battery charging at 80%";
+    wantedBy = [ "multi-user.target" ];
+    unitConfig.ConditionPathExists = "/sys/class/power_supply/BAT0/charge_control_end_threshold";
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''echo 80 > /sys/class/power_supply/BAT0/charge_control_end_threshold'';
+  };
+
   # Compressed swap in RAM. The disk swap partition still exists for suspend,
   # but this keeps the common case off the slow device when memory fills.
   zramSwap.enable = true;
