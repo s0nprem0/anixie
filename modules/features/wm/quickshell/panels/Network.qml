@@ -120,32 +120,55 @@ Item {
       const ssid = decodeSsid(parts.slice(1, parts.length - 2).join(":"))
       if (ssid === "") continue
 
+      // nmcli reports an open network as "--"; anything else is some form of key
+      // or 802.1X, and the row only has to say "this one is not open".
+      const security = decodeSsid(parts[parts.length - 1])
+
       found.push({
         ssid: ssid,
         signal: parseInt(parts[parts.length - 2], 10) || 0,
-        security: decodeSsid(parts[parts.length - 1]),
+        security: security,
+        secured: security !== "" && security !== "--",
         inUse: inUse
       })
     }
 
+    // One row per access point, so a network broadcast by two radios — the 2.4
+    // and the 5 GHz of the same name — is listed twice, and two identical rows
+    // that do the same thing is not a list to choose from. The one in use wins
+    // over the stronger of the pair; otherwise the stronger one does, and the
+    // pair counts as secured if either half is.
+    const byName = {}
+
+    for (const network of found) {
+      const seen = byName[network.ssid]
+
+      if (!seen) {
+        byName[network.ssid] = network
+        continue
+      }
+
+      const takesIt = (network.inUse && !seen.inUse)
+        || (network.inUse === seen.inUse && network.signal > seen.signal)
+
+      const winner = takesIt ? network : seen
+      winner.secured = winner.secured || seen.secured
+      byName[network.ssid] = winner
+    }
+
+    const unique = Object.keys(byName).map(function (name) { return byName[name] })
+
     // Strongest first, with the network in use pinned to the top.
-    found.sort(function (a, b) {
+    unique.sort(function (a, b) {
       if (a.inUse !== b.inUse) return a.inUse ? -1 : 1
       return b.signal - a.signal
     })
 
-    return found
+    return unique
   }
 
   function decodeSsid(value) {
     return String(value).replace(/\\(.)/g, "$1")
-  }
-
-  // nmcli reports an open network as "--"; anything else is some form of key or
-  // 802.1X, and the row only has to say "this one is not open".
-  function secured(network) {
-    const s = String(network.security || "")
-    return s !== "" && s !== "--"
   }
 
   // ---- commands ----
@@ -273,6 +296,16 @@ Item {
   function refresh() {
     listProc.running = false
     listProc.running = true
+  }
+
+  // Ask again after a failure. The flag is cleared first so the panel stops
+  // treating the last failure as the current state, and put back by the read
+  // that follows if the failure was not transient after all.
+  function retry() {
+    root.failed = false
+    root.failure = ""
+    root.emptyRetries = 0
+    root.refresh()
   }
 
   function rescan() {
@@ -435,17 +468,36 @@ Item {
       visible: root.connected && !root.failed
       label: root.busy && root.actionKind === "disconnect" ? "Disconnecting…" : "Disconnect"
       danger: true
+      outlined: true
       navigational: false
       available: !root.busy
       onClicked: root.disconnect(root.activeSsid)
     }
 
+    // A failure with no way out of it is a dead end. nmcli exits non-zero for a
+    // transient reason often enough — NetworkManager restarting, the device still
+    // coming up — and the one thing that always helps is asking again.
+    PanelActionButton {
+      width: card.contentWidth
+      visible: root.failed
+      label: "Try again"
+      navigational: false
+      onClicked: root.retry()
+    }
+
     PanelSeparator {}
 
     // ---- what is nearby ----
+    //
+    // The rescan belongs to the list it rescans: at the end of the heading rather
+    // than in a row of its own at the bottom, which read as a label and put the
+    // one control for the list a screenful away from the list.
     PanelSectionHeader {
       width: card.contentWidth
       label: "Networks"
+      action: root.scanning ? "Scanning…" : "Rescan"
+      actionEnabled: root.radioEnabled && !root.scanning && !root.failed && !root.busy
+      onActionTriggered: root.rescan()
     }
 
     ListView {
@@ -477,7 +529,7 @@ Item {
         // Only for networks that need a key. An open network gets no glyph rather
         // than an open padlock: the absence says "open" more quietly than a
         // symbol repeated on every row would.
-        glyph: root.secured(rowItem.modelData) ? Util.lock : ""
+        glyph: rowItem.modelData.secured ? Util.lock : ""
         label: rowItem.inFlight
           // The row says what it is doing while it does it. Without this a click
           // on a network that takes a second looks like nothing happened.
@@ -524,19 +576,11 @@ Item {
       }
     }
 
-    PanelActionButton {
-      width: card.contentWidth
-      label: root.scanning ? "Scanning…" : "Scan for networks"
-      navigational: false
-      available: root.radioEnabled && !root.failed
-      onClicked: root.rescan()
-    }
-
     // The QR, behind a toggle. It carries the network's password in the clear, so
     // it is drawn only while this is on, and generated only then — the image is
     // not sitting in the state directory waiting for a panel to be open.
     PanelSeparator {
-      visible: root.qrVisible
+      visible: root.connected
     }
 
     Toggle {

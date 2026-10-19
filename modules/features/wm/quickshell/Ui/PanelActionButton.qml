@@ -22,6 +22,13 @@ Item {
   property bool danger: false
   property bool navigational: true
 
+  // Outlined rather than filled, for the one or two rows that do something to
+  // the world rather than open something in it: "Disconnect", "Forget". A row
+  // that only tints on hover looks like a label until the pointer is on it, and
+  // the destructive actions are exactly the ones that should look like buttons
+  // before anyone reaches for them.
+  property bool outlined: false
+
   // Whether the row does anything at all. Greyed rather than removed, so a
   // thing that is not available right now still occupies the row it is in and
   // the list does not reshuffle under the pointer.
@@ -43,8 +50,11 @@ Item {
     anchors.fill: parent
     radius: Theme.cornerRadius
     color: mouse.containsMouse && root.available
-      ? Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, Style.control.hoverFillAlpha)
+      ? Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b,
+          root.outlined ? Style.control.selectedFillAlpha : Style.control.hoverFillAlpha)
       : "transparent"
+    border.color: root.outlined && root.available ? root.foreground : "transparent"
+    border.width: root.outlined ? 1 : 0
     opacity: root.available ? 1 : 0.45
     Behavior on color { NumberAnimation { duration: Style.duration(120) } }
   }
