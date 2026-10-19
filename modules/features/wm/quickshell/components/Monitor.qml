@@ -42,6 +42,10 @@ BarWidget {
   readonly property bool present: root.maximum > 0
   readonly property int percent: root.present ? Math.round(root.value * 100 / root.maximum) : 0
 
+  // The global text size as a percentage, which is how the `textsize` command
+  // states it and how the row beside the stepper reads it.
+  readonly property int textSize: Math.round(Style.textScale * 100)
+
   readonly property int keyboardValue: root.readNum(keyboardValueView, -1)
   readonly property int keyboardMax: root.readNum(keyboardMaxView, 0)
   readonly property bool keyboardPresent: root.keyboardMax > 0
@@ -173,6 +177,43 @@ BarWidget {
           enabled: root.keyboardPresent
           value: root.keyboardPercent
           onMoved: root.setKeyboard(value)
+        }
+      }
+
+      PanelSeparator {}
+
+      PanelSectionHeader {
+        width: card.contentWidth
+        label: "Text"
+      }
+
+      // Text size belongs here rather than in a settings panel of its own: it is
+      // what you reach for when something is hard to read, and this is where the
+      // other "make the screen comfortable" controls already are.
+      PanelRow {
+        id: textSizeRow
+        width: card.contentWidth
+        hasControl: true
+        label: "Text size"
+        value: root.textSize + "%"
+
+        NumberField {
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          width: textSizeRow.controlWidth
+          from: 80
+          to: 200
+          step: 10
+          // Seeded once rather than bound. A stepper writes its own `value` when
+          // it is pressed, which destroys any binding on it, and a binding that
+          // silently stops applying is worse than no binding at all. The value
+          // shown beside the label is read from the scale directly, so it stays
+          // the truth whatever happens here.
+          value: root.textSize
+          onChanged: function (next) {
+            Style.setTextScale(next / 100)
+            Commands.runQuoted("textsize", ["set", String(Math.round(next))])
+          }
         }
       }
     }

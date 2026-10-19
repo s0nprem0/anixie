@@ -29,6 +29,9 @@ QtObject {
   // The idle lock is off when the idle daemon is stopped.
   property bool idleStopped: false
 
+  // Stay awake is on while its inhibitor is running.
+  property bool stayAwake: false
+
   property int reminderCount: 0
 
   function setNightlight(temperature) {
@@ -38,6 +41,10 @@ QtObject {
 
   function setIdle(state) {
     root.idleStopped = String(state) === "off"
+  }
+
+  function setStayAwake(state) {
+    root.stayAwake = String(state) === "on"
   }
 
   function setReminders(count) {
@@ -59,6 +66,15 @@ QtObject {
     running: true
     stdout: StdioCollector {
       onStreamFinished: root.idleStopped = this.text.trim() !== "active"
+    }
+  }
+
+  // Exit non-zero when the unit is not active, which is the "off" reading.
+  property Process stayAwakeQuery: Process {
+    command: ["systemctl", "--user", "is-active", "anixie-stayawake"]
+    running: true
+    stdout: StdioCollector {
+      onStreamFinished: root.stayAwake = this.text.trim() === "active"
     }
   }
 

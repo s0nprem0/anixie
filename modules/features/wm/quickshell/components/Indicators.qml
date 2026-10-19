@@ -30,6 +30,7 @@ BarWidget {
 
   readonly property bool dnd: NotificationHost.doNotDisturb
   readonly property bool idleStopped: IndicatorHost.idleStopped
+  readonly property bool stayAwake: IndicatorHost.stayAwake
   readonly property bool nightlight: IndicatorHost.nightlight
   readonly property int reminderCount: IndicatorHost.reminderCount
 
@@ -37,6 +38,7 @@ BarWidget {
     const list = []
     if (root.wanted("Dnd") && (root.alwaysShow || root.dnd)) list.push("Dnd")
     if (root.wanted("Idle") && (root.alwaysShow || root.idleStopped)) list.push("Idle")
+    if (root.wanted("StayAwake") && (root.alwaysShow || root.stayAwake)) list.push("StayAwake")
     if (root.wanted("NightLight") && (root.alwaysShow || root.nightlight)) list.push("NightLight")
     if (root.wanted("Reminder") && (root.alwaysShow || root.reminderCount > 0)) list.push("Reminder")
     return list
@@ -61,6 +63,7 @@ BarWidget {
 
         sourceComponent: modelData === "Dnd" ? dndIndicator
           : modelData === "NightLight" ? nightIndicator
+          : modelData === "StayAwake" ? stayAwakeIndicator
           : modelData === "Reminder" ? reminderIndicator
           : idleIndicator
       }
@@ -92,6 +95,20 @@ BarWidget {
       selected: root.idleStopped
       dimmed: !root.idleStopped
       onPressed: function () { Commands.run("toggle idle") }
+    }
+  }
+
+  Component {
+    id: stayAwakeIndicator
+
+    WidgetButton {
+      text: Util.bolt
+      fontSize: Style.bar.iconFont
+      tooltipText: root.stayAwake ? "Holding off sleep · click to release" : "Sleep is not held"
+      active: root.stayAwake
+      selected: root.stayAwake
+      dimmed: !root.stayAwake
+      onPressed: function () { Commands.run("toggle stayawake") }
     }
   }
 

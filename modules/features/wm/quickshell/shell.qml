@@ -332,6 +332,7 @@ ShellRoot {
 
     function nightlight(temperature: string): void { IndicatorHost.setNightlight(temperature) }
     function idle(state: string): void { IndicatorHost.setIdle(state) }
+    function stayawake(state: string): void { IndicatorHost.setStayAwake(state) }
     function reminders(count: string): void { IndicatorHost.setReminders(count) }
   }
 

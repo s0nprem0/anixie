@@ -5,6 +5,7 @@
 #   toggle nightlight     warm the screen, or put it back
 #   toggle idle           stop the screen locking, or start it again
 #   toggle dnd            silence notifications, or let them through
+#   toggle stayawake      hold off blanking, sleeping and suspending
 #   toggle status         one line per toggle, for the bar
 #
 # Each of these is the same switch the bar's indicator flips and the same state
@@ -103,6 +104,35 @@ dnd_toggle() {
   "$quickshell" ipc call notify toggle >/dev/null 2>&1 || die "the shell is not running"
 }
 
+# ---- stay awake ----
+#
+# A logind inhibitor rather than another toggle of the same daemon. `idle` only
+# stops hypridle blanking and locking; closing the lid still suspends, and so
+# does an empty battery on the desktop's own policy. This one takes the sleep
+# class outright, for as long as it is running.
+#
+# The inhibitor is a service rather than a backgrounded `sleep infinity`: an
+# inhibitor only exists while its process holds the lock, and one launched from
+# a shell dies with it — the machine would go back to sleeping while the
+# indicator still claimed otherwise.
+
+stayawake_state() {
+  if systemctl --user is-active --quiet anixie-stayawake; then
+    printf 'on'
+  else
+    printf 'off'
+  fi
+}
+
+stayawake_toggle() {
+  if systemctl --user is-active --quiet anixie-stayawake; then
+    systemctl --user stop anixie-stayawake
+  else
+    systemctl --user start anixie-stayawake
+  fi
+  "$quickshell" ipc call indicator stayawake "$(stayawake_state)" >/dev/null 2>&1 || true
+}
+
 # ---- the group ----
 
 state_of() {
@@ -110,6 +140,7 @@ state_of() {
     nightlight) nightlight_state ;;
     idle) idle_state ;;
     dnd) dnd_state ;;
+    stayawake) stayawake_state ;;
     *) die "no toggle called \"$1\"" ;;
   esac
 }
@@ -119,6 +150,7 @@ label() {
     nightlight) printf 'Night light' ;;
     idle) printf 'Idle lock' ;;
     dnd) printf 'Silence notifications' ;;
+    stayawake) printf 'Stay awake' ;;
   esac
 }
 
@@ -127,12 +159,13 @@ toggle_one() {
     nightlight) nightlight_toggle ;;
     idle) idle_toggle ;;
     dnd) dnd_toggle ;;
+    stayawake) stayawake_toggle ;;
     *) die "no toggle called \"$1\"" ;;
   esac
 }
 
 names() {
-  printf '%s\n' nightlight idle dnd
+  printf '%s\n' nightlight idle dnd stayawake
 }
 
 case "${1:-}" in
@@ -157,7 +190,7 @@ case "${1:-}" in
       printf '%s\t%s\n' "$(label "$name")" "$(state_of "$name")"
     done
     ;;
-  nightlight | idle | dnd)
+  nightlight | idle | dnd | stayawake)
     toggle_one "$1"
     printf '%s: %s\n' "$(label "$1")" "$(state_of "$1")"
     ;;

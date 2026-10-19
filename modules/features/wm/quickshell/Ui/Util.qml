@@ -51,6 +51,9 @@ QtObject {
   readonly property string bell: glyph("f0f3")
   readonly property string bellSlash: glyph("f1f6")
   readonly property string coffee: glyph("f0f4")
+  // A bolt, for stay-awake: the caffeine icon is taken by the idle lock, and this
+  // is the same idea held by logind rather than by the idle daemon.
+  readonly property string bolt: glyph("f0e7")
   readonly property string moon: glyph("f186")
 
   // A video camera, shown while a screen recording runs.
