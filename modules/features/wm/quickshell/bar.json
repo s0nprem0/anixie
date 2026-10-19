@@ -2,32 +2,74 @@
   "background": "opaque",
   "layout": {
     "left": [
-      { "id": "bar.menu" },
-      { "id": "bar.workspaces" }
+      {
+        "id": "bar.menu"
+      },
+      {
+        "id": "bar.workspaces"
+      }
     ],
     "centerBegin": [
-      { "id": "bar.indicators" }
+      {
+        "id": "bar.indicators"
+      },
+      {
+        "id": "recording",
+        "type": "qml"
+      }
     ],
     "center": [
-      { "id": "bar.clock" },
-      { "id": "bar.world-clock" }
+      {
+        "id": "bar.clock"
+      },
+      {
+        "id": "bar.world-clock"
+      }
     ],
     "centerEnd": [
-      { "id": "bar.weather", "interval": 1800 },
-      { "id": "bar.update", "interval": 300 }
+      {
+        "id": "bar.weather",
+        "interval": 1800
+      },
+      {
+        "id": "bar.update",
+        "interval": 300
+      }
     ],
     "right": [
-      { "id": "bar.tray" },
-      { "id": "bar.keyboard-layout" },
-      { "id": "bar.agents" },
-      { "id": "bar.bluetooth" },
-      { "id": "bar.wifi" },
-      { "id": "bar.audio" },
-      { "id": "bar.monitor" },
-      { "id": "bar.bell" },
-      { "id": "bar.passwordless-sudo" },
-      { "id": "bar.remote-session" },
-      { "id": "bar.power" }
+      {
+        "id": "bar.tray"
+      },
+      {
+        "id": "bar.keyboard-layout"
+      },
+      {
+        "id": "bar.agents"
+      },
+      {
+        "id": "bar.bluetooth"
+      },
+      {
+        "id": "bar.wifi"
+      },
+      {
+        "id": "bar.audio"
+      },
+      {
+        "id": "bar.monitor"
+      },
+      {
+        "id": "bar.bell"
+      },
+      {
+        "id": "bar.passwordless-sudo"
+      },
+      {
+        "id": "bar.remote-session"
+      },
+      {
+        "id": "bar.power"
+      }
     ]
   }
 }

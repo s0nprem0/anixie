@@ -24,7 +24,10 @@ BarWidget {
 
   readonly property bool recording: RecorderHost.recording
 
-  visible: root.recording
+  // `wantsSlot`, not `visible`: the bar lays out Loaders, and a Loader measures
+  // what it loaded whether or not it is drawn. A module that hid itself with
+  // `visible` left a gap the size of a camera in the bar all day.
+  wantsSlot: root.recording
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
 
