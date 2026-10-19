@@ -39,12 +39,14 @@ with pkgs;
   httpie
   jq
 
-  # The repo's .envrc is `use flake`; nix-direnv is what makes that cached
-  # rather than re-evaluating the flake on every prompt.
-  nix-direnv
+  # direnv (and its nix-direnv caching) comes from programs.direnv in
+  # modules/system/dev.nix, which installs both.
 
   lazydocker
   lazygit
+  # The rebuild helper. NH_FLAKE is exported alongside it, so `nh os switch`
+  # finds ~/nix-dots without being told.
+  nh
   nix-output-monitor
   ripgrep
   sd

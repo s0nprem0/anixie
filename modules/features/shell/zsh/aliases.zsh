@@ -8,3 +8,8 @@ fi
 
 alias git_personal='git config user.email "s0nprem0@proton.me" && git config user.name "s0nprem0"'
 alias git_academic='git config user.email "jaysonbulugagao@gmail.com" && git config user.name "202302986"'
+
+# Rebuilds, through nh (NH_FLAKE points at ~/nix-dots).
+alias nrs='nh os switch'   # build and activate now
+alias nrb='nh os boot'     # build for the next boot
+alias nrt='nh os test'     # activate a throwaway generation
