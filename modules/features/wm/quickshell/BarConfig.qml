@@ -39,23 +39,18 @@ QtObject {
     }
   })
 
-  // The shipped file, and whatever the bar has saved over it. Both are read once
-  // (and the saved one watched) — the shipped file is a store path that cannot
-  // change without a rebuild, which restarts the shell anyway.
+  // The shipped file, and whatever the bar has saved over it. Both are read at
+  // startup: the shipped one is a store path that cannot change without a
+  // rebuild, and the saved one is this file's own output after that.
   property var builtin: root.fallback
-  property string saved: ""
 
-  readonly property var config: {
-    if (root.saved !== "") {
-      try {
-        const parsed = JSON.parse(root.saved)
-        if (parsed && typeof parsed === "object") return parsed
-      } catch (e) {
-        console.warn("quickshell bar: the saved layout is not valid JSON, using bar.json")
-      }
-    }
-    return root.builtin
-  }
+  // The layout in use, once it is known. The saved file is read at startup; after
+  // that this is the truth and every change writes it out. Watching the file and
+  // re-reading it on every write raced the writes themselves — two widgets
+  // dropped in quick succession kept only the second.
+  property var state: null
+
+  readonly property var config: root.state !== null ? root.state : root.builtin
 
   readonly property var layout: root.config.layout ? root.config.layout : {}
 
@@ -85,10 +80,20 @@ QtObject {
   }
 
   function reloadSaved() {
+    let raw = ""
     try {
-      root.saved = root.savedFile.text()
+      raw = root.savedFile.text()
     } catch (e) {
-      root.saved = ""
+      raw = ""
+    }
+
+    if (raw.trim() === "") return
+
+    try {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === "object") root.state = parsed
+    } catch (e) {
+      console.warn("quickshell bar: the saved layout is not valid JSON, using bar.json")
     }
   }
 
@@ -135,37 +140,43 @@ QtObject {
   }
 
   function save(next) {
-    // The directory is made first and synchronously enough to matter: a write
-    // into a directory that does not exist yet is a drop that silently does
-    // nothing.
-    root.pending = next
+    // The in-memory layout moves immediately, before the file is written. The
+    // write goes through a process and a file adapter, and a second move in that
+    // window would otherwise read the layout from before the first — dropping two
+    // widgets into the same section kept only the second.
+    root.state = next
+    root.savedText = JSON.stringify(next, null, 2) + "\n"
+
+    // The directory is made first: a write into a directory that does not exist
+    // yet is a drop that silently does nothing.
     mkdir.running = false
     mkdir.running = true
   }
 
   // Put the shipped layout back, by taking the saved one away.
   function reset() {
-    root.saved = ""
+    root.state = null
+    root.savedText = ""
     rm.running = false
     rm.running = true
   }
 
-  property var pending: null
+  // What was last written, so the write can be deferred until the directory
+  // exists without losing a later change.
+  property string savedText: ""
 
   property Process mkdir: Process {
     command: ["mkdir", "-p", root.stateDir]
     running: false
     onExited: {
-      if (!root.pending) return
-      root.savedFile.setText(JSON.stringify(root.pending, null, 2) + "\n")
-      root.pending = null
+      if (root.savedText !== "") root.savedFile.setText(root.savedText)
     }
   }
 
   property Process rm: Process {
     command: ["rm", "-f", root.savedPath]
     running: false
-    onExited: root.saved = ""
+    onExited: root.savedText = ""
   }
 
   // A FileView held as a property rather than a child: a QtObject has no
@@ -182,9 +193,7 @@ QtObject {
     path: root.savedPath
     printErrors: false
     blockLoading: true
-    watchChanges: true
 
-    onFileChanged: root.reloadSaved()
     Component.onCompleted: root.reloadSaved()
   }
 }

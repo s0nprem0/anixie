@@ -42,6 +42,26 @@ Item {
     return index
   }
 
+  // Where a dragged module would land, if the pointer is over this section.
+  function previewIndex() {
+    if (!BarContext.dropPreview || BarContext.dropPreview.section !== root.name) return -1
+    return BarContext.dropPreview.index
+  }
+
+  function previewX() {
+    const index = root.previewIndex()
+    if (index < 0) return 0
+
+    const items = root.vertical ? column.children : row.children
+    let x = 0
+    for (let i = 0; i < items.length && i < index; i++) {
+      const item = items[i]
+      if (!item || item.visible === false) continue
+      x = item.x + item.width
+    }
+    return Math.max(0, Math.min(x, root.width - Style.space(2)))
+  }
+
   Component.onCompleted: BarContext.registerSection(root.name, root)
 
   implicitWidth: vertical ? Style.bar.sizeVertical : row.implicitWidth
@@ -63,6 +83,18 @@ Item {
       modules: !root.vertical ? root.entries : []
       sectionName: root.name
     }
+  }
+
+  // The line the dragged widget will land on. Drawn by the section rather than
+  // the widget, because the widget does not move while it is being carried.
+  Rectangle {
+    visible: root.previewIndex() >= 0
+    x: root.vertical ? 0 : root.previewX()
+    y: root.vertical ? root.previewX() : 0
+    width: root.vertical ? root.width : Style.space(2)
+    height: root.vertical ? Style.space(2) : root.height
+    radius: Theme.cornerRadius
+    color: Theme.primary
   }
 
   Column {

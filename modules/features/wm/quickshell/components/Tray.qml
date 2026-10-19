@@ -16,9 +16,23 @@ BarWidget {
 
   readonly property var items: SystemTray.items ? SystemTray.items.values : []
 
-  wantsSlot: root.items.length > 0
+  // Widgets put away in the tray. They are bar modules, not tray icons: the tray
+  // is where a widget goes when it is wanted but not always in view, and the
+  // drawer is where it comes back out.
+  readonly property var parked: BarConfig.section("tray")
+
+  readonly property Component drawer: drawerComponent
+
+  wantsSlot: root.items.length > 0 || root.parked.length > 0
   implicitWidth: row.implicitWidth
   implicitHeight: Style.bar.sizeHorizontal
+
+  // Dragging a widget here parks it, and the command line can open the drawer the
+  // same way a click does.
+  Component.onCompleted: {
+    BarContext.registerDropZone("tray", root)
+    BarContext.trayItem = root
+  }
 
   function openMenu(button) {
     if (!button.item || !button.item.hasMenu) return
@@ -82,6 +96,62 @@ BarWidget {
           width: Style.bar.iconSize
           height: Style.bar.iconSize
           smooth: true
+        }
+      }
+    }
+
+    // The handle. Only when there is something parked — an empty tray does not
+    // need to say it is empty.
+    BarIconButton {
+      id: parkedButton
+      visible: root.parked.length > 0
+      text: Util.chevronDown
+      labelText: ""
+      tooltipText: root.parked.length
+        + (root.parked.length === 1 ? " widget parked" : " widgets parked")
+        + " · click to open"
+      onPressed: function () {
+        PanelHost.toggle("tray", parkedButton, root.drawer)
+      }
+    }
+  }
+
+  // The drawer. A panel rather than a floating strip of its own: it dismisses on
+  // a click outside, takes the keyboard, and a widget opened from it can have its
+  // own panel beside it, which a strip that has to stay inside the bar's height
+  // could not.
+  Component {
+    id: drawerComponent
+
+    Panel {
+      id: trayCard
+
+      PanelHero {
+        width: trayCard.contentWidth
+        glyph: Util.menu
+        title: "Parked"
+        subtitle: root.parked.length
+          + (root.parked.length === 1 ? " widget" : " widgets")
+      }
+
+      PanelSeparator {}
+
+      Repeater {
+        model: root.parked
+
+        delegate: Loader {
+          id: parkedLoader
+          required property var modelData
+
+          width: trayCard.contentWidth
+          height: item ? item.implicitHeight : 0
+          sourceComponent: ModuleRegistry.registry[modelData.id] || null
+
+          onLoaded: {
+            if (!item) return
+            if (item.entry !== undefined) item.entry = modelData
+            if (item.fixedEdge !== undefined) item.fixedEdge = "center"
+          }
         }
       }
     }

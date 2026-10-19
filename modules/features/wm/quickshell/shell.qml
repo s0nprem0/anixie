@@ -289,6 +289,13 @@ ShellRoot {
       BarConfig.move(id, section, Number(index))
     }
     function reset(): void { BarConfig.reset() }
+
+    // The tray drawer, for a script or a key: what a click on the parked count
+    // opens.
+    function tray(): void {
+      if (!BarContext.trayItem) return
+      PanelHost.toggle("tray", BarContext.trayItem, BarContext.trayItem.drawer)
+    }
   }
 
   // The panels, by name, for their hotkeys.
