@@ -71,30 +71,54 @@ QtObject {
     // screen or lose a notification mid-read.
     keepOnReload: true
 
+    // What the card can actually draw, told to senders. Both default to false:
+    // an application that checks the server's capabilities will not send the
+    // action buttons the card renders, nor the image it would show. Markup is
+    // left off because the body is drawn as plain text.
+    actionsSupported: true
+    imageSupported: true
+
     onNotification: function (notification) {
-      NotificationStore.begin(notification)
-      if (root.doNotDisturb) return
+      // Silencing means "do not interrupt me", and a critical notification — a
+      // failing battery, an alarm — is the one thing that has earned the
+      // interruption. Everything else is written to history and left untracked,
+      // so it never becomes a popup.
+      const quiet = root.doNotDisturb && notification.urgency !== NotificationUrgency.Critical
+      NotificationStore.begin(notification, quiet)
+      if (quiet) return
+
       notification.tracked = true
     }
   }
 
+  function sweepNow() {
+    const ids = []
+    for (const notification of root.tracked) ids.push(notification.id)
+    NotificationStore.sweep(ids)
+  }
+
   // Nothing calls us when a notification ends: the card expires or dismisses it,
   // but the client is equally free to close its own notification, and that never
-  // reaches the shell at all. So the tracked list is polled and whatever has
-  // dropped out of it is archived. A second is far finer than a human can notice
-  // in the gap between a toast going and its entry appearing in the panel.
+  // reaches the shell. The tracked list is what drops the entry when that
+  // happens, so watching the list archives the moment it does — every insert
+  // and removal, rather than polling for a gap once a second.
   //
-  // Held as a property rather than declared as a child: a QtObject has no
-  // default property, so a bare `Timer { }` here has nowhere to go.
-  property Timer sweeper: Timer {
-    interval: 1000
-    running: true
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: {
-      const ids = []
-      for (const notification of root.tracked) ids.push(notification.id)
-      NotificationStore.sweep(ids)
+  // Held as properties rather than declared as children: a QtObject has no
+  // default property, so a bare `Connections { }` here has nowhere to go.
+  property Connections trackedChanges: Connections {
+    target: root.server.trackedNotifications
+    function onValuesChanged() { root.sweepNow() }
+  }
+
+  // One reconciliation after startup, not a poll: the store builds its
+  // id-to-file map off disk asynchronously, and after a reload the daemon
+  // re-emits what it still holds. Waiting for `ready` means that read is done,
+  // so anything still in `live` that is not tracked is a popup the shell did
+  // not survive, and is archived now rather than left for the reaper.
+  property Connections storeReady: Connections {
+    target: NotificationStore
+    function onReadyChanged() {
+      if (NotificationStore.ready) root.sweepNow()
     }
   }
 }
