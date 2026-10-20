@@ -51,18 +51,21 @@ in
     --
     -- `hl.unbind` first, so re-running this file replaces bindings instead of
     -- stacking a second one on top of the first.
+    --
+    -- `options` are merged into the bind's table alongside the description, so
+    -- a hardware key can still ask for `locked` and `repeating`.
     -- ------------------------------------------------------------------
-    local function bind(key, description, command)
+    local function bind(key, description, command, options)
       hl.unbind(key)
-      hl.bind(key, hl.dsp.exec_cmd(command), { description = description })
+
+      local opts = { description = description }
+      for name, value in pairs(options or {}) do
+        opts[name] = value
+      end
+
+      hl.bind(key, hl.dsp.exec_cmd(command), opts)
     end
 
-    -- Same, for a handler function rather than a shell command.
-    --
-    -- The picker binds need the "picker" submap entered and left again around a
-    -- command, which is two dispatches around one exec — more than `bind`'s
-    -- single exec_cmd can express. They go through here so they still unbind
-    -- first and stay idempotent across a reload like every other bind.
     -- Same, for a key the shell catches itself as a global shortcut. No process
     -- runs between the key and the shell, which is what makes the menu open on
     -- the keypress rather than after a `quickshell ipc` call has started up.
@@ -71,6 +74,12 @@ in
       hl.bind(key, hl.dsp.global("quickshell:" .. name), { description = description })
     end
 
+    -- Same, for a handler function rather than a shell command.
+    --
+    -- The picker binds need the "picker" submap entered and left again around a
+    -- command, which is two dispatches around one exec — more than `bind`'s
+    -- single exec_cmd can express. They go through here so they still unbind
+    -- first and stay idempotent across a reload like every other bind.
     local function bind_handler(key, description, handler)
       hl.unbind(key)
       hl.bind(key, handler, { description = description })
@@ -97,16 +106,22 @@ in
       hl.bind(key, args ~= nil and dsp(args) or dsp(), { description = description })
     end
 
-    -- Runs a command, but only if it exists; otherwise the fallback.
+    -- ------------------------------------------------------------------
+    -- Environment
     --
-    -- Two whole commands, not a command and its arguments: the result is spliced
-    -- into a bind's shell line as-is, so `or_else("shot", "shot") .. " smart"`
-    -- would produce `... else shot; fi smart`, and the trailing argument after
-    -- `fi` is a syntax error rather than a fallback.
-    local function or_else(command, fallback)
-      return "if command -v " .. command .. " >/dev/null 2>&1; then "
-        .. command .. "; else " .. fallback .. "; fi"
-    end
+    -- Set in the compositor rather than through Home Manager's session
+    -- variables: these have to reach everything a bind starts, and a session
+    -- variable is exported by the login shell, which a compositor-launched app
+    -- never runs.
+    --
+    -- The `;` and `,` in the Qt and GTK values are fallback lists, not typos.
+    -- ------------------------------------------------------------------
+    hl.env("NIXOS_OZONE_WL", "1")
+    hl.env("QT_QPA_PLATFORM", "wayland;xcb")
+    hl.env("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1")
+    hl.env("GDK_BACKEND", "wayland,x11")
+    hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
+    hl.env("MOZ_ENABLE_WAYLAND", "1")
 
     -- ------------------------------------------------------------------
     -- Settings
@@ -157,6 +172,14 @@ in
         border_size = 2,
         resize_on_border = true,
 
+        -- Edge snapping for floating windows; tiled windows ignore it.
+        snap = {
+          enabled = true,
+          window_gap = 8,
+          monitor_gap = 8,
+          respect_gaps = true;
+        };
+
         ["col.active_border"] = theme_colour("primary", "${render "@PRIMARY_RGBA_FF@"}"),
         ["col.inactive_border"] = theme_colour("muted", "${render "@MUTED_RGBA_AA@"}"),
       },
@@ -177,6 +200,12 @@ in
         };
       },
 
+      -- Keep the split direction when a window opens or closes, so the layout
+      -- does not reshuffle itself around every change.
+      dwindle = {
+        preserve_split = true;
+      };
+
       input = {
         kb_layout = "us",
         follow_mouse = 1;
@@ -185,9 +214,27 @@ in
         };
       },
 
+      -- 300ms between wheel notches is long enough to feel ignored; 150 still
+      -- debounces a free-spinning wheel. The scratchpad belongs to the
+      -- workspace it was opened on, so switching away should hide it.
+      binds = {
+        scroll_event_delay = 150;
+        hide_special_on_workspace_change = true;
+      };
+
       -- awww draws the wallpaper; Hyprland's own default would flash over it.
+      -- The logo and splash are off for the same reason: awww is already up by
+      -- the time the first frame is drawn.
       misc = {
         force_default_wallpaper = 0;
+        disable_hyprland_logo = true;
+        disable_splash_rendering = true;
+
+        -- A blanked output should come back on the first key or mouse movement
+        -- rather than waiting for a click. hypridle's on-resume normally does
+        -- this itself; these cover a DPMS state set by anything else.
+        key_press_enables_dpms = true;
+        mouse_move_enables_dpms = true;
       };
     })
 
@@ -244,6 +291,22 @@ in
     end
 
     -- ------------------------------------------------------------------
+    -- Gestures
+    --
+    -- One gesture, so it cannot fight another for the same fingers: a
+    -- horizontal three-finger swipe moves between workspaces, the touchpad
+    -- equivalent of the keyboard's workspace binds.
+    --
+    -- The swipe distance and inversion are Hyprland's defaults; only the
+    -- binding itself is new. Vertical three-finger swipes are left free.
+    -- ------------------------------------------------------------------
+    hl.gesture({
+      fingers = 3,
+      direction = "horizontal",
+      action = "workspace",
+    })
+
+    -- ------------------------------------------------------------------
     -- Startup
     -- ------------------------------------------------------------------
     hl.on("hyprland.start", function()
@@ -252,16 +315,18 @@ in
       hl.exec_cmd("wl-paste --type text --watch cliphist store")
       hl.exec_cmd("wl-paste --type image --watch cliphist store")
 
-      -- Push this Hyprland's socket and instance signature into the systemd
-      -- user manager. Home Manager only does that once, at session start, so a
-      -- compositor restart otherwise leaves the user manager holding the
-      -- previous signature and a socket that no longer exists — fatal to
-      -- anything started from it. The bar in particular crash-loops on
-      -- "Failed to create a wl_display" until the session is logged into again.
+      -- Push this Hyprland's socket and instance signature into both the
+      -- D-Bus activation environment and the systemd user manager. Home
+      -- Manager only does that once, at session start, so a compositor restart
+      -- otherwise leaves them holding the previous signature and a socket that
+      -- no longer exists — fatal to anything started from it. The bar in
+      -- particular crash-loops on "Failed to create a wl_display" until the
+      -- session is logged into again. The portal is D-Bus-activated, so it
+      -- needs the same variables in the bus's environment, not only systemd's.
       --
       -- Named explicitly rather than importing the whole environment, which
       -- would drag every variable Hyprland happens to be carrying along.
-      hl.exec_cmd("systemctl --user import-environment WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP")
+      hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE")
 
       -- awww-daemon aborts with SIGABRT if a second instance finds the socket
       -- already taken, and it re-runs whenever Hyprland reloads its config, so
@@ -470,10 +535,10 @@ in
     -- ------------------------------------------------------------------
     bind_handler("PRINT", "Screenshot", capture("shot smart"))
 
-    -- The same capture as PRINT, for a keyboard without a Print key. It used to
-    -- be `or_else("shot", "shot") .. " smart"`, which rendered as
-    -- `if command -v shot; then shot; else shot; fi smart` — `fi` followed by an
-    -- argument, a shell syntax error, so the key did nothing at all.
+    -- The same capture as PRINT, for a keyboard without a Print key. This key
+    -- used to splice a shell conditional together around the command, which
+    -- rendered as `if command -v shot; then shot; else shot; fi smart` — `fi`
+    -- followed by an argument, a shell syntax error, so the key did nothing.
     bind_handler(mod .. " + SHIFT + S", "Screenshot", capture("shot smart"))
 
     bind_handler(mod .. " + SHIFT + W", "Screenshot window", capture("shot windows"))
@@ -734,11 +799,12 @@ in
     -- to another workspace is SHIFT with a number, above; the arrows are for
     -- swapping with the neighbour, which is the action you reach for more.
 
-    -- The wheel moves between existing workspaces. mouse_up and mouse_down, not
-    -- a bare "wheel": the key has to say which way the wheel turned, or the two
-    -- binds are identical apart from their argument and one shadows the other.
-    bind(mod .. " + mouse_up", "Previous workspace", "hyprctl dispatch 'hl.dsp.focus({workspace = -1})'")
-    bind(mod .. " + mouse_down", "Next workspace", "hyprctl dispatch 'hl.dsp.focus({workspace = 1})'")
+    -- The wheel moves between existing workspaces, so a gap of several empty
+    -- ones is crossed in one notch. mouse_up and mouse_down, not a bare "wheel":
+    -- the key has to say which way the wheel turned, or the two binds are
+    -- identical apart from their argument and one shadows the other.
+    dispatch(mod .. " + mouse_up", "Previous workspace", "focus", { workspace = "e-1" })
+    dispatch(mod .. " + mouse_down", "Next workspace", "focus", { workspace = "e+1" })
 
     -- ------------------------------------------------------------------
     -- Scratchpad
@@ -793,19 +859,28 @@ in
 
     -- ------------------------------------------------------------------
     -- Media and brightness
+    --
     -- These arrive as hardware keys, so `locked` lets them through a fullscreen
-    -- window and `repeating` holds down smoothly.
+    -- window. Volume and brightness also repeat: holding the key should slide
+    -- rather than move one step. The mute keys and playback controls do not
+    -- repeat — they are toggles, and a repeating toggle ends wherever the
+    -- key-release happens to leave it.
     -- ------------------------------------------------------------------
     bind("XF86AudioRaiseVolume", "Volume up",
-      "wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+")
-    bind("XF86AudioLowerVolume", "Volume down", "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-")
-    bind("XF86AudioMute", "Mute", "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle")
+      "wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+", { locked = true, repeating = true })
+    bind("XF86AudioLowerVolume", "Volume down",
+      "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-", { locked = true, repeating = true })
+    bind("XF86AudioMute", "Mute",
+      "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle", { locked = true })
+    bind("XF86AudioMicMute", "Mute microphone",
+      "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle", { locked = true })
 
-    bind("XF86AudioPlay", "Play/pause", "playerctl play-pause")
-    bind("XF86AudioNext", "Next track", "playerctl next")
-    bind("XF86AudioPrev", "Previous track", "playerctl previous")
+    bind("XF86AudioPlay", "Play/pause", "playerctl play-pause", { locked = true })
+    bind("XF86AudioPause", "Play/pause", "playerctl play-pause", { locked = true })
+    bind("XF86AudioNext", "Next track", "playerctl next", { locked = true })
+    bind("XF86AudioPrev", "Previous track", "playerctl previous", { locked = true })
 
-    bind("XF86MonBrightnessUp", "Brighter", "brightnessctl set +5%")
-    bind("XF86MonBrightnessDown", "Dimmer", "brightnessctl set 5%-")
+    bind("XF86MonBrightnessUp", "Brighter", "brightnessctl set +5%", { locked = true, repeating = true })
+    bind("XF86MonBrightnessDown", "Dimmer", "brightnessctl set 5%-", { locked = true, repeating = true })
   '';
 }
