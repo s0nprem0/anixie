@@ -14,6 +14,13 @@ BarWidget {
   readonly property var workspaces: Hyprland.workspaces ? Hyprland.workspaces.values : []
   readonly property int focusedId: Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : -1
 
+  // The layout is a control of its own after the workspaces, rather than
+  // replacing the focused workspace's number: a row of numbers with a hole in it
+  // read as a missing workspace. The glyph shows the current one and clicking
+  // it cycles.
+  readonly property var layouts: ["dwindle", "master", "scrolling"]
+  property string layout: "dwindle"
+
   // A wheel notch moves one workspace along the row; a touchpad adds up its
   // smaller deltas until they make a notch's worth.
   property real wheelAccumulator: 0
@@ -45,10 +52,38 @@ BarWidget {
   // Dispatched as Lua, for the same reason as DockHost: the config manager
   // rewrites `hyprctl dispatch workspace 3` into `hl.dispatch(workspace 3)`,
   // which is not a Lua expression. Verified against the running compositor.
-  function focus(id) {
+  function focusWorkspace(id) {
     focusProc.command = ["hyprctl", "dispatch", "hl.dsp.focus({workspace = " + String(id) + "})"]
     focusProc.running = true
   }
+
+  function layoutGlyphFor(mode) {
+    if (mode === "master") return Util.layoutMaster
+    if (mode === "scrolling") return Util.layoutScrolling
+    return Util.layoutDwindle
+  }
+
+  function refreshLayout() {
+    layoutQuery.running = false
+    layoutQuery.running = true
+  }
+
+  function cycleLayout() {
+    if (root.focusedId < 1 || layoutSet.running) return
+
+    const at = root.layouts.indexOf(root.layout)
+    const next = root.layouts[(at + 1) % root.layouts.length]
+    root.layout = next
+
+    // A workspace rule is how Hyprland changes a layout at runtime; `hyprctl
+    // keyword general:layout` would change every workspace instead.
+    layoutSet.command = ["hyprctl", "eval",
+      'hl.workspace_rule({ workspace = "' + root.focusedId + '", layout = "' + next + '" })']
+    layoutSet.running = true
+  }
+
+  Component.onCompleted: root.refreshLayout()
+  onFocusedIdChanged: if (layoutQuery) root.refreshLayout()
 
   function scroll(delta) {
     const wheel = Util.wheelSteps(root.wheelAccumulator, delta)
@@ -68,6 +103,38 @@ BarWidget {
   Process {
     id: focusProc
     running: false
+  }
+
+  Process {
+    id: layoutQuery
+    running: false
+    command: ["hyprctl", "activeworkspace", "-j"]
+
+    stdout: StdioCollector {
+      onStreamFinished: {
+        try {
+          const data = JSON.parse(String(this.text || "{}"))
+          root.layout = String(data.tiledLayout || "dwindle")
+        } catch (e) {
+        }
+      }
+    }
+  }
+
+  Process {
+    id: layoutSet
+    running: false
+
+    // The write has landed when it stops running; read the layout back rather
+    // than trusting the optimistic value if Hyprland rejected the name.
+    onRunningChanged: if (!running) root.refreshLayout()
+  }
+
+  IpcHandler {
+    target: "workspaces"
+
+    function cycle(): void { root.cycleLayout() }
+    function refresh(): void { root.refreshLayout() }
   }
 
   implicitWidth: row.implicitWidth
@@ -94,15 +161,28 @@ BarWidget {
         verticalPadding: 6
         fixedWidth: Style.space(20)
         fixedHeight: Style.bar.sizeHorizontal
-        tooltipText: "Workspace " + button.modelData
+        tooltipText: "Workspace " + button.modelData + " · click to focus"
 
         onPressed: function (button_) {
           if (button_ !== Qt.LeftButton) return
-          root.focus(button.modelData)
+          root.focusWorkspace(button.modelData)
         }
         onWheelMoved: function (delta) {
           root.scroll(delta)
         }
+      }
+    }
+
+    // The layout control, after the workspaces rather than in place of one of
+    // their numbers.
+    WidgetButton {
+      text: root.layoutGlyphFor(root.layout)
+      fontSize: Style.bar.iconFont
+      active: root.layout !== "dwindle"
+      tooltipText: "Layout: " + root.layout + " · click to cycle"
+
+      onPressed: function (button) {
+        if (button === Qt.LeftButton) root.cycleLayout()
       }
     }
   }

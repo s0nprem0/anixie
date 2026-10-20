@@ -50,6 +50,9 @@
         "id": "bar.bluetooth"
       },
       {
+        "id": "bar.tailscale"
+      },
+      {
         "id": "bar.wifi"
       },
       {

@@ -347,7 +347,10 @@ in
     -- after this shell is gone.
     bind(mod .. " + R", "Reminder", "reminder -i")
 
-    bind(mod .. " + SHIFT + V", "Clipboard history", "clipboard")
+    -- This used to be SHIFT+V. Unbind the old key explicitly so a reload in a
+    -- running session does not leave both shortcuts behind.
+    hl.unbind(mod .. " + SHIFT + V")
+    bind(mod .. " + CTRL + V", "Clipboard history", "clipboard")
 
     -- The emoji picker types the choice into the focused window rather than only
     -- copying it, so it lands in the sentence being written instead of having to
@@ -663,19 +666,19 @@ in
     -- something else.
     --
     -- A, W, B, D and P are the reference shell's letters for audio, network,
-    -- bluetooth, display and power. Calendar is the clock's panel.
+    -- bluetooth, brightness and power. Calendar is the clock's panel.
     -- ------------------------------------------------------------------
     bind(mod .. " + CTRL + A", "Audio panel", "quickshell ipc call panel toggle audio")
     bind(mod .. " + CTRL + W", "Network panel", "quickshell ipc call panel toggle network")
     bind(mod .. " + CTRL + B", "Bluetooth panel", "quickshell ipc call panel toggle bluetooth")
-    bind(mod .. " + CTRL + D", "Display panel", "quickshell ipc call panel toggle display")
+    bind(mod .. " + CTRL + D", "Brightness panel", "quickshell ipc call panel toggle display")
     bind(mod .. " + CTRL + P", "Power panel", "quickshell ipc call panel toggle power")
     bind(mod .. " + CTRL + ALT + D", "Calendar panel", "quickshell ipc call panel toggle calendar")
 
     -- The per-screen panel, separate from the brightness one on CTRL+D: a
     -- brightness slider has no business carrying a row for every attached output,
     -- and a second screen appearing is not a brightness problem.
-    bind(mod .. " + CTRL + SHIFT + D", "Displays panel", "quickshell ipc call panel toggle displays")
+    bind(mod .. " + CTRL + SHIFT + D", "Monitors panel", "quickshell ipc call panel toggle displays")
 
     -- The same panels by number, the way Omarchy numbers them: CTRL+1 is the
     -- first panel icon from the left, CTRL+2 the next, counting only the widgets
@@ -780,8 +783,9 @@ in
       dispatch(mod .. " + SHIFT + " .. i, "Send to workspace " .. i, "window.move", { workspace = tostring(i) })
     end
 
-    -- Comma and shift+comma step through all of them, so you are not boxed into
-    -- the first five.
+    -- Comma and shift+comma walk the existing workspaces, the same as the wheel
+    -- below: a gap of empty ones is crossed in one step. Numbered stepping would
+    -- stop on every empty workspace instead, which is a different gesture.
     --
     -- Not period. Hyprland key names are case-insensitive, so PERIOD and period
     -- are the same keysym: binding workspace stepping to period unbinds and
@@ -789,8 +793,8 @@ in
     -- gone from hyprctl binds with no error anywhere. Which of the two you want
     -- on that key is a choice, and the reference shell's choice is the emoji
     -- picker, so step with comma instead.
-    bind(mod .. " + comma", "Previous workspace", "hyprctl dispatch 'hl.dsp.focus({workspace = -1})'")
-    bind(mod .. " + SHIFT + comma", "Next workspace", "hyprctl dispatch 'hl.dsp.focus({workspace = 1})'")
+    dispatch(mod .. " + comma", "Previous workspace", "focus", { workspace = "e-1" })
+    dispatch(mod .. " + SHIFT + comma", "Next workspace", "focus", { workspace = "e+1" })
 
     -- Note what is *not* here: SUPER+SHIFT+arrow does not also move the window to
     -- the next workspace. It used to, alongside the swap above, and because a
@@ -805,6 +809,10 @@ in
     -- identical apart from their argument and one shadows the other.
     dispatch(mod .. " + mouse_up", "Previous workspace", "focus", { workspace = "e-1" })
     dispatch(mod .. " + mouse_down", "Next workspace", "focus", { workspace = "e+1" })
+
+    -- The focused workspace can also cycle its layout from the keyboard; the
+    -- bar's focused workspace button does the same thing on click.
+    bind(mod .. " + ALT + L", "Cycle workspace layout", "quickshell ipc call workspaces cycle")
 
     -- ------------------------------------------------------------------
     -- Scratchpad

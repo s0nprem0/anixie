@@ -29,6 +29,19 @@ BarWidget {
     return null
   }
 
+  // A connected wired device is the other way this machine can be online. It is
+  // shown in place of the Wi-Fi bars, so an Ethernet connection is not
+  // misreported as "not connected" when there is no Wi-Fi.
+  readonly property var wiredDevice: {
+    const list = Networking.devices.values || []
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].type === DeviceType.Wired && list[i].connected) return list[i]
+    }
+    return null
+  }
+  readonly property bool wired: root.wiredDevice !== null
+  readonly property string wiredName: root.wired ? String(root.wiredDevice.name || "Ethernet") : ""
+
   // The network that device is on.
   readonly property var active: {
     if (!root.device) return null
@@ -83,11 +96,25 @@ BarWidget {
     // to be told about the bars; otherwise the button hides itself at opacity 0.
     hasVisualContent: true
 
+    // Ethernet is a single state, not a signal strength: one glyph says it
+    // better than four bars at full height.
+    OpticalGlyph {
+      anchors.centerIn: parent
+      width: Style.bar.iconCanvas
+      height: Style.bar.iconCanvas
+      visible: root.wired
+      text: Util.ethernet
+      fontSize: Style.bar.iconFont
+      paintedSize: Style.bar.iconSize
+      color: readout.foreground
+    }
+
     // Same four bars as the panel's rows: width 3, spacing 2, step 3, standing
     // on a shared bottom, so the filled count reads as a staircase rather than
     // as dashes at different heights.
     Row {
       anchors.centerIn: parent
+      visible: !root.wired
       spacing: 2
 
       Repeater {
@@ -107,10 +134,14 @@ BarWidget {
 
     foreground: root.failed ? Theme.danger : Theme.fg
     tooltipText: root.failed
-      ? "Wi-Fi unavailable · Super+Ctrl+W"
-      : (root.resolved
-        ? root.ssid + " · " + root.signal + "% · Super+Ctrl+W"
-        : "Wi-Fi not connected · Super+Ctrl+W")
+      ? "Network unavailable · Super+Ctrl+W"
+      : (root.wired
+        ? "Ethernet · " + root.wiredName
+          + (root.connected ? " · Wi-Fi " + root.ssid : "")
+          + " · Super+Ctrl+W"
+        : (root.resolved
+          ? root.ssid + " · " + root.signal + "% · Super+Ctrl+W"
+          : "Network not connected · Super+Ctrl+W"))
 
     onPressed: function (button) {
       if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelRegistry.toggle("network")

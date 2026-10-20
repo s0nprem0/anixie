@@ -28,6 +28,8 @@ QtObject {
   readonly property Component updateBadge: Component { UpdateBadge {} }
   readonly property Component keyboardLayout: Component { KeyboardLayout {} }
   readonly property Component agents: Component { Agents {} }
+  readonly property Component tailscale: Component { Tailscale {} }
+  readonly property Component systemStats: Component { SystemStats {} }
 
   readonly property var registry: ({
     "bar.workspaces": workspaces,
@@ -51,7 +53,9 @@ QtObject {
     "bar.world-clock": worldClock,
     "bar.update": updateBadge,
     "bar.keyboard-layout": keyboardLayout,
-    "bar.agents": agents
+    "bar.agents": agents,
+    "bar.tailscale": tailscale,
+    "bar.system-stats": systemStats
   })
 
   function has(id) {

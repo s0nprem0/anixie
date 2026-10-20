@@ -96,6 +96,18 @@ QtObject {
   readonly property string sun: glyph("f185")
 
   readonly property string wifi: glyph("f1eb")
+  readonly property string ethernet: glyph("f6ff")
+
+  // System stats.
+  readonly property string cpu: glyph("f2db")
+  readonly property string memory: glyph("f538")
+
+  // Workspace layout glyphs, shown beside the workspaces: a 2x2 grid for
+  // dwindle, columns for master, rows for scrolling. Deliberately not f00a:
+  // that is the menu's 3x3 grid, and the two read as the same icon.
+  readonly property string layoutDwindle: glyph("f009")
+  readonly property string layoutMaster: glyph("f0db")
+  readonly property string layoutScrolling: glyph("f0c9")
 
   readonly property string micOn: glyph("f130")
   readonly property string micOff: glyph("f131")
