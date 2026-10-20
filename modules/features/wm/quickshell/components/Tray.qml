@@ -23,12 +23,43 @@ BarWidget {
 
   readonly property Component drawer: drawerComponent
 
+  // A hover reveal is passive: it opens the drawer without taking the keyboard,
+  // and closes it again when the pointer leaves both the tray and the drawer.
+  // A drawer opened by clicking the handle is left alone until it is dismissed.
+  property bool drawerHovered: false
+  property bool hoverOpened: false
+
   wantsSlot: root.items.length > 0 || root.parked.length > 0
   implicitWidth: row.implicitWidth
   implicitHeight: Style.bar.sizeHorizontal
 
   // The drawer opens from the handle below, and from the command line by name.
   Component.onCompleted: BarContext.trayItem = root
+
+  function openDrawer() {
+    if (root.parked.length === 0 || PanelHost.isOpen("tray")) return
+
+    root.hoverOpened = true
+    PanelHost.showPassive("tray", parkedButton, root.drawer)
+  }
+
+  function closeDrawer() {
+    if (!PanelHost.isOpen("tray")) {
+      root.hoverOpened = false
+      root.drawerHovered = false
+      return
+    }
+
+    if (!root.hoverOpened) return
+    if (root.drawerHovered || trayHover.hovered) return
+    // A parked widget may have opened its own panel from the drawer. Closing the
+    // drawer would take that panel's anchor away with it, so it stays until the
+    // panel opened from it is gone.
+    if (PanelHost.openPanels.count > 1) return
+
+    PanelHost.close("tray")
+    root.hoverOpened = false
+  }
 
   function openMenu(button) {
     if (!button.item || !button.item.hasMenu) return
@@ -38,6 +69,47 @@ BarWidget {
     menuAnchor.anchor.item = button
     menuAnchor.menu = button.item.menu
     menuAnchor.open()
+  }
+
+  // Hovering the tray reveals the drawer. The delay keeps a pointer merely
+  // crossing the bar from opening it; leaving waits a little longer so the
+  // pointer can cross the gap into the drawer.
+  HoverHandler {
+    id: trayHover
+
+    onHoveredChanged: {
+      if (hovered) {
+        root.hoverClose.stop()
+        if (!PanelHost.isOpen("tray")) root.hoverOpen.restart()
+      } else {
+        root.hoverOpen.stop()
+        if (root.hoverOpened) root.hoverClose.restart()
+      }
+    }
+  }
+
+  Timer {
+    id: hoverOpen
+    interval: 250
+    onTriggered: root.openDrawer()
+  }
+
+  Timer {
+    id: hoverClose
+    interval: 300
+    onTriggered: root.closeDrawer()
+  }
+
+  onParkedChanged: {
+    if (root.parked.length === 0) {
+      if (hoverOpen) hoverOpen.stop()
+      if (hoverClose) hoverClose.stop()
+      root.hoverOpened = false
+      root.drawerHovered = false
+      if (PanelHost.isOpen("tray")) PanelHost.close("tray")
+    } else if (trayHover && trayHover.hovered && !PanelHost.isOpen("tray")) {
+      if (hoverOpen) hoverOpen.restart()
+    }
   }
 
   Row {
@@ -107,20 +179,32 @@ BarWidget {
         + (root.parked.length === 1 ? " widget parked" : " widgets parked")
         + " · click to open"
       onPressed: function () {
+        root.hoverOpen.stop()
+        root.hoverClose.stop()
+        root.hoverOpened = false
         PanelHost.toggle("tray", parkedButton, root.drawer)
       }
     }
   }
 
   // The drawer. A panel rather than a floating strip of its own: it dismisses on
-  // a click outside, takes the keyboard, and a widget opened from it can have its
-  // own panel beside it, which a strip that has to stay inside the bar's height
-  // could not.
+  // a click outside, takes the keyboard when opened by a click, and a widget
+  // opened from it can have its own panel beside it, which a strip that has to
+  // stay inside the bar's height could not.
   Component {
     id: drawerComponent
 
     Panel {
       id: trayCard
+
+      // Crossing the gap from the bar into the drawer must not close it. The
+      // close timer is cancelled while the pointer is on the card, and restarted
+      // when it leaves.
+      onPointerInsideChanged: {
+        root.drawerHovered = trayCard.pointerInside
+        if (trayCard.pointerInside) root.hoverClose.stop()
+        else if (root.hoverOpened) root.hoverClose.restart()
+      }
 
       PanelHero {
         width: trayCard.contentWidth

@@ -61,6 +61,23 @@ Repeater {
     required property var modelData
     required property int index
 
+    // Follow the pointer while this module is being rearranged. The layout does
+    // not move during the drag, so the module only dims and a line shows the gap
+    // the release would fill.
+    opacity: BarDrag.active && BarDrag.sourceSection === repeater.sectionName && BarDrag.sourceIndex === loader.index
+      ? 0.35
+      : 1
+
+    Behavior on opacity {
+      NumberAnimation { duration: Style.duration(120) }
+    }
+
+    function dragPoint() {
+      if (!BarDrag.barRoot) return null
+      const point = dragHandler.centroid.position
+      return loader.mapToItem(BarDrag.barRoot, point.x, point.y)
+    }
+
     // A module that hides itself takes its slot with it. A Loader measures the
     // width of what it loaded whether or not that thing is drawn, and the bar
     // lays out the Loaders — so a widget that sets `visible: false` (the tray
@@ -132,6 +149,39 @@ Repeater {
         console.warn("quickshell bar: failed to load qml module "
           + (modelData ? modelData.id : "?") + " from " + loader.source)
       }
+    }
+
+    // Drag to rearrange. The handler does not move the Loader — the section's
+    // row or column owns its position — it only reports the gesture. The
+    // threshold is what keeps a click a click: a small wobble inside a button
+    // must not turn into a reorder.
+    DragHandler {
+      id: dragHandler
+
+      target: null
+      acceptedButtons: Qt.LeftButton
+      dragThreshold: Style.space(8)
+      cursorShape: Qt.ClosedHandCursor
+      enabled: loader.visible && loader.item !== null && modelData && modelData.id !== undefined
+      grabPermissions: PointerHandler.CanTakeOverFromItems
+        | PointerHandler.CanTakeOverFromHandlersOfDifferentType
+
+      onActiveChanged: {
+        if (dragHandler.active) {
+          const point = loader.dragPoint()
+          if (point) BarDrag.begin(repeater.sectionName, loader.index, String(modelData.id), point.x, point.y)
+        } else {
+          BarDrag.finish()
+        }
+      }
+
+      onTranslationChanged: {
+        if (!dragHandler.active) return
+        const point = loader.dragPoint()
+        if (point) BarDrag.update(point.x, point.y)
+      }
+
+      onCanceled: BarDrag.cancel()
     }
   }
 }

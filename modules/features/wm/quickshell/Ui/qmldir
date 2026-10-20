@@ -2,6 +2,7 @@ singleton Style 1.0 Style.qml
 singleton Util 1.0 Util.qml
 singleton Commands 1.0 Commands.qml
 singleton Bar 1.0 Bar.qml
+singleton BarDrag 1.0 BarDrag.qml
 singleton OsdHost 1.0 OsdHost.qml
 singleton CapturePreview 1.0 CapturePreview.qml
 singleton NotificationHost 1.0 NotificationHost.qml

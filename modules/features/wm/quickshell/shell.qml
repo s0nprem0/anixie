@@ -91,6 +91,7 @@ ShellRoot {
 
     Component.onCompleted: {
       PanelHost.host = barRoot
+      BarDrag.barRoot = barRoot
     }
 
     Background {
@@ -151,6 +152,21 @@ ShellRoot {
       anchors.rightMargin: BarContext.vertical ? undefined : bar.gap
       name: "right"
       entries: BarConfig.section("right")
+    }
+
+    // The gap a release would fill. Full thickness of the bar so it reads as a
+    // slot opening rather than a cursor drawn over the modules.
+    Rectangle {
+      id: dragIndicator
+
+      visible: BarDrag.active && BarDrag.targetValid
+      x: BarDrag.indicatorRect.x
+      y: BarDrag.indicatorRect.y
+      width: BarDrag.indicatorRect.width
+      height: BarDrag.indicatorRect.height
+      color: Theme.accent
+      radius: 1
+      z: 100
     }
   }
 

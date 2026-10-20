@@ -50,9 +50,12 @@ BarWidget {
     foreground: root.listening ? Theme.danger : Theme.fg
     tooltipText: (root.source ? root.source.name : "No input")
       + (root.muted ? " · muted" : " · " + root.percent + "%")
-      + " · scroll to change · click to mute"
+      + " · scroll to change · left-click to mute · middle-click for the audio panel"
     onPressed: function (button) {
-      if (button === Qt.LeftButton || button === Qt.MiddleButton) root.toggleMute()
+      // Mute stays on the primary button; the middle button is the way into the
+      // mixer, the same gesture the volume widget uses for its panel.
+      if (button === Qt.LeftButton) root.toggleMute()
+      else if (button === Qt.MiddleButton) PanelRegistry.toggle("audio")
     }
     onWheelMoved: function (delta) {
       root.adjust(delta)

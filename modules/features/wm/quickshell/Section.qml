@@ -26,6 +26,25 @@ Item {
   implicitWidth: vertical ? Style.bar.sizeVertical : row.implicitWidth
   implicitHeight: vertical ? column.implicitHeight : Style.bar.sizeHorizontal
 
+  // The Loaders this section is drawing, in layout order. The drag needs the
+  // real items rather than the entries: a module that hides itself has no width
+  // to drop beside, and the index it must write back is the entry index, which
+  // is not the same as the visible item index.
+  function widgets() {
+    const container = root.vertical ? column : row
+    const out = []
+
+    for (let i = 0; i < container.children.length; i++) {
+      const child = container.children[i]
+      if (child && child.modelData !== undefined) out.push(child)
+    }
+
+    return out
+  }
+
+  Component.onCompleted: BarDrag.registerSection(root.name, root)
+  Component.onDestruction: BarDrag.unregisterSection(root.name, root)
+
   Row {
     id: row
     visible: !root.vertical

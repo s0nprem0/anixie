@@ -1,56 +1,115 @@
 import QtQuick
+import Quickshell
+import Quickshell.Io
 import ".."
 import "../Ui"
 
-// Clock. Formatted inside a timer tick rather than inside a text binding: a
-// binding that calls new Date() reads no property, so QML cannot know when to
-// re-evaluate it — it runs once and the clock freezes on that value. Assigning
-// a string from the handler is what makes the text update.
+// Clock. Formatted by `date` rather than inside a text binding: the value has to
+// change on a schedule, and a binding that only reads new Date() never
+// re-evaluates. `date` also carries the time zone database, which this QML
+// engine does not, so choosing another zone costs no time-zone table here.
 //
-// Left opens a month calendar, right cycles the label between the two formats.
+// Left opens a month calendar, right cycles the label between the two formats,
+// middle opens the timezone selector.
 BarWidget {
   id: root
 
   // Reachable by hotkey as well as by click.
-  Component.onCompleted: PanelRegistry.register("calendar", readout, calendar)
+  Component.onCompleted: {
+    PanelRegistry.register("calendar", readout, calendar)
+    PanelRegistry.register("clock-zone", readout, zonePanel)
+  }
 
   property string stamp: ""
 
   // Which of the two formats the label is drawn with.
   property bool altFormat: false
+  property string zone: ""
 
   readonly property string format: String(root.setting("format", "ddd dd MMM  HH:mm"))
   readonly property string formatAlt: String(root.setting("formatAlt", "dddd dd MMMM yyyy"))
   readonly property string activeFormat: root.altFormat ? root.formatAlt : root.format
+
+  // Local first, then a short list that covers most calls. A layout entry may
+  // replace it with its own `zones` array, in the same shape WorldClock uses.
+  readonly property var zones: {
+    const configured = root.setting("zones", null)
+    if (configured && configured.length > 0) return configured
+
+    return [
+      { label: "Local", zone: "" },
+      { label: "UTC", zone: "UTC" },
+      { label: "London", zone: "Europe/London" },
+      { label: "Berlin", zone: "Europe/Berlin" },
+      { label: "New York", zone: "America/New_York" },
+      { label: "Los Angeles", zone: "America/Los_Angeles" },
+      { label: "Tokyo", zone: "Asia/Tokyo" },
+      { label: "Sydney", zone: "Australia/Sydney" }
+    ]
+  }
+
+  readonly property string zoneLabel: {
+    for (let i = 0; i < root.zones.length; i++) {
+      const entry = root.zones[i]
+      if (entry && entry.zone === root.zone) return String(entry.label || root.zone)
+    }
+    return root.zone
+  }
+
+  readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME")
+    || Quickshell.env("HOME") + "/.local/state") + "/anixie/clock"
+  readonly property string zonePath: root.stateDir + "/zone"
 
   readonly property var dayNames: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
   readonly property var monthNames: ["January", "February", "March", "April", "May", "June",
                                      "July", "August", "September", "October", "November", "December"]
 
   function refresh() {
-    root.stamp = root.formatDate(new Date(), root.activeFormat)
+    const format = root.dateFormat(root.activeFormat)
+
+    clock.running = false
+
+    // An empty zone means "use the system's local zone", not UTC. `TZ=""` would
+    // select UTC, so the local case has to leave the variable unset instead.
+    if (root.zone === "") {
+      clock.command = ["sh", "-c", 'LC_TIME=C date +"$1"', "_", format]
+    } else {
+      clock.command = ["sh", "-c", 'TZ="$1" LC_TIME=C date +"$2"', "_", root.zone, format]
+    }
+
+    clock.running = true
   }
 
-  // Tokens are replaced longest-first, so dddd cannot match as ddd plus a stray
-  // d, and MMMM cannot match as MMM plus one. Anything unrecognised is left as
-  // typed, so a literal in the format string survives.
-  function formatDate(date, format) {
-    return format.replace(/dddd|ddd|dd|MMMM|MMM|yyyy|HH|mm|W/g, function (token) {
-      if (token === "dddd") return root.dayNames[date.getDay()]
-      if (token === "ddd") return root.dayNames[date.getDay()].slice(0, 3)
-      if (token === "dd") return String(date.getDate()).padStart(2, "0")
-      if (token === "MMMM") return root.monthNames[date.getMonth()]
-      if (token === "MMM") return root.monthNames[date.getMonth()].slice(0, 3)
-      if (token === "yyyy") return String(date.getFullYear())
-      if (token === "HH") return String(date.getHours()).padStart(2, "0")
-      if (token === "mm") return String(date.getMinutes()).padStart(2, "0")
-      if (token === "W") return String(root.isoWeek(date))
-      return token
-    })
+  // The label is written with the same tokens as before; date(1) is what turns
+  // them into words. `%` is escaped first so a literal in a format survives the
+  // pass through date rather than becoming an unknown conversion.
+  function dateFormat(format) {
+    return String(format).replace(/%/g, "%%")
+      .replace(/dddd|ddd|dd|MMMM|MMM|yyyy|HH|mm|W/g, function (token) {
+        if (token === "dddd") return "%A"
+        if (token === "ddd") return "%a"
+        if (token === "dd") return "%d"
+        if (token === "MMMM") return "%B"
+        if (token === "MMM") return "%b"
+        if (token === "yyyy") return "%Y"
+        if (token === "HH") return "%H"
+        if (token === "mm") return "%M"
+        if (token === "W") return "%V"
+        return token
+      })
+  }
+
+  function setZone(next) {
+    root.zone = String(next || "")
+    zoneWriter.command = ["sh", "-c",
+      'mkdir -p "$1"; printf "%s\n" "$2" > "$1/zone"',
+      "_", root.stateDir, root.zone]
+    zoneWriter.running = true
   }
 
   // ISO 8601: the week belongs to the year holding its Thursday, weeks start on
-  // Monday, and the first week is the one with that Thursday in it.
+  // Monday, and the first week is the one with that Thursday in it. The calendar
+  // grid still needs this in JavaScript; only the bar's label goes through date.
   function isoWeek(date) {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
     const weekday = d.getUTCDay() || 7
@@ -69,24 +128,92 @@ BarWidget {
     interval: 1000
     repeat: true
     triggeredOnStart: true
-    onTriggered: root.refresh()
+    onTriggered: {
+      // The label has no seconds, so the process only has to run when the
+      // minute turns. A date call every tick would be a subprocess per second
+      // for a string that changes once a minute.
+      if (new Date().getSeconds() === 0 || root.stamp === "") root.refresh()
+    }
+  }
+
+  Process {
+    id: clock
+    running: false
+    stdout: StdioCollector {
+      onStreamFinished: root.stamp = String(this.text).trim()
+    }
+  }
+
+  Process {
+    id: zoneWriter
+    running: false
+  }
+
+  // The saved choice is read once at startup. There is no watch: the live path
+  // is the selector below, which assigns the property and writes the file.
+  property FileView zoneFile: FileView {
+    path: root.zonePath
+    printErrors: false
+    blockLoading: true
+
+    onLoaded: {
+      const saved = String(root.zoneFile.text()).trim()
+      if (saved !== root.zone) root.zone = saved
+      root.refresh()
+    }
   }
 
   WidgetButton {
     id: readout
     anchors.centerIn: parent
-    text: root.stamp
+    text: root.vertical || root.zone === ""
+      ? root.stamp
+      : root.stamp + "  " + root.zoneLabel
     fontSize: Style.font.body
     centerFigures: false
     active: true
     useActiveColor: false
-    tooltipText: "Calendar · Super+Ctrl+Alt+D · right-click to change the format"
+    tooltipText: "Calendar · left-click for the month · right-click for the format"
+      + " · middle-click for the timezone"
+      + (root.zone === "" ? "" : " · " + root.zone)
 
     onPressed: function (button) {
       if (button === Qt.LeftButton) PanelRegistry.toggle("calendar")
       else if (button === Qt.RightButton) {
         root.altFormat = !root.altFormat
         root.refresh()
+      } else if (button === Qt.MiddleButton) {
+        PanelRegistry.toggle("clock-zone")
+      }
+    }
+  }
+
+  Component {
+    id: zonePanel
+
+    Panel {
+      id: zoneCard
+      title: "Clock timezone"
+      maxWidth: Style.space(300)
+
+      Repeater {
+        model: root.zones
+
+        delegate: ChoiceRow {
+          id: zoneRow
+          required property var modelData
+
+          width: zoneCard.contentWidth
+          label: String(zoneRow.modelData.label || zoneRow.modelData.zone)
+          detail: zoneRow.modelData.zone === ""
+            ? "System local time"
+            : String(zoneRow.modelData.zone)
+          selected: root.zone === zoneRow.modelData.zone
+          onClicked: {
+            root.setZone(String(zoneRow.modelData.zone))
+            PanelHost.close("clock-zone")
+          }
+        }
       }
     }
   }

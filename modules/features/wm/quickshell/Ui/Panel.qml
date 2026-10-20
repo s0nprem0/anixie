@@ -263,7 +263,12 @@ FocusScope {
   }
 
   // Reaching for the pointer means the ring is no longer what is being followed.
+  // Also exposed for panels that own their hover behaviour, such as the tray
+  // drawer, so they do not have to add a second handler and guess what it covers.
+  readonly property bool pointerInside: panelHover.hovered
+
   HoverHandler {
+    id: panelHover
     onHoveredChanged: if (hovered) root.keyboard = false
   }
 
