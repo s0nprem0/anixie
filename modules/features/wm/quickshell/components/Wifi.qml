@@ -50,9 +50,10 @@ BarWidget {
 
   readonly property bool resolved: connected && ssid !== ""
 
-  // Offline hides the module, since a bar that reflows every time the network
-  // drops is noisier than one that simply loses a module.
-  wantsSlot: resolved
+  // The module stays when the network drops: losing the slot reflows the bar
+  // and takes away the thing that opens the panel to fix it. The tooltip says
+  // off instead, and the icon is still the way in.
+  wantsSlot: true
 
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
@@ -73,7 +74,7 @@ BarWidget {
       ? "Wi-Fi unavailable · Super+Ctrl+W"
       : (root.resolved
         ? root.ssid + " · " + root.signal + "% · Super+Ctrl+W"
-        : "Wi-Fi off · Super+Ctrl+W")
+        : "Wi-Fi not connected · Super+Ctrl+W")
 
     onPressed: function (button) {
       if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelRegistry.toggle("network")
