@@ -19,9 +19,8 @@ apps="@APPS@"
 browser="@BROWSER@"
 update="@UPDATE_DB@"
 
-usage() {
-  sed -n '2,/^[^#]/p' "$0" | sed -e '$d' -e '/^#!/d' -e 's/^# \{0,1\}//'
-}
+# shellcheck source=/dev/null
+. "@ANIXIE_LIB@"
 
 # A name becomes the file's own name, so `list` and `remove` can name it back.
 slug() {

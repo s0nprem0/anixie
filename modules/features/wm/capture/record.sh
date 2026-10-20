@@ -82,9 +82,8 @@ audio=""
 webcam_size="medium"
 webcam_device=""
 
-usage() {
-  sed -n '2,/^[^#]/p' "$0" | sed -e '$d' -e '/^#!/d' -e 's/^# \{0,1\}//'
-}
+# shellcheck source=/dev/null
+. "@ANIXIE_LIB@"
 
 notify() {
   # $1 urgency, $2 title, $3 body, rest: extra notify-send arguments.

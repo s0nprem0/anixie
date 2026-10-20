@@ -21,10 +21,8 @@ STATE="@STATE@"
 PPD="@PPD@"
 UDEV="@UDEVADM@"
 
-die() {
-  printf 'powerprofile: %s\n' "$1" >&2
-  exit 1
-}
+# shellcheck source=/dev/null
+. "@ANIXIE_LIB@"
 
 # Mains adapters expose an `online` file; the battery does not. Any adapter
 # reading 1 means the machine is plugged in.
@@ -76,6 +74,7 @@ show() {
 
 case "${1:-}" in
   "" | show | status) show ;;
+  -h | --help) usage ;;
   apply) apply ;;
   set) shift; set_pref "$@" ;;
   watch)
@@ -90,5 +89,8 @@ case "${1:-}" in
         esac
       done
     ;;
-  *) die "usage: powerprofile [show | set ac|battery PROFILE | apply]" ;;
+  *)
+    printf 'powerprofile: unknown argument "%s" (try --help)\n' "$1" >&2
+    exit 2
+    ;;
 esac

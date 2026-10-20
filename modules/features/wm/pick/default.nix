@@ -14,10 +14,12 @@
         [
           "@QUICKSHELL@"
           "@JQ@"
+          "@ANIXIE_LIB@"
         ]
         [
           "${pkgs.quickshell}/bin/quickshell"
           "${pkgs.jq}/bin/jq"
+          "${../../cli/lib.sh}"
         ]
         (builtins.readFile ./pick.sh)
     ))

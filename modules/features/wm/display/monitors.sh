@@ -47,14 +47,8 @@ ladder="1 1.25 1.6 2 3 4"
 # the names to show and the indices to send.
 transform_names="normal 90 180 270 flipped flipped-90 flipped-180 flipped-270"
 
-usage() {
-  sed -n '2,/^[^#]/p' "$0" | sed -e '$d' -e '/^#!/d' -e 's/^# \{0,1\}//'
-}
-
-die() {
-  printf 'monitors: %s\n' "$1" >&2
-  exit 1
-}
+# shellcheck source=/dev/null
+. "@ANIXIE_LIB@"
 
 monitors_json() { "$hyprctl" monitors -j; }
 

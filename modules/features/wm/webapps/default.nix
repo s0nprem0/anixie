@@ -11,11 +11,12 @@
   home.packages = [
     (pkgs.writeShellScriptBin "webapp" (
       builtins.replaceStrings
-        [ "@APPS@" "@BROWSER@" "@UPDATE_DB@" ]
+        [ "@APPS@" "@BROWSER@" "@UPDATE_DB@" "@ANIXIE_LIB@" ]
         [
           "${config.xdg.dataHome}/applications"
           "${pkgs.chromium}/bin/chromium"
           "${pkgs.desktop-file-utils}/bin/update-desktop-database"
+          "${../../cli/lib.sh}"
         ]
         (builtins.readFile ./webapp.sh)
     ))

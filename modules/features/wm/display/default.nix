@@ -9,10 +9,12 @@ let
       [
         "@HYPRCTL@"
         "@JQ@"
+        "@ANIXIE_LIB@"
       ]
       [
         "${pkgs.hyprland}/bin/hyprctl"
         "${pkgs.jq}/bin/jq"
+        "${../../cli/lib.sh}"
       ]
       (builtins.readFile ./monitors.sh)
   );

@@ -78,6 +78,7 @@ let
         "@THEME_APPS@"
         "@MATUGEN@"
         "@GENERATED@"
+        "@ANIXIE_LIB@"
       ]
       [
         "${./themes.json}"
@@ -90,6 +91,7 @@ let
         "${themeApps}/bin/theme-apps"
         "${pkgs.matugen}/bin/matugen"
         "${stateDir}/palette.json"
+        "${../cli/lib.sh}"
       ]
       (builtins.readFile ./theme.sh)
   );

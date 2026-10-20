@@ -16,9 +16,8 @@ set -eu
 
 quickshell="@QUICKSHELL@"
 
-usage() {
-  sed -n '2,/^[^#]/p' "$0" | sed -e '$d' -e '/^#!/d' -e 's/^# \{0,1\}//'
-}
+# shellcheck source=/dev/null
+. "@ANIXIE_LIB@"
 
 call() {
   "$quickshell" ipc call menu "$@" || {

@@ -5,11 +5,12 @@ let
 
   powerprofile = pkgs.writeShellScriptBin "powerprofile" (
     builtins.replaceStrings
-      [ "@STATE@" "@PPD@" "@UDEV@" ]
+      [ "@STATE@" "@PPD@" "@UDEV@" "@ANIXIE_LIB@" ]
       [
         state
         "${pkgs.power-profiles-daemon}/bin/powerprofilesctl"
         "${pkgs.systemd}/bin/udevadm"
+        "${../cli/lib.sh}"
       ]
       (builtins.readFile ./powerprofile.sh)
   );

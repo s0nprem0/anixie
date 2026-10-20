@@ -8,10 +8,12 @@ let
       [
         "@HYPRCTL@"
         "@QUICKSHELL@"
+        "@ANIXIE_LIB@"
       ]
       [
         "${pkgs.hyprland}/bin/hyprctl"
         "${pkgs.quickshell}/bin/quickshell"
+        "${../../cli/lib.sh}"
       ]
       (builtins.readFile ./toggle.sh)
   );

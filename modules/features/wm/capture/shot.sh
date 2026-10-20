@@ -43,16 +43,8 @@ mode="smart"
 dest="preview"
 post=""
 
-usage() {
-  # The header comment is the manual, so it is printed rather than copied out a
-  # second time, where it would drift. It runs from line 2 to the first line that
-  # is not a comment — which is `set -eu` — and that line is dropped.
-  #
-  # Line 2, not 1: the file Home Manager installs has its own shebang prepended,
-  # so this script's `#!/bin/sh` is line 2 and would otherwise print as `!/bin/sh`
-  # once the leading `#` is stripped. Any shebang line left in range goes first.
-  sed -n '2,/^[^#]/p' "$0" | sed -e '$d' -e '/^#!/d' -e 's/^# \{0,1\}//'
-}
+# shellcheck source=/dev/null
+. "@ANIXIE_LIB@"
 
 while [ $# -gt 0 ]; do
   case "$1" in

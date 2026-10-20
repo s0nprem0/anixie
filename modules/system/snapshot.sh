@@ -31,10 +31,8 @@ BTRFS="@BTRFS@"
 SUDO="@SUDO@"
 RSYNC="@RSYNC@"
 
-die() {
-  printf 'snapshot: %s\n' "$1" >&2
-  exit 1
-}
+# shellcheck source=/dev/null
+. "@ANIXIE_LIB@"
 
 # Root when the timer runs it, sudo when a person does.
 run() {
@@ -82,10 +80,12 @@ restore() {
 
 case "${1:-}" in
   "" | create) create "${2:-manual}" ;;
+  -h | --help) usage ;;
   list | ls) list ;;
   prune) prune "${2:-$KEEP}" ;;
   restore) restore "${2:-}" ;;
   *)
-    die "usage: snapshot [create [tag] | list | restore NAME | prune [keep]]"
+    printf 'snapshot: unknown argument "%s" (try --help)\n' "$1" >&2
+    exit 2
     ;;
 esac

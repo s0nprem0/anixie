@@ -28,6 +28,10 @@ let
     "@ZBAR@" = "${pkgs.zbar}/bin/zbarimg";
     "@MAGICK@" = "${pkgs.imagemagick}/bin/magick";
     "@QUICKSHELL@" = "${pkgs.quickshell}/bin/quickshell";
+
+    # The shared help and error helpers, sourced by the scripts that print a
+    # header manual. Not a binary — the path is the file itself.
+    "@ANIXIE_LIB@" = "${../../cli/lib.sh}";
   };
 
   # A script with its placeholders filled in. `extra` carries the placeholders

@@ -26,14 +26,8 @@ wl_copy="@WL_COPY@"
 # search over a whole home directory returns the same few names over and over.
 search_paths=("$HOME/Pictures" "$HOME/Videos")
 
-usage() {
-  sed -n '2,/^[^#]/p' "$0" | sed -e '$d' -e '/^#!/d' -e 's/^# \{0,1\}//'
-}
-
-die() {
-  printf 'transcode: %s\n' "$1" >&2
-  exit 1
-}
+# shellcheck source=/dev/null
+. "@ANIXIE_LIB@"
 
 # Picked through the shell's picker rather than a file dialog: it is already the
 # launcher and the clipboard picker, and it filters as you type, which is the

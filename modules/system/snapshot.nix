@@ -13,6 +13,7 @@ let
         "@BTRFS@"
         "@SUDO@"
         "@RSYNC@"
+        "@ANIXIE_LIB@"
       ]
       [
         dest
@@ -22,6 +23,7 @@ let
         # /run/wrappers is owned by root, and the store has no setuid bits.
         "/run/wrappers/bin/sudo"
         "${pkgs.rsync}/bin/rsync"
+        "${../features/cli/lib.sh}"
       ]
       (builtins.readFile ./snapshot.sh)
   );

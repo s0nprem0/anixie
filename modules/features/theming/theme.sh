@@ -44,14 +44,8 @@ wallpaper="@WALLPAPER@"
 
 current_file="$state_dir/current"
 
-usage() {
-  sed -n '2,/^[^#]/p' "$0" | sed -e '$d' -e '/^#!/d' -e 's/^# \{0,1\}//'
-}
-
-die() {
-  printf 'theme: %s\n' "$1" >&2
-  exit 1
-}
+# shellcheck source=/dev/null
+. "@ANIXIE_LIB@"
 
 names() {
   "$jq" -r 'keys[]' "$palettes" | sort
@@ -142,7 +136,7 @@ generate() {
   # that there is no wallpaper at all.
   [ -n "$wp" ] || wp=$("$wallpaper" current 2>/dev/null || true)
 
-  [ -n "$wp" ] && [ -f "$wp" ] || die "no picture to read a palette from — set one with `wallpaper set FILE`, or name one: `theme wallpaper FILE`"
+  [ -n "$wp" ] && [ -f "$wp" ] || die "no picture to read a palette from — set one with 'wallpaper set FILE', or name one: 'theme wallpaper FILE'"
 
   "$matugen" image "$wp" >/dev/null 2>&1 || die "matugen could not read $wp"
   [ -f "$generated" ] || die "matugen wrote no palette"

@@ -10,7 +10,10 @@
   # something without asking.
   home.packages = [
     (pkgs.writeShellScriptBin "menu" (
-      builtins.replaceStrings [ "@QUICKSHELL@" ] [ "${pkgs.quickshell}/bin/quickshell" ] (
+      builtins.replaceStrings
+        [ "@QUICKSHELL@" "@ANIXIE_LIB@" ]
+        [ "${pkgs.quickshell}/bin/quickshell" "${../../cli/lib.sh}" ]
+        (
         builtins.readFile ./menu.sh
       )
     ))

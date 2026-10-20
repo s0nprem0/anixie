@@ -27,14 +27,8 @@ set -eu
 quickshell="@QUICKSHELL@"
 jq="@JQ@"
 
-usage() {
-  sed -n '2,/^[^#]/p' "$0" | sed -e '$d' -e '/^#!/d' -e 's/^# \{0,1\}//'
-}
-
-die() {
-  printf 'pick: %s\n' "$1" >&2
-  exit 1
-}
+# shellcheck source=/dev/null
+. "@ANIXIE_LIB@"
 
 title=""
 placeholder=""
