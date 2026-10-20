@@ -2,12 +2,14 @@ import QtQuick
 import ".."
 import "."
 
-// The on-screen display card: a glyph, a bar and a percentage.
+// The on-screen display card: a glyph, a level bar and a state/value label.
 Item {
   id: root
 
   property string icon: ""
   property int percent: 0
+  property string valueText: ""
+  property bool muted: false
 
   implicitWidth: content.implicitWidth + Style.space(28)
   implicitHeight: Style.space(36)
@@ -40,7 +42,7 @@ Item {
         color: Theme.bg
 
         Rectangle {
-          width: parent.width * root.percent / 100
+          width: root.muted ? 0 : parent.width * root.percent / 100
           height: parent.height
           color: Theme.primary
         }
@@ -48,7 +50,11 @@ Item {
 
       Text {
         anchors.verticalCenter: parent.verticalCenter
-        text: root.percent + "%"
+        // A fixed column keeps the card from resizing between "9%" and "100%"
+        // or between a level and "Muted".
+        width: Style.space(44)
+        horizontalAlignment: Text.AlignRight
+        text: root.valueText || (root.percent + "%")
         color: Theme.fg
         font.family: Style.font.family
         font.pixelSize: Style.font.body

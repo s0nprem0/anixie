@@ -194,10 +194,10 @@ ShellRoot {
     }
   }
 
-  // The on-screen display for volume and brightness. Anchored to the bottom
-  // edge alone, which is what centres a layer surface on the axis it does not
-  // anchor, so the window is only as wide as the card and cannot swallow clicks
-  // across the whole width of the screen.
+  // The on-screen display for volume, microphone and brightness. Anchored to
+  // the bottom edge alone, which centres a layer surface on the axis it does
+  // not anchor, so the window is only as wide as the card and cannot swallow
+  // clicks across the whole width of the screen.
   PanelWindow {
     id: osdWindow
 
@@ -208,7 +208,10 @@ ShellRoot {
 
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
-    visible: OsdHost.shown
+
+    // Keep the surface mapped while it fades out, then let it go. Binding
+    // `visible` to `shown` alone would unmap it on the first frame of the fade.
+    visible: OsdHost.shown || osdCard.opacity > 0
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "quickshell-osd"
@@ -219,6 +222,13 @@ ShellRoot {
       anchors.fill: parent
       icon: OsdHost.icon
       percent: OsdHost.percent
+      valueText: OsdHost.valueText
+      muted: OsdHost.muted
+
+      opacity: OsdHost.shown ? 1 : 0
+      Behavior on opacity {
+        NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic }
+      }
     }
   }
 

@@ -99,8 +99,8 @@ BarWidget {
           radius: Theme.cornerRadius
           anchors.bottom: parent.bottom
           color: index < root.level
-            ? root.foreground
-            : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.12)
+            ? readout.foreground
+            : Qt.rgba(readout.foreground.r, readout.foreground.g, readout.foreground.b, 0.12)
         }
       }
     }
