@@ -8,6 +8,7 @@ Built for `vivobook`; the shape is reusable, the hardware bits are not.
 
 ```sh
 anixie update          # rebuild and switch (nh elevates itself; asks for a password)
+anixie update boot     # build for the next boot (also: test)
 anixie <group> --help  # every group documents itself
 ```
 
@@ -18,6 +19,12 @@ enough for `nix build`, but commit before `nh os switch`.
 
 **Going back** is a generation away: pick the previous one in the systemd-boot
 menu, or `nixos-rebuild switch --rollback`.
+
+**If the keyboard stops behaving**, the Lua config's binds cannot be removed by
+`hyprctl reload`. `./revert-hyprland.sh` points `~/.config/hypr` back at the
+hyprlang files from the running build (or from a path you pass it) and reloads;
+it lives outside the flake on purpose, so it still works when a build is the
+thing that is broken.
 
 The shell is a systemd user service:
 
@@ -140,8 +147,10 @@ clipboard.
   a rebuild prompt is worse than the risk.
 - **PhotoCraft runs under XWayland** — Wayland has no native file drag-and-drop,
   so its desktop entry clears `WAYLAND_DISPLAY`.
-- **The shell has no test gate.** `qmllint` and a headless start are the next
-  structural step; until then a QML typo is found by looking.
+- **The QML shell has no test gate.** `qmllint` and a headless start are the next
+  structural step; until then a QML typo is found by looking. The *shell scripts*
+  do have one: `nix flake check` runs `shellcheck -S warning` over every module
+  script, so a syntax error fails the check instead of a key press.
 - **Saved matches are for this machine.** The hostname, backlight device and
   keyboard backlight are named in `hosts/vivobook` and
   `modules/features/wm/quickshell/bar.json`-adjacent settings.
