@@ -9,121 +9,143 @@
 #
 #   anixie                 this help
 #   anixie commands        just the list of groups
+#   anixie resolve GROUP   the command a group runs
 #   anixie <group> [args]  run a group
 #   anixie <group> --help  that command's own help
 #
-# Every group below is another command on PATH. Adding one is a case arm here and
-# nothing else.
+# Every group below is another command on PATH. Adding one is a line in the table
+# and nothing else: the help, `commands`, `resolve` and the dispatcher all read
+# the same table, so they cannot disagree. The table is also what the shell's
+# completion reads, which is why it carries subcommands as data rather than
+# leaving them only in each command's prose.
 set -eu
 
+# One group per line, five fields:
+#
+#   name|command|aliases|subcommands|description
+#
+# `name` is the name the help lists; `command` is the words to exec (it may be
+# more than one), `aliases` are other names (space-separated, may be empty),
+# `subcommands` are the group's own words (space-separated, may be empty) offered
+# by completion, and `description` is the help line — last, so it may contain `|`.
+#
+# The commands that do real work before handing off (`update`, `bar`) carry their
+# whole command line here rather than a case arm of their own.
+ANIXIE_GROUPS='
+theme|theme||list current set next prev apply|palettes: list, set, next, prev, apply
+textsize|textsize|text|up down set reset apply|global text size: up, down, set N, reset
+wallpaper|wallpaper||list set add next prev generated apply current|desktop background: set FILE, theme, current
+display|monitors|monitors|scale internal mirror set list status|monitors: scale, internal, mirror, status
+power|powerprofile|powerprofile|set apply show|power profiles per source: set ac|battery PROFILE, show
+shot|shot|screenshot|smart region windows fullscreen window copy save annotate preview|screenshots: smart, region, windows, fullscreen
+record|record||--status --stop --fullscreen|screen recording
+clipboard|clipboard|||clipboard history picker
+emoji|emoji|||emoji picker
+menu|menu||apps --list --only|application and action menu
+webapp|webapp||add list remove|websites as applications: add, list, remove
+pick|pick||--title --input --on-select|the generic picker
+reminder|reminder||show count clear -i|set and list reminders
+toggle|toggle||nightlight idle dnd stayawake status list|night light, idle, do-not-disturb
+snapshot|snapshot||create list restore prune|btrfs snapshots of /home: create, list, restore, prune
+update|rebuild||switch boot test|rebuild and switch the system
+bar|quickshell ipc call bar||toggle on off reset move enable disable background tray|the status bar: toggle, on, off
+'
+
+# The loops below read the table through a here-document rather than a pipe, so
+# they run in this shell. A pipeline would put them in a subshell, where `return`
+# and the dispatcher's `exec` would apply to the wrong process.
+
 usage() {
-  cat <<'EOF'
-anixie — desktop command center
-
-Usage:
-  anixie <group> [args...]
-  anixie commands
-
-Groups:
-  theme        palettes: list, set, next, prev, apply
-  textsize     global text size: up, down, set N, reset
-  wallpaper    desktop background: set FILE, theme, current
-  display      monitors: scale, internal, mirror, status
-  power        power profiles per source: set ac|battery PROFILE, show
-  shot         screenshots: smart, region, windows, fullscreen
-  record       screen recording
-  clipboard    clipboard history picker
-  emoji        emoji picker
-  menu         application and action menu
-  pick         the generic picker
-  reminder     set and list reminders
-  toggle       night light, idle, do-not-disturb
-  snapshot     btrfs snapshots of /home: create, list, restore, prune
-  update       rebuild and switch the system
-  bar          the status bar: toggle, on, off
-  webapp       websites as applications: add, list, remove
+  printf 'anixie — desktop command center\n\n'
+  printf 'Usage:\n'
+  printf '  anixie <group> [args...]\n'
+  printf '  anixie commands\n'
+  printf '  anixie resolve <group>\n\n'
+  printf 'Groups:\n'
+  while IFS='|' read -r name cmd aliases subs desc; do
+    [ -n "$name" ] || continue
+    printf '  %-11s %s\n' "$name" "$desc"
+  done <<EOF
+$ANIXIE_GROUPS
 EOF
 }
 
+group_names() {
+  while IFS='|' read -r name cmd aliases subs desc; do
+    [ -n "$name" ] || continue
+    printf '%s\n' "$name"
+  done <<EOF
+$ANIXIE_GROUPS
+EOF
+}
+
+# The command words a group runs, by its name or any alias. Fails if unknown.
+resolve() {
+  while IFS='|' read -r name cmd aliases subs desc; do
+    case " $name $aliases " in
+      *" $1 "*) printf '%s\n' "$cmd"; return 0 ;;
+    esac
+  done <<EOF
+$ANIXIE_GROUPS
+EOF
+  return 1
+}
+
+# A group's own words, one per line, for completion. Fails if unknown.
+subcommands() {
+  while IFS='|' read -r name cmd aliases subs desc; do
+    case " $name $aliases " in
+      *" $1 "*)
+        for word in $subs; do printf '%s\n' "$word"; done
+        return 0
+        ;;
+    esac
+  done <<EOF
+$ANIXIE_GROUPS
+EOF
+  return 1
+}
+
 case "${1:-}" in
-  "" | -h | --help | help) usage ;;
+  "" | -h | --help | help)
+    usage
+    exit 0
+    ;;
   commands)
-    # Just the Groups block, one name per line.
-    usage | sed -n '/^Groups:/,/^[[:space:]]*$/p' | sed '1d' | awk '{ print $1 }'
+    group_names
+    exit 0
     ;;
-  theme)
-    shift
-    exec theme "$@"
+  resolve)
+    [ $# -ge 2 ] || {
+      printf 'anixie: resolve needs a group (try: anixie commands)\n' >&2
+      exit 2
+    }
+    resolve "$2" || {
+      printf 'anixie: no group called "%s" (try: anixie commands)\n' "$2" >&2
+      exit 2
+    }
+    exit 0
     ;;
-  textsize | text)
-    shift
-    exec textsize "$@"
-    ;;
-  wallpaper)
-    shift
-    exec wallpaper "$@"
-    ;;
-  display | monitors)
-    shift
-    exec monitors "$@"
-    ;;
-  power | powerprofile)
-    shift
-    exec powerprofile "$@"
-    ;;
-  shot | screenshot)
-    shift
-    exec shot "$@"
-    ;;
-  record)
-    shift
-    exec record "$@"
-    ;;
-  clipboard)
-    shift
-    exec clipboard "$@"
-    ;;
-  emoji)
-    shift
-    exec emoji "$@"
-    ;;
-  menu)
-    shift
-    exec menu "$@"
-    ;;
-  webapp)
-    shift
-    exec webapp "$@"
-    ;;
-  pick)
-    shift
-    exec pick "$@"
-    ;;
-  reminder)
-    shift
-    exec reminder "$@"
-    ;;
-  toggle)
-    shift
-    exec toggle "$@"
-    ;;
-  snapshot)
-    shift
-    exec snapshot "$@"
-    ;;
-  update)
-    # `-e auto` is nh finding sudo by itself and elevating only the activation,
-    # which writes /nix/var/nix/profiles/system as root. Without it this fails
-    # with a permission error on the profile symlink.
-    shift
-    exec nh -e auto os switch "$@"
-    ;;
-  bar)
-    shift
-    exec quickshell ipc call bar "$@"
-    ;;
-  *)
-    printf 'anixie: no group called "%s" (try: anixie commands)\n' "$1" >&2
-    exit 2
+  subcommands)
+    [ $# -ge 2 ] || {
+      printf 'anixie: subcommands needs a group (try: anixie commands)\n' >&2
+      exit 2
+    }
+    subcommands "$2" || {
+      printf 'anixie: no group called "%s" (try: anixie commands)\n' "$2" >&2
+      exit 2
+    }
+    exit 0
     ;;
 esac
+
+# Everything else is a group. Look it up, drop the group name, and become the
+# command — quoting $cmd is wrong here: it is the words to exec, and splitting
+# it is the point.
+cmd=$(resolve "$1") || {
+  printf 'anixie: no group called "%s" (try: anixie commands)\n' "$1" >&2
+  exit 2
+}
+shift
+# shellcheck disable=SC2086
+exec $cmd "$@"

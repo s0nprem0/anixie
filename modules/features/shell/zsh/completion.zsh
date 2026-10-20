@@ -25,3 +25,29 @@ zstyle ':completion:*' select-prompt %SScrolling active: current selection at %p
 zstyle ':completion:*' use-compctl false
 zstyle ':completion:*' verbose true
 zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
+
+# anixie: group names first, then that group's own words, then files. Both lists
+# are read back from the command (`anixie commands` and `anixie subcommands`), so
+# completion cannot list something the dispatcher does not know.
+_anixie() {
+  case $CURRENT in
+    2)
+      local -a groups
+      groups=( ${(f)"$(command anixie commands 2>/dev/null)"} )
+      _describe -t groups 'anixie group' groups
+      ;;
+    3)
+      local -a subs
+      subs=( ${(f)"$(command anixie subcommands "${words[2]}" 2>/dev/null)"} )
+      if (( ${#subs} )); then
+        _describe -t subcommands 'subcommand' subs
+      else
+        _files
+      fi
+      ;;
+    *)
+      _files
+      ;;
+  esac
+}
+compdef _anixie anixie
