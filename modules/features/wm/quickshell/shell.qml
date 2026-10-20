@@ -444,6 +444,15 @@ ShellRoot {
     exclusionMode: ExclusionMode.Ignore
     visible: NotificationHost.tracked.length > 0
 
+    // A burst — a mailing list, a chat backlog — should not draw a column taller
+    // than the screen with the last cards unreachable. The newest few are shown,
+    // the rest are counted, and the history panel has them all. Groups are
+    // already one card per consecutive app, so four is a lot of notifications.
+    readonly property int maxCards: 4
+    readonly property var shownGroups: NotificationHost.groups.slice(0, notificationWindow.maxCards)
+    readonly property int hiddenGroups: Math.max(0,
+      NotificationHost.groups.length - notificationWindow.shownGroups.length)
+
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "quickshell-notifications"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
@@ -455,7 +464,7 @@ ShellRoot {
       spacing: Style.space(8)
 
       Repeater {
-        model: NotificationHost.groups
+        model: notificationWindow.shownGroups
 
         delegate: NotificationCard {
           required property var modelData
@@ -466,6 +475,16 @@ ShellRoot {
           notification: modelData.items.length > 0 ? modelData.items[0] : null
           group: modelData.items
         }
+      }
+
+      Text {
+        visible: notificationWindow.hiddenGroups > 0
+        height: implicitHeight
+        text: "+" + notificationWindow.hiddenGroups + " more"
+        color: Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        renderType: Text.NativeRendering
       }
     }
   }

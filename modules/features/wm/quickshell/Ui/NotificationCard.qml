@@ -90,11 +90,17 @@ Item {
     // card away — clicking a message opens it, it does not merely hide it. A
     // group goes together: one click on a stack of five puts five away.
     onClicked: {
-      if (root.defaultAction) root.defaultAction.invoke()
+      const action = root.defaultAction
+      if (action) action.invoke()
 
+      // Resident means "do not remove me when an action is invoked"; it says
+      // nothing about a plain dismissal click. So a resident notification
+      // survives a click that ran its action — the action buttons below already
+      // honour that — but the same click with nothing to run still puts it away.
+      const keepResident = action !== null
       if (root.group.length > 0) {
-        for (const item of root.group) item.dismiss()
-      } else if (root.notification) {
+        for (const item of root.group) if (!(keepResident && item.resident)) item.dismiss()
+      } else if (root.notification && !(keepResident && root.notification.resident)) {
         root.notification.dismiss()
       }
     }
@@ -137,6 +143,7 @@ Item {
         Text {
           width: parent.width
           text: root.summary
+          textFormat: Text.PlainText
           color: Theme.fg
           font.family: Style.font.family
           font.pixelSize: Style.font.body
@@ -148,6 +155,7 @@ Item {
           width: parent.width
           visible: root.body !== ""
           text: root.body
+          textFormat: Text.PlainText
           color: Theme.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.bodySmall
@@ -160,6 +168,7 @@ Item {
           width: parent.width
           visible: root.appName !== ""
           text: root.appName
+          textFormat: Text.PlainText
           color: Theme.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.caption

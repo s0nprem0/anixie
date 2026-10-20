@@ -118,6 +118,7 @@ Item {
                 // and Text leaves `height` at 0 unless it is stated.
                 height: implicitHeight
                 text: row.modelData.summary !== "" ? row.modelData.summary : "(no summary)"
+                textFormat: Text.PlainText
                 color: Theme.fg
                 font.family: Style.font.family
                 font.pixelSize: Style.font.body
@@ -141,6 +142,7 @@ Item {
               height: implicitHeight
               visible: row.modelData.body !== ""
               text: row.modelData.body
+              textFormat: Text.PlainText
               color: Theme.muted
               font.family: Style.font.family
               font.pixelSize: Style.font.bodySmall
@@ -154,6 +156,7 @@ Item {
               height: implicitHeight
               visible: row.modelData.app !== ""
               text: row.modelData.app
+              textFormat: Text.PlainText
               color: Theme.muted
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
