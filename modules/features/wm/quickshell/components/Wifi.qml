@@ -43,6 +43,14 @@ BarWidget {
   readonly property string ssid: root.active ? String(root.active.name) : ""
   readonly property int signal: root.active ? Math.round(Number(root.active.signalStrength) * 100) : 0
 
+  // How many of the four bars are filled. The thresholds match the network
+  // panel's, so the bar and the list agree. Zero when the device is not
+  // connected: an empty staircase says "no signal" more directly than a full
+  // one would, and it is what the slot keeps showing while the network is down.
+  readonly property int level: root.connected
+    ? (root.signal >= 70 ? 4 : root.signal >= 45 ? 3 : root.signal >= 20 ? 2 : 1)
+    : 0
+
   // The service reports state rather than failing to run, so there is no
   // separate "query failed" case left. Kept as a property because the tooltip
   // still has a branch for it.
@@ -51,23 +59,51 @@ BarWidget {
   readonly property bool resolved: connected && ssid !== ""
 
   // The module stays when the network drops: losing the slot reflows the bar
-  // and takes away the thing that opens the panel to fix it. The tooltip says
-  // off instead, and the icon is still the way in.
+  // and takes away the thing that opens the panel to fix it. The bars go empty
+  // and the tooltip says not connected, but the slot is still the way in.
   wantsSlot: true
 
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
 
-  BarIconButton {
+  // Four ascending bars, filled by the strength the device reports, in place
+  // of a glyph that looked the same at one bar and at full. The name and the
+  // exact percentage stay in the tooltip; the bar is for the glance. A
+  // `WidgetButton` rather than a `BarIconButton`, because the visual content is
+  // the bars, not a font glyph.
+  WidgetButton {
     id: readout
     anchors.centerIn: parent
-    text: Util.wifi
+    keepSpace: true
+    fixedWidth: Style.bar.iconSlot
+    fixedHeight: Style.bar.iconSlot
+    text: ""
+    labelVisible: false
+    // No text of its own, so the base class's "has something to draw" test has
+    // to be told about the bars; otherwise the button hides itself at opacity 0.
+    hasVisualContent: true
 
-    // An icon, with the name and the strength in the tooltip. The bar's right
-    // side is a row of glyphs; an SSID sitting in the middle of them was the
-    // widest and least scannable thing on it, and the one piece of information
-    // there that you read once rather than glance at.
-    labelText: ""
+    // Same four bars as the panel's rows: width 3, spacing 2, step 3, standing
+    // on a shared bottom, so the filled count reads as a staircase rather than
+    // as dashes at different heights.
+    Row {
+      anchors.centerIn: parent
+      spacing: 2
+
+      Repeater {
+        model: 4
+        delegate: Rectangle {
+          required property int index
+          width: 3
+          height: 4 + index * 3
+          radius: Theme.cornerRadius
+          anchors.bottom: parent.bottom
+          color: index < root.level
+            ? root.foreground
+            : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.12)
+        }
+      }
+    }
 
     foreground: root.failed ? Theme.danger : Theme.fg
     tooltipText: root.failed
