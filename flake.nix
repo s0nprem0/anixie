@@ -58,8 +58,16 @@
       };
 
       perSystem =
-        { pkgs, ... }:
+        { system, ... }:
         let
+          # The dev shell and the checks want the same unfree allowance the
+          # machine has (unrar is in the shared CLI list), or `nix develop` and
+          # `nix flake check` refuse to evaluate before they do anything.
+          pkgs = import inputs.nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          };
+
           # Both shells share one package list, split into tiers by cost.
           shells = import ./modules/devshell { inherit pkgs; };
         in
@@ -68,6 +76,25 @@
             default = pkgs.mkShell shells.default;
             lite = pkgs.mkShell shells.lite;
           };
+
+          # The shell scripts, checked as written. The @PLACEHOLDER@ words are
+          # arguments in command position, so the syntax shellcheck sees is what
+          # the installed script runs — a syntax error is caught here instead of
+          # at a key press. `-S warning` leaves out the stylistic notes the
+          # scripts deliberately ignore (single-quoted `$` for a later eval, and
+          # so on) while still failing on anything that is a real mistake.
+          checks.shellcheck =
+            pkgs.runCommand "shellcheck"
+              {
+                nativeBuildInputs = [ pkgs.shellcheck ];
+              }
+              ''
+                set -eu
+                find ${./modules} -name '*.sh' -print0 |
+                  xargs -0 shellcheck -S warning -f gcc
+                shellcheck -S warning -f gcc ${./revert-hyprland.sh}
+                touch $out
+              '';
         };
     };
 }
