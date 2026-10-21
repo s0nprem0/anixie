@@ -113,6 +113,31 @@ QtObject {
   // entries are of one kind and the picker is a panel, not a window.
   readonly property int maxVisible: 12
 
+  // The group path the row at `index` should draw, or "" when the row above it
+  // is in the same one.
+  //
+  // A group's path is a prefix on each of its entries, and drawn on every one of
+  // them a run of twelve capture entries says "Capture" twelve times, burying
+  // the labels the prefix is there to organise. Drawn on the first row of each
+  // run — and wherever a filter breaks the run in two — it reads as a heading
+  // without costing the line of height a heading would.
+  function groupOf(index) {
+    if (!root.grouped || index < 0 || index >= root.results.length) return ""
+
+    const row = root.results[index].row
+    if (!row || row.group === undefined || row.group === null) return ""
+
+    const group = String(row.group)
+    if (group === "") return ""
+
+    if (index > 0) {
+      const above = root.results[index - 1].row
+      if (above && above.group !== undefined && String(above.group) === group) return ""
+    }
+
+    return group
+  }
+
   // Take the request at `path` and show it. The ack is returned as soon as the
   // read is under way rather than when it finishes: `pick` exits on it, and what
   // the caller needs to know is that the shell has taken the request, not that a
@@ -160,6 +185,9 @@ QtObject {
     root.onCancel = String(request.onCancel !== undefined ? request.onCancel : "")
     root.entries = request.entries !== undefined ? request.entries : []
     root.query = ""
+    // Reset rather than carried over: the selection left behind by the previous
+    // request can point into the middle of this one's list.
+    root.selected = 0
     root.shown = true
 
     root.apply()
@@ -256,11 +284,11 @@ QtObject {
   function dismiss() {
     const cancel = root.onCancel
 
+    // The entries and the query are deliberately left as they are. The surface
+    // stays on screen for the length of its fade, and emptying the list out from
+    // under it would collapse the card halfway through that. The next request
+    // overwrites both, and the callbacks go now, so nothing can fire twice.
     root.shown = false
-    root.results = []
-    root.entries = []
-    root.selected = 0
-    root.query = ""
     root.onSelect = ""
     root.onCancel = ""
 

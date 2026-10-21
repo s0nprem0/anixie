@@ -11,9 +11,29 @@ import ".."
 // Everything is drawn from PickHost, which is where the entries, the filter and
 // the selection live. This file is the view of that and holds no state of its
 // own beyond the field's text, which it pushes into the host on every keystroke.
+//
+// Two things about the shape are deliberate. The card is sized once per request
+// — from the entries the caller sent, not from what is left of them once the
+// query has had its say — so narrowing a search fills the list in a card that
+// stays where it is. And opening and closing are animated, with the window kept
+// mapped until the fade is over (shell.qml asks `reveal`), so the launcher
+// arrives and leaves rather than blinking on and off.
 
 Item {
   id: root
+
+  // One number drives the whole entrance: the dim, the card's own opacity, and
+  // the few pixels the card rises. Reduce-motion collapses the duration to zero
+  // and it is a cut, which is what that setting is for.
+  property real reveal: PickHost.shown ? 1 : 0
+
+  Behavior on reveal {
+    NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic }
+  }
+
+  // The height of one row, in one place: the list's area and the rows themselves
+  // both draw from it.
+  readonly property int rowHeight: Style.space(32)
 
   // The dim behind everything, then the curtain, and only then the card.
   //
@@ -26,6 +46,7 @@ Item {
   Rectangle {
     anchors.fill: parent
     color: Qt.rgba(0, 0, 0, 0.35)
+    opacity: root.reveal
   }
 
   MouseArea {
@@ -43,6 +64,12 @@ Item {
     anchors.centerIn: parent
     width: Math.min(root.width * 0.6, Style.space(640))
     height: cardColumn.implicitHeight
+
+    // A dozen pixels up from where it settles, so the card rises as it appears.
+    // Anchored to the centre it would otherwise fade in exactly in place, which
+    // reads as a still image rather than something opening.
+    opacity: root.reveal
+    anchors.verticalCenterOffset: (1 - root.reveal) * Style.space(12)
 
     radius: Theme.cornerRadius
     color: Theme.surface
@@ -76,6 +103,24 @@ Item {
           color: Theme.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.subtitle
+        }
+
+        // The caller's placeholder, drawn behind the field so the caret sits
+        // over it rather than under it, and only while the field is empty. A
+        // caller that passes one gets a hint at what to type; the menu passes
+        // none, and the title beside the field is what it shows instead.
+        Text {
+          anchors.left: search.left
+          anchors.right: search.right
+          anchors.verticalCenter: search.verticalCenter
+
+          visible: search.text === "" && PickHost.placeholder !== ""
+          text: PickHost.placeholder
+          color: Theme.muted
+          font.family: Style.font.family
+          font.pixelSize: Style.font.subtitle
+          elide: Text.ElideRight
+          clip: true
         }
 
         TextInput {
@@ -173,72 +218,88 @@ Item {
         }
       }
 
-      // The list. Hidden in input mode, where the field is the whole picker.
-      ListView {
-        id: list
+      // The list's area, held open at a height of its own — taken from the
+      // entries the caller sent rather than from the results — so that typing
+      // narrows what is listed inside a card that keeps its size. Sized to the
+      // results, the card would shrink under the query and the field would move
+      // up the screen while it was being typed into.
+      //
+      // Input mode has no list at all: the field is the whole picker there.
+      Item {
+        id: listArea
 
-        visible: !PickHost.isInput
         width: parent.width
-        height: visible
-          ? Math.min(PickHost.results.length, PickHost.maxVisible) * Style.space(32)
-          : 0
-        clip: true
-        model: PickHost.results
-        currentIndex: PickHost.selected
-        boundsBehavior: Flickable.StopAtBounds
+        height: PickHost.isInput
+          ? 0
+          // At least one row even for an empty request, so that the note saying
+          // so has somewhere to be drawn.
+          : Math.max(1, Math.min(PickHost.entries.length, PickHost.maxVisible)) * root.rowHeight
 
-        ScrollBar.vertical: ScrollBar {
-          id: verticalBar
-          visible: list.contentHeight > list.height
-        }
+        ListView {
+          id: list
 
-        delegate: Item {
-          id: rowHolder
+          visible: PickHost.hasResults
+          anchors.fill: parent
+          clip: true
+          model: PickHost.results
+          currentIndex: PickHost.selected
+          boundsBehavior: Flickable.StopAtBounds
 
-          required property int index
-          required property var modelData
+          ScrollBar.vertical: ScrollBar {
+            id: verticalBar
+            visible: list.contentHeight > list.height
+          }
 
-          width: list.width
-          height: Style.space(32)
+          delegate: Item {
+            id: rowHolder
 
-          PickRow {
-            anchors.fill: parent
-            label: rowHolder.modelData.row.label !== undefined ? String(rowHolder.modelData.row.label) : ""
-            group: PickHost.grouped && rowHolder.modelData.row.group !== undefined
-              ? String(rowHolder.modelData.row.group)
-              : ""
-            state: rowHolder.modelData.row.state !== undefined ? String(rowHolder.modelData.row.state) : ""
-            icon: rowHolder.modelData.row.icon !== undefined ? String(rowHolder.modelData.row.icon) : ""
-            positions: rowHolder.modelData.positions
-            selected: rowHolder.index === PickHost.selected
+            required property int index
+            required property var modelData
 
-            MouseArea {
+            width: list.width
+            height: root.rowHeight
+
+            PickRow {
               anchors.fill: parent
-              hoverEnabled: true
-              onClicked: {
-                PickHost.selected = rowHolder.index
-                PickHost.accept()
+              label: rowHolder.modelData.row.label !== undefined ? String(rowHolder.modelData.row.label) : ""
+              group: PickHost.groupOf(rowHolder.index)
+              state: rowHolder.modelData.row.state !== undefined ? String(rowHolder.modelData.row.state) : ""
+              icon: rowHolder.modelData.row.icon !== undefined ? String(rowHolder.modelData.row.icon) : ""
+              positions: rowHolder.modelData.positions
+              selected: rowHolder.index === PickHost.selected
+
+              MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: {
+                  PickHost.selected = rowHolder.index
+                  PickHost.accept()
+                }
+                onEntered: PickHost.selected = rowHolder.index
               }
-              onEntered: PickHost.selected = rowHolder.index
             }
           }
         }
-      }
 
-      // Nothing matched. Said plainly rather than showing an empty box, which
-      // looks like a picker that failed to load.
-      Text {
-        id: emptyNote
+        // Nothing matched. Named with the query, because "nothing matches" on
+        // its own leaves you wondering what it is that nothing matches. In the
+        // same area as the list rather than a height of its own, so the card
+        // does not jump as the last result goes.
+        Text {
+          id: emptyNote
 
-        visible: !PickHost.isInput && !PickHost.hasResults
-        width: parent.width
-        height: visible ? Style.space(48) : 0
-        text: "Nothing matches"
-        color: Theme.muted
-        font.family: Style.font.family
-        font.pixelSize: Style.font.body
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
+          visible: !PickHost.hasResults
+          anchors.fill: parent
+          text: PickHost.query !== ""
+            ? "Nothing matches \u201c" + PickHost.query + "\u201d"
+            : "Nothing to show"
+          color: Theme.muted
+          font.family: Style.font.family
+          font.pixelSize: Style.font.body
+          horizontalAlignment: Text.AlignHCenter
+          verticalAlignment: Text.AlignVCenter
+          elide: Text.ElideRight
+        }
       }
 
       // The keys. Every picker in the shell is driven the same way, so the
@@ -260,6 +321,21 @@ Item {
         Text {
           anchors.centerIn: parent
           text: PickHost.isInput ? "↵ to accept · esc to dismiss" : "↑↓ to choose · ↵ to run · esc to dismiss"
+          color: Theme.muted
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+        }
+
+        // How many of how many, once a query is narrowing the list and the
+        // number is the thing being watched. Absent on an unfiltered menu, where
+        // it would only count the list you can already see.
+        Text {
+          anchors.right: parent.right
+          anchors.rightMargin: Style.space(16)
+          anchors.verticalCenter: parent.verticalCenter
+
+          visible: !PickHost.isInput && PickHost.query !== ""
+          text: PickHost.results.length + " / " + PickHost.entries.length
           color: Theme.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.caption

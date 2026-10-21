@@ -12,7 +12,10 @@ import ".."
 //
 // The group is a dimmed prefix in front of the label rather than a header above
 // it, which keeps the paths the menu shows as one readable line — "Capture ›
-// Screenshot — region" — and saves a line of height per group.
+// Screenshot — region" — and saves a line of height per group. The caller
+// passes it on the first row of a run and leaves it empty for the rest (see
+// PickHost.groupOf), so the path marks where a group begins rather than
+// repeating down it.
 
 Item {
   id: root
@@ -84,15 +87,20 @@ Item {
     }
   }
 
+  // The icon slot, held whether or not this row has an icon. Only the
+  // applications in the menu carry one, and a row that gave the slot up would
+  // pull its label twelve pixels to the left of its neighbours' — the list would
+  // step in and out down its length. The slot is drawn empty instead, so a mixed
+  // list still lines up.
   Image {
     id: iconImage
 
+    visible: root.showIcon
     anchors.left: parent.left
     anchors.leftMargin: Style.space(12)
     anchors.verticalCenter: parent.verticalCenter
 
-    visible: root.showIcon && root.icon !== ""
-    width: visible ? Style.space(18) : 0
+    width: Style.space(18)
     height: width
     sourceSize.width: width * 2
     sourceSize.height: width * 2
@@ -100,16 +108,16 @@ Item {
     smooth: true
     // A desktop entry can name an icon that is not installed, and a missing one
     // is normal rather than an error: the row is still worth showing.
+    opacity: root.icon !== "" ? 1 : 0
     source: root.icon !== "" ? Quickshell.iconPath(root.icon, "") : ""
   }
 
   Row {
     id: textRow
 
-    // The row starts at the same inset whether or not there is an icon, so a
-    // list mixing entries that have icons with entries that do not — the menu,
-    // where only the applications have one — does not step in and out.
-    anchors.left: iconImage.visible ? iconImage.right : parent.left
+    // Against the slot's right edge when there is a slot at all, and the row's
+    // own edge when the caller turned icons off.
+    anchors.left: root.showIcon ? iconImage.right : parent.left
     anchors.leftMargin: Style.space(12)
     anchors.right: stateLabel.left
     anchors.rightMargin: Style.space(12)
@@ -118,7 +126,7 @@ Item {
 
     Text {
       visible: root.group !== ""
-      text: root.group + "›"
+      text: root.group + " ›"
       color: Theme.muted
       font.family: Style.font.family
       font.pixelSize: Style.font.subtitle

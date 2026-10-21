@@ -180,7 +180,10 @@ QtObject {
         if (node.app !== undefined) {
           const entry = DesktopEntries.byId(node.app)
           if (!entry) continue
-          add({ label: node.label, group: group, icon: "", state: "", app: entry, run: "" })
+          // The entry's own icon rather than the blank the command rows carry:
+          // this row is one application under a name of its own ("Browser"), and
+          // without its icon it sits in a list of icons looking unfinished.
+          add({ label: node.label, group: group, icon: entry.icon, state: "", app: entry, run: "" })
           continue
         }
 

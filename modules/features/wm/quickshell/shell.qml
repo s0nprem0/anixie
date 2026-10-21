@@ -551,7 +551,11 @@ ShellRoot {
 
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
-    visible: PickHost.shown
+
+    // Mapped while shown and for as long as the card is still fading, which is
+    // the same arrangement the OSD uses: unmapping on `shown` alone would cut
+    // the fade off on its first frame.
+    visible: PickHost.shown || picker.reveal > 0
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "quickshell-picker"
@@ -560,6 +564,7 @@ ShellRoot {
       : WlrKeyboardFocus.None
 
     Picker {
+      id: picker
       anchors.fill: parent
     }
   }
