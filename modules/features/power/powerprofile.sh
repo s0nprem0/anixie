@@ -70,6 +70,11 @@ show() {
   printf 'profile: %s\n' "$("$PPD" get 2>/dev/null || echo unknown)"
   printf 'on mains:  %s\n' "$(preferred ac)"
   printf 'on battery: %s\n' "$(preferred battery)"
+  if [ -d /run/anixie/performance ]; then
+    printf 'tuning:    performance extras on\n'
+  else
+    printf 'tuning:    default\n'
+  fi
 }
 
 case "${1:-}" in

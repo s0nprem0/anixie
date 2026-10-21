@@ -18,6 +18,7 @@
     ./printing.nix
     ./memory.nix
     ./power.nix
+    ./performance.nix
     ./virtualization.nix
   ];
 }
