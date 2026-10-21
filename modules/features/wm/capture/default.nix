@@ -1,9 +1,13 @@
 {
+  config,
+  lib,
   pkgs,
   ...
 }:
 
 let
+  cfg = config.my.wm.capture;
+
   # Every external binary the capture scripts call, in one table. They are
   # substituted in rather than left to $PATH because these run from a Hyprland
   # bind, which does not necessarily carry the user's profile path.
@@ -82,46 +86,50 @@ let
 in
 
 {
-  home.packages = [
-    # The picker, and the screenshot command that uses it.
-    shotPick
-    shot
+  options.my.wm.capture.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = true;
+    description = "Whether to install the screenshot, recording, OCR and QR capture commands.";
+  };
 
-    # Recording, and the webcam overlay a recording can carry.
-    recordProcess
-    webcamOverlay
-    record
+  config = lib.mkIf cfg.enable {
+    home.packages = [
+      # The picker, and the screenshot command that uses it.
+      shotPick
+      shot
 
-    # Reading what is on the screen rather than picturing it, and shrinking what
-    # comes off it before sending it somewhere.
-    captureText
-    captureQr
-    transcode
-    # Annotation is satty's job. It is written for Wayland and opens in crop mode,
-    # so the annotate bind goes straight to cropping rather than making you pick the
-    # crop tool first.
-    #
-    # swappy was here before and drew nothing at all: it is an X11-era GTK
-    # application, and under XWayland its window never appeared — the client was in
-    # hyprctl's list with nothing on screen. Worth knowing if an annotation tool
-    # ever looks like it launched and then vanished.
-    pkgs.hyprpicker
-    pkgs.slurp
-    pkgs.grim
-    pkgs.satty
+      # Recording, and the webcam overlay a recording can carry.
+      recordProcess
+      webcamOverlay
+      record
 
-    # gpu-screen-recorder encodes on the GPU and falls back to the CPU. ffmpeg
-    # does the tidy-up pass when a recording stops: trimming the first frame and
-    # normalizing the audio.
-    pkgs.gpu-screen-recorder
-    pkgs.ffmpeg
+      # Reading what is on the screen rather than picturing it, and shrinking what
+      # comes off it before sending it somewhere.
+      captureText
+      captureQr
+      transcode
 
-    # The readers and converters the capture menu reaches: tesseract for the text
-    # in a region, zbar for a QR code, imagemagick for pictures on the way to jpg
-    # or png. Installed as well as substituted, so they can be run by hand while
-    # working out why one of them read something wrong.
-    pkgs.tesseract
-    pkgs.zbar
-    pkgs.imagemagick
-  ];
+      # Annotation is satty's job. It is written for Wayland and opens in crop mode,
+      # so the annotate bind goes straight to cropping rather than making you pick the
+      # crop tool first.
+      pkgs.hyprpicker
+      pkgs.slurp
+      pkgs.grim
+      pkgs.satty
+
+      # gpu-screen-recorder encodes on the GPU and falls back to the CPU. ffmpeg
+      # does the tidy-up pass when a recording stops: trimming the first frame and
+      # normalizing the audio.
+      pkgs.gpu-screen-recorder
+      pkgs.ffmpeg
+
+      # The readers and converters the capture menu reaches: tesseract for the text
+      # in a region, zbar for a QR code, imagemagick for pictures on the way to jpg
+      # or png. Installed as well as substituted, so they can be run by hand while
+      # working out why one of them read something wrong.
+      pkgs.tesseract
+      pkgs.zbar
+      pkgs.imagemagick
+    ];
+  };
 }

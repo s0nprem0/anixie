@@ -1,9 +1,13 @@
 {
+  config,
+  lib,
   pkgs,
   ...
 }:
 
 let
+  cfg = config.my.wm.emoji;
+
   emoji = pkgs.writeShellScriptBin "emoji" (
     builtins.replaceStrings
       [
@@ -19,5 +23,13 @@ let
 in
 
 {
-  home.packages = [ emoji ];
+  options.my.wm.emoji.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = true;
+    description = "Whether to install the emoji picker that types via wtype.";
+  };
+
+  config = lib.mkIf cfg.enable {
+    home.packages = [ emoji ];
+  };
 }
