@@ -14,14 +14,16 @@ import Quickshell.Hyprland
 // class, so there is nothing to tell one Firefox window from another and no way
 // to group them under an app or pick an icon for it. `hyprctl` reports class,
 // initialClass, the workspace id, whether the window is mapped, where it is and
-// how large it is, which is everything the dock needs.
+// how large it is, which is everything the dock needs. It also reports
+// `focusHistoryID`, 0 on the focused window, so the dump carries what used to be
+// a second `hyprctl activewindow` call.
 //
 // That data still comes from `hyprctl`, but the timing comes from the module's
 // event socket: `Hyprland.rawEvent` says when a window opened, closed, moved or
 // took focus, and those are the moments the list is worth asking for again. The
-// module's own state cannot be the trigger for the list — it is the list the
-// module cannot provide — but its events are exactly right for saying when to
-// fetch one.
+// focused workspace is the one thing taken from the module directly, since it
+// has it and is event-driven even when the client list would not change — on an
+// empty workspace, for instance.
 QtObject {
   id: root
 
@@ -80,6 +82,7 @@ QtObject {
         workspace: c.workspace ? Number(c.workspace.id) : -1,
         mapped: c.mapped !== false,
         minimized: c.mapped === false,
+        focused: Number(c.focusHistoryID) === 0,
         fullscreen: Number(c.fullscreen || 0) > 0,
         at: Array.isArray(c.at) ? c.at : [0, 0],
         size: Array.isArray(c.size) ? c.size : [0, 0]
@@ -92,6 +95,7 @@ QtObject {
     if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
     for (let i = 0; i < a.length; i++) {
       if (a[i].address !== b[i].address) return false
+      if (a[i].focused !== b[i].focused) return false
       if (a[i].mapped !== b[i].mapped) return false
       if (a[i].workspace !== b[i].workspace) return false
       if (a[i].title !== b[i].title) return false
@@ -123,9 +127,10 @@ QtObject {
   readonly property bool anyApps: root.apps.length > 0
 
   // The workspace the user is looking at, so a click can prefer a window that is
-  // already in front of them. Read from the same poll rather than from the
-  // Hyprland module, to keep one source for everything the dock believes.
-  property int activeWorkspace: 1
+  // already in front of them.
+  readonly property int activeWorkspace: Hyprland.focusedWorkspace
+    ? Number(Hyprland.focusedWorkspace.id)
+    : 1
 
   // Which window a click on an app brings forward.
   //
@@ -155,10 +160,15 @@ QtObject {
     return ordered[0]
   }
 
-  // `hyprctl` reports no focused flag, so this compares against the window that
-  // actually has input. Read back from the compositor rather than tracked here:
-  // a window that closes under us leaves no event to clean up after.
-  property var focusedAddress: ""
+  // `focusHistoryID` is 0 on the window that actually has input. Read from the
+  // same dump rather than tracked here: a window that closes under us leaves no
+  // event to clean up after.
+  readonly property string focusedAddress: {
+    for (let i = 0; i < root.clients.length; i++) {
+      if (root.clients[i].focused) return root.clients[i].address
+    }
+    return ""
+  }
 
   function isFocused(address) {
     return root.focusedAddress === address
@@ -211,35 +221,19 @@ QtObject {
   // ---- the poll ----
 
   property Process query: Process {
-    command: ["sh", "-c", "hyprctl clients -j; echo; hyprctl activeworkspace -j"]
+    command: ["hyprctl", "clients", "-j"]
     stdout: StdioCollector {
-      onStreamFinished: root.onOutput(this.text)
-    }
-  }
-
-  function onOutput(text) {
-    // Two commands, so the split is on the blank line between them rather than
-    // on a guess about how long the JSON is.
-    const parts = String(text || "").split("\n")
-    const split = parts.findIndex(function (line) { return line.trim() === "" })
-    root.read(parts.slice(0, split === -1 ? parts.length : split).join("\n"))
-    if (split !== -1) root.readActiveWorkspace(parts.slice(split + 1).join("\n"))
-  }
-
-  function readActiveWorkspace(text) {
-    try {
-      const parsed = JSON.parse(String(text || "").trim())
-      if (parsed && typeof parsed.id === "number") root.activeWorkspace = parsed.id
-    } catch (e) {
+      onStreamFinished: root.read(this.text)
     }
   }
 
   // ---- refreshing ----
   //
   // The list is only wanted while the dock is on screen, and asking for it
-  // unconditionally was the largest single thing this shell did at idle: two
-  // processes a second, forever — `hyprctl clients -j` is a full JSON dump of
-  // every window — for a dock that is hidden most of the time.
+  // unconditionally was the largest single thing this shell did at idle: a shell
+  // and two `hyprctl`s a second, forever — `hyprctl clients -j` is a full JSON
+  // dump of every window — for a dock that is hidden most of the time. It is one
+  // process now, and only while the dock is open.
 
   // Which events change what the dock should show. Hyprland's event socket is
   // the trigger now rather than a clock: a window opening, closing, moving or
@@ -261,11 +255,7 @@ QtObject {
 
   function refresh() {
     if (!root.shown) return
-
     if (!root.query.running) root.query.running = true
-    // Where the pointer is matters for a dock: it is what decides which window
-    // a click counts as hitting. Asked for alongside the list.
-    if (!root.focusQuery.running) root.focusQuery.running = true
   }
 
   onShownChanged: if (root.shown) root.refresh()
@@ -280,27 +270,13 @@ QtObject {
 
   // A backstop, not the mechanism. Some things that change the list do not emit
   // an event — the module's own docs say as much about toplevel state — and a
-  // dock that is visibly wrong is worse than two processes every few seconds
+  // dock that is visibly wrong is worse than one process every few seconds
   // while it is open.
   property Timer poll: Timer {
     interval: root.pollMs
     running: root.shown
     repeat: true
     onTriggered: root.refresh()
-  }
-
-  property Process focusQuery: Process {
-    command: ["sh", "-c", "hyprctl activewindow -j"]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        try {
-          const parsed = JSON.parse(String(this.text || "").trim())
-          root.focusedAddress = parsed && parsed.address ? String(parsed.address) : ""
-        } catch (e) {
-          root.focusedAddress = ""
-        }
-      }
-    }
   }
 
   // Nothing here: the dock is hidden at startup, and the first refresh is

@@ -20,7 +20,10 @@ BarWidget {
     which.running = true
   }
 
-  readonly property int intervalMs: Math.max(5000, Number(root.setting("interval", 15)) * 1000)
+  // A tailnet's state changes when a machine connects or a key expires, not
+  // between heartbeats. Half a minute is still quick enough to watch a peer come
+  // up, and halves the status process compared with fifteen seconds.
+  readonly property int intervalMs: Math.max(5000, Number(root.setting("interval", 30)) * 1000)
 
   property bool installed: false
   property string backend: "Unknown"

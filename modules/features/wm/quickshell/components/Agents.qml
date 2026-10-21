@@ -15,7 +15,9 @@ import Quickshell.Io
 // that is usually not happening is noise.
 //
 // Counted by process name rather than with `pgrep -f`, whose pattern would match
-// the shell running the check itself.
+// the shell running the check itself. `ps -C` does that matching itself, so this
+// is one process every five seconds rather than a shell pipeline whose grep is
+// also a process.
 BarWidget {
   id: root
 
@@ -30,15 +32,22 @@ BarWidget {
 
   Process {
     id: probe
-    command: ["sh", "-c", "ps -eo comm= | grep -cE '^(claude|opencode|codex)$' || true"]
+    command: ["ps", "-C", "claude,opencode,codex", "-o", "comm="]
     running: true
     stdout: StdioCollector {
-      onStreamFinished: root.sessions = Number(String(this.text).trim()) || 0
+      onStreamFinished: {
+        const names = String(this.text).split("\n")
+        let count = 0
+        for (let i = 0; i < names.length; i++) {
+          if (names[i].trim() !== "") count++
+        }
+        root.sessions = count
+      }
     }
   }
 
   Timer {
-    interval: 3000
+    interval: 5000
     running: true
     repeat: true
     triggeredOnStart: true

@@ -44,27 +44,38 @@ BarWidget {
   function refresh() {
     clock.running = false
     clock.running = true
-  }
-
-  Process {
-    id: clock
-    command: ["sh", "-c", "TZ=\"$1\" date +%H:%M", "_", root.zone.zone]
-    running: true
-    stdout: StdioCollector {
-      onStreamFinished: root.stamp = String(this.text).trim()
-    }
+    root.schedule()
   }
 
   // Re-read on the minute rather than on a timer of its own length: a clock that
   // refreshes every sixty seconds from whenever it started is wrong by up to a
   // minute, and this is the one reading where that is visible.
-  Timer {
-    interval: 1000
-    running: true
-    repeat: true
-    onTriggered: {
-      if (new Date().getSeconds() === 0) root.refresh()
+  //
+  // One shot to the boundary, not a one-second timer checking the second: the
+  // date process still runs once a minute, but the shell stops waking up sixty
+  // times to decide it has nothing to do.
+  function schedule() {
+    const now = new Date()
+    tick.interval = Math.max(50, (60 - now.getSeconds()) * 1000 - now.getMilliseconds())
+    tick.restart()
+  }
+
+  Process {
+    id: clock
+    command: ["date", "+%H:%M"]
+    environment: ({ TZ: root.zone.zone, LC_TIME: "C" })
+    stdout: StdioCollector {
+      onStreamFinished: root.stamp = String(this.text).trim()
     }
+  }
+
+  Timer {
+    id: tick
+    interval: 60000
+    running: true
+    repeat: false
+    triggeredOnStart: true
+    onTriggered: root.refresh()
   }
 
   onIndexChanged: root.refresh()

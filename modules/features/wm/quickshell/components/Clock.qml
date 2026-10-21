@@ -4,10 +4,11 @@ import Quickshell.Io
 import ".."
 import "../Ui"
 
-// Clock. Formatted by `date` rather than inside a text binding: the value has to
-// change on a schedule, and a binding that only reads new Date() never
-// re-evaluates. `date` also carries the time zone database, which this QML
-// engine does not, so choosing another zone costs no time-zone table here.
+// Clock. Local time is formatted in JavaScript on the minute; another zone goes
+// through `date`, because the QML engine has no time zone database and `Intl` is
+// not in it. That keeps the common case fork-free — the label changes once a
+// minute, so a subprocess for it was a subprocess for a string this can build
+// itself.
 //
 // Left opens a month calendar, right cycles the label between the two formats,
 // middle opens the timezone selector.
@@ -65,24 +66,60 @@ BarWidget {
                                      "July", "August", "September", "October", "November", "December"]
 
   function refresh() {
-    const format = root.dateFormat(root.activeFormat)
-
     clock.running = false
 
     // An empty zone means "use the system's local zone", not UTC. `TZ=""` would
     // select UTC, so the local case has to leave the variable unset instead.
     if (root.zone === "") {
-      clock.command = ["sh", "-c", 'LC_TIME=C date +"$1"', "_", format]
+      root.stamp = root.localStamp(root.activeFormat)
     } else {
-      clock.command = ["sh", "-c", 'TZ="$1" LC_TIME=C date +"$2"', "_", root.zone, format]
+      const format = root.dateFormat(root.activeFormat)
+      // `date` takes the zone in its environment, so running it directly saves
+      // the shell this used to start for every one of those calls. The only
+      // reason for the shell was setting TZ on the command line.
+      clock.command = ["date", "+" + format]
+      clock.environment = { TZ: root.zone, LC_TIME: "C" }
+      clock.running = true
     }
 
-    clock.running = true
+    root.schedule()
   }
 
-  // The label is written with the same tokens as before; date(1) is what turns
-  // them into words. `%` is escaped first so a literal in a format survives the
-  // pass through date rather than becoming an unknown conversion.
+  // The label has no seconds, so nothing has to happen until the minute turns.
+  // This used to be a one-second timer whose handler asked the clock what second
+  // it was sixty times a minute; one shot to the next boundary is the same
+  // promptness for a sixtieth of the wakeups.
+  function schedule() {
+    const now = new Date()
+    tick.interval = Math.max(50, (60 - now.getSeconds()) * 1000 - now.getMilliseconds())
+    tick.restart()
+  }
+
+  // The same tokens as dateFormat, filled from the local clock. LC_TIME=C is why
+  // the names are the English arrays below rather than whatever the locale says.
+  function localStamp(format) {
+    const now = new Date()
+    const pad = function (value) { return (value < 10 ? "0" : "") + value }
+    const day = root.dayNames[now.getDay()]
+    const month = root.monthNames[now.getMonth()]
+
+    return String(format).replace(/dddd|ddd|dd|MMMM|MMM|yyyy|HH|mm|W/g, function (token) {
+      if (token === "dddd") return day
+      if (token === "ddd") return day.slice(0, 3)
+      if (token === "dd") return pad(now.getDate())
+      if (token === "MMMM") return month
+      if (token === "MMM") return month.slice(0, 3)
+      if (token === "yyyy") return String(now.getFullYear())
+      if (token === "HH") return pad(now.getHours())
+      if (token === "mm") return pad(now.getMinutes())
+      if (token === "W") return pad(root.isoWeek(now))
+      return token
+    })
+  }
+
+  // The same tokens, for the zone case, where date(1) is what turns them into
+  // words. `%` is escaped first so a literal in a format survives the pass
+  // through date rather than becoming an unknown conversion.
   function dateFormat(format) {
     return String(format).replace(/%/g, "%%")
       .replace(/dddd|ddd|dd|MMMM|MMM|yyyy|HH|mm|W/g, function (token) {
@@ -124,17 +161,18 @@ BarWidget {
   implicitHeight: readout.implicitHeight
 
   Timer {
+    id: tick
     running: true
-    interval: 1000
-    repeat: true
+    repeat: false
+    interval: 60000
+    // Fires once immediately, then `refresh` re-arms it for the next minute.
     triggeredOnStart: true
-    onTriggered: {
-      // The label has no seconds, so the process only has to run when the
-      // minute turns. A date call every tick would be a subprocess per second
-      // for a string that changes once a minute.
-      if (new Date().getSeconds() === 0 || root.stamp === "") root.refresh()
-    }
+    onTriggered: root.refresh()
   }
+
+  // A new zone is the one change that makes the label wrong now rather than at
+  // the next minute tick.
+  onZoneChanged: root.refresh()
 
   Process {
     id: clock
@@ -158,8 +196,9 @@ BarWidget {
 
     onLoaded: {
       const saved = String(root.zoneFile.text()).trim()
+      // The assignment refreshes through onZoneChanged; an unchanged zone is
+      // already handled by the timer's first fire.
       if (saved !== root.zone) root.zone = saved
-      root.refresh()
     }
   }
 

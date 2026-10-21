@@ -6,10 +6,11 @@ import "../Ui"
 // CPU and memory, sampled from /proc. Percentages on the bar, and the figures
 // behind them in the panel.
 //
-// The sample is one process rather than three file watches: /proc/stat is a
-// stream of counters, not a value that notifies, and a watch on it either never
-// fires or fires for every unrelated line the kernel writes. A two-second
-// subprocess is cheaper than pretending it is a property.
+// Reading the files directly is what makes this cheap: the first version ran
+// `sh` with two `awk`s and two `cut`s every two seconds, which is four forks for
+// four lines of text. The files are reloaded on a timer rather than watched —
+// /proc/stat is a stream of counters, not a value that notifies, and a watch
+// either never fires or fires for every unrelated line the kernel writes.
 BarWidget {
   id: root
 
@@ -39,30 +40,16 @@ BarWidget {
     return (days > 0 ? days + "d " : "") + hours + "h " + minutes + "m"
   }
 
-  function apply(raw) {
-    const lines = String(raw).trim().split("\n")
+  // /proc/stat's first line is `cpu user nice system idle iowait irq softirq
+  // steal ...`. The total is every field after the label, and idle is idle plus
+  // iowait, the same figures the old awk used.
+  function applyStat(raw) {
+    const parts = String(raw).split("\n")[0].trim().split(/\s+/)
+    if (parts[0] !== "cpu") return
+
     let total = 0
-    let idle = 0
-    let memTotal = 0
-    let memAvailable = 0
-    let loadText = ""
-    let uptimeSeconds = 0
-
-    for (let i = 0; i < lines.length; i++) {
-      const parts = lines[i].trim().split(/\s+/)
-
-      if (parts[0] === "cpu") {
-        total = Number(parts[1])
-        idle = Number(parts[2])
-      } else if (parts[0] === "mem") {
-        memTotal = Number(parts[1])
-        memAvailable = Number(parts[2])
-      } else if (parts[0] === "load") {
-        loadText = parts.slice(1).join(" ")
-      } else if (parts[0] === "uptime") {
-        uptimeSeconds = Number(parts[1])
-      }
-    }
+    for (let i = 1; i < parts.length; i++) total += Number(parts[i]) || 0
+    const idle = (Number(parts[4]) || 0) + (Number(parts[5]) || 0)
 
     if (root.previousTotal > 0 && total > root.previousTotal) {
       const used = 1 - (idle - root.previousIdle) / (total - root.previousTotal)
@@ -71,43 +58,79 @@ BarWidget {
 
     root.previousTotal = total
     root.previousIdle = idle
+    root.sampled = true
+  }
+
+  function applyMemory(raw) {
+    const lines = String(raw).split("\n")
+    let memTotal = 0
+    let memAvailable = 0
+
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].indexOf("MemTotal:") === 0) memTotal = Number(lines[i].split(/\s+/)[1]) || 0
+      else if (lines[i].indexOf("MemAvailable:") === 0) {
+        memAvailable = Number(lines[i].split(/\s+/)[1]) || 0
+      }
+    }
 
     if (memTotal > 0) {
       root.memoryTotal = memTotal / 1048576
       root.memoryUsed = (memTotal - memAvailable) / 1048576
       root.memoryPercent = Math.max(0, Math.min(100, (memTotal - memAvailable) * 100 / memTotal))
     }
+  }
 
-    root.load = loadText !== "" ? loadText : "—"
-    root.uptime = root.formatUptime(uptimeSeconds)
-    root.sampled = true
+  function applyLoad(raw) {
+    const parts = String(raw).trim().split(/\s+/)
+    if (parts.length >= 3) root.load = parts.slice(0, 3).join(" ")
+  }
+
+  function applyUptime(raw) {
+    const seconds = Number(String(raw).trim().split(/\s+/)[0])
+    if (isFinite(seconds)) root.uptime = root.formatUptime(seconds)
   }
 
   function refresh() {
-    sample.running = false
-    sample.running = true
+    statFile.reload()
+    memoryFile.reload()
+    loadFile.reload()
+    uptimeFile.reload()
   }
 
   wantsSlot: root.sampled
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
 
-  Process {
-    id: sample
-    running: false
+  FileView {
+    id: statFile
+    path: "/proc/stat"
+    watchChanges: false
+    printErrors: false
+    onLoaded: root.applyStat(statFile.text())
+  }
 
-    // CPU: total and idle counters. Memory: total and available in kB. The
-    // markers make the output one self-describing stream, so the parser does
-    // not have to know which line came from which file.
-    command: ["sh", "-c",
-      "awk '/^cpu / { total=0; for (i=2;i<=NF;i++) total+=$i; printf \"cpu %s %s\\n\", total, $5+$6 }' /proc/stat; "
-      + "awk '/^MemTotal:/ {t=$2} /^MemAvailable:/ {a=$2} END {printf \"mem %s %s\\n\", t, a}' /proc/meminfo; "
-      + "printf 'load '; cut -d' ' -f1-3 /proc/loadavg; "
-      + "printf 'uptime '; cut -d' ' -f1 /proc/uptime"]
+  FileView {
+    id: memoryFile
+    path: "/proc/meminfo"
+    watchChanges: false
+    printErrors: false
+    onLoaded: root.applyMemory(memoryFile.text())
+  }
 
-    stdout: StdioCollector {
-      onStreamFinished: root.apply(this.text)
-    }
+  FileView {
+    id: loadFile
+    path: "/proc/loadavg"
+    watchChanges: false
+    printErrors: false
+    onLoaded: root.applyLoad(loadFile.text())
+  }
+
+  FileView {
+    id: uptimeFile
+    path: "/proc/uptime"
+    watchChanges: false
+    printErrors: false
+    onLoaded: root.applyUptime(uptimeFile.text())
   }
 
   Timer {
