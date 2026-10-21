@@ -96,8 +96,9 @@ in
     # bar then fails to connect and would otherwise be given up on: the default
     # start limit is five restarts in ten seconds, easily reached while Hyprland
     # is still coming back. Unlimiting it lets the bar keep retrying until
-    # Hyprland re-imports its environment (see startup.nix) and the next attempt
-    # succeeds.
+    # Hyprland re-imports its environment on the next attempt
+    # (see the hl.on("hyprland.start", ...) handler in hyprland/lua.nix) and
+    # the next attempt succeeds.
     systemd.user.services.quickshell = {
       Unit = {
         Description = "Quickshell status bar";

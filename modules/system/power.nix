@@ -37,11 +37,11 @@
     enable = true;
 
     # At the critical level (2%, from the stock PercentageAction), suspend rather
-    # than hibernate. The default of HybridSleep writes a resume image nothing is
-    # configured to read back — there is no `resume=` on the kernel command line
-    # and no boot.resumeDevice — so it would fail and leave the machine to run
-    # flat. Suspend is the action that actually works here; it holds the session
-    # until a charger is found. NixOS gates suspend behind the "risky" flag.
+    # than hibernate. Hibernation writes a resume image to the swap partition and
+    # boot.resumeDevice (set in boot.nix) points the kernel at it, but suspend is
+    # the faster and more reliable action here: it holds the session until a
+    # charger is found without the risk of a failed resume. NixOS gates suspend
+    # behind the "risky" flag.
     criticalPowerAction = "Suspend";
     allowRiskyCriticalPowerAction = true;
   };

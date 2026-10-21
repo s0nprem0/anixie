@@ -46,7 +46,8 @@ in
       # on release when this is on, so ordinary text selection still works.
       copy_on_select = "yes";
 
-      # A terminal bell in a WM that has mako and a status bar is noise.
+      # A terminal bell in a session that already has a notification daemon and
+      # a status bar is noise.
       enable_audio_bell = "no";
     };
 
