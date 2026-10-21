@@ -19,6 +19,11 @@
 
     kernelPackages = pkgs.linuxPackages_latest;
 
+    # Nothing expects a file in /tmp to survive a reboot, and tmpfs only frees
+    # the pages when the file is removed. Clearing it at boot keeps a build's
+    # leftovers from sitting in RAM for the life of the uptime.
+    tmp.cleanOnBoot = true;
+
     # Hibernation's resume partition. Taken from the swap device declared in
     # hardware-configuration.nix rather than repeated here, so the two cannot
     # drift apart. The filter keeps the disk swap: zram's swap is added by
