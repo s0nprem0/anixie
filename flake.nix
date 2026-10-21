@@ -27,7 +27,9 @@
       # a username, hostname or flake path.
       host = "vivobook";
       user = "son";
-      flakeDir = "${user}/nix-dots";
+      # Relative to the user's home directory, which is what every consumer
+      # below prepends. Including the user here would make ~/son/nix-dots.
+      flakeDir = "nix-dots";
 
       # Bound rather than inlined so the checks below can lint what the machine
       # actually installs — the quickshell tree with its placeholders rendered.
