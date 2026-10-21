@@ -16,6 +16,7 @@
     ./lock.nix
     ./bluetooth.nix
     ./printing.nix
+    ./memory.nix
     ./power.nix
     ./virtualization.nix
   ];
