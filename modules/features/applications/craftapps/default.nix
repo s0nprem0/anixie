@@ -21,7 +21,7 @@ in
     # Manager module, so they land in the user profile: the NixOS side of the same
     # module exists only to link /usr/share/fonts, and installs nothing.
     #
-    # All five share the toolkit, so all five have the same Wayland limitation as
+    # They share the toolkit, so they have the same Wayland limitation as
     # PhotoCraft: native file drag-and-drop. Only PhotoCraft's desktop entry carries
     # the XWayland workaround below — add the same for another if dropping files on
     # it matters.
@@ -33,6 +33,44 @@ in
         effectcraft.enable = true;
         filmcraft.enable = true;
         soundcraft.enable = true;
+        wordcraft.enable = true;
+        deckcraft.enable = true;
+        gridcraft.enable = true;
+      };
+    };
+
+    # The Office formats the three document apps declare in their own desktop
+    # entries. Plain text, Markdown, TeX, HTML and CSV are deliberately absent:
+    # they are text files first, and handing them to a word processor would be a
+    # worse default than whatever opens them now.
+    xdg.mimeApps = {
+      enable = true;
+      defaultApplications = {
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" =
+          "ai.storyteller.wordcraft.desktop";
+        "application/vnd.ms-word.document.macroEnabled.12" = "ai.storyteller.wordcraft.desktop";
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.template" =
+          "ai.storyteller.wordcraft.desktop";
+        "application/vnd.ms-word.template.macroEnabled.12" = "ai.storyteller.wordcraft.desktop";
+        "application/msword" = "ai.storyteller.wordcraft.desktop";
+        "application/msword-template" = "ai.storyteller.wordcraft.desktop";
+        "application/vnd.oasis.opendocument.text" = "ai.storyteller.wordcraft.desktop";
+        "application/rtf" = "ai.storyteller.wordcraft.desktop";
+        "text/rtf" = "ai.storyteller.wordcraft.desktop";
+
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" =
+          "ai.storyteller.gridcraft.desktop";
+        "application/vnd.ms-excel.sheet.macroEnabled.12" = "ai.storyteller.gridcraft.desktop";
+        "application/vnd.ms-excel.sheet.binary.macroEnabled.12" = "ai.storyteller.gridcraft.desktop";
+        "application/vnd.oasis.opendocument.spreadsheet" = "ai.storyteller.gridcraft.desktop";
+
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation" =
+          "ai.storyteller.deckcraft.desktop";
+        "application/vnd.openxmlformats-officedocument.presentationml.template" =
+          "ai.storyteller.deckcraft.desktop";
+        "application/vnd.openxmlformats-officedocument.presentationml.slideshow" =
+          "ai.storyteller.deckcraft.desktop";
+        "application/x-deckcraft" = "ai.storyteller.deckcraft.desktop";
       };
     };
 
