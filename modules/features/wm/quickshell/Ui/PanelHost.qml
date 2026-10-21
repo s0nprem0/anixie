@@ -47,15 +47,22 @@ QtObject {
   // entries on this version expose only model and name.
   readonly property real screenWidth: root.host && root.host.Screen.width ? root.host.Screen.width : 1920
   readonly property real screenHeight: root.host && root.host.Screen.height ? root.host.Screen.height : 1080
-  readonly property real barHeight: Style.bar.sizeHorizontal
 
-  // The most room a panel may take below the bar, less a margin so its bottom
+  // The bar's own edge, not always the top one. Panels hang off whichever side
+  // it occupies, so a bottom or side bar opens them where the pointer is rather
+  // than at a fixed corner.
+  readonly property bool vertical: BarContext.vertical
+  readonly property string position: Theme.position
+  readonly property real barExtent: root.vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal
+
+  // The most room a panel may take beside the bar, less a margin so its far
   // edge is never flush against the screen's. Panel cards cap themselves at the
   // same figure; this is the backstop for one that measures its own height some
   // other way, because a window taller than the screen does not scroll — it
   // simply has its bottom off the display, out of reach of the pointer and of
   // the eye.
-  readonly property int panelMaxHeight: Math.max(Style.space(120), Math.round(screenHeight - barHeight - Style.space(16)))
+  readonly property int panelMaxHeight: Math.max(Style.space(120),
+    Math.round(screenHeight - (root.vertical ? 0 : root.barExtent) - Style.space(16)))
 
   // ---- what is open ----
 
@@ -198,10 +205,13 @@ QtObject {
 
   // ---- where they go ----
 
-  // Centred under the owning button, then pulled back inside the screen so a
+  // Centred on the owning button, then pulled back inside the screen so a
   // button near either edge still opens a fully visible panel. With several
   // panels up this is also what keeps them from overlapping the screen's edges
   // while still sitting under their own icons.
+  //
+  // Two axes because the bar has two: a top or bottom bar spreads its modules
+  // across x, a left or right bar spreads them down y.
   function panelX(anchor, width) {
     if (!anchor || !root.host) return 0
 
@@ -212,24 +222,44 @@ QtObject {
     return Math.max(margin, Math.min(Math.round(centre - width / 2), root.screenWidth - width - margin))
   }
 
+  function panelY(anchor, height) {
+    if (!anchor || !root.host) return 0
+
+    const top = anchor.mapToItem(root.host, 0, 0).y
+    const centre = top + anchor.height / 2
+
+    const margin = Style.space(8)
+    return Math.max(margin, Math.min(Math.round(centre - height / 2), root.screenHeight - height - margin))
+  }
+
   // The invisible surface that dismisses everything.
   //
   // A panel surface only receives input that lands on it, so without this a
   // click anywhere else would pass straight through to whatever is underneath
-  // and leave the panels stranded on screen. The curtain covers everything below
-  // the bar and swallows that click. It deliberately stops short of the bar
+  // and leave the panels stranded on screen. The curtain covers everything the
+  // bar does not and swallows that click. It deliberately stops short of the bar
   // itself, so the bar stays live and clicking a module still works — which is
   // how a second panel is opened without closing the first.
   property PopupWindow curtain: PopupWindow {
     visible: root.shown
     color: "transparent"
     anchor.item: root.host
-    // The popup's top edge lands on the rect's top edge and it grows downward, so
-    // the rect has to start at the bar's full height for the bar to stay
-    // uncovered.
-    anchor.rect: Qt.rect(0, root.barHeight, root.screenWidth, 0)
-    implicitWidth: root.screenWidth
-    implicitHeight: root.screenHeight - root.barHeight
+
+    // The popup's top-left lands on the rect's top-left and it grows down and
+    // right, so the rect's origin is the one corner of the screen the bar leaves
+    // free: below a top bar, above a bottom one, and beside a side bar.
+    //
+    // The rect's own size is empty on the axis the popup grows along; the size
+    // below is what actually covers the screen.
+    anchor.rect: root.position === "bottom"
+      ? Qt.rect(0, 0, root.screenWidth, 0)
+      : root.position === "left"
+        ? Qt.rect(root.barExtent, 0, 0, root.screenHeight)
+        : root.position === "right"
+          ? Qt.rect(0, 0, 0, root.screenHeight)
+          : Qt.rect(0, root.barExtent, root.screenWidth, 0)
+    implicitWidth: root.vertical ? root.screenWidth - root.barExtent : root.screenWidth
+    implicitHeight: root.vertical ? root.screenHeight : root.screenHeight - root.barExtent
 
     MouseArea {
       anchors.fill: parent
@@ -258,10 +288,25 @@ QtObject {
         exclusionMode: ExclusionMode.Ignore
         visible: true
 
-        anchors.top: true
-        anchors.left: true
-        margins.top: root.barHeight
-        margins.left: root.panelX(panelWindow.entry.anchor, panelWindow.implicitWidth)
+        // The bar's edge decides both anchors. A panel always keeps the edge
+        // that faces the bar (clear of it by the bar's thickness) and the
+        // position along the other axis that its own button put it at.
+        readonly property bool onRight: root.vertical && root.position === "right"
+        readonly property bool onBottom: !root.vertical && root.position === "bottom"
+
+        anchors.top: !panelWindow.onBottom
+        anchors.bottom: panelWindow.onBottom
+        anchors.left: !panelWindow.onRight
+        anchors.right: panelWindow.onRight
+
+        margins.top: panelWindow.onBottom
+          ? 0
+          : (root.vertical ? root.panelY(panelWindow.entry.anchor, panelWindow.implicitHeight) : root.barExtent)
+        margins.bottom: panelWindow.onBottom ? root.barExtent : 0
+        margins.left: panelWindow.onRight
+          ? 0
+          : (root.vertical ? root.barExtent : root.panelX(panelWindow.entry.anchor, panelWindow.implicitWidth))
+        margins.right: panelWindow.onRight ? root.barExtent : 0
 
         // The focused panel is raised above the others: with panels anchored under
         // neighbouring icons they overlap, and Tab has to visibly bring one to the
@@ -284,6 +329,15 @@ QtObject {
           id: loader
           anchors.fill: parent
           sourceComponent: panelWindow.entry.builder || null
+
+          // The surface appears the moment the panel opens, but a card that
+          // fades in over a tenth of a second reads as a panel opening rather
+          // than a window being mapped underneath the pointer.
+          opacity: 0
+          Component.onCompleted: loader.opacity = 1
+          Behavior on opacity {
+            NumberAnimation { duration: Style.duration(110); easing.type: Easing.OutCubic }
+          }
         }
       }
     }

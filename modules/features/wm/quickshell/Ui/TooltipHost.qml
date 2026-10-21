@@ -15,6 +15,18 @@ QtObject {
   property string tooltipText: ""
   property bool tooltipShown: false
 
+  // The tooltip leaves the bar on whichever side the bar is not. Below a top
+  // bar, above a bottom one, and beside a vertical one — a fixed "below" put a
+  // bottom bar's tooltips off the bottom of the screen and a side bar's across
+  // its own modules.
+  readonly property int edge: Theme.position === "bottom"
+    ? Edges.Top
+    : Theme.position === "left"
+      ? Edges.Right
+      : Theme.position === "right"
+        ? Edges.Left
+        : Edges.Bottom
+
   // Bumped for every show and hide. A scheduled show records the number it was
   // issued with and gives up if it no longer matches, so a tooltip pending for
   // a button you have already left cannot appear.
@@ -116,8 +128,8 @@ QtObject {
     // lost and dismissed the tooltip, hover came back, and it opened again — the
     // flicker. Anchoring to the rect's bottom edge and growing downward starts it
     // clear of the button.
-    anchor.edges: Edges.Bottom
-    anchor.gravity: Edges.Bottom
+    anchor.edges: root.edge
+    anchor.gravity: root.edge
 
     implicitWidth: Math.ceil(body.implicitWidth) + 20
     implicitHeight: Math.ceil(body.implicitHeight) + 14

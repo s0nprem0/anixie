@@ -412,8 +412,13 @@ ShellRoot {
 
     anchors.right: true
     anchors.bottom: true
-    margins.right: Style.space(24)
-    margins.bottom: Style.space(24)
+    // The same clearance the notifications get, from the other corner.
+    margins.right: Theme.position === "right"
+      ? Style.bar.sizeVertical + Style.space(24)
+      : Style.space(24)
+    margins.bottom: Theme.position === "bottom"
+      ? Style.bar.sizeHorizontal + Style.space(24)
+      : Style.space(24)
     implicitWidth: previewCard.implicitWidth
     implicitHeight: previewCard.implicitHeight
 
@@ -459,9 +464,14 @@ ShellRoot {
     anchors.top: true
     anchors.right: true
 
-    // Clear of the bar, which occupies the top edge.
-    margins.top: Style.bar.sizeHorizontal + Style.space(10)
-    margins.right: Style.space(10)
+    // Clear of the bar on whichever edge it is: the cards sit under a top bar
+    // and beside a right one, rather than over it.
+    margins.top: Theme.position === "top"
+      ? Style.bar.sizeHorizontal + Style.space(10)
+      : Style.space(10)
+    margins.right: Theme.position === "right"
+      ? Style.bar.sizeVertical + Style.space(10)
+      : Style.space(10)
 
     implicitWidth: notificationColumn.implicitWidth
     implicitHeight: notificationColumn.implicitHeight
