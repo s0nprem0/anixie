@@ -147,10 +147,11 @@ clipboard.
   a rebuild prompt is worse than the risk.
 - **PhotoCraft runs under XWayland** — Wayland has no native file drag-and-drop,
   so its desktop entry clears `WAYLAND_DISPLAY`.
-- **The QML shell has no test gate.** `qmllint` and a headless start are the next
-  structural step; until then a QML typo is found by looking. The *shell scripts*
-  do have one: `nix flake check` runs `shellcheck -S warning` over every module
-  script, so a syntax error fails the check instead of a key press.
+- **`nix flake check` is the gate.** It runs `shellcheck -S warning` over every
+  module script, `qmllint` over the assembled QML tree (with the Qt and
+  Quickshell import paths, so a syntax error fails before the shell
+  crash-loops), and nixfmt, statix and deadnix over the Nix code. A headless
+  start is still not part of it.
 - **Saved matches are for this machine.** The hostname, backlight device and
   keyboard backlight are named in `hosts/vivobook` and
   `modules/features/wm/quickshell/bar.json`-adjacent settings.
