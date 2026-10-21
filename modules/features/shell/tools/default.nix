@@ -1,4 +1,9 @@
-{ config, pkgs, flakeDir, ... }:
+{
+  config,
+  pkgs,
+  flakeDir,
+  ...
+}:
 
 {
   # Tools that ship configuration get their own directory under features/shell/

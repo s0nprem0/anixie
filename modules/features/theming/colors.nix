@@ -57,9 +57,7 @@ in
   config = {
     assertions = [
       {
-        assertion = builtins.all (
-          name: builtins.attrNames palettes.${name} == tokenNames
-        ) names;
+        assertion = builtins.all (name: builtins.attrNames palettes.${name} == tokenNames) names;
         message = "every palette in theming/themes.json must define the same tokens: ${toString tokenNames}";
       }
     ];

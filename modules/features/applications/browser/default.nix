@@ -27,21 +27,23 @@ in
     xdg.mimeApps = {
       enable = true;
       defaultApplications = builtins.listToAttrs (
-        map (type: {
-          name = type;
-          value = "firefox.desktop";
-        }) [
-          "x-scheme-handler/http"
-          "x-scheme-handler/https"
-          "x-scheme-handler/chrome"
-          "text/html"
-          "application/xhtml+xml"
-          "application/x-extension-htm"
-          "application/x-extension-html"
-          "application/x-extension-shtml"
-          "application/x-extension-xhtml"
-          "application/x-extension-xht"
-        ]
+        map
+          (type: {
+            name = type;
+            value = "firefox.desktop";
+          })
+          [
+            "x-scheme-handler/http"
+            "x-scheme-handler/https"
+            "x-scheme-handler/chrome"
+            "text/html"
+            "application/xhtml+xml"
+            "application/x-extension-htm"
+            "application/x-extension-html"
+            "application/x-extension-shtml"
+            "application/x-extension-xhtml"
+            "application/x-extension-xht"
+          ]
       );
     };
   };

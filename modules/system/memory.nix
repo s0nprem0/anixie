@@ -1,4 +1,4 @@
-{ ... }:
+_:
 
 {
   # systemd-oomd is enabled by default but monitors nothing until a unit opts

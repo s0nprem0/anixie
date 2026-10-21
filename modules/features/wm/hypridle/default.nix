@@ -16,7 +16,6 @@ let
 in
 {
   xdg.configFile."hypr/hypridle.conf".text =
-    builtins.replaceStrings [ "@SUSPEND@" ] [ "${suspendIfOnBattery}" ] (
-      builtins.readFile ./hypridle.conf
-    );
+    builtins.replaceStrings [ "@SUSPEND@" ] [ "${suspendIfOnBattery}" ]
+      (builtins.readFile ./hypridle.conf);
 }

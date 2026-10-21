@@ -25,9 +25,7 @@ in
         builtins.replaceStrings
           [ "@QUICKSHELL@" "@ANIXIE_LIB@" ]
           [ "${pkgs.quickshell}/bin/quickshell" "${../../cli/lib.sh}" ]
-          (
-          builtins.readFile ./menu.sh
-        )
+          (builtins.readFile ./menu.sh)
       ))
     ];
   };

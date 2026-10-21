@@ -1,4 +1,10 @@
-{ config, pkgs, flakeDir, host, ... }:
+{
+  config,
+  pkgs,
+  flakeDir,
+  host,
+  ...
+}:
 
 let
   # nixd evaluates this flake to complete NixOS and Home Manager options, so it
