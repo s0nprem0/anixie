@@ -1,5 +1,6 @@
 {
   config,
+  user,
   ...
 }:
 
@@ -9,8 +10,8 @@
   ];
 
   home = {
-    username = "son";
-    homeDirectory = "/home/son";
+    username = user;
+    homeDirectory = "/home/${user}";
 
     # NixOS ships no /etc/profile.d/xdg.sh, so unlike Debian or Arch it leaves
     # these unset. Home Manager resolves its own paths from xdg.* but does not

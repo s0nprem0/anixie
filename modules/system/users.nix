@@ -1,5 +1,6 @@
 {
   pkgs,
+  user,
   ...
 }:
 
@@ -15,9 +16,9 @@
   # that does have NOPASSWD.
   security.sudo.wheelNeedsPassword = true;
 
-  users.users.son = {
+  users.users.${user} = {
     isNormalUser = true;
-    description = "son";
+    description = user;
     shell = pkgs.zsh;
     # Allows a login shell that is not in environment.systemPackages.
     ignoreShellProgramCheck = true;

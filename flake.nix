@@ -20,17 +20,29 @@
   };
 
   outputs =
-    inputs@{ flake-parts, ... }:
+    inputs@{ self, flake-parts, ... }:
+    let
+      # The identity of this machine and its user, stated once here and threaded
+      # to every module through specialArgs. Nothing else in the tree hardcodes
+      # a username, hostname or flake path.
+      host = "vivobook";
+      user = "son";
+      flakeDir = "${user}/nix-dots";
+    in
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [ "x86_64-linux" ];
 
       # A NixOS configuration belongs to a machine, not to a system, so it
       # lives under the `flake` freeform block rather than in perSystem.
-      flake.nixosConfigurations.vivobook = inputs.nixpkgs.lib.nixosSystem {
+      flake.nixosConfigurations.${host} = inputs.nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
 
+        specialArgs = {
+          inherit host user flakeDir;
+        };
+
         modules = [
-          ./hosts/vivobook
+          ./hosts/${host}
 
           inputs.home-manager.nixosModules.default
 
@@ -47,11 +59,17 @@
               useUserPackages = true;
               backupFileExtension = "hm-backup";
 
+              # Forward the identity so Home Manager modules see the same
+              # host/user/flakeDir arguments the NixOS modules do.
+              extraSpecialArgs = {
+                inherit host user flakeDir;
+              };
+
               # The apps are Home Manager modules, so they cannot sit in the
               # NixOS `modules` list above.
               sharedModules = [ inputs.nix-craftapps.homeManagerModules.default ];
 
-              users.son = import ./modules/home;
+              users.${user} = import ./modules/home;
             };
           }
         ];

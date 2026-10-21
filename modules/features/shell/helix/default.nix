@@ -1,10 +1,10 @@
-{ config, pkgs, ... }:
+{ config, pkgs, flakeDir, host, ... }:
 
 let
   # nixd evaluates this flake to complete NixOS and Home Manager options, so it
   # needs the checkout on disk rather than the store copy a build sees.
-  flake = ''(builtins.getFlake "${config.home.homeDirectory}/nix-dots")'';
-  host = "${flake}.nixosConfigurations.vivobook";
+  flake = ''(builtins.getFlake "${config.home.homeDirectory}/${flakeDir}")'';
+  hostExpr = "${flake}.nixosConfigurations.${host}";
 in
 {
   programs.helix = {
@@ -83,8 +83,8 @@ in
         nixpkgs.expr = "import ${flake}.inputs.nixpkgs { }";
         formatting.command = [ "nixfmt" ];
         options = {
-          nixos.expr = "${host}.options";
-          home-manager.expr = "${host}.options.home-manager.users.type.getSubOptions [ ]";
+          nixos.expr = "${hostExpr}.options";
+          home-manager.expr = "${hostExpr}.options.home-manager.users.type.getSubOptions [ ]";
         };
       };
 

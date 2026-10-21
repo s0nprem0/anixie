@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, flakeDir, ... }:
 
 {
   # Tools that ship configuration get their own directory under features/shell/
@@ -7,5 +7,5 @@
 
   # nh reads this as the default flake for `nh os switch` and friends, so the
   # rebuild aliases work from any directory rather than only from the repo.
-  home.sessionVariables.NH_FLAKE = "${config.home.homeDirectory}/nix-dots";
+  home.sessionVariables.NH_FLAKE = "${config.home.homeDirectory}/${flakeDir}";
 }

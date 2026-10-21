@@ -1,7 +1,13 @@
 {
+  host,
+  user,
+  ...
+}:
+
+{
   networking.networkmanager.enable = true;
   time.timeZone = "Asia/Manila";
-  networking.hostName = "vivobook";
+  networking.hostName = host;
 
   # The shell's Tailscale widget can read the daemon's status as this user, and
   # `tailscale up` / `down` work without sudo. The daemon itself starts at boot;
@@ -9,6 +15,6 @@
   services.tailscale = {
     enable = true;
     openFirewall = true;
-    extraSetFlags = [ "--operator=son" ];
+    extraSetFlags = [ "--operator=${user}" ];
   };
 }

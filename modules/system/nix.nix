@@ -1,4 +1,8 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  flakeDir,
+  ...
+}:
 
 {
   nix = {
@@ -45,7 +49,7 @@
     description = "Notice when the pinned flake is a month old";
     serviceConfig.Type = "oneshot";
     script = ''
-      lock="$HOME/nix-dots/flake.lock"
+      lock="$HOME/${flakeDir}/flake.lock"
       [ -f "$lock" ] || exit 0
 
       days=$(( ( $(date +%s) - $(stat -c %Y "$lock") ) / 86400 ))
