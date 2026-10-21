@@ -2,6 +2,7 @@
   imports = [
     ./archive
     ./browser
+    ./chat
     ./claude
     ./documents
     ./files
