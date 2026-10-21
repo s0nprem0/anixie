@@ -14,10 +14,9 @@ BarWidget {
   readonly property var workspaces: Hyprland.workspaces ? Hyprland.workspaces.values : []
   readonly property int focusedId: Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : -1
 
-  // The layout is a control of its own after the workspaces, rather than
-  // replacing the focused workspace's number: a row of numbers with a hole in it
-  // read as a missing workspace. The glyph shows the current one and clicking
-  // it cycles.
+  // The focused workspace keeps its number, so the row always reads 1 2 3 4 5.
+  // Clicking that number cycles its layout; the other numbers focus their
+  // workspace as before.
   readonly property var layouts: ["dwindle", "master", "scrolling"]
   property string layout: "dwindle"
 
@@ -55,12 +54,6 @@ BarWidget {
   function focusWorkspace(id) {
     focusProc.command = ["hyprctl", "dispatch", "hl.dsp.focus({workspace = " + String(id) + "})"]
     focusProc.running = true
-  }
-
-  function layoutGlyphFor(mode) {
-    if (mode === "master") return Util.layoutMaster
-    if (mode === "scrolling") return Util.layoutScrolling
-    return Util.layoutDwindle
   }
 
   function refreshLayout() {
@@ -161,28 +154,18 @@ BarWidget {
         verticalPadding: 6
         fixedWidth: Style.space(20)
         fixedHeight: Style.bar.sizeHorizontal
-        tooltipText: "Workspace " + button.modelData + " · click to focus"
+        tooltipText: button.focused
+          ? "Workspace " + button.modelData + " · " + root.layout + " layout · click to cycle"
+          : "Workspace " + button.modelData + " · click to focus"
 
         onPressed: function (button_) {
           if (button_ !== Qt.LeftButton) return
-          root.focusWorkspace(button.modelData)
+          if (button.focused) root.cycleLayout()
+          else root.focusWorkspace(button.modelData)
         }
         onWheelMoved: function (delta) {
           root.scroll(delta)
         }
-      }
-    }
-
-    // The layout control, after the workspaces rather than in place of one of
-    // their numbers.
-    WidgetButton {
-      text: root.layoutGlyphFor(root.layout)
-      fontSize: Style.bar.iconFont
-      active: root.layout !== "dwindle"
-      tooltipText: "Layout: " + root.layout + " · click to cycle"
-
-      onPressed: function (button) {
-        if (button === Qt.LeftButton) root.cycleLayout()
       }
     }
   }
