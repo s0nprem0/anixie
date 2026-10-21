@@ -90,6 +90,13 @@ in
     # broken against this nixpkgs — its module still passes `extraConfig` to
     # `makeDesktopItem`, which no longer takes it, so merely defining an entry
     # errors the build. The file is four lines of the same thing.
+    #
+    # The rest of the entry is upstream's, and has to be kept in step with it: a
+    # file here shadows the one in the package, so a key added upstream is lost
+    # until it is copied. `TryExec` is what lets a menu drop the entry when the
+    # binary is missing, and `X-AppImage-Integrate` is what stops an AppImage
+    # integrator registering a second copy of it — both were in upstream's 0.11.1
+    # entry and missing from this copy of the 0.9.0 one.
     xdg.configFile."applications/ai.storyteller.photocraft.desktop".text = ''
       [Desktop Entry]
       Type=Application
@@ -97,6 +104,7 @@ in
       GenericName=Image Editor
       Comment=Edit photos and layered PSD documents
       Exec=env WAYLAND_DISPLAY= photocraft %F
+      TryExec=photocraft
       Icon=ai.storyteller.photocraft
       Terminal=false
       StartupNotify=false
@@ -104,6 +112,7 @@ in
       Categories=Graphics;2DGraphics;RasterGraphics;Photography;
       Keywords=photo;image;editor;psd;layers;retouch;paint;
       MimeType=application/x-photocraft;image/x-paintnet;image/openraster;application/x-krita;image/vnd.adobe.photoshop;image/x-psd;image/x-psb;image/png;image/jpeg;image/tiff;image/webp;image/gif;image/bmp;image/x-tga;image/x-icon;image/vnd.microsoft.icon;image/x-portable-anymap;image/x-portable-bitmap;image/x-portable-graymap;image/x-portable-pixmap;image/x-exr;image/vnd.radiance;image/avif;image/qoi;
+      X-AppImage-Integrate=false
     '';
   };
 }
