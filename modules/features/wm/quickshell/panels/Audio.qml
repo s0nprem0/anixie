@@ -92,6 +92,19 @@ Item {
     if (node && node.audio) node.audio.muted = muted
   }
 
+  // Selecting an output is two things: tell WirePlumber what the default is, and
+  // move what is already playing, which a new default does not do on its own.
+  // The command carries both identifiers because the two layers name a sink
+  // differently — node id for PipeWire, sink name for the PulseAudio
+  // compatibility layer that does the moving.
+  function setDefaultSink(node) {
+    if (!node) return
+    Pipewire.preferredDefaultAudioSink = node
+    if (node.id !== undefined && node.name) {
+      Quickshell.execDetached(["audio-output-set", String(node.id), String(node.name)])
+    }
+  }
+
   implicitWidth: Style.space(340)
   implicitHeight: card.implicitHeight
 
@@ -156,7 +169,7 @@ Item {
         width: card.contentWidth
         label: root.displayName(modelData)
         selected: root.defaultSink === modelData
-        onClicked: Pipewire.defaultAudioSink = modelData
+        onClicked: root.setDefaultSink(modelData)
       }
     }
 

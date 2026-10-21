@@ -400,6 +400,16 @@ ShellRoot {
     function dismissAll(): void { NotificationHost.dismissAll() }
   }
 
+  // Moving the media widget between players, for the source-switch keys. The
+  // choice is MediaHost's, so this is the same switch the popup's player list
+  // makes — a key and a click cannot disagree about which player is current.
+  IpcHandler {
+    target: "media"
+
+    function sourceSwitch(): void { MediaHost.next() }
+    function sourceSwitchPrevious(): void { MediaHost.previous() }
+  }
+
   // The screenshot preview. Bottom right, over the desktop, gone on its own after
   // ten seconds unless it is pinned.
   //

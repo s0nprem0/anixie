@@ -22,12 +22,13 @@ BarWidget {
   readonly property var players: Mpris.players ? Mpris.players.values : []
 
   // Which player the widget is showing. Explicit once one is picked from the
-  // popup's list; until then, whichever is actually making noise, so a paused
-  // tab does not shadow the track that is sounding.
-  property var chosen: null
-
+  // popup's list — or moved to by the source-switch keys — and until then
+  // whichever is actually making noise, so a paused tab does not shadow the
+  // track that is sounding. The choice itself lives in MediaHost, because the
+  // hotkey has to reach it without a widget instance.
   readonly property var player: {
-    if (root.chosen && root.players.indexOf(root.chosen) !== -1) return root.chosen
+    const chosen = MediaHost.chosen
+    if (chosen && root.players.indexOf(chosen) !== -1) return chosen
 
     for (let i = 0; i < root.players.length; i++) {
       if (root.players[i].playbackState === MprisPlaybackState.Playing) return root.players[i]
@@ -196,7 +197,7 @@ BarWidget {
             ? Util.glyph("f04c")
             : ""
           selected: root.player === playerRow.modelData
-          onClicked: root.chosen = playerRow.modelData
+          onClicked: MediaHost.choose(playerRow.modelData)
         }
       }
     }
