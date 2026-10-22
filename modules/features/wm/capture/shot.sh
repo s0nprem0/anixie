@@ -6,6 +6,7 @@
 #   shot windows              snap to a window or monitor
 #   shot fullscreen           the focused monitor, no interaction
 #   shot window               the window with focus, no picker
+#   shot scroll               page through a scrollable window and stitch the frames
 #
 # Destination:
 #
@@ -13,6 +14,8 @@
 #   save      write a PNG into $SHOT_DIR (default ~/Pictures/Screenshots) and stop
 #   copy      put it on the clipboard and write nothing
 #   annotate  open it in satty, which starts in crop mode, and save the result
+#   redact    open satty with the blur tool selected, for covering secrets
+#   text      open satty with the text tool selected, for adding a caption
 #
 # The destinations are not combined; a capture goes to one place. `preview` is the
 # default because a screenshot is usually taken to be pasted somewhere, and having
@@ -23,6 +26,15 @@
 #   shot windows copy         snap to a window, copy it, save nothing
 #   shot region annotate      drag a region, then annotate it
 #   shot fullscreen save      the monitor, written out, nothing else
+#   shot scroll save          page through a page and save the stitched image
+#
+# Scrolling capture is automatic and keyboard-driven: select the region, then
+# leave the scrollable window focused. It sends Page Down between frames and
+# stops when the content stops changing, when SCROLL_FRAMES is reached, or when
+# the stitched image would exceed SCROLL_MAX_HEIGHT pixels. SCROLL_FRAMES,
+# SCROLL_PRESSES, SCROLL_KEY_DELAY and SCROLL_SETTLE tune it. It works with any
+# app that scrolls on Page Down; a terminal that uses Page Down for history
+# scrolls too, which is often exactly what is wanted.
 #
 # `-- CMD` hands the saved file to CMD instead of printing where it landed. It
 # goes with `save` only, because the file CMD is given has to be one that stays
@@ -55,13 +67,11 @@ while [ $# -gt 0 ]; do
     smart | region | windows | fullscreen | window)
       mode="$1"
       ;;
-    save | copy | annotate | preview)
+    save | copy | annotate | preview | redact | text)
       dest="$1"
       ;;
     scroll)
-      printf 'shot: "scroll" is not supported — it needs a capture that extends past the screen.\n' >&2
-      printf 'Use "shot windows" to pick a window, or "shot region" to drag one.\n' >&2
-      exit 2
+      mode="scroll"
       ;;
     --)
       shift
@@ -83,6 +93,15 @@ if [ -n "$post" ] && [ "$dest" != "save" ]; then
   exit 2
 fi
 
+# Scrolling capture settings. Page Down is the key every scrollable surface
+# understands; the settle delay is longer than a frame so the compositor has
+# drawn the new position before grim reads it.
+scroll_frames="${SCROLL_FRAMES:-16}"
+scroll_presses="${SCROLL_PRESSES:-1}"
+scroll_key_delay="${SCROLL_KEY_DELAY:-0.08}"
+scroll_settle="${SCROLL_SETTLE:-0.45}"
+scroll_max_height="${SCROLL_MAX_HEIGHT:-24000}"
+
 # The freeze's pid is written by the picker, which exits as soon as a selection is
 # made and leaves the freeze for whoever asked for it. Taking it down is therefore
 # this process's job.
@@ -103,6 +122,7 @@ fi
 freeze_pid_file="${XDG_RUNTIME_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}}/anixie/anixie-pick-freeze.pid"
 captured=""
 scratch=""
+scroll_tmp=""
 
 release_freeze() {
   [ -f "$freeze_pid_file" ] || return 0
@@ -118,6 +138,7 @@ release_freeze() {
 cleanup() {
   release_freeze
   [ -n "$scratch" ] && rm -f "$scratch"
+  [ -n "$scroll_tmp" ] && rm -rf "$scroll_tmp"
   return 0
 }
 
@@ -145,7 +166,9 @@ else
   # whatever moved while the pointer was being placed. The picker writes the
   # freeze's pid to a file and leaves it running; grim reads the screen, and the
   # freeze is released below, once there is nothing left that needs it.
-  geometry=$(@SHOT_PICK@ "$mode" --keep-freeze) || exit 1
+  picker_mode="$mode"
+  [ "$mode" = "scroll" ] && picker_mode=region
+  geometry=$(@SHOT_PICK@ "$picker_mode" --keep-freeze) || exit 1
 fi
 
 [ -n "$geometry" ] || exit 1
@@ -167,6 +190,151 @@ unique_path() {
 # it sorts and nothing appends a tool name to it.
 stamp=$(date +%Y-%m-%d_%H-%M-%S)
 
+# ---- scrolling capture ----
+#
+# Page Down is deliberately used instead of a mouse wheel: it needs no pointer
+# position and every toolkit understands it. The overlap between two frames is
+# found by taking a strip from the previous frame, well above its bottom edge so
+# a sticky footer cannot anchor the match, and searching for it in the new one.
+# A normalized RMSE below 0.08 is a match; anything else is treated as "the page
+# moved by a whole viewport" and the frame is appended whole, which at worst
+# repeats the one line that page-down leaves behind.
+
+# Print the number of pixels the previous frame and the current frame share, or
+# fail when there is no usable match. The search runs on a quarter-size copy:
+# the answer is a y offset, and a full-resolution subimage search over a 1080p
+# frame is slow enough to be felt between every page.
+scroll_overlap() {
+  previous="$1"
+  current="$2"
+
+  previous_size=$(@MAGICK@ identify -format '%w %h' "$previous" 2>/dev/null) || return 1
+  current_size=$(@MAGICK@ identify -format '%w %h' "$current" 2>/dev/null) || return 1
+  set -- $previous_size
+  previous_width=$1
+  previous_height=$2
+  set -- $current_size
+  current_width=$1
+
+  [ "$previous_width" -eq "$current_width" ] || return 1
+  [ "$previous_height" -gt 0 ] || return 1
+
+  scale=4
+  [ "$previous_width" -lt 400 ] && scale=1
+  small_width=$((previous_width / scale))
+  small_height=$((previous_height / scale))
+  [ "$small_width" -gt 0 ] && [ "$small_height" -gt 0 ] || return 1
+
+  strip_height=$((small_height / 8))
+  [ "$strip_height" -ge 8 ] || strip_height=8
+  [ "$strip_height" -lt "$small_height" ] || return 1
+  strip_top=$((small_height * 3 / 5))
+  [ $((strip_top + strip_height)) -le "$small_height" ] || strip_top=$((small_height - strip_height))
+
+  small_previous="$scroll_tmp/previous-small.png"
+  small_current="$scroll_tmp/current-small.png"
+  strip="$scroll_tmp/strip.png"
+  @MAGICK@ "$previous" -resize "${small_width}x${small_height}!" "$small_previous" 2>/dev/null || return 1
+  @MAGICK@ "$current" -resize "${small_width}x${small_height}!" "$small_current" 2>/dev/null || return 1
+  @MAGICK@ "$small_previous" -crop "${small_width}x${strip_height}+0+${strip_top}" +repage "$strip" 2>/dev/null || return 1
+
+  # `compare` exits 1 when the images differ, which is the normal case. Its
+  # metric goes to stderr: "1234.5 (0.0123) @ 0,120".
+  metric=$(@MAGICK@ compare -metric RMSE -subimage-search "$small_current" "$strip" null: 2>&1 >/dev/null || true)
+  threshold=$(printf '%s\n' "$metric" | sed -n 's/.*(\([0-9.][0-9.]*\)).*/\1/p')
+  match_y=$(printf '%s\n' "$metric" | sed -n 's/.*@ [0-9-]*,\([0-9-][0-9-]*\).*/\1/p')
+  [ -n "$threshold" ] && [ -n "$match_y" ] || return 1
+  # 0.08 is generous on purpose: JPEG-ish UI noise and subpixel rendering move
+  # the score a little even when the scroll position is exactly right.
+  awk -v score="$threshold" 'BEGIN { exit !(score <= 0.08) }' || return 1
+
+  # The strip started at `strip_top` in the previous frame and appears at
+  # `match_y` in the current one, so the scroll distance is the difference and
+  # everything after it is new.
+  scroll_distance=$((strip_top * scale - match_y * scale))
+  overlap=$((previous_height - scroll_distance))
+  [ "$overlap" -gt 0 ] && [ "$overlap" -lt "$previous_height" ] || return 1
+  printf '%s\n' "$overlap"
+}
+
+# Append the new part of `frame` to `stitched`, skipping the overlap. A missing
+# overlap means "append it whole"; a negative one cannot happen because the
+# caller only passes a value that has been checked.
+scroll_append() {
+  stitched="$1"
+  frame="$2"
+  overlap="$3"
+
+  size=$(@MAGICK@ identify -format '%w %h' "$frame" 2>/dev/null) || return 1
+  set -- $size
+  frame_width=$1
+  frame_height=$2
+
+  if [ "$overlap" -gt 0 ] && [ "$overlap" -lt "$frame_height" ]; then
+    part="$scroll_tmp/part.png"
+    @MAGICK@ "$frame" -crop "${frame_width}x$((frame_height - overlap))+0+${overlap}" +repage "$part" 2>/dev/null || return 1
+  else
+    part="$frame"
+  fi
+
+  @MAGICK@ "$stitched" "$part" -append "$scroll_tmp/next.png" 2>/dev/null || return 1
+  mv "$scroll_tmp/next.png" "$stitched"
+}
+
+# Select once, then page down until the view stops moving. The picker's freeze
+# is released before the first scroll so the frames are live; the caller's trap
+# still covers the case where no frame was ever captured.
+scroll_capture() {
+  geometry="$1"
+  output="$2"
+
+  release_freeze
+
+  @NOTIFY_SEND_RAW@ -a capture -u low -t 2500 \
+    "Scrolling capture" "Leave the window focused. It stops when the page stops moving." >/dev/null 2>&1 || true
+
+  i=0
+  previous=""
+  while [ "$i" -lt "$scroll_frames" ]; do
+    current="$scroll_tmp/frame-$i.png"
+    @GRIM@ -g "$geometry" "$current" 2>/dev/null || break
+    [ -s "$current" ] || break
+
+    if [ -z "$previous" ]; then
+      cp "$current" "$scroll_tmp/stitched.png"
+    else
+      unchanged=$(@MAGICK@ compare -metric AE "$previous" "$current" null: 2>&1 >/dev/null || true)
+      case "$unchanged" in
+        0 | "0 (0)") break ;;
+      esac
+
+      if overlap=$(scroll_overlap "$previous" "$current"); then
+        scroll_append "$scroll_tmp/stitched.png" "$current" "$overlap" || break
+      else
+        scroll_append "$scroll_tmp/stitched.png" "$current" 0 || break
+      fi
+
+      height=$(@MAGICK@ identify -format '%h' "$scroll_tmp/stitched.png" 2>/dev/null || echo 0)
+      [ "$height" -lt "$scroll_max_height" ] || break
+    fi
+
+    previous="$current"
+    i=$((i + 1))
+    [ "$i" -ge "$scroll_frames" ] && break
+
+    key=0
+    while [ "$key" -lt "$scroll_presses" ]; do
+      @WTYPE@ -k Next 2>/dev/null || break
+      sleep "$scroll_key_delay"
+      key=$((key + 1))
+    done
+    sleep "$scroll_settle"
+  done
+
+  [ -s "$scroll_tmp/stitched.png" ] || return 1
+  cp "$scroll_tmp/stitched.png" "$output"
+}
+
 # What was in front when the capture was taken, for the name — the reference names
 # its files `screenshot-<time>-<app>.png`, and the app is what makes a directory of
 # shots searchable. Lowercased and reduced to dashes, so a class like
@@ -184,7 +352,7 @@ window_slug=$(
 # clipboard or satty's output, not the raw capture, and writing the raw capture
 # into $SHOT_DIR on the way would leave one behind for nothing.
 case "$dest" in
-  copy | annotate)
+  copy | annotate | redact | text)
     captured=$(mktemp "${TMPDIR:-/tmp}/shot.XXXXXX.png")
     scratch="$captured"
     ;;
@@ -198,7 +366,15 @@ esac
 # taken to show where something is, and the pointer is part of that. The text and
 # QR captures deliberately leave it out — a cursor sitting on the text being read
 # is one more thing for the reader to work around.
-@GRIM@ -c -g "$geometry" "$captured"
+if [ "$mode" = "scroll" ]; then
+  scroll_tmp=$(mktemp -d "${TMPDIR:-/tmp}/shot-scroll.XXXXXX")
+  if ! scroll_capture "$geometry" "$captured"; then
+    printf 'shot: scrolling capture produced nothing\n' >&2
+    exit 1
+  fi
+else
+  @GRIM@ -c -g "$geometry" "$captured"
+fi
 
 # Down as soon as grim has read the screen. Nothing after this needs the still
 # frame, and holding it would leave it over the desktop while the capture is
@@ -224,13 +400,21 @@ case "$dest" in
       exit 1
     fi
     ;;
-  annotate)
+  annotate | redact | text)
     # `|| status=$?` rather than a bare call: `set -e` would end the script the
     # moment satty returned non-zero, before its status could be read, so the
     # cleanup below would be skipped on exactly the runs that need it.
-    output=$(unique_path "screenshot-$stamp-annotated" png)
+    tool=crop
+    suffix=annotated
+    if [ "$dest" = "redact" ]; then
+      tool=blur
+      suffix=redacted
+    elif [ "$dest" = "text" ]; then
+      tool=text
+    fi
+    output=$(unique_path "screenshot-$stamp-$suffix" png)
     status=0
-    @SATTY@ --filename "$captured" --output-filename "$output" --initial-tool crop || status=$?
+    @SATTY@ --filename "$captured" --output-filename "$output" --initial-tool "$tool" || status=$?
     [ "$status" -eq 0 ] || exit "$status"
     printf 'Saved %s\n' "$output"
     ;;

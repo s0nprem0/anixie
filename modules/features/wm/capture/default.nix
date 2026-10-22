@@ -33,6 +33,7 @@ let
     "@ZBAR@" = "${pkgs.zbar}/bin/zbarimg";
     "@MAGICK@" = "${pkgs.imagemagick}/bin/magick";
     "@QUICKSHELL@" = "${pkgs.quickshell}/bin/quickshell";
+    "@WTYPE@" = "${pkgs.wtype}/bin/wtype";
 
     # The shared help and error helpers, sourced by the scripts that print a
     # header manual. Not a binary — the path is the file itself.
@@ -131,6 +132,10 @@ in
       pkgs.tesseract
       pkgs.zbar
       pkgs.imagemagick
+      # Page Down between scrolling-capture frames. wtype is also the emoji
+      # picker's typer, but naming it here keeps this module's dependency set
+      # complete on its own.
+      pkgs.wtype
     ];
   };
 }

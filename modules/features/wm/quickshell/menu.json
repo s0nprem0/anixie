@@ -36,6 +36,18 @@
           "run": "shot fullscreen"
         },
         {
+          "label": "Screenshot \u2014 scrolling",
+          "run": "shot scroll"
+        },
+        {
+          "label": "Screenshot \u2014 redact",
+          "run": "shot smart redact"
+        },
+        {
+          "label": "Screenshot \u2014 add text",
+          "run": "shot smart text"
+        },
+        {
           "label": "Screenshot \u2014 to clipboard",
           "run": "shot smart copy"
         },
