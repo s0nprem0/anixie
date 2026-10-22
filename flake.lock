@@ -94,7 +94,28 @@
         "flake-parts": "flake-parts",
         "home-manager": "home-manager",
         "nix-craftapps": "nix-craftapps",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "sops-nix": "sops-nix"
+      }
+    },
+    "sops-nix": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1792308394,
+        "narHash": "sha256-r4G33ygU307QCwyngAS6E9BMhnCRPyZrL7UxRCMrqo0=",
+        "owner": "mic92",
+        "repo": "sops-nix",
+        "rev": "a1438ca361b05d1e70854d5495abcb34fdf6ff47",
+        "type": "github"
+      },
+      "original": {
+        "owner": "mic92",
+        "repo": "sops-nix",
+        "type": "github"
       }
     }
   },

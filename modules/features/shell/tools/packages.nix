@@ -40,6 +40,12 @@ with pkgs;
   # intended here; the binary was simply never pulled in.
   gnupg
 
+  # The CLI halves of the secrets path: sops edits the encrypted file, age holds
+  # the key it is encrypted to. sops-nix itself does the activation-time
+  # decryption (see modules/system/secrets.nix).
+  sops
+  age
+
   httpie
   jq
 

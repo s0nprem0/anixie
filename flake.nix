@@ -17,6 +17,14 @@
       url = "github:olafkfreund/nix-craftapps";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Secrets at rest in the repository, decrypted at activation. Disabled by
+    # default (see modules/system/secrets.nix) because it needs an age key that
+    # belongs to this machine, not to the flake.
+    sops-nix = {
+      url = "github:mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -50,6 +58,8 @@
           # fontconfig). The apps themselves are installed per-user below.
           inputs.nix-craftapps.nixosModules.default
 
+          inputs.sops-nix.nixosModules.sops
+
           {
             nixpkgs.config.allowUnfree = true;
 
@@ -66,7 +76,10 @@
 
               # The apps are Home Manager modules, so they cannot sit in the
               # NixOS `modules` list above.
-              sharedModules = [ inputs.nix-craftapps.homeManagerModules.default ];
+              sharedModules = [
+                inputs.nix-craftapps.homeManagerModules.default
+                inputs.sops-nix.homeManagerModules.sops
+              ];
 
               users.${user} = import ./modules/home;
             };

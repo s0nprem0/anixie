@@ -3,6 +3,7 @@
     ./nix.nix
     ./boot.nix
     ./dev.nix
+    ./encryption.nix
     ./networking.nix
     ./audio.nix
     ./fonts.nix
@@ -13,6 +14,7 @@
     ./snapshot.nix
     ./desktop.nix
     ./screenrecord.nix
+    ./secrets.nix
     ./lock.nix
     ./bluetooth.nix
     ./printing.nix
