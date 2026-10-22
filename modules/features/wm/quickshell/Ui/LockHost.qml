@@ -38,6 +38,13 @@ QtObject {
 
   readonly property string statePath: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state")
     + "/anixie/lock"
+  readonly property string failuresPath: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state")
+    + "/anixie/lock-failures"
+
+  readonly property int lockoutSeconds: 120
+  property int lockoutUntil: 0
+  property int lockoutRemaining: 0
+  readonly property bool lockedOut: root.lockoutUntil > 0
 
   // What the UI shows. `requested` is ours; the other two are the compositor's.
   property bool requested: false
@@ -91,12 +98,37 @@ QtObject {
     blockLoading: true
   }
 
+  property FileView failuresFile: FileView {
+    path: Qt.resolvedUrl(root.failuresPath)
+    printErrors: false
+    blockLoading: true
+  }
+
   Component.onCompleted: {
     try {
       const lines = String(root.stateFile.text()).split("\n").map(function (line) { return line.trim() })
       if (lines[0] === root.sessionSignature && lines[1] === "locked") root.startupLock.start()
     } catch (e) {
       // No state file: a normal first start.
+    }
+
+    try {
+      const lines = String(root.failuresFile.text()).split("\n")
+      const attempts = parseInt(lines[0] || "0", 10)
+      const until = parseInt(lines[1] || "0", 10)
+
+      root.failedAttempts = isFinite(attempts) && attempts > 0 ? attempts : 0
+      if (isFinite(until) && until > Date.now()) {
+        root.lockoutUntil = until
+        root.lockoutRemaining = Math.ceil((until - Date.now()) / 1000)
+        root.failure = "Too many attempts. Try again in " + root.lockoutRemaining + "s."
+        lockoutTimer.start()
+      } else if (isFinite(until) && until > 0) {
+        root.failedAttempts = 0
+        root.rememberFailures()
+      }
+    } catch (e) {
+      // No failure history yet.
     }
   }
 
@@ -111,6 +143,22 @@ QtObject {
       root.stateFile.setText(root.sessionSignature + "\n" + String(state) + "\n")
     } catch (e) {
     }
+  }
+
+  function rememberFailures() {
+    try {
+      root.failuresFile.setText(String(root.failedAttempts) + "\n" + String(root.lockoutUntil) + "\n")
+    } catch (e) {
+    }
+  }
+
+  function clearFailures() {
+    root.failedAttempts = 0
+    root.lockoutUntil = 0
+    root.lockoutRemaining = 0
+    root.failure = ""
+    lockoutTimer.stop()
+    root.rememberFailures()
   }
 
   function lock() {
@@ -135,6 +183,7 @@ QtObject {
     root.sessionLock.locked = false
     root.remember("unlocked\n")
     root.resetAuthentication()
+    root.clearFailures()
     root.wakeDisplay()
   }
 
@@ -150,6 +199,7 @@ QtObject {
     root.sessionLock.locked = false
     root.remember("unlocked\n")
     root.resetAuthentication()
+    root.clearFailures()
 
     Quickshell.execDetached([root.hyprlock])
     if (suspend) fallbackSuspend.start()
@@ -158,8 +208,7 @@ QtObject {
   function resetAuthentication() {
     root.authenticatingPassword = false
     root.pendingPassword = ""
-    root.failure = ""
-    root.failedAttempts = 0
+    if (!root.lockedOut) root.failure = ""
     root.fingerprintTrying = false
     root.fingerprintUnavailable = false
     root.fingerprintFailures = 0
@@ -176,6 +225,11 @@ QtObject {
   function submitPassword(value) {
     const password = String(value || "")
     if (password === "" || root.authenticatingPassword) return
+
+    if (root.lockedOut) {
+      root.failure = "Too many attempts. Try again in " + root.lockoutRemaining + "s."
+      return
+    }
 
     root.failure = ""
     root.pendingPassword = password
@@ -208,9 +262,23 @@ QtObject {
       return
     }
 
-    root.failedAttempts += 1
-    root.failure = "Incorrect password"
+    root.notePasswordFailure()
     if (result === PamResult.MaxTries) root.failure = "Too many attempts. Wait a moment and try again."
+  }
+
+  function notePasswordFailure() {
+    root.failedAttempts += 1
+
+    if (root.failedAttempts >= 10) {
+      root.lockoutUntil = Date.now() + root.lockoutSeconds * 1000
+      root.lockoutRemaining = root.lockoutSeconds
+      root.failure = "Too many attempts. Try again in " + root.lockoutRemaining + "s."
+      lockoutTimer.start()
+    } else {
+      root.failure = "Incorrect password"
+    }
+
+    root.rememberFailures()
   }
 
   function failPassword() {
@@ -220,8 +288,7 @@ QtObject {
     root.pendingPassword = ""
     if (!root.requested) return
 
-    root.failedAttempts += 1
-    root.failure = "Authentication failed. Try again."
+    root.notePasswordFailure()
   }
 
   function startFingerprint() {
@@ -344,5 +411,25 @@ QtObject {
     interval: 1500
     repeat: false
     onTriggered: root.startFingerprint()
+  }
+
+  property Timer lockoutTimer: Timer {
+    interval: 1000
+    repeat: true
+    onTriggered: {
+      const remaining = Math.ceil((root.lockoutUntil - Date.now()) / 1000)
+      if (remaining > 0) {
+        root.lockoutRemaining = remaining
+        root.failure = "Too many attempts. Try again in " + remaining + "s."
+        return
+      }
+
+      root.lockoutUntil = 0
+      root.lockoutRemaining = 0
+      root.failedAttempts = 0
+      root.failure = ""
+      root.rememberFailures()
+      stop()
+    }
   }
 }

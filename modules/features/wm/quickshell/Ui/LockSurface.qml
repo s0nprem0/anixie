@@ -122,7 +122,7 @@ Item {
           echoMode: TextInput.Password
           placeholderText: "Password"
           horizontalAlignment: TextInput.AlignHCenter
-          enabled: !LockHost.authenticatingPassword
+          enabled: !LockHost.authenticatingPassword && !LockHost.lockedOut
 
           onAccepted: {
             const value = password.text
