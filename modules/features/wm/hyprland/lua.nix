@@ -908,10 +908,10 @@ in
     bind("XF86AudioMicMute", "Mute microphone",
       "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle", { locked = true })
 
-    bind("XF86AudioPlay", "Play/pause", "playerctl play-pause", { locked = true })
-    bind("XF86AudioPause", "Play/pause", "playerctl play-pause", { locked = true })
-    bind("XF86AudioNext", "Next track", "playerctl next", { locked = true })
-    bind("XF86AudioPrev", "Previous track", "playerctl previous", { locked = true })
+    bind("XF86AudioPlay", "Play/pause", "quickshell ipc call media playPause", { locked = true })
+    bind("XF86AudioPause", "Play/pause", "quickshell ipc call media playPause", { locked = true })
+    bind("XF86AudioNext", "Next track", "quickshell ipc call media trackNext", { locked = true })
+    bind("XF86AudioPrev", "Previous track", "quickshell ipc call media trackPrevious", { locked = true })
     -- SHIFT on the playback keys moves between players — Spotify, a browser
     -- tab, a local player — the way the reference's keys do. It changes what
     -- the shell treats as the active player; it does not change which

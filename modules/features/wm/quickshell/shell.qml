@@ -495,6 +495,10 @@ ShellRoot {
   IpcHandler {
     target: "media"
 
+    function playPause(): void { MediaHost.playPause() }
+    function trackNext(): void { MediaHost.trackNext() }
+    function trackPrevious(): void { MediaHost.trackPrevious() }
+
     function sourceSwitch(): void { MediaHost.next() }
     function sourceSwitchPrevious(): void { MediaHost.previous() }
   }

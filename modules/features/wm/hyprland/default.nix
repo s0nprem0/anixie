@@ -15,7 +15,6 @@
     brightnessctl
     cliphist
     grim
-    playerctl
     slurp
     wl-clipboard
   ];
