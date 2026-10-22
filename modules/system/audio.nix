@@ -18,20 +18,14 @@
     # amplifier belongs in the machine's own configuration, not in the module
     # every host imports.
     wireplumber.extraConfig = {
-      # Software volume for every card. Some Realtek codecs — including the
-      # ALC897 here — put a non-linear hardware mixer curve in the way, so the
-      # quiet half of the range sounds muffled and different devices do not
-      # volume-match. A software mixer is linear and identical everywhere.
-      "51-alsa-soft-mixer" = {
-        "monitor.alsa.rules" = [
-          {
-            matches = [ { "device.name" = "~alsa_card.*"; } ];
-            actions.update-props = {
-              "api.alsa.soft-mixer" = true;
-            };
-          }
-        ];
-      };
+      # No api.alsa.soft-mixer rule. It looks appealing — the ALC897's hardware
+      # curve is non-linear, so a software mixer would give a linear slider —
+      # but it also tells WirePlumber to leave the hardware mixer untouched.
+      # This codec comes up with Master at 0 and muted, so the slider moves and
+      # the stream is active while the amplifier stays silent. Letting
+      # WirePlumber use the hardware mixer means the card's mixer paths unmute
+      # and route the active output on every start, which is what actually makes
+      # sound come out.
 
       # Bluetooth. A2DP is offered as soon as a device advertises it instead of
       # waiting for a profile to be picked by hand; the headset's own hardware
