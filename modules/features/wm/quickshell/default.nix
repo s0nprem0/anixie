@@ -136,7 +136,8 @@ in
     # start limit is five restarts in ten seconds, easily reached while Hyprland
     # is still coming back. Unlimiting it lets the bar keep retrying until
     # Hyprland re-imports its environment on the next attempt
-    # (see the hl.on("hyprland.start", ...) handler in hyprland/lua.nix) and
+    # (see the hl.on("hyprland.start", ...) handler in
+    # hyprland/config/70-startup.lua) and
     # the next attempt succeeds.
     systemd.user.services.quickshell = {
       Unit = {

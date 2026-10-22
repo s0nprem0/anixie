@@ -9,7 +9,8 @@ let
   cfg = config.my.wm.clipboard;
 
   # cliphist keeps the history and is fed by the compositor's clipboard watchers
-  # (see hyprland/lua.nix); this is only the picking of one entry back out.
+  # (see hyprland/config/70-startup.lua); this is only the picking of one entry
+  # back out.
   clipboard = pkgs.writeShellScriptBin "clipboard" (
     builtins.replaceStrings
       [

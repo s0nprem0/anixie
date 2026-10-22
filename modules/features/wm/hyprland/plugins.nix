@@ -1,4 +1,9 @@
-{ inputs, pkgs, ... }:
+{
+  inputs,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   # Every plugin here is built from source against the Hyprland package this
@@ -10,45 +15,78 @@ let
   # projects produce only their bare name, so each derivation installs the
   # aliases it has been seen to be loaded under instead of making the config
   # depend on which one upstream chose.
-  scrolloverview = pkgs.stdenv.mkDerivation {
+  #
+  # The Makefile-based plugins share this builder. Only their inputs, patches
+  # and installed names differ.
+  makePlugin =
+    {
+      pname,
+      version,
+      src,
+      source ? pname,
+      names,
+      patches ? [ ],
+      postPatch ? "",
+      nativeBuildInputs ? [ ],
+    }:
+    pkgs.stdenv.mkDerivation (
+      {
+        inherit pname version src;
+
+        dontUseCmakeConfigure = true;
+
+        inherit (pkgs.hyprland) buildInputs;
+        nativeBuildInputs =
+          pkgs.hyprland.nativeBuildInputs
+          ++ [
+            pkgs.hyprland
+            pkgs.gcc14
+            pkgs.pkg-config
+            pkgs.pixman
+            pkgs.libdrm
+          ]
+          ++ nativeBuildInputs;
+
+        enableParallelBuilding = true;
+
+        buildPhase = ''
+          runHook preBuild
+          make all
+          runHook postBuild
+        '';
+
+        installPhase = ''
+          runHook preInstall
+          mkdir -p "$out/lib"
+          ${lib.concatMapStringsSep "\n" (name: ''cp ${source}.so "$out/lib/${name}.so"'') names}
+          runHook postInstall
+        '';
+      }
+      // lib.optionalAttrs (patches != [ ]) { inherit patches; }
+      // lib.optionalAttrs (postPatch != "") { inherit postPatch; }
+    );
+
+  scrolloverview = makePlugin {
     pname = "hyprland-scroll-overview";
     version = "0.1";
     src = inputs.hyprland-scroll-overview;
-
-    dontUseCmakeConfigure = true;
-
-    inherit (pkgs.hyprland) buildInputs;
-    nativeBuildInputs = pkgs.hyprland.nativeBuildInputs ++ [
-      pkgs.hyprland
-      pkgs.gcc14
-      pkgs.pkg-config
-      pkgs.pixman
-      pkgs.libdrm
-      pkgs.lua5_4
+    source = "scrolloverview";
+    names = [
+      "libscrolloverview"
+      "scrolloverview"
+      "libhyprland-scroll-overview"
     ];
-
-    enableParallelBuilding = true;
-
-    buildPhase = ''
-      runHook preBuild
-      make all
-      runHook postBuild
-    '';
-
-    installPhase = ''
-      runHook preInstall
-      mkdir -p "$out/lib"
-      cp scrolloverview.so "$out/lib/libscrolloverview.so"
-      cp scrolloverview.so "$out/lib/scrolloverview.so"
-      cp scrolloverview.so "$out/lib/libhyprland-scroll-overview.so"
-      runHook postInstall
-    '';
+    nativeBuildInputs = [ pkgs.lua5_4 ];
   };
 
-  hyprglass = pkgs.stdenv.mkDerivation {
+  hyprglass = makePlugin {
     pname = "hyprglass";
     version = "0.1";
     src = inputs.hyprglass;
+    names = [
+      "libhyprglass"
+      "hyprglass"
+    ];
 
     # Modern toolchains refuse to dlopen a shared object without an explicit
     # non-executable stack note. The Makefile does not carry one, and the
@@ -58,69 +96,22 @@ let
       sed -i 's/\$(CC) -shared -fPIC/\$(CC) -shared -fPIC -Wl,-z,noexecstack/' Makefile
       echo '.section .note.GNU-stack,"",@progbits' >> src/ItemHelperBlob.S
     '';
-
-    dontUseCmakeConfigure = true;
-
-    inherit (pkgs.hyprland) buildInputs;
-    nativeBuildInputs = pkgs.hyprland.nativeBuildInputs ++ [
-      pkgs.hyprland
-      pkgs.gcc14
-      pkgs.pkg-config
-      pkgs.pixman
-      pkgs.libdrm
-    ];
-
-    enableParallelBuilding = true;
-
-    buildPhase = ''
-      runHook preBuild
-      make all
-      runHook postBuild
-    '';
-
-    installPhase = ''
-      runHook preInstall
-      mkdir -p "$out/lib"
-      cp hyprglass.so "$out/lib/libhyprglass.so"
-      cp hyprglass.so "$out/lib/hyprglass.so"
-      runHook postInstall
-    '';
   };
 
-  dynamicCursors = pkgs.stdenv.mkDerivation {
+  dynamicCursors = makePlugin {
     pname = "hypr-dynamic-cursors";
     version = "0.1";
     src = inputs.hypr-dynamic-cursors;
-
-    dontUseCmakeConfigure = true;
-
-    inherit (pkgs.hyprland) buildInputs;
-    nativeBuildInputs = pkgs.hyprland.nativeBuildInputs ++ [
-      pkgs.hyprland
-      pkgs.gcc14
-      pkgs.pkg-config
-      pkgs.pixman
-      pkgs.libdrm
+    source = "out/dynamic-cursors";
+    names = [
+      "libdynamic-cursors"
+      "dynamic-cursors"
+      "libhypr-dynamic-cursors"
+    ];
+    nativeBuildInputs = [
       pkgs.hyprcursor
       pkgs.hyprgraphics
     ];
-
-    enableParallelBuilding = true;
-
-    buildPhase = ''
-      runHook preBuild
-      make all
-      runHook postBuild
-    '';
-
-    installPhase = ''
-      runHook preInstall
-      mkdir -p "$out/lib"
-      cp out/dynamic-cursors.so "$out/lib/libdynamic-cursors.so"
-      cp out/dynamic-cursors.so "$out/lib/dynamic-cursors.so"
-      cp out/dynamic-cursors.so "$out/lib/libhypr-dynamic-cursors.so"
-      runHook postInstall
-    '';
   };
 
   edgehover = pkgs.stdenv.mkDerivation {
@@ -188,42 +179,20 @@ let
     enableParallelBuilding = true;
   };
 
-  hyprbars = pkgs.stdenv.mkDerivation {
+  hyprbars = makePlugin {
     pname = "hyprbars";
     version = "0.56.2-pin";
     src = "${inputs.hyprland-plugins}/hyprbars";
-
+    names = [
+      "libhyprbars"
+      "hyprbars"
+    ];
     patches = [ ./patches/hyprbars-only-floating.patch ];
-
-    dontUseCmakeConfigure = true;
-
-    inherit (pkgs.hyprland) buildInputs;
-    nativeBuildInputs = pkgs.hyprland.nativeBuildInputs ++ [
-      pkgs.hyprland
-      pkgs.gcc14
-      pkgs.pkg-config
-      pkgs.pixman
-      pkgs.libdrm
+    nativeBuildInputs = [
       pkgs.cairo
       pkgs.pango
       pkgs.lua5_4
     ];
-
-    enableParallelBuilding = true;
-
-    buildPhase = ''
-      runHook preBuild
-      make all
-      runHook postBuild
-    '';
-
-    installPhase = ''
-      runHook preInstall
-      mkdir -p "$out/lib"
-      cp hyprbars.so "$out/lib/libhyprbars.so"
-      cp hyprbars.so "$out/lib/hyprbars.so"
-      runHook postInstall
-    '';
   };
 
   # The glass config is read at config load, so the toggle writes the state

@@ -6,8 +6,8 @@
     ./plugins.nix
   ];
 
-  # Tools invoked from binds in lua.nix. The bar and the launcher ship their own
-  # packages, so only the standalone helpers belong here.
+  # Tools invoked from binds in config/binds. The bar and the launcher ship
+  # their own packages, so only the standalone helpers belong here.
   home.packages = with pkgs; [
     # The shell draws still wallpapers on its background layer. awww is only
     # started by the `wallpaper` command for videos, which the shell cannot
@@ -40,7 +40,7 @@
     # The module's settings attrset is deliberately unused: it emits
     # `hl.exec-once(...)` and `hl.$mod(...)`, neither of which is a legal Lua
     # identifier, and renders settings.bind as a single string where hl.bind
-    # wants two arguments. Settings and binds are written out in lua.nix
+    # wants two arguments. Settings and binds are written out in config/
     # instead, against the documented hl.* API.
     configType = "lua";
   };

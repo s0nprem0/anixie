@@ -9,8 +9,9 @@
 #
 # The camera is an mpv window pinned to the bottom-right corner of what is being
 # recorded, cropped to 8:9 portrait. Its app-id carries the size — WebcamOverlay-
-# small, -medium, -large — and the window rules in features/wm/hyprland/lua.nix
-# match on that to float and pin it at creation. Resizing afterwards moves and
+# small, -medium, -large — and the window rules in
+# features/wm/hyprland/config/75-rules.lua match on that to float and pin it at
+# creation. Resizing afterwards moves and
 # resizes the client directly, since a window rule only applies when a window
 # first appears.
 #

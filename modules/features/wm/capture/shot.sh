@@ -45,7 +45,8 @@
 # While the picker is open it can also be driven from the keyboard: RETURN takes
 # the window under the pointer and SUPER+RETURN the monitor, TAB cycles the windows
 # and SHIFT+TAB goes back, and the arrows move between them. Those keys are bound
-# to `shot-pick` against the picker's submap in features/wm/hyprland/lua.nix.
+# to `shot-pick` against the picker's submap in
+# features/wm/hyprland/config/75-rules.lua.
 
 set -eu
 

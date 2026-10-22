@@ -19,8 +19,9 @@
 # one, and a panel that could only reach whichever was focused would be useless
 # with two.
 #
-# The chosen values are written to a state file that features/wm/hyprland/lua.nix
-# reads when it loads, so they survive a config reload and a reboot instead of
+# The chosen values are written to a state file that
+# features/wm/hyprland/config/20-settings.lua reads when it loads, so they survive
+# a config reload and a reboot instead of
 # snapping back. There is nowhere else to keep them: `hyprctl keyword` is refused
 # by the Lua config manager — "keyword can't work with non-legacy parsers" — and
 # Hyprland has no runtime monitor dispatcher. `hl.monitor` through `hyprctl eval`

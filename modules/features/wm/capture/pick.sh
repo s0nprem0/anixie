@@ -13,7 +13,7 @@
 #                             the raw rectangle, which is what a recorder wants
 #
 # While the picker is open, these are driven by keys (see the binds scoped to the
-# "picker" submap in features/wm/hyprland/lua.nix):
+# "picker" submap in features/wm/hyprland/config/75-rules.lua):
 #
 #   pick --take-window        take whatever the pointer is over
 #   pick --take-fullscreen    take the focused monitor

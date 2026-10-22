@@ -49,6 +49,7 @@ modules/features/         per-user side
   shell/                  zsh, git, helix, kitty, yazi, tools
   theming/                palettes, templates, and the commands that apply them
   wm/                     Hyprland, Quickshell, capture, clipboard, picker, toggles
+    hyprland/config/      the compositor's Lua, one section per file (concatenated)
     quickshell/           the shell itself (see below)
 ```
 
