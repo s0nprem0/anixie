@@ -7,10 +7,11 @@ import "../Ui"
 // System tray: whatever has registered itself over StatusNotifierItem, left to
 // right, in the order the service reports them.
 //
-// Menus are handed to a QsMenuAnchor rather than drawn here. That is Quickshell's
-// display anchor for platform menus — the item supplies its menu, the anchor owns
-// the popup and its placement — so the whole submenu tree, checkmarks and
-// separators come for free.
+// Menus come from the item itself: `display()` hands the application's DBusMenu
+// to Quickshell's platform-menu path, so the whole submenu tree, checkmarks and
+// separators come for free and a menu that is built lazily is waited for. An
+// item with no menu gets the shell's own two-entry menu instead of a dead right
+// button.
 BarWidget {
   id: root
 
@@ -66,13 +67,26 @@ BarWidget {
   }
 
   function openMenu(button) {
-    if (!button.item || !button.item.hasMenu) return
+    const item = button.item
+    if (!item) return
 
-    // The anchor resolves against the icon itself, so the menu lands under the
-    // icon that was clicked rather than at a fixed spot.
-    menuAnchor.anchor.item = button
-    menuAnchor.menu = button.item.menu
-    menuAnchor.open()
+    const window = button.QsWindow ? button.QsWindow.window : null
+    if (item.hasMenu && window && typeof item.display === "function") {
+      // `display()` is the tray item's own platform-menu entry point. Unlike
+      // attaching the handle to a QsMenuAnchor, it waits for the DBusMenu
+      // layout to arrive before showing anything, which is what a menu built
+      // lazily — Discord and most Electron apps — needs.
+      const point = button.QsWindow ? button.QsWindow.itemPosition(button) : Qt.point(0, 0)
+      item.display(window, Math.round(point.x), Math.round(point.y + button.height))
+      return
+    }
+
+    // No application menu. Give the right button something useful rather than
+    // leaving it dead: the two activations the item itself offers.
+    ContextMenuHost.open([
+      { label: "Activate", enabled: !item.onlyMenu, action: function () { item.activate() } },
+      { label: "Secondary activate", action: function () { item.secondaryActivate() } }
+    ], button)
   }
 
   // Hovering the tray reveals the drawer. The delay keeps a pointer merely
@@ -151,6 +165,8 @@ BarWidget {
             // a left click that would otherwise do nothing opens it instead.
             if (button.item.onlyMenu && button.item.hasMenu) root.openMenu(button)
             else button.item.activate()
+          } else if (which === Qt.MiddleButton) {
+            button.item.secondaryActivate()
           }
         }
 
@@ -244,13 +260,5 @@ BarWidget {
         }
       }
     }
-  }
-
-  QsMenuAnchor {
-    id: menuAnchor
-
-    // Below the icon rather than over it, so the bar itself stays clear.
-    anchor.edges: Edges.Bottom
-    anchor.gravity: Edges.Bottom
   }
 }
