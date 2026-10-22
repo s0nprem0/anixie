@@ -22,6 +22,7 @@ FILE="$STATE/textscale"
 KITTY="$STATE/kitty-font.conf"
 BASE_FONT=11
 GSETTINGS="@GSETTINGS@"
+GSETTINGS_SCHEMA_DIR="@GSETTINGS_SCHEMA_DIR@"
 QUICKSHELL="@QUICKSHELL@"
 
 STEPS="80 90 100 110 125 150 175 200"
@@ -58,7 +59,8 @@ apply_one() {
   printf 'font_size %s\n' "$(((BASE_FONT * percent + 50) / 100))" >"$KITTY"
 
   scale="$(awk "BEGIN { printf \"%.2f\", $percent / 100 }")"
-  "$GSETTINGS" set org.gnome.desktop.interface text-scaling-factor "$scale" 2>/dev/null || true
+  GSETTINGS_SCHEMA_DIR="$GSETTINGS_SCHEMA_DIR" \
+    "$GSETTINGS" set org.gnome.desktop.interface text-scaling-factor "$scale" 2>/dev/null || true
   "$QUICKSHELL" ipc call text set "$scale" >/dev/null 2>&1 || true
 
   # Tell running terminals to re-read the include.

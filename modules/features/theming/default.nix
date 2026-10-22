@@ -1,4 +1,9 @@
-{ config, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   # Where the live choice and the files the apps read live. A state directory, not
@@ -50,10 +55,11 @@ let
   # file, and tells GTK and the running shell through their own controls.
   textsize = pkgs.writeShellScriptBin "textsize" (
     builtins.replaceStrings
-      [ "@STATE_DIR@" "@GSETTINGS@" "@QUICKSHELL@" ]
+      [ "@STATE_DIR@" "@GSETTINGS@" "@GSETTINGS_SCHEMA_DIR@" "@QUICKSHELL@" ]
       [
         stateDir
         "${pkgs.glib}/bin/gsettings"
+        "${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}/glib-2.0/schemas"
         "${pkgs.quickshell}/bin/quickshell"
       ]
       (builtins.readFile ./textsize.sh)
@@ -83,6 +89,7 @@ let
         "@QUICKSHELL@"
         "@HYPRCTL@"
         "@GSETTINGS@"
+        "@GSETTINGS_SCHEMA_DIR@"
         "@JQ@"
         "@WALLPAPER@"
         "@THEME_APPS@"
@@ -97,6 +104,7 @@ let
         "${pkgs.quickshell}/bin/quickshell"
         "${pkgs.hyprland}/bin/hyprctl"
         "${pkgs.glib}/bin/gsettings"
+        "${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}/glib-2.0/schemas"
         "${pkgs.jq}/bin/jq"
         "${wallpaper}/bin/wallpaper"
         "${themeApps}/bin/theme-apps"
@@ -119,30 +127,46 @@ in
     ./qt.nix
   ];
 
-  home.packages = [
-    theme
-    wallpaper
-    textsize
-  ];
-
   # The palette file's own path, as a template placeholder, so a config that has
   # to read the palettes at runtime — the Hyprland borders do — can point at it
   # without a second copy of the path.
   my.theme.template.placeholders."@PALETTES@" = "${./themes.json}";
 
-  # The runtime files are written at login as well as on a switch, because a fresh
-  # boot has the state directory but not the files inside it — the include in the
-  # kitty config would point at nothing, and the launcher would come up unthemed
-  # until the first `theme set`.
-  #
-  # The text-size files get defaults here too, for the same reason: both are
-  # included by configs that would otherwise fail to load on a fresh login.
-  # `mode` is deliberately not seeded here: the theme service writes it, and a
-  # Home Manager `home.file` entry would be a read-only store symlink.
-  home.file = {
-    "${stateDir}/.keep".text = "";
-    "${stateDir}/kitty-font.conf".text = "font_size 11\n";
-    "${stateDir}/textscale".text = "100\n";
+  home = {
+    packages = [
+      theme
+      wallpaper
+      textsize
+    ];
+
+    # The runtime files are written at login as well as on a switch, because a
+    # fresh boot has the state directory but not the files inside it — the include
+    # in the kitty config would point at nothing, and the launcher would come up
+    # unthemed until the first `theme set`.
+    file."${stateDir}/.keep".text = "";
+
+    # kitty's include and the shell's text-size file have to be writable: the
+    # textsize command rewrites them, and a home.file entry would be a read-only
+    # store symlink. Seed them from activation instead, replacing a link left by
+    # an older generation. `mode` and `palette.json` are left to the theme
+    # service for the same reason.
+    activation.anixieThemeState = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      state=${lib.escapeShellArg stateDir}
+      mkdir -p "$state"
+      for file in kitty-font.conf textscale; do
+        if [ -L "$state/$file" ]; then
+          value=$(cat "$state/$file" 2>/dev/null || true)
+          rm -f "$state/$file"
+          if [ -n "$value" ]; then printf '%s\n' "$value" >"$state/$file"; fi
+        fi
+      done
+      if [ ! -f "$state/kitty-font.conf" ]; then
+        printf 'font_size 11\n' >"$state/kitty-font.conf"
+      fi
+      if [ ! -f "$state/textscale" ]; then
+        printf '100\n' >"$state/textscale"
+      fi
+    '';
   };
 
   systemd.user.services = {

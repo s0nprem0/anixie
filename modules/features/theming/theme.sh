@@ -16,10 +16,11 @@
 #
 # btop and tmux are rewritten on every switch, along with the resolved palette
 # that Hyprland and the wallpaper command read. GTK follows the mode through
-# gsettings (Adwaita/Adwaita-dark and Papirus/Papirus-Light). Helix, Yazi, the
-# lock screen and Qt keep the build-time configuration from the module's `theme`
-# option, so they follow on the next rebuild; their configs are store symlinks,
-# which is what makes them reproducible.
+# gsettings (Adwaita/Adwaita-dark and Papirus/Papirus-Light), and Qt follows it
+# through qt6ct at the next application start. Helix, Yazi and the lock screen
+# keep the build-time configuration from the module's `theme` option, so they
+# follow on the next rebuild; their configs are store symlinks, which is what
+# makes them reproducible.
 #
 # The palettes are a JSON file rather than a Nix expression because this script
 # has to read the same list the shell was built from, and a shell script cannot
@@ -36,6 +37,7 @@ matugen="@MATUGEN@"
 generated="@GENERATED@"
 hyprctl="@HYPRCTL@"
 gsettings="@GSETTINGS@"
+gsettings_schema_dir="@GSETTINGS_SCHEMA_DIR@"
 jq="@JQ@"
 wallpaper="@WALLPAPER@"
 
@@ -117,7 +119,7 @@ EOF
 # FileView watch on it never fired on this Quickshell, so a running shell has no
 # other way to hear about the change.
 tell_apps() {
-  local name="$1" mode
+  local name="$1" mode gtk_theme icon_theme color_scheme qt_style
 
   # A generated palette cannot be named to the shell — the shell was built with
   # the curated ones — so it is handed over whole.
@@ -133,14 +135,31 @@ tell_apps() {
   # are separate themes, and the icon set has a matching pair.
   mode=$(tr -d '[:space:]' <"$state_dir/mode" 2>/dev/null || true)
   if [ "$mode" = "light" ]; then
-    "$gsettings" set org.gnome.desktop.interface color-scheme prefer-light >/dev/null 2>&1 || true
-    "$gsettings" set org.gnome.desktop.interface gtk-theme Adwaita >/dev/null 2>&1 || true
-    "$gsettings" set org.gnome.desktop.interface icon-theme Papirus-Light >/dev/null 2>&1 || true
+    gtk_theme=Adwaita
+    icon_theme=Papirus-Light
+    color_scheme=prefer-light
+    qt_style=adwaita
   else
-    "$gsettings" set org.gnome.desktop.interface color-scheme prefer-dark >/dev/null 2>&1 || true
-    "$gsettings" set org.gnome.desktop.interface gtk-theme Adwaita-dark >/dev/null 2>&1 || true
-    "$gsettings" set org.gnome.desktop.interface icon-theme Papirus-Dark >/dev/null 2>&1 || true
+    gtk_theme=Adwaita-dark
+    icon_theme=Papirus-Dark
+    color_scheme=prefer-dark
+    qt_style=adwaita-dark
   fi
+
+  GSETTINGS_SCHEMA_DIR="$gsettings_schema_dir" "$gsettings" set \
+    org.gnome.desktop.interface color-scheme "$color_scheme" >/dev/null 2>&1 || true
+  GSETTINGS_SCHEMA_DIR="$gsettings_schema_dir" "$gsettings" set \
+    org.gnome.desktop.interface gtk-theme "$gtk_theme" >/dev/null 2>&1 || true
+  GSETTINGS_SCHEMA_DIR="$gsettings_schema_dir" "$gsettings" set \
+    org.gnome.desktop.interface icon-theme "$icon_theme" >/dev/null 2>&1 || true
+
+  # Qt reads qt6ct's config when an application starts. The file lives in the
+  # state directory and is linked into ~/.config by the Nix module.
+  cat >"$state_dir/qt6ct.conf" <<EOF
+[Appearance]
+icon_theme=$icon_theme
+style=$qt_style
+EOF
 
   # The wallpaper follows the palette unless one of your own is set, in which
   # case this is a no-op — the `wallpaper` command owns that decision.
