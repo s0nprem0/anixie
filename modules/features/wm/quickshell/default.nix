@@ -35,6 +35,21 @@ let
   # the shell service's PATH is the user manager's, not the profile's.
   lockHost = pkgs.writeText "LockHost.qml" (render ./Ui/LockHost.qml);
 
+  # `loginctl lock-session` and anything else that uses logind's Lock signal do
+  # not know the lock lives in the shell. One small listener turns that signal
+  # into the same IPC call the key uses, filtered to this session.
+  lockSignal = pkgs.writeShellScript "anixie-lock-signal" (
+    builtins.replaceStrings
+      [ "@BUSCTL@" "@DBUS_MONITOR@" "@STDBUF@" "@QUICKSHELL@" ]
+      [
+        "${pkgs.systemd}/bin/busctl"
+        "${pkgs.dbus}/bin/dbus-monitor"
+        "${pkgs.coreutils}/bin/stdbuf"
+        "${pkgs.quickshell}/bin/quickshell"
+      ]
+      (builtins.readFile ./lock-signal.sh)
+  );
+
   # Quickshell resolves `import "components"` relative to the directory holding
   # shell.qml. Home Manager deploys every xdg.configFile entry as a separate
   # symlink, which would scatter the QML tree across the store, so the config is
@@ -121,6 +136,24 @@ in
       Service = {
         Type = "simple";
         ExecStart = "${lib.getExe pkgs.quickshell} -p %h/.config/quickshell";
+        Restart = "always";
+        RestartSec = 2;
+      };
+      Install.WantedBy = [ "graphical-session.target" ];
+    };
+
+    # The bridge from logind's Lock signal to the shell's lock. Separate from the
+    # shell so a shell restart does not drop the listener.
+    systemd.user.services.anixie-lock-signal = {
+      Unit = {
+        Description = "Forward logind lock requests to the shell";
+        After = [ "quickshell.service" ];
+        PartOf = [ "graphical-session.target" ];
+        StartLimitIntervalSec = 0;
+      };
+      Service = {
+        Type = "simple";
+        ExecStart = "${lockSignal}";
         Restart = "always";
         RestartSec = 2;
       };

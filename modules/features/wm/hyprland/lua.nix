@@ -326,7 +326,7 @@ in
       --
       -- Named explicitly rather than importing the whole environment, which
       -- would drag every variable Hyprland happens to be carrying along.
-      hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE")
+      hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_ID")
     end)
 
     -- ------------------------------------------------------------------
