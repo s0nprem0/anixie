@@ -1,11 +1,23 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 
 let
   cfg = config.my.applications.craftapps;
+
+  enabledApps = lib.filterAttrs (_: app: app.enable) config.programs.craftapps.apps;
+
+  # Rewrite the Exec line of the entry shipped in the package, leaving every other
+  # key as upstream wrote it.
+  xwaylandEntry =
+    name: app:
+    pkgs.runCommand "ai.storyteller.${name}.desktop" { } ''
+      sed 's|^Exec=|Exec=env WAYLAND_DISPLAY= |' \
+        ${app.package}/share/applications/ai.storyteller.${name}.desktop > $out
+    '';
 in
 {
   options.my.applications.craftapps.enable = lib.mkOption {
@@ -21,10 +33,9 @@ in
     # Manager module, so they land in the user profile: the NixOS side of the same
     # module exists only to link /usr/share/fonts, and installs nothing.
     #
-    # They share the toolkit, so they have the same Wayland limitation as
-    # PhotoCraft: native file drag-and-drop. Only PhotoCraft's desktop entry carries
-    # the XWayland workaround below — add the same for another if dropping files on
-    # it matters.
+    # They share the toolkit, so they share the Wayland limitation: native file
+    # drag-and-drop does not exist in the protocol. Every enabled app gets the
+    # XWayland workaround below.
     programs.craftapps = {
       enable = true;
       apps = {
@@ -74,45 +85,30 @@ in
       };
     };
 
-    # Native file drag-and-drop does not exist on Wayland yet — a window cannot
-    # hand a file to another application over the protocol — and PhotoCraft says so
-    # and offers its own way out: run under XWayland. So it does.
+    # A window cannot hand a file to another application over Wayland, so the
+    # apps say so and offer their own way out: run under XWayland. So they do.
     #
-    # The desktop entry is overridden rather than the binary wrapped, so the menu,
-    # a file manager and `xdg-open` all take the same path; clearing
-    # WAYLAND_DISPLAY is exactly the invocation the app's own dialog suggests. One
-    # application chooses the compatibility server for one feature; nothing else in
-    # the session moves off Wayland.
+    # The desktop entries are overridden rather than the binaries wrapped, so the
+    # menu, a file manager and `xdg-open` all take the same path; clearing
+    # WAYLAND_DISPLAY is exactly the invocation the apps' own dialogs suggest. The
+    # GUI chooses the compatibility server for one feature; the CLI and the rest of
+    # the session stay on Wayland.
     #
     # The alternative is Preferences → Performance → Linux display server → X11,
-    # which the app remembers itself. This just means a fresh profile starts there.
-    # Written by hand rather than through `xdg.desktopEntries`: that option is
-    # broken against this nixpkgs — its module still passes `extraConfig` to
-    # `makeDesktopItem`, which no longer takes it, so merely defining an entry
-    # errors the build. The file is four lines of the same thing.
+    # which each app remembers itself. This just means a fresh profile starts there.
     #
-    # The rest of the entry is upstream's, and has to be kept in step with it: a
-    # file here shadows the one in the package, so a key added upstream is lost
-    # until it is copied. `TryExec` is what lets a menu drop the entry when the
-    # binary is missing, and `X-AppImage-Integrate` is what stops an AppImage
-    # integrator registering a second copy of it — both were in upstream's 0.11.1
-    # entry and missing from this copy of the 0.9.0 one.
-    xdg.configFile."applications/ai.storyteller.photocraft.desktop".text = ''
-      [Desktop Entry]
-      Type=Application
-      Name=PhotoCraft
-      GenericName=Image Editor
-      Comment=Edit photos and layered PSD documents
-      Exec=env WAYLAND_DISPLAY= photocraft %F
-      TryExec=photocraft
-      Icon=ai.storyteller.photocraft
-      Terminal=false
-      StartupNotify=false
-      StartupWMClass=ai.storyteller.photocraft
-      Categories=Graphics;2DGraphics;RasterGraphics;Photography;
-      Keywords=photo;image;editor;psd;layers;retouch;paint;
-      MimeType=application/x-photocraft;image/x-paintnet;image/openraster;application/x-krita;image/vnd.adobe.photoshop;image/x-psd;image/x-psb;image/png;image/jpeg;image/tiff;image/webp;image/gif;image/bmp;image/x-tga;image/x-icon;image/vnd.microsoft.icon;image/x-portable-anymap;image/x-portable-bitmap;image/x-portable-graymap;image/x-portable-pixmap;image/x-exr;image/vnd.radiance;image/avif;image/qoi;
-      X-AppImage-Integrate=false
-    '';
+    # Each entry is generated from the one in the package by replacing the Exec
+    # line, rather than copied here: a copied file shadows upstream's, so every key
+    # they add would have to be mirrored or it would silently vanish. Written this
+    # way rather than through `xdg.desktopEntries` because that option is broken
+    # against this nixpkgs — its module still passes `extraConfig` to
+    # `makeDesktopItem`, which no longer takes it, so merely defining an entry
+    # errors the build.
+    xdg.configFile = lib.mapAttrs' (
+      name: app:
+      lib.nameValuePair "applications/ai.storyteller.${name}.desktop" {
+        source = xwaylandEntry name app;
+      }
+    ) enabledApps;
   };
 }

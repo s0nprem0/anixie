@@ -155,8 +155,8 @@ clipboard.
 - **No disk encryption.** A fresh install decision that is still open.
 - **sudo asks for a password**; `wheelNeedsPassword = false` is one line away if
   a rebuild prompt is worse than the risk.
-- **PhotoCraft runs under XWayland** — Wayland has no native file drag-and-drop,
-  so its desktop entry clears `WAYLAND_DISPLAY`.
+- **The Craft Apps run under XWayland** — Wayland has no native file
+  drag-and-drop, so their desktop entries clear `WAYLAND_DISPLAY`.
 - **Performance is more than the daemon's profile.** While `performance` is
   selected, a system service also forces the GPU's DPM level high, turns off
   PCIe ASPM, caps dirty page cache at 512M and disables the NMI watchdog, then
