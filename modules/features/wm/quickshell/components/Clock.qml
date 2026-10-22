@@ -217,12 +217,12 @@ BarWidget {
       + (root.zone === "" ? "" : " · " + root.zone)
 
     onPressed: function (button) {
-      if (button === Qt.LeftButton) PanelRegistry.toggle("calendar")
+      if (button === Qt.LeftButton) PanelRegistry.toggle("calendar", readout)
       else if (button === Qt.RightButton) {
         root.altFormat = !root.altFormat
         root.refresh()
       } else if (button === Qt.MiddleButton) {
-        PanelRegistry.toggle("clock-zone")
+        PanelRegistry.toggle("clock-zone", readout)
       }
     }
   }
@@ -250,7 +250,7 @@ BarWidget {
           selected: root.zone === zoneRow.modelData.zone
           onClicked: {
             root.setZone(String(zoneRow.modelData.zone))
-            PanelHost.close("clock-zone")
+            PanelHost.close("clock-zone", Screens.nameOf(root))
           }
         }
       }

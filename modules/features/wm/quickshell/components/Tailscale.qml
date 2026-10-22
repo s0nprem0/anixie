@@ -205,7 +205,7 @@ BarWidget {
 
     onPressed: function (button) {
       if (button === Qt.RightButton) root.refresh()
-      else if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelRegistry.toggle("tailscale")
+      else if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelRegistry.toggle("tailscale", readout)
     }
   }
 

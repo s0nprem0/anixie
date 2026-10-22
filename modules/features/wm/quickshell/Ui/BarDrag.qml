@@ -17,8 +17,50 @@ import ".."
 QtObject {
   id: root
 
-  // Set once by shell.qml, before any module can be dragged.
+  // The bar the drag started on. Set from the module's own screen rather than
+  // from whichever bar registered last, because every screen has one.
   property Item barRoot: null
+
+  // Bars by screen name. shell.qml registers one per connected output, and a
+  // module's coordinates are measured against the bar on its own display.
+  property var roots: ({})
+
+  function registerBar(item) {
+    if (!item) return
+
+    const name = Screens.nameOf(item)
+    if (!name) return
+
+    const next = {}
+    for (const key in root.roots) next[key] = root.roots[key]
+    next[name] = item
+    root.roots = next
+  }
+
+  function unregisterBar(item) {
+    if (!item) return
+
+    const name = Screens.nameOf(item)
+    let found = root.roots[name] === item ? name : ""
+    if (!found) {
+      for (const key in root.roots) {
+        if (root.roots[key] === item) {
+          found = key
+          break
+        }
+      }
+    }
+    if (!found) return
+
+    const next = {}
+    for (const key in root.roots) if (key !== found) next[key] = root.roots[key]
+    root.roots = next
+  }
+
+  function rootFor(item) {
+    const name = Screens.nameOf(item)
+    return root.roots[name] || root.barRoot
+  }
 
   property bool active: false
   property string sourceId: ""
@@ -35,21 +77,43 @@ QtObject {
   readonly property var order: ["left", "centerBegin", "center", "centerEnd", "right"]
   property var sections: ({})
 
+  function sectionKey(name, item) {
+    return Screens.nameOf(item) + "|" + name
+  }
+
+  function sectionFor(screenName, name) {
+    return root.sections[screenName + "|" + name] || null
+  }
+
   function registerSection(name, item) {
     if (!name || !item) return
 
+    const key = root.sectionKey(name, item)
+
     const next = {}
-    for (const key in root.sections) next[key] = root.sections[key]
-    next[name] = item
+    for (const other in root.sections) next[other] = root.sections[other]
+    next[key] = item
     root.sections = next
   }
 
   function unregisterSection(name, item) {
-    if (root.sections[name] !== item) return
+    if (!item) return
+
+    const key = root.sectionKey(name, item)
+    let found = root.sections[key] === item ? key : ""
+    if (!found) {
+      for (const other in root.sections) {
+        if (root.sections[other] === item) {
+          found = other
+          break
+        }
+      }
+    }
+    if (!found) return
 
     const next = {}
-    for (const key in root.sections) {
-      if (key !== name) next[key] = root.sections[key]
+    for (const other in root.sections) {
+      if (other !== found) next[other] = root.sections[other]
     }
     root.sections = next
   }
@@ -89,13 +153,14 @@ QtObject {
     root.indicatorRect = Qt.rect(0, 0, 0, 0)
   }
 
-  function begin(section, index, id, x, y) {
+  function begin(section, index, id, x, y, barItem) {
     root.cancel()
     root.sourceId = String(id || "")
     root.sourceSection = String(section || "")
     root.sourceIndex = Number(index)
     if (root.sourceId === "" || root.sourceSection === "") return
 
+    root.barRoot = barItem || root.barRoot
     root.active = true
     TooltipHost.clear()
     root.update(x, y)
@@ -110,11 +175,12 @@ QtObject {
     const along = vertical ? y : x
     const across = vertical ? x : y
     const reach = (vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal) + Style.space(8)
+    const screenName = Screens.nameOf(root.barRoot)
 
     let best = null
 
     for (let i = 0; i < root.order.length; i++) {
-      const section = root.sections[root.order[i]]
+      const section = root.sectionFor(screenName, root.order[i])
       if (!section) continue
 
       const all = section.widgets()

@@ -22,31 +22,96 @@ import Quickshell.Wayland
 // exclusive keyboard focus on a surface, held only by the panel that has the
 // keys. That is also what makes several panels work: one surface each, and the
 // keyboard handed between them.
+//
+// With more than one display there is more than one bar. A panel is placed on
+// the screen its anchor came from, and the curtain that dismisses it exists once
+// per screen with a panel on it. The bars register here by screen name; nothing
+// assumes a single "the bar" any more.
 QtObject {
   id: root
 
-  // The bar's window, set once at startup. Panels are positioned against it.
-  property Item host: null
+  // The bars, by screen name. Each one is the invisible full-size item inside a
+  // bar window, which is the coordinate space panels and curtains are placed in.
+  property var bars: ({})
+
+  function registerBar(item) {
+    if (!item) return
+
+    const name = Screens.nameOf(item)
+    if (!name) return
+
+    const next = {}
+    for (const key in root.bars) next[key] = root.bars[key]
+    next[name] = item
+    root.bars = next
+  }
+
+  function unregisterBar(item) {
+    if (!item) return
+
+    // The screen may already be detached by the time a bar is destroyed, so the
+    // lookup prefers the recorded screen name and falls back to identity.
+    const name = Screens.nameOf(item)
+    let found = root.bars[name] === item ? name : ""
+    if (!found) {
+      for (const key in root.bars) {
+        if (root.bars[key] === item) {
+          found = key
+          break
+        }
+      }
+    }
+    if (!found) return
+
+    const next = {}
+    for (const key in root.bars) if (key !== found) next[key] = root.bars[key]
+    root.bars = next
+  }
+
+  function barFor(screenName) {
+    if (screenName && root.bars[screenName]) return root.bars[screenName]
+    return root.bars[Screens.focusedName] || null
+  }
+
+  readonly property Item focusedBar: root.barFor(Screens.focusedName)
 
   // The open panels, in the order they were opened. The delegate for each is a
   // window, so this is a ListModel rather than an array: appending one must not
   // rebuild the others, which would reset the scroll and the focus of a panel
-  // that was already open.
+  // that was already open. `screenName` is stored alongside so the window can
+  // stay on the output its button belongs to.
   property ListModel openPanels: ListModel {}
 
-  // What each open panel was opened with. Keyed by name, because a panel is
-  // named once and its anchor and builder are what the widget registered.
+  // What each open panel was opened with, keyed by panel key. A panel can be
+  // open once per screen, so the name alone is not unique: the key is name and
+  // screen, and it is also what the keyboard focus follows.
   property var entries: ({})
 
-  // The panel the keyboard is on. Empty when nothing is open.
+  // The panel the keyboard is on, as a key. Empty when nothing is open.
   property string focused: ""
 
   readonly property bool shown: root.openPanels.count > 0
 
-  // Taken from the bar's own window rather than from Quickshell.screens, whose
-  // entries on this version expose only model and name.
-  readonly property real screenWidth: root.host && root.host.Screen.width ? root.host.Screen.width : 1920
-  readonly property real screenHeight: root.host && root.host.Screen.height ? root.host.Screen.height : 1080
+  // Which screens have at least one panel open. A curtain is only needed on
+  // those — a full-screen dismiss surface on a display with nothing to dismiss
+  // would swallow clicks meant for a window there.
+  readonly property var openScreens: {
+    const out = {}
+    const count = root.openPanels.count
+    for (let i = 0; i < count; i++) {
+      out[String(root.openPanels.get(i).screenName)] = true
+    }
+    return out
+  }
+
+  readonly property var curtainScreens: {
+    const out = []
+    const opened = root.openScreens
+    for (let i = 0; i < Screens.all.length; i++) {
+      if (opened[String(Screens.all[i].name)]) out.push(Screens.all[i])
+    }
+    return out
+  }
 
   // The bar's own edge, not always the top one. Panels hang off whichever side
   // it occupies, so a bottom or side bar opens them where the pointer is rather
@@ -60,24 +125,56 @@ QtObject {
   // same figure; this is the backstop for one that measures its own height some
   // other way, because a window taller than the screen does not scroll — it
   // simply has its bottom off the display, out of reach of the pointer and of
-  // the eye.
-  readonly property int panelMaxHeight: Math.max(Style.space(120),
-    Math.round(screenHeight - (root.vertical ? 0 : root.barExtent) - Style.space(16)))
+  // the eye. Kept per screen, since the outputs need not be the same height.
+  function maxHeightFor(screenHeight) {
+    return Math.max(Style.space(120),
+      Math.round((screenHeight || 1080) - (root.vertical ? 0 : root.barExtent) - Style.space(16)))
+  }
+
+  readonly property int panelMaxHeight: root.maxHeightFor(Screens.heightOf(Screens.focusedName))
 
   // ---- what is open ----
 
-  function isOpen(name) {
-    for (let i = 0; i < root.openPanels.count; i++) {
-      if (root.openPanels.get(i).name === name) return true
-    }
-    return false
+  function panelKey(name, screenName) {
+    return name + "@" + screenName
   }
 
-  function indexOf(name) {
+  // With a screen name this is that exact panel; without one it is the panel
+  // the keys are on, and failing that any instance (what the tray's "is the
+  // drawer open" check wants).
+  function indexOf(name, screenName) {
+    const wanted = screenName === undefined ? "" : root.panelKey(name, screenName)
+    let fallback = -1
     for (let i = 0; i < root.openPanels.count; i++) {
-      if (root.openPanels.get(i).name === name) return i
+      const panel = root.openPanels.get(i)
+      if (panel.name !== name) continue
+      if (wanted !== "") {
+        if (panel.key === wanted) return i
+      } else {
+        if (root.focused === panel.key) return i
+        if (fallback < 0) fallback = i
+      }
+    }
+    return fallback
+  }
+
+  function indexOfKey(key) {
+    for (let i = 0; i < root.openPanels.count; i++) {
+      if (root.openPanels.get(i).key === key) return i
     }
     return -1
+  }
+
+  function isOpen(name, screenName) {
+    return root.indexOf(name, screenName) >= 0
+  }
+
+  function countFor(screenName) {
+    let count = 0
+    for (let i = 0; i < root.openPanels.count; i++) {
+      if (root.openPanels.get(i).screenName === screenName) count += 1
+    }
+    return count
   }
 
   function toggle(name, anchor, builder) {
@@ -95,8 +192,9 @@ QtObject {
   function toggleNamed(name, anchor, builder) {
     if (!name || !anchor || !builder) return
 
-    if (root.isOpen(name)) {
-      root.close(name)
+    const screenName = Screens.nameOf(anchor)
+    if (root.isOpen(name, screenName)) {
+      root.close(name, screenName)
       return
     }
 
@@ -126,18 +224,22 @@ QtObject {
 
   function showNamed(name, anchor, builder, grabKeyboard) {
     if (!name || !anchor || !builder) return
-    if (root.isOpen(name)) {
-      if (grabKeyboard !== false) root.focus(name)
+
+    const screenName = Screens.nameOf(anchor)
+    if (root.isOpen(name, screenName)) {
+      if (grabKeyboard !== false) root.focus(name, screenName)
       return
     }
 
+    const key = root.panelKey(name, screenName)
+
     const next = {}
-    for (const key in root.entries) next[key] = root.entries[key]
-    next[name] = { anchor: anchor, builder: builder }
+    for (const other in root.entries) next[other] = root.entries[other]
+    next[key] = { anchor: anchor, builder: builder, screenName: screenName }
     root.entries = next
 
-    root.openPanels.append({ name: name })
-    if (grabKeyboard !== false) root.focused = name
+    root.openPanels.append({ name: name, screenName: screenName, key: key })
+    if (grabKeyboard !== false) root.focused = key
   }
 
   // A name for a panel that has none: a module that only knows its anchor still
@@ -153,32 +255,37 @@ QtObject {
     return anchor.__panelName
   }
 
-  function close(name) {
+  function close(name, screenName) {
     if (name === undefined) {
       root.closeAll()
       return
     }
 
-    const index = root.indexOf(name)
+    const index = root.indexOf(name, screenName)
     if (index < 0) return
+    root.closeIndex(index)
+  }
 
+  function closeIndex(index) {
+    const key = root.openPanels.get(index).key
     root.openPanels.remove(index)
 
     const next = {}
-    for (const key in root.entries) if (key !== name) next[key] = root.entries[key]
+    for (const other in root.entries) if (other !== key) next[other] = root.entries[other]
     root.entries = next
 
     // The keys go to the panel that is still up, so closing one does not leave
     // the rest unable to answer a key.
-    if (root.focused === name) {
+    if (root.focused === key) {
       root.focused = root.openPanels.count > 0
-        ? root.openPanels.get(root.openPanels.count - 1).name
+        ? root.openPanels.get(root.openPanels.count - 1).key
         : ""
     }
   }
 
   function closeFocused() {
-    if (root.focused !== "") root.close(root.focused)
+    const index = root.indexOfKey(root.focused)
+    if (index >= 0) root.closeIndex(index)
   }
 
   function closeAll() {
@@ -187,8 +294,17 @@ QtObject {
     root.focused = ""
   }
 
-  function focus(name) {
-    if (root.isOpen(name)) root.focused = name
+  // Dismissing by clicking a curtain only covers that output: the panels on
+  // another display were not what the pointer clicked past.
+  function closeForScreen(screenName) {
+    for (let i = root.openPanels.count - 1; i >= 0; i--) {
+      if (root.openPanels.get(i).screenName === screenName) root.closeIndex(i)
+    }
+  }
+
+  function focus(name, screenName) {
+    const index = root.indexOf(name, screenName)
+    if (index >= 0) root.focused = root.openPanels.get(index).key
   }
 
   // Tab and Shift+Tab between open panels, wrapping. The arrows stay inside the
@@ -196,93 +312,120 @@ QtObject {
   function focusNext(delta) {
     if (root.openPanels.count < 2) return
 
-    let index = root.indexOf(root.focused)
+    let index = root.indexOfKey(root.focused)
     if (index < 0) index = 0
 
     index = (index + delta + root.openPanels.count) % root.openPanels.count
-    root.focused = root.openPanels.get(index).name
+    root.focused = root.openPanels.get(index).key
   }
 
   // ---- where they go ----
 
-  // Centred on the owning button, then pulled back inside the screen so a
+  // Centred on the owning button, then pulled back inside its screen so a
   // button near either edge still opens a fully visible panel. With several
   // panels up this is also what keeps them from overlapping the screen's edges
   // while still sitting under their own icons.
   //
   // Two axes because the bar has two: a top or bottom bar spreads its modules
-  // across x, a left or right bar spreads them down y.
-  function panelX(anchor, width) {
-    if (!anchor || !root.host) return 0
+  // across x, a left or right bar spreads them down y. The anchor's own screen
+  // supplies both the coordinate space and the size to clamp against.
+  function panelX(anchor, width, screenName) {
+    const host = root.barFor(screenName)
+    if (!anchor || !host) return 0
 
-    const left = anchor.mapToItem(root.host, 0, 0).x
+    const left = anchor.mapToItem(host, 0, 0).x
     const centre = left + anchor.width / 2
 
     const margin = Style.space(8)
-    return Math.max(margin, Math.min(Math.round(centre - width / 2), root.screenWidth - width - margin))
+    return Math.max(margin, Math.min(Math.round(centre - width / 2),
+      Screens.widthOf(screenName) - width - margin))
   }
 
-  function panelY(anchor, height) {
-    if (!anchor || !root.host) return 0
+  function panelY(anchor, height, screenName) {
+    const host = root.barFor(screenName)
+    if (!anchor || !host) return 0
 
-    const top = anchor.mapToItem(root.host, 0, 0).y
+    const top = anchor.mapToItem(host, 0, 0).y
     const centre = top + anchor.height / 2
 
     const margin = Style.space(8)
-    return Math.max(margin, Math.min(Math.round(centre - height / 2), root.screenHeight - height - margin))
+    return Math.max(margin, Math.min(Math.round(centre - height / 2),
+      Screens.heightOf(screenName) - height - margin))
   }
 
-  // The invisible surface that dismisses everything.
+  // The invisible surfaces that dismiss everything.
   //
   // A panel surface only receives input that lands on it, so without this a
   // click anywhere else would pass straight through to whatever is underneath
-  // and leave the panels stranded on screen. The curtain covers everything the
-  // bar does not and swallows that click. It deliberately stops short of the bar
-  // itself, so the bar stays live and clicking a module still works — which is
-  // how a second panel is opened without closing the first.
-  property PopupWindow curtain: PopupWindow {
-    visible: root.shown
-    color: "transparent"
-    anchor.item: root.host
-
-    // The popup's top-left lands on the rect's top-left and it grows down and
-    // right, so the rect's origin is the one corner of the screen the bar leaves
-    // free: below a top bar, above a bottom one, and beside a side bar.
-    //
-    // The rect's own size is empty on the axis the popup grows along; the size
-    // below is what actually covers the screen.
-    anchor.rect: root.position === "bottom"
-      ? Qt.rect(0, 0, root.screenWidth, 0)
-      : root.position === "left"
-        ? Qt.rect(root.barExtent, 0, 0, root.screenHeight)
-        : root.position === "right"
-          ? Qt.rect(0, 0, 0, root.screenHeight)
-          : Qt.rect(0, root.barExtent, root.screenWidth, 0)
-    implicitWidth: root.vertical ? root.screenWidth - root.barExtent : root.screenWidth
-    implicitHeight: root.vertical ? root.screenHeight : root.screenHeight - root.barExtent
-
-    MouseArea {
-      anchors.fill: parent
-      acceptedButtons: Qt.LeftButton | Qt.RightButton
-      onPressed: root.closeAll()
-    }
-  }
-
-  // One window per open panel. A layer surface each, because the keyboard has to
-  // live somewhere, and only the focused one asks for it.
+  // and leave the panels stranded on screen. Each curtain covers everything the
+  // bar on its screen does not and swallows that click. It deliberately stops
+  // short of the bar itself, so the bar stays live and clicking a module still
+  // works — which is how a second panel is opened without closing the first.
+  //
+  // One per screen with an open panel rather than one for the whole session: a
+  // single window cannot cover two outputs at once.
   property Item windowHost: Item {
     visible: false
 
-    // Instantiator rather than Repeater: a Repeater only builds Items, and these
-    // delegates are windows.
+    Variants {
+      model: root.curtainScreens
+
+      delegate: PopupWindow {
+        required property var modelData
+
+        readonly property string screenName: String(modelData.name)
+        readonly property var barItem: root.bars[screenName] || null
+
+        // No `screen` here: a PopupWindow follows the window its anchor item is
+        // in, and Quickshell refuses to set one directly. `modelData` is only
+        // used for the dimensions below.
+        visible: root.shown && barItem !== null
+        color: "transparent"
+        anchor.item: barItem
+
+        // The popup's top-left lands on the rect's top-left and it grows down and
+        // right, so the rect's origin is the one corner of the screen the bar
+        // leaves free: below a top bar, above a bottom one, and beside a side bar.
+        //
+        // The rect's own size is empty on the axis the popup grows along; the size
+        // below is what actually covers the screen.
+        anchor.rect: root.position === "bottom"
+          ? Qt.rect(0, 0, modelData.width, 0)
+          : root.position === "left"
+            ? Qt.rect(root.barExtent, 0, 0, modelData.height)
+            : root.position === "right"
+              ? Qt.rect(0, 0, 0, modelData.height)
+              : Qt.rect(0, root.barExtent, modelData.width, 0)
+        implicitWidth: root.vertical ? modelData.width - root.barExtent : modelData.width
+        implicitHeight: root.vertical ? modelData.height : modelData.height - root.barExtent
+
+        MouseArea {
+          anchors.fill: parent
+          acceptedButtons: Qt.LeftButton | Qt.RightButton
+          onPressed: root.closeForScreen(screenName)
+        }
+      }
+    }
+
+    // One window per open panel. A layer surface each, because the keyboard has to
+    // live somewhere, and only the focused one asks for it.
     Instantiator {
       model: root.openPanels
 
       delegate: PanelWindow {
         id: panelWindow
         required property string name
+        required property string screenName
+        required property string key
 
-        readonly property var entry: root.entries[panelWindow.name] || ({})
+        readonly property var entry: root.entries[panelWindow.key] || ({})
+
+        // Loaded from the entry rather than from the model role: the screen can
+        // disappear while the panel is up, in which case Quickshell's default
+        // (the primary output) is the only place left to draw it.
+        readonly property var screenInfo: Screens.byName(panelWindow.screenName)
+
+        screen: panelWindow.screenInfo
 
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
@@ -301,28 +444,33 @@ QtObject {
 
         margins.top: panelWindow.onBottom
           ? 0
-          : (root.vertical ? root.panelY(panelWindow.entry.anchor, panelWindow.implicitHeight) : root.barExtent)
+          : (root.vertical
+            ? root.panelY(panelWindow.entry.anchor, panelWindow.implicitHeight, panelWindow.screenName)
+            : root.barExtent)
         margins.bottom: panelWindow.onBottom ? root.barExtent : 0
         margins.left: panelWindow.onRight
           ? 0
-          : (root.vertical ? root.barExtent : root.panelX(panelWindow.entry.anchor, panelWindow.implicitWidth))
+          : (root.vertical
+            ? root.barExtent
+            : root.panelX(panelWindow.entry.anchor, panelWindow.implicitWidth, panelWindow.screenName))
         margins.right: panelWindow.onRight ? root.barExtent : 0
 
         // The focused panel is raised above the others: with panels anchored under
         // neighbouring icons they overlap, and Tab has to visibly bring one to the
         // front rather than only change where the keys go.
-        WlrLayershell.layer: root.focused === panelWindow.name
+        WlrLayershell.layer: root.focused === panelWindow.key
           ? WlrLayer.Overlay
           : WlrLayer.Top
         WlrLayershell.namespace: "quickshell-panel"
         // Exclusive only for the panel the keys are on. None for the rest, which
         // is what hands the keyboard to the next one when Tab moves.
-        WlrLayershell.keyboardFocus: root.focused === panelWindow.name
+        WlrLayershell.keyboardFocus: root.focused === panelWindow.key
           ? WlrKeyboardFocus.Exclusive
           : WlrKeyboardFocus.None
 
         implicitWidth: loader.item ? loader.item.implicitWidth : 320
-        implicitHeight: Math.min(root.panelMaxHeight,
+        implicitHeight: Math.min(
+          root.maxHeightFor(panelWindow.screenInfo ? panelWindow.screenInfo.height : 1080),
           loader.item ? loader.item.implicitHeight : 0)
 
         Loader {

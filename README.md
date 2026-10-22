@@ -66,8 +66,9 @@ modules.json              where a widget goes when enabled from the menu/CLI
 
 ## The bar
 
-`bar.json` ships the layout. The shell writes its own copy when the layout or the
-background changes:
+`bar.json` ships the layout. One bar is drawn on every connected screen, with the
+same layout on each; panels and their hotkeys use the display they belong to.
+The shell writes its own copy when the layout or the background changes:
 
 ```
 ~/.local/state/anixie/bar/bar.json

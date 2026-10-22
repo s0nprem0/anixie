@@ -34,17 +34,21 @@ BarWidget {
   implicitHeight: Style.bar.sizeHorizontal
 
   // The drawer opens from the handle below, and from the command line by name.
-  Component.onCompleted: BarContext.trayItem = root
+  Component.onCompleted: BarContext.registerTray(root)
+  Component.onDestruction: BarContext.unregisterTray(root)
+
+  readonly property string screenName: Screens.nameOf(root)
+  readonly property bool drawerOpen: PanelHost.isOpen("tray", root.screenName)
 
   function openDrawer() {
-    if (root.parked.length === 0 || PanelHost.isOpen("tray")) return
+    if (root.parked.length === 0 || root.drawerOpen) return
 
     root.hoverOpened = true
     PanelHost.showPassive("tray", parkedButton, root.drawer)
   }
 
   function closeDrawer() {
-    if (!PanelHost.isOpen("tray")) {
+    if (!root.drawerOpen) {
       root.hoverOpened = false
       root.drawerHovered = false
       return
@@ -55,9 +59,9 @@ BarWidget {
     // A parked widget may have opened its own panel from the drawer. Closing the
     // drawer would take that panel's anchor away with it, so it stays until the
     // panel opened from it is gone.
-    if (PanelHost.openPanels.count > 1) return
+    if (PanelHost.countFor(root.screenName) > 1) return
 
-    PanelHost.close("tray")
+    PanelHost.close("tray", root.screenName)
     root.hoverOpened = false
   }
 
@@ -80,7 +84,7 @@ BarWidget {
     onHoveredChanged: {
       if (hovered) {
         root.hoverClose.stop()
-        if (!PanelHost.isOpen("tray")) root.hoverOpen.restart()
+        if (!root.drawerOpen) root.hoverOpen.restart()
       } else {
         root.hoverOpen.stop()
         if (root.hoverOpened) root.hoverClose.restart()
@@ -106,8 +110,8 @@ BarWidget {
       if (hoverClose) hoverClose.stop()
       root.hoverOpened = false
       root.drawerHovered = false
-      if (PanelHost.isOpen("tray")) PanelHost.close("tray")
-    } else if (trayHover && trayHover.hovered && !PanelHost.isOpen("tray")) {
+      if (root.drawerOpen) PanelHost.close("tray", root.screenName)
+    } else if (trayHover && trayHover.hovered && !root.drawerOpen) {
       if (hoverOpen) hoverOpen.restart()
     }
   }

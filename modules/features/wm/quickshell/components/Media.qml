@@ -61,7 +61,7 @@ BarWidget {
 
   // Whether this widget's popup is the one on screen, so the label can hold
   // still while it is being read.
-  readonly property bool popupOpen: PanelHost.isOpen("media")
+  readonly property bool popupOpen: PanelHost.isOpen("media", Screens.nameOf(root))
 
   wantsSlot: root.hasPlayer && !root.vertical
   implicitWidth: readout.implicitWidth
@@ -101,7 +101,7 @@ BarWidget {
     onPressed: function (button) {
       if (button === Qt.LeftButton) root.toggle()
       else if (button === Qt.MiddleButton) root.next()
-      else if (button === Qt.RightButton) PanelRegistry.toggle("media")
+      else if (button === Qt.RightButton) PanelRegistry.toggle("media", readout)
     }
 
     onWheelMoved: function (delta) {

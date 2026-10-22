@@ -46,7 +46,7 @@ BarWidget {
         // Read the list before it is drawn, so the panel never appears empty and
         // then fill itself in a moment later.
         NotificationStore.refresh()
-        PanelRegistry.toggle("notifications")
+        PanelRegistry.toggle("notifications", readout)
       } else if (button === Qt.RightButton) {
         NotificationHost.toggle()
       }

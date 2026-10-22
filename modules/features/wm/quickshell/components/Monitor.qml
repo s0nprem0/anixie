@@ -95,7 +95,7 @@ BarWidget {
 
     onPressed: function (button) {
       if (button === Qt.LeftButton || button === Qt.MiddleButton) {
-        PanelRegistry.toggle("display")
+        PanelRegistry.toggle("display", readout)
       }
     }
     onWheelMoved: function (delta) {

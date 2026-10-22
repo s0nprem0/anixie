@@ -107,6 +107,8 @@ QtObject {
   // and only threw on every layout change. In practice a tooltip is up for well
   // under a second, so it is placed where the button was when it appeared.
   property PopupWindow window: PopupWindow {
+    // No `screen`: a popup follows the window its anchor item is in, which is
+    // the bar the button belongs to. Setting one is refused by Quickshell.
     visible: root.tooltipShown
       && root.tooltipTarget !== null
       && root.tooltipText !== ""

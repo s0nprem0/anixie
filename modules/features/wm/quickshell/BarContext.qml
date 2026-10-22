@@ -33,6 +33,48 @@ QtObject {
   // How far a module may run before it stops being worth showing.
   readonly property int maxBarSize: vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal
 
-  // The tray widget, so the drawer can be opened by name as well as by click.
-  property Item trayItem: null
+  // The tray widgets, by screen name, so the drawer can be opened by name as
+  // well as by click. One per bar: `bar tray` opens the one on the display the
+  // pointer is working on, not whichever happened to register last.
+  property var trays: ({})
+
+  function registerTray(item) {
+    if (!item) return
+
+    const name = Screens.nameOf(item)
+    if (!name) return
+
+    const next = {}
+    for (const key in root.trays) next[key] = root.trays[key]
+    next[name] = item
+    root.trays = next
+  }
+
+  function unregisterTray(item) {
+    if (!item) return
+
+    const name = Screens.nameOf(item)
+    let found = root.trays[name] === item ? name : ""
+    if (!found) {
+      for (const key in root.trays) {
+        if (root.trays[key] === item) {
+          found = key
+          break
+        }
+      }
+    }
+    if (!found) return
+
+    const next = {}
+    for (const key in root.trays) if (key !== found) next[key] = root.trays[key]
+    root.trays = next
+  }
+
+  readonly property Item trayItem: {
+    const name = Screens.focusedName
+    if (root.trays[name]) return root.trays[name]
+
+    const keys = Object.keys(root.trays)
+    return keys.length > 0 ? root.trays[keys[0]] : null
+  }
 }

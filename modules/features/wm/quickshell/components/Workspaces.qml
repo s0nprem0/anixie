@@ -11,8 +11,33 @@ import Quickshell.Io
 BarWidget {
   id: root
 
-  readonly property var workspaces: Hyprland.workspaces ? Hyprland.workspaces.values : []
-  readonly property int focusedId: Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : -1
+  // Each bar shows its own monitor's workspaces. With more than one output the
+  // global list is misleading: a row full of another display's workspaces on
+  // this one, with the highlight on a workspace that is not even here.
+  readonly property string screenName: root.Screen ? String(root.Screen.name) : ""
+
+  readonly property var workspaces: {
+    const all = Hyprland.workspaces ? Hyprland.workspaces.values : []
+    if (root.screenName === "") return all
+
+    const out = []
+    for (let i = 0; i < all.length; i++) {
+      const monitor = all[i].monitor
+      if (!monitor || String(monitor.name) === root.screenName) out.push(all[i])
+    }
+    return out
+  }
+
+  // The workspace showing on this monitor, which is not necessarily the
+  // globally focused one — the pointer can be on another display.
+  readonly property var activeWorkspace: {
+    for (let i = 0; i < root.workspaces.length; i++) {
+      if (root.workspaces[i].active) return root.workspaces[i]
+    }
+    return null
+  }
+
+  readonly property int focusedId: root.activeWorkspace ? root.activeWorkspace.id : -1
 
   // The focused workspace keeps its number, so the row always reads 1 2 3 4 5.
   // Clicking that number cycles its layout; the other numbers focus their

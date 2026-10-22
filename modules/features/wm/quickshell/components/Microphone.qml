@@ -55,7 +55,7 @@ BarWidget {
       // Mute stays on the primary button; the middle button is the way into the
       // mixer, the same gesture the volume widget uses for its panel.
       if (button === Qt.LeftButton) root.toggleMute()
-      else if (button === Qt.MiddleButton) PanelRegistry.toggle("audio")
+      else if (button === Qt.MiddleButton) PanelRegistry.toggle("audio", readout)
     }
     onWheelMoved: function (delta) {
       root.adjust(delta)

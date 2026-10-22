@@ -144,7 +144,7 @@ BarWidget {
           : "Network not connected · Super+Ctrl+W"))
 
     onPressed: function (button) {
-      if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelRegistry.toggle("network")
+      if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelRegistry.toggle("network", readout)
       else if (button === Qt.RightButton) root.openSettings()
     }
   }

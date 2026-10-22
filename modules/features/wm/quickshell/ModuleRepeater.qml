@@ -73,9 +73,10 @@ Repeater {
     }
 
     function dragPoint() {
-      if (!BarDrag.barRoot) return null
+      const host = BarDrag.rootFor(loader)
+      if (!host) return null
       const point = dragHandler.centroid.position
-      return loader.mapToItem(BarDrag.barRoot, point.x, point.y)
+      return loader.mapToItem(host, point.x, point.y)
     }
 
     // A module that hides itself takes its slot with it. A Loader measures the
@@ -169,7 +170,10 @@ Repeater {
       onActiveChanged: {
         if (dragHandler.active) {
           const point = loader.dragPoint()
-          if (point) BarDrag.begin(repeater.sectionName, loader.index, String(modelData.id), point.x, point.y)
+          if (point) {
+            BarDrag.begin(repeater.sectionName, loader.index, String(modelData.id),
+              point.x, point.y, BarDrag.rootFor(loader))
+          }
         } else {
           BarDrag.finish()
         }

@@ -196,7 +196,7 @@ BarWidget {
     }
 
     onPressed: function (button) {
-      if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelRegistry.toggle("system")
+      if (button === Qt.LeftButton || button === Qt.MiddleButton) PanelRegistry.toggle("system", readout)
     }
   }
 

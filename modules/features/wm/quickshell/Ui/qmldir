@@ -1,5 +1,6 @@
 singleton Style 1.0 Style.qml
 singleton Util 1.0 Util.qml
+singleton Screens 1.0 Screens.qml
 singleton Commands 1.0 Commands.qml
 singleton Bar 1.0 Bar.qml
 singleton BarDrag 1.0 BarDrag.qml

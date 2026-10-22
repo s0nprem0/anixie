@@ -55,7 +55,8 @@ FocusScope {
   // screen, and the rows past the edge cannot be read or reached. The screen's
   // own height is the ceiling, less the bar and a margin, so the cap follows
   // the machine rather than a number guessed for one of them.
-  readonly property int maxHeight: Math.max(Style.space(200), PanelHost.panelMaxHeight)
+  readonly property int maxHeight: Math.max(Style.space(200),
+    PanelHost.maxHeightFor(root.Screen ? root.Screen.height : 1080))
 
   readonly property bool scrollable: body.implicitHeight > root.maxHeight
 
