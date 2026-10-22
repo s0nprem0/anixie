@@ -25,6 +25,7 @@ Item {
   property string state: ""
   property string description: ""
   property string icon: ""
+  property string preview: ""
   property var positions: []
   property bool selected: false
   property bool showIcon: true
@@ -37,6 +38,8 @@ Item {
   // every keystroke for every visible row, and rebuilding it for a row that has
   // not changed is most of what a picker does while you type.
   readonly property var spans: root.buildSpans()
+
+  readonly property bool hasPreview: root.preview !== ""
 
   function buildSpans() {
     const text = String(root.label)
@@ -100,16 +103,19 @@ Item {
     anchors.leftMargin: Style.space(12)
     anchors.verticalCenter: parent.verticalCenter
 
-    width: Style.space(18)
+    width: root.hasPreview ? Style.space(24) : Style.space(18)
     height: width
     sourceSize.width: width * 2
     sourceSize.height: width * 2
-    fillMode: Image.PreserveAspectFit
+    fillMode: root.hasPreview ? Image.PreserveAspectCrop : Image.PreserveAspectFit
     smooth: true
-    // A desktop entry can name an icon that is not installed, and a missing one
-    // is normal rather than an error: the row is still worth showing.
-    opacity: root.icon !== "" ? 1 : 0
-    source: root.icon !== "" ? Quickshell.iconPath(root.icon, "") : ""
+    // A clipboard thumbnail takes the icon slot when there is one. A desktop
+    // entry can name an icon that is not installed, and a missing one is normal
+    // rather than an error: the row is still worth showing.
+    opacity: root.hasPreview || root.icon !== "" ? 1 : 0
+    source: root.hasPreview
+      ? "file://" + root.preview
+      : (root.icon !== "" ? Quickshell.iconPath(root.icon, "") : "")
   }
 
   Row {

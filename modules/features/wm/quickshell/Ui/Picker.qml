@@ -265,6 +265,7 @@ Item {
               group: PickHost.groupOf(rowHolder.index)
               state: rowHolder.modelData.row.state !== undefined ? String(rowHolder.modelData.row.state) : ""
               icon: rowHolder.modelData.row.icon !== undefined ? String(rowHolder.modelData.row.icon) : ""
+              preview: rowHolder.modelData.row.preview !== undefined ? String(rowHolder.modelData.row.preview) : ""
               positions: rowHolder.modelData.positions
               selected: rowHolder.index === PickHost.selected
 

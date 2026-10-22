@@ -10,7 +10,8 @@
 #   label                       the value is the label
 #   label<TAB>value             the value is something else
 #   label<TAB>value<TAB>icon     with an icon name to draw
-#   label<TAB>value<TAB>icon<TAB>state   with a trailing state to show
+#   label<TAB>value<TAB>icon<TAB>state<TAB>preview   with a trailing state and a
+#                                                   local image path to show
 #
 # It exits as soon as the shell has the entries, rather than when a choice is
 # made, because the shell runs the choice's command itself. A caller that waited
@@ -135,7 +136,8 @@ payload=$(
             label: .[0],
             value: (.[1] // .[0]),
             icon: (.[2] // ""),
-            state: (.[3] // "")
+            state: (.[3] // ""),
+            preview: (.[4] // "")
           })
       )
     }'
