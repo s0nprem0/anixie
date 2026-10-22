@@ -1,30 +1,25 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 
+let
+  dark = config.my.theme.mode == "dark";
+in
 {
   gtk = {
     enable = true;
 
     theme = {
-      name = "Adwaita-dark";
+      name = if dark then "Adwaita-dark" else "Adwaita";
       package = pkgs.gnome-themes-extra;
     };
 
     iconTheme = {
-      name = "Papirus-Dark";
+      name = if dark then "Papirus-Dark" else "Papirus-Light";
       package = pkgs.papirus-icon-theme;
     };
 
     font = {
       name = "JetBrains Mono";
       size = 10;
-    };
-
-    gtk3.extraConfig = {
-      gtk-application-prefer-dark-theme = true;
-    };
-
-    gtk4.extraConfig = {
-      gtk-application-prefer-dark-theme = true;
     };
   };
 }

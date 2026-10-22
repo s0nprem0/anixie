@@ -21,6 +21,8 @@
 # later, and tells a running shell over IPC so a still change crossfades.
 #
 # The choice is remembered per theme, so switching away and back restores it.
+# While the current theme is `wallpaper`, picking a picture also regenerates the
+# palette from it, so the colours follow the background.
 # Backgrounds live beside the other user data, not in ~/.config, which Home
 # Manager owns read-only — the same reason the theme state does.
 set -eu
@@ -67,9 +69,19 @@ chosen() {
   fi
 }
 
+# The resolved palette the `theme` command writes. It is there for curated and
+# wallpaper-derived themes alike, so the gradient follows either one. Before the
+# first `theme apply` it may not exist yet, so fall back to the palette this file
+# was built against.
 # shellcheck disable=SC2016  # the jq program is single-quoted on purpose
 colour() {
-  "$JQ" -r --arg n "$1" --arg k "$2" '.[$n][$k]' "$PALETTES"
+  if [ -f "$STATE/palette.json" ]; then
+    "$JQ" -r --arg k "$1" '.[$k]' "$STATE/palette.json"
+  else
+    theme="$(current_theme)"
+    [ "$theme" = "wallpaper" ] && theme="$DEFAULT_THEME"
+    "$JQ" -r --arg n "$theme" --arg k "$1" '.[$n][$k]' "$PALETTES"
+  fi
 }
 
 # A soft diagonal wash from the background to the surface, with the primary
@@ -77,10 +89,9 @@ colour() {
 # in the way of the windows.
 generate() {
   mkdir -p "$STATE"
-  theme="$(current_theme)"
-  bg="$(colour "$theme" background)"
-  surface="$(colour "$theme" surface)"
-  primary="$(colour "$theme" primary)"
+  bg="$(colour background)"
+  surface="$(colour surface)"
+  primary="$(colour primary)"
 
   "$MAGICK" -size "${WIDTH}x${HEIGHT}" \
     gradient:"$bg"-"$surface" \
@@ -185,6 +196,20 @@ use() {
     [ -f "$1" ] || { printf 'wallpaper: no such file: %s\n' "$1" >&2; exit 1; }
     remember "$1"
   fi
+
+  # In wallpaper mode the picture is the palette source, so selecting one updates
+  # the colours as well as the background. Videos are skipped: matugen cannot read
+  # a frame out of them here, and a failed read would leave the old palette behind.
+  if [ "$1" != generated ] && [ "$(current_theme)" = wallpaper ]; then
+    case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+      *.mp4 | *.m4v | *.mov | *.webm | *.mkv | *.avi | *.ogv) ;;
+      *)
+        theme wallpaper "$1" auto
+        return
+        ;;
+    esac
+  fi
+
   apply
 }
 

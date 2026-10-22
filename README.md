@@ -126,18 +126,25 @@ application menu (the app supplies it over DBusMenu).
 
 ## Themes
 
-`themes.json` holds ten colours per palette; everything else is derived.
+`themes.json` holds nine colours and a mode per palette; everything else is
+derived. Light and dark palettes switch the same surfaces; GTK follows the mode
+through gsettings (Adwaita/Adwaita-dark and Papirus/Papirus-Light icons).
 
 ```sh
 anixie theme list | set NAME | next | prev | current
+anixie theme wallpaper [FILE] [auto|light|dark]  # palette from a picture
 anixie textsize up|down|set N   # the whole shell, not just the bar
 anixie wallpaper set FILE       # or `wallpaper theme` for the palette's gradient
 ```
 
-A theme switched at runtime reaches the **shell, Hyprland's borders and kitty
-immediately**. Helix, yazi, btop, tmux, the lock screen, GTK and Qt are generated
-at build time — their configs are store symlinks, which is what makes them
-reproducible and what stops a runtime write — so they follow on the next rebuild.
+A theme switched at runtime reaches the **shell, Hyprland's borders, kitty, btop
+and tmux immediately**. Helix, yazi, the lock screen and Qt keep the configs
+built from the module's `theme` option — store symlinks, which is what makes them
+reproducible — so they follow on the next rebuild. `theme wallpaper` uses
+matugen's smart mode unless `light` or `dark` is named, and falls back to the
+previous palette if the picture cannot be read. While `wallpaper` is the current
+theme, choosing a background through `anixie wallpaper` also regenerates the
+palette from it.
 
 ## Everything else
 

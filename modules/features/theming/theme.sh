@@ -5,29 +5,25 @@
 #   theme list           the names, one per line
 #   theme current        the name in use
 #   theme set NAME       switch to it
+#   theme wallpaper [FILE] [auto|light|dark]
+#                        derive a palette from a picture
 #   theme next | prev    step through the list
 #   theme apply          re-apply the current one (run at login)
 #
 # One palette drives the shell, the compositor's window borders, the terminal and
-# the launcher. The shell switches the instant the state file changes — it watches
-# it — and the rest are told: Hyprland reloads, kitty takes SIGUSR1.
+# the launcher. The shell is told over its IPC and switches immediately; Hyprland
+# reloads, kitty takes SIGUSR1, and the rest read the files written here.
 #
-# Everything else is themed when the system is built, from the module's `theme`
-# option: the editor (helix), the file manager (yazi), the monitor (btop), tmux
-# and the lock screen. Those are store symlinks in ~/.config, which is the point
-# of them — a runtime writer would fight the link — so switching at runtime
-# leaves them on the palette of the last build until you rebuild. The shell
-# switching instantly and the editor waiting for a build is the honest split;
-# the alternative is a config file nobody can reproduce.
+# btop and tmux are rewritten on every switch, along with the resolved palette
+# that Hyprland and the wallpaper command read. GTK follows the mode through
+# gsettings (Adwaita/Adwaita-dark and Papirus/Papirus-Light). Helix, Yazi, the
+# lock screen and Qt keep the build-time configuration from the module's `theme`
+# option, so they follow on the next rebuild; their configs are store symlinks,
+# which is what makes them reproducible.
 #
 # The palettes are a JSON file rather than a Nix expression because this script
 # has to read the same list the shell was built from, and a shell script cannot
 # evaluate Nix. One file, two readers, nothing to keep in step by hand.
-#
-# What it does not reach: GTK and Qt keep their own themes (Adwaita and the icon
-# set are picked in Nix and are not per-palette), and anything else whose config
-# is generated at build time. Those need a rebuild, and the module's `theme`
-# option is what changes them.
 
 set -uo pipefail
 
@@ -39,6 +35,7 @@ quickshell="@QUICKSHELL@"
 matugen="@MATUGEN@"
 generated="@GENERATED@"
 hyprctl="@HYPRCTL@"
+gsettings="@GSETTINGS@"
 jq="@JQ@"
 wallpaper="@WALLPAPER@"
 
@@ -58,14 +55,10 @@ has() {
   "$jq" -e --arg n "$1" 'has($n)' "$palettes" >/dev/null 2>&1
 }
 
-# One colour out of a palette, and the same without its '#' for the formats that
-# want it bare.
+# One colour out of the resolved palette. materialise() writes it for a curated
+# theme; matugen writes it for a wallpaper.
 colour() {
-  if [ "$1" = "wallpaper" ]; then
-    "$jq" -r --arg k "$2" '.[$k]' "$generated"
-  else
-    "$jq" -r --arg n "$1" --arg k "$2" '.[$n][$k]' "$palettes"
-  fi
+  "$jq" -r --arg k "$1" '.[$k]' "$generated"
 }
 
 current() {
@@ -82,18 +75,35 @@ current() {
 # here rather than rendered at build time, because a build-time value cannot
 # change without a rebuild.
 materialise() {
-  local name="$1"
+  local name="$1" tmp
   mkdir -p "$state_dir" || die "could not create $state_dir"
+
+  if [ "$name" = "wallpaper" ]; then
+    [ -f "$generated" ] || die "the generated palette is missing; run 'theme wallpaper FILE'"
+  else
+    tmp=$(mktemp "$state_dir/palette.XXXXXX") || die "could not create a palette file"
+    "$jq" --arg n "$name" '.[$n] | del(._mode)' "$palettes" >"$tmp" \
+      || die "could not resolve $name"
+    mv "$tmp" "$generated"
+  fi
+
+  # The mode is metadata, not a colour: the build-time configs need it, and so
+  # does a runtime switch of the glass theme.
+  if [ "$name" = "wallpaper" ]; then
+    "$jq" -r '._mode // "dark"' "$generated" >"$state_dir/mode"
+  else
+    "$jq" -r --arg n "$name" '.[$n]._mode // "dark"' "$palettes" >"$state_dir/mode"
+  fi
 
   printf '%s\n' "$name" >"$current_file"
 
   # kitty reads this through an include in its generated config, so the same four
   # settings appear whether the theme was built in or set at runtime.
   cat >"$state_dir/kitty.conf" <<EOF
-background $(colour "$name" background)
-foreground $(colour "$name" foreground)
-selection_background $(colour "$name" accent)
-selection_foreground $(colour "$name" background)
+background $(colour background)
+foreground $(colour foreground)
+selection_background $(colour accent)
+selection_foreground $(colour background)
 EOF
 
   # tmux, btop, and whichever others have learned to read the state directory.
@@ -107,7 +117,7 @@ EOF
 # FileView watch on it never fired on this Quickshell, so a running shell has no
 # other way to hear about the change.
 tell_apps() {
-  local name="$1"
+  local name="$1" mode
 
   # A generated palette cannot be named to the shell — the shell was built with
   # the curated ones — so it is handed over whole.
@@ -119,6 +129,19 @@ tell_apps() {
   "$hyprctl" reload >/dev/null 2>&1 || true
   pkill -USR1 -x kitty 2>/dev/null || true
 
+  # GTK reads the mode rather than only the palette: the dark and light variants
+  # are separate themes, and the icon set has a matching pair.
+  mode=$(tr -d '[:space:]' <"$state_dir/mode" 2>/dev/null || true)
+  if [ "$mode" = "light" ]; then
+    "$gsettings" set org.gnome.desktop.interface color-scheme prefer-light >/dev/null 2>&1 || true
+    "$gsettings" set org.gnome.desktop.interface gtk-theme Adwaita >/dev/null 2>&1 || true
+    "$gsettings" set org.gnome.desktop.interface icon-theme Papirus-Light >/dev/null 2>&1 || true
+  else
+    "$gsettings" set org.gnome.desktop.interface color-scheme prefer-dark >/dev/null 2>&1 || true
+    "$gsettings" set org.gnome.desktop.interface gtk-theme Adwaita-dark >/dev/null 2>&1 || true
+    "$gsettings" set org.gnome.desktop.interface icon-theme Papirus-Dark >/dev/null 2>&1 || true
+  fi
+
   # The wallpaper follows the palette unless one of your own is set, in which
   # case this is a no-op — the `wallpaper` command owns that decision.
   "$wallpaper" apply >/dev/null 2>&1 || true
@@ -128,7 +151,14 @@ tell_apps() {
 # things that can fail: a wallpaper matugen cannot parse leaves the previous
 # palette in place rather than half-applying a new one.
 generate() {
-  local wp="${1:-}"
+  local wp="${1:-}" requested="${2:-auto}" mode json tmp
+  mkdir -p "$state_dir" || die "could not create $state_dir"
+
+  case "$requested" in
+    "" | auto | smart) requested=smart ;;
+    light | dark) ;;
+    *) die "mode must be auto, light or dark" ;;
+  esac
 
   # A picture can be named, and otherwise the current one is used — but only if it
   # is a file. The generated wallpaper is a gradient made *from* the palette, so
@@ -138,13 +168,28 @@ generate() {
 
   [ -n "$wp" ] && [ -f "$wp" ] || die "no picture to read a palette from — set one with 'wallpaper set FILE', or name one: 'theme wallpaper FILE'"
 
-  "$matugen" image "$wp" >/dev/null 2>&1 || die "matugen could not read $wp"
+  # --source-color-index keeps matugen from asking which colour to use: that
+  # prompt is a hard error when this runs from a keybind or a service.
+  json=$("$matugen" image "$wp" --mode "$requested" --source-color-index 0 --json hex 2>/dev/null) \
+    || die "matugen could not read $wp"
   [ -f "$generated" ] || die "matugen wrote no palette"
+
+  mode=$(printf '%s' "$json" | "$jq" -r '.mode // empty' 2>/dev/null || true)
+  if [ -z "$mode" ]; then
+    if [ "$requested" = "smart" ]; then mode=dark; else mode=$requested; fi
+  fi
+
+  # Keep the mode with the palette so the shell can style light surfaces and a
+  # later `theme apply` knows what it is applying without asking matugen again.
+  tmp=$(mktemp "$state_dir/palette.XXXXXX") || die "could not create a palette file"
+  "$jq" --arg mode "$mode" '. + {_mode: $mode}' "$generated" >"$tmp" \
+    || die "could not read the generated palette"
+  mv "$tmp" "$generated"
 }
 
 set_theme() {
   local name="$1"
-  [ "$name" = "wallpaper" ] && generate "${2:-}"
+  [ "$name" = "wallpaper" ] && generate "${2:-}" "${3:-auto}"
   has "$name" || die "no theme called \"$name\" (try: theme list)"
   materialise "$name"
   tell_apps "$name"
@@ -160,7 +205,9 @@ step() {
     names | awk -v here="$here" -v dir="$direction" '
       { list[NR] = $0; if ($0 == here) at = NR }
       END {
-        if (at == 0) at = 1
+        # A generated wallpaper is not in the list. Stepping away from it starts
+        # at the first theme going forward and the last going back.
+        if (at == 0) at = (dir == "next") ? 0 : 1
         if (dir == "next") at = (at % NR) + 1
         else at = ((at - 2 + NR) % NR) + 1
         print list[at]
@@ -192,7 +239,7 @@ case "${1:-}" in
     set_theme "$2"
     ;;
   wallpaper)
-    set_theme wallpaper "${2:-}"
+    set_theme wallpaper "${2:-}" "${3:-auto}"
     ;;
   next)
     step next

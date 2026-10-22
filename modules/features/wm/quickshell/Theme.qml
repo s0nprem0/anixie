@@ -33,6 +33,12 @@ QtObject {
     ? root.custom
     : (palettes[name] !== undefined ? palettes[name] : palettes[defaultName])
 
+  // `_mode` travels with the palette: curated themes carry it in themes.json,
+  // and a wallpaper-generated palette is stamped with matugen's choice. The
+  // shell only needs it where a light surface wants different treatment.
+  readonly property string mode: palette._mode || "dark"
+  readonly property bool isLight: mode === "light"
+
   readonly property color bg: palette.background
   readonly property color surface: palette.surface
   readonly property color fg: palette.foreground

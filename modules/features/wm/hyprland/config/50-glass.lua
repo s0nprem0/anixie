@@ -6,14 +6,27 @@
 -- which ones are allowed to refract.
 -- ------------------------------------------------------------------
 if hl.plugin.hyprglass then
+  local mode = theme_mode()
+  local light = mode == "light"
   local accent = tonumber("0x" .. "@ACCENT_HEX@") or 0xf6bc70
 
   hl.plugin.hyprglass.config({
     enabled = glass_enabled,
-    default_theme = "dark",
+    default_theme = mode,
     default_preset = "clear",
-    tint_color = accent * 0x100 + 0x22,
+    -- Dark takes a faint accent tint; light needs a neutral one so the glass
+    -- does not go cloudy over pale windows.
+    tint_color = light and 0xffffff12 or (accent * 0x100 + 0x22),
     brightness = 0.7,
+    light = {
+      brightness = 1.0,
+      contrast = 0.9,
+      saturation = 0.9,
+      vibrancy = 0.1,
+      vibrancy_darkness = 0.0,
+      adaptive_dim = 0.0,
+      adaptive_boost = 0.35,
+    },
     layers = {
       enabled = glass_enabled and 1 or 0,
     },
@@ -51,6 +64,15 @@ if hl.plugin.hyprglass then
       vibrancy_darkness = 0.12,
       adaptive_dim = 0.2,
       adaptive_boost = 0.1,
+    },
+    light = {
+      brightness = 1.0,
+      contrast = 0.9,
+      saturation = 0.9,
+      vibrancy = 0.1,
+      vibrancy_darkness = 0.0,
+      adaptive_dim = 0.0,
+      adaptive_boost = 0.35,
     },
   })
 

@@ -1,43 +1,44 @@
 -- ------------------------------------------------------------------
 -- Settings
 --
--- The border colours come from the live theme rather than from the palette
--- this file was built with, so `theme set` recolours the borders on the
--- `hyprctl reload` it already triggers. Read the same way the saved monitor
--- scale is: a small state file the config reads at load, because Hyprland has
--- no runtime call for either and a build-time value cannot change without a
--- rebuild.
+-- The border colours come from the resolved palette the `theme` command writes,
+-- so `theme set` recolours the borders on the `hyprctl reload` it triggers. Read
+-- at config load because Hyprland has no runtime call for either and a
+-- build-time value cannot change without a rebuild.
 --
--- The built-in colours below are the fallback, used when the file is not
--- there or does not name something usable.
+-- The built-in colours below are the fallback, used when the file is not there
+-- or does not name something usable.
 -- ------------------------------------------------------------------
 local function theme_colour(token, fallback)
   local state_home = os.getenv("XDG_STATE_HOME")
     or ((os.getenv("HOME") or "") .. "/.local/state")
-  local file = io.open(state_home .. "/anixie/theme/current", "r")
+  local file = io.open(state_home .. "/anixie/theme/palette.json", "r")
   if not file then return fallback end
 
-  local name = file:read("l")
+  local raw = file:read("a")
   file:close()
-  if not name then return fallback end
-  name = name:gsub("%s+", "")
-  -- Escaped before it goes into a pattern: a palette name is a plain word, but
-  -- one of them will eventually contain a '-' or a '.', and in a Lua pattern
-  -- those are quantifiers rather than characters.
-  name = name:gsub("(%W)", "%%%1")
 
-  local palettes_file = io.open("@PALETTES@", "r")
-  if not palettes_file then return fallback end
-  local raw = palettes_file:read("a")
-  palettes_file:close()
-
-  -- The palette table is JSON, which is not Lua: quoted keys and no trailing
-  -- commas, so it cannot simply be loaded. Pull the one field out instead.
-  local hex = raw:match('"' .. name .. '"%s*:%s*{[^}]-"' .. token .. '"%s*:%s*"(#%x%x%x%x%x%x)"')
+  -- The palette is JSON, which is not Lua: quoted keys and no trailing commas,
+  -- so it cannot simply be loaded. Pull the one field out instead.
+  local hex = raw:match('"' .. token .. '"%s*:%s*"(#%x%x%x%x%x%x)"')
   if not hex then return fallback end
 
   local r, g, b = hex:match("#(%x%x)(%x%x)(%x%x)")
   return "rgba(" .. r .. g .. b .. "ff)"
+end
+
+-- Whether the live theme is light or dark. Written next to the palette by
+-- `theme`, and read at config load for the glass theme.
+local function theme_mode()
+  local state_home = os.getenv("XDG_STATE_HOME")
+    or ((os.getenv("HOME") or "") .. "/.local/state")
+  local file = io.open(state_home .. "/anixie/theme/mode", "r")
+  if not file then return "dark" end
+
+  local value = file:read("l")
+  file:close()
+  if value and value:gsub("%s+", "") == "light" then return "light" end
+  return "dark"
 end
 
 -- Glass is decided by a state file rather than a build-time flag, because

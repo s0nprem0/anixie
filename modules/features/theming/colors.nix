@@ -5,14 +5,21 @@ let
   # because the shell has to read the same list at runtime, and a shell script
   # cannot evaluate a Nix expression — so the data lives somewhere both can reach
   # and neither has to be kept in step with the other by hand.
+  #
+  # `_mode` is metadata, not a colour. It stays in the embedded palette the shell
+  # reads (so QML can tell light from dark) and is stripped before a palette is
+  # rendered or written to the state directory.
   palettes = builtins.fromJSON (builtins.readFile ./themes.json);
 
   names = builtins.attrNames palettes;
 
+  colours = builtins.mapAttrs (_: palette: removeAttrs palette [ "_mode" ]) palettes;
+  modeOf = name: palettes.${name}._mode or "dark";
+
   # Every palette has to carry every token: a missing one would render as an
   # empty string into a config file and only show up as a wrong colour somewhere
   # far away. Checked here rather than discovered there.
-  tokenNames = builtins.attrNames palettes.${builtins.head names};
+  tokenNames = builtins.attrNames colours.${builtins.head names};
 in
 {
   options.my.theme = {
@@ -27,19 +34,34 @@ in
       '';
     };
 
+    mode = lib.mkOption {
+      type = lib.types.enum [
+        "dark"
+        "light"
+      ];
+      readOnly = true;
+      default = modeOf config.my.theme.theme;
+      description = ''
+        Whether the selected palette is light or dark. It drives the build-time
+        app configs; a runtime switch reads the same value from the theme state
+        directory instead.
+      '';
+    };
+
     palettes = lib.mkOption {
       type = lib.types.attrsOf (lib.types.attrsOf lib.types.str);
       readOnly = true;
       default = palettes;
       description = ''
-        Every palette, keyed by name. The shell embeds all of them so it can
-        switch without a rebuild; nothing else should need this.
+        Every palette, keyed by name, including each one's `_mode`. The shell
+        embeds all of them so it can switch without a rebuild; nothing else
+        should need this.
       '';
     };
 
     colors = lib.mkOption {
       type = lib.types.attrsOf lib.types.str;
-      description = "The selected palette's colours.";
+      description = "The selected palette's colours, without the `_mode` metadata.";
     };
 
     stateDir = lib.mkOption {
@@ -57,11 +79,21 @@ in
   config = {
     assertions = [
       {
-        assertion = builtins.all (name: builtins.attrNames palettes.${name} == tokenNames) names;
+        assertion = builtins.all (name: builtins.attrNames colours.${name} == tokenNames) names;
         message = "every palette in theming/themes.json must define the same tokens: ${toString tokenNames}";
+      }
+      {
+        assertion = builtins.all (
+          name:
+          builtins.elem (modeOf name) [
+            "dark"
+            "light"
+          ]
+        ) names;
+        message = "every palette in theming/themes.json must set _mode to \"dark\" or \"light\"";
       }
     ];
 
-    my.theme.colors = palettes.${config.my.theme.theme};
+    my.theme.colors = colours.${config.my.theme.theme};
   };
 }

@@ -32,7 +32,7 @@ set -eu
 # The commands that do real work before handing off (`update`, `bar`) carry their
 # whole command line here rather than a case arm of their own.
 ANIXIE_GROUPS='
-theme|theme||list current set next prev apply|palettes: list, set, next, prev, apply
+theme|theme||list current set wallpaper next prev apply|palettes: list, set, wallpaper FILE, next, prev, apply
 textsize|textsize|text|up down set reset apply|global text size: up, down, set N, reset
 wallpaper|wallpaper||list set add next prev generated apply current|desktop background: set FILE, theme, current
 display|monitors|monitors|scale internal mirror set list status|monitors: scale, internal, mirror, status

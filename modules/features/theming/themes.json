@@ -1,5 +1,6 @@
 {
   "tokyo-night": {
+    "_mode": "dark",
     "background": "#0f111a",
     "surface": "#1a1c2b",
     "foreground": "#c8d3f5",
@@ -11,6 +12,7 @@
     "danger": "#ff757f"
   },
   "catppuccin-mocha": {
+    "_mode": "dark",
     "background": "#1e1e2e",
     "surface": "#313244",
     "foreground": "#cdd6f4",
@@ -22,6 +24,7 @@
     "danger": "#f38ba8"
   },
   "gruvbox-dark": {
+    "_mode": "dark",
     "background": "#282828",
     "surface": "#3c3836",
     "foreground": "#ebdbb2",
@@ -33,6 +36,7 @@
     "danger": "#fb4934"
   },
   "nord": {
+    "_mode": "dark",
     "background": "#2e3440",
     "surface": "#3b4252",
     "foreground": "#d8dee9",
@@ -44,6 +48,7 @@
     "danger": "#bf616a"
   },
   "dracula": {
+    "_mode": "dark",
     "background": "#282a36",
     "surface": "#343746",
     "foreground": "#f8f8f2",
@@ -55,6 +60,7 @@
     "danger": "#ff5555"
   },
   "everforest-dark": {
+    "_mode": "dark",
     "background": "#2b3339",
     "surface": "#323c41",
     "foreground": "#d3c6aa",
@@ -66,6 +72,7 @@
     "danger": "#e67e80"
   },
   "rose-pine": {
+    "_mode": "dark",
     "background": "#191724",
     "surface": "#1f1d2e",
     "foreground": "#e0def4",
@@ -77,6 +84,7 @@
     "danger": "#eb6f92"
   },
   "kanagawa": {
+    "_mode": "dark",
     "background": "#1f1f28",
     "surface": "#2a2a37",
     "foreground": "#dcd7ba",
@@ -86,5 +94,41 @@
     "accentAlt": "#957fb8",
     "success": "#98bb6c",
     "danger": "#e82424"
+  },
+  "catppuccin-latte": {
+    "_mode": "light",
+    "background": "#eff1f5",
+    "surface": "#e6e9ef",
+    "foreground": "#4c4f69",
+    "muted": "#8c8fa1",
+    "primary": "#1e66f5",
+    "accent": "#179299",
+    "accentAlt": "#8839ef",
+    "success": "#40a02b",
+    "danger": "#d20f39"
+  },
+  "gruvbox-light": {
+    "_mode": "light",
+    "background": "#fbf1c7",
+    "surface": "#ebdbb2",
+    "foreground": "#3c3836",
+    "muted": "#928374",
+    "primary": "#076678",
+    "accent": "#427b58",
+    "accentAlt": "#8f3f71",
+    "success": "#79740e",
+    "danger": "#9d0006"
+  },
+  "rose-pine-dawn": {
+    "_mode": "light",
+    "background": "#faf4ed",
+    "surface": "#f2e9e1",
+    "foreground": "#575279",
+    "muted": "#9893a5",
+    "primary": "#286983",
+    "accent": "#56949f",
+    "accentAlt": "#907aa9",
+    "success": "#56949f",
+    "danger": "#b4637a"
   }
 }

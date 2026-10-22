@@ -82,6 +82,7 @@ let
         "@DEFAULT_THEME@"
         "@QUICKSHELL@"
         "@HYPRCTL@"
+        "@GSETTINGS@"
         "@JQ@"
         "@WALLPAPER@"
         "@THEME_APPS@"
@@ -95,6 +96,7 @@ let
         config.my.theme.theme
         "${pkgs.quickshell}/bin/quickshell"
         "${pkgs.hyprland}/bin/hyprctl"
+        "${pkgs.glib}/bin/gsettings"
         "${pkgs.jq}/bin/jq"
         "${wallpaper}/bin/wallpaper"
         "${themeApps}/bin/theme-apps"
@@ -135,6 +137,8 @@ in
   #
   # The text-size files get defaults here too, for the same reason: both are
   # included by configs that would otherwise fail to load on a fresh login.
+  # `mode` is deliberately not seeded here: the theme service writes it, and a
+  # Home Manager `home.file` entry would be a read-only store symlink.
   home.file = {
     "${stateDir}/.keep".text = "";
     "${stateDir}/kitty-font.conf".text = "font_size 11\n";

@@ -1,5 +1,8 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 
+let
+  dark = config.my.theme.mode == "dark";
+in
 {
   qt = {
     enable = true;
@@ -16,10 +19,13 @@
       package = pkgs.qt6Packages.qt6ct;
     };
 
+    # Built from the palette this machine starts on. A runtime light switch
+    # changes the icons through gsettings, but Qt keeps this file until the next
+    # rebuild.
     qt6ctSettings = {
       Appearance = {
-        icon_theme = "Papirus-Dark";
-        style = "adwaita-dark";
+        icon_theme = if dark then "Papirus-Dark" else "Papirus-Light";
+        style = if dark then "adwaita-dark" else "adwaita";
       };
     };
   };

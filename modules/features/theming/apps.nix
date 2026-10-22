@@ -9,13 +9,15 @@ let
   # the rest at their next start — see theme.sh, which is honest about it.
   render = config.my.theme.template.render;
   c = config.my.theme.colors;
+  light = config.my.theme.mode == "light";
 in
 {
   # ---- Helix ----
   #
-  # Inherits a built-in dark theme so the syntax set stays complete — Helix has
-  # far more scopes than a palette has colours, and a theme that names only some
-  # of them inherits the system colours for the rest anyway. What the palette
+  # Inherits a built-in theme so the syntax set stays complete — Helix has far
+  # more scopes than a palette has colours, and a theme that names only some of
+  # them inherits the system colours for the rest anyway. The light and dark
+  # base16 themes are the two that match the palette's mode. What the palette
   # does own is the chrome and the handful of syntax roles you actually read:
   # background, text, gutter, selection, statusline, comments, keys, strings.
   programs = {
@@ -23,7 +25,7 @@ in
       settings.theme = "anixie";
 
       themes.anixie = {
-        inherits = "base16_default_dark";
+        inherits = if light then "base16_default_light" else "base16_default_dark";
 
         "ui.background" = {
           bg = c.background;
