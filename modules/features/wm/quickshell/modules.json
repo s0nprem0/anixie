@@ -8,5 +8,8 @@
   "bar.keyboard-layout": { "section": "right", "source": "components/KeyboardLayout.qml" },
   "bar.agents": { "section": "right", "source": "components/Agents.qml" },
   "bar.tailscale": { "section": "right", "source": "components/Tailscale.qml" },
+  "bar.dropbox": { "section": "right", "source": "components/Dropbox.qml" },
+  "bar.model-usage": { "section": "centerEnd", "source": "components/ModelUsage.qml" },
+  "bar.meet": { "section": "right", "source": "components/Meet.qml" },
   "bar.system-stats": { "section": "right", "source": "components/SystemStats.qml" }
 }

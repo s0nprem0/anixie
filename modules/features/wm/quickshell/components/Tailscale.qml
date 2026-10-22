@@ -33,6 +33,11 @@ BarWidget {
   property string selfDns: ""
   property string selfIp: ""
   property var peers: []
+  property var exitNodes: []
+  property bool exitNodeActive: false
+  property var accounts: []
+  property var taildropTargets: []
+  property bool busy: false
   property string lastError: ""
 
   readonly property string stateLabel: root.needsLogin
@@ -70,6 +75,46 @@ BarWidget {
 
     status.running = false
     status.running = true
+    if (!accounts.running) accounts.running = true
+    if (!targets.running) targets.running = true
+  }
+
+  function refreshSoon() {
+    root.busy = true
+    root.refreshTimer.restart()
+  }
+
+  function connect() {
+    Commands.runQuoted("tailscale", [root.running ? "down" : "up"])
+    root.refreshSoon()
+  }
+
+  function switchAccount(id) {
+    if (String(id) === "") return
+    Commands.runQuoted("tailscale", ["switch", String(id)])
+    root.refreshSoon()
+  }
+
+  function setExitNode(ip) {
+    Commands.runQuoted("tailscale", ["set", "--exit-node=" + String(ip || "")])
+    root.refreshSoon()
+  }
+
+  // Taildrop has no picker of its own here, so the clipboard is the source. The
+  // temporary file is removed whether the command succeeds or not.
+  function sendClipboard(target) {
+    const destination = String(target || "") + ":"
+    if (destination === ":") return
+
+    // `--type image` is not a wildcard; ask the clipboard which concrete image
+    // type it is offering, then paste that exact type.
+    const command = 'type=$(wl-paste --list-types | grep -m1 "^image/") || exit 1;'
+      + ' tmp=$(mktemp --suffix=.png) || exit 1;'
+      + ' wl-paste --type "$type" >"$tmp"'
+      + ' && tailscale file cp --name clipboard.png "$tmp" ' + Util.shellQuote(destination)
+      + '; rc=$?; rm -f "$tmp"; exit $rc'
+    Commands.run(command)
+    root.refreshSoon()
   }
 
   function apply(raw) {
@@ -84,6 +129,7 @@ BarWidget {
       root.selfHost = String(self.HostName || "")
       root.selfDns = root.cleanDns(self.DNSName)
       root.selfIp = root.firstIp(self.TailscaleIPs)
+      root.exitNodeActive = !!(data.ExitNodeStatus && data.ExitNodeStatus.ID)
 
       const list = []
       const peerMap = data.Peer || {}
@@ -98,6 +144,7 @@ BarWidget {
           online: peer.Online === true || peer.Active === true,
           os: String(peer.OS || ""),
           exitNode: peer.ExitNode === true,
+          exitNodeOption: peer.ExitNodeOption === true,
         })
       }
 
@@ -106,11 +153,16 @@ BarWidget {
         return root.peerName(a).localeCompare(root.peerName(b))
       })
       root.peers = list
+      root.exitNodes = list.filter(function (peer) { return peer.exitNodeOption })
     } catch (e) {
       root.backend = "Unavailable"
       root.running = false
       root.needsLogin = false
       root.peers = []
+      root.exitNodes = []
+      root.exitNodeActive = false
+      root.accounts = []
+      root.taildropTargets = []
       root.lastError = String(e)
     }
   }
@@ -145,12 +197,79 @@ BarWidget {
     }
   }
 
+  // `switch --list --json` is the only machine-readable account listing. Its
+  // shape has changed between Tailscale releases, so the parser accepts both an
+  // array and an object with an accounts key, and several spellings of the id.
+  Process {
+    id: accounts
+    running: false
+    command: ["tailscale", "switch", "--list", "--json"]
+
+    stdout: StdioCollector {
+      onStreamFinished: {
+        try {
+          const parsed = JSON.parse(String(this.text || "[]"))
+          const list = Array.isArray(parsed)
+            ? parsed
+            : (parsed.Accounts || parsed.accounts || [])
+          const out = []
+          for (const account of list) {
+            if (!account) continue
+            const id = String(account.ID || account.id || account.ProfileID || account.profileID || "")
+            if (id === "") continue
+            out.push({
+              id: id,
+              name: String(account.Nickname || account.DisplayName || account.Account || account.LoginName || account.Tailnet || id),
+              detail: String(account.Tailnet || account.Account || ""),
+              active: account.Active === true || account.Current === true,
+            })
+          }
+          root.accounts = out
+        } catch (e) {
+          root.accounts = []
+        }
+      }
+    }
+  }
+
+  // Taildrop targets are plain lines, not JSON. Keep the whole line as the
+  // label but use its first word as the destination: older releases append the
+  // address in parentheses.
+  Process {
+    id: targets
+    running: false
+    command: ["tailscale", "file", "cp", "--targets"]
+
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const out = []
+        for (const raw of String(this.text || "").split("\n")) {
+          const line = raw.trim()
+          if (line === "" || /^no .*targets?/i.test(line) || /not connected/i.test(line)) continue
+          const target = line.split(/\s+/)[0]
+          if (target !== "") out.push({ target: target, label: line })
+        }
+        root.taildropTargets = out
+      }
+    }
+  }
+
   Timer {
     interval: root.intervalMs
     running: root.installed
     repeat: true
     triggeredOnStart: true
     onTriggered: root.refresh()
+  }
+
+  Timer {
+    id: refreshTimer
+    interval: 1800
+    repeat: false
+    onTriggered: {
+      root.busy = false
+      root.refresh()
+    }
   }
 
   WidgetButton {
@@ -243,6 +362,103 @@ BarWidget {
         value: root.backend
       }
 
+      PanelActionButton {
+        width: card.contentWidth
+        label: root.busy
+          ? "Working…"
+          : (root.running ? "Disconnect" : (root.needsLogin ? "Log in" : "Connect"))
+        navigational: false
+        outlined: root.running
+        available: !root.busy
+        onClicked: root.connect()
+      }
+
+      PanelSeparator {
+        visible: root.accounts.length > 0
+      }
+
+      PanelSectionHeader {
+        width: card.contentWidth
+        visible: root.accounts.length > 0
+        label: "Accounts"
+      }
+
+      Repeater {
+        model: root.accounts
+
+        delegate: ChoiceRow {
+          id: accountRow
+          required property var modelData
+
+          width: card.contentWidth
+          label: accountRow.modelData.name
+          detail: accountRow.modelData.detail
+          selected: accountRow.modelData.active
+          onClicked: root.switchAccount(accountRow.modelData.id)
+        }
+      }
+
+      PanelSeparator {
+        visible: root.running
+      }
+
+      PanelSectionHeader {
+        width: card.contentWidth
+        visible: root.running
+        label: "Exit node"
+      }
+
+      ChoiceRow {
+        width: card.contentWidth
+        visible: root.running
+        label: "None"
+        detail: "Direct connection"
+        selected: !root.exitNodeActive
+        onClicked: root.setExitNode("")
+      }
+
+      Repeater {
+        model: root.exitNodes
+
+        delegate: ChoiceRow {
+          id: exitRow
+          required property var modelData
+
+          width: card.contentWidth
+          visible: root.running
+          label: root.peerName(exitRow.modelData)
+          detail: exitRow.modelData.ip + (exitRow.modelData.online ? " · online" : " · offline")
+          selected: exitRow.modelData.exitNode
+          available: exitRow.modelData.online
+          onClicked: root.setExitNode(exitRow.modelData.ip)
+        }
+      }
+
+      PanelSeparator {
+        visible: root.running && root.taildropTargets.length > 0
+      }
+
+      PanelSectionHeader {
+        width: card.contentWidth
+        visible: root.running && root.taildropTargets.length > 0
+        label: "Taildrop · send clipboard image"
+      }
+
+      Repeater {
+        model: root.taildropTargets
+
+        delegate: ChoiceRow {
+          id: targetRow
+          required property var modelData
+
+          width: card.contentWidth
+          visible: root.running
+          label: targetRow.modelData.label
+          detail: "Send the image on the clipboard"
+          onClicked: root.sendClipboard(targetRow.modelData.target)
+        }
+      }
+
       PanelSeparator {
         visible: root.peers.length > 0
       }
@@ -269,7 +485,7 @@ BarWidget {
         width: card.contentWidth
         height: implicitHeight
         visible: root.needsLogin
-        text: "Run `tailscale up` and sign in; the widget will pick it up on the next refresh."
+        text: "Log in above and finish signing in your browser; the widget will pick it up on the next refresh."
         color: Theme.muted
         font.family: Style.font.family
         font.pixelSize: Style.font.body

@@ -28,6 +28,10 @@
     ],
     "centerEnd": [
       {
+        "id": "bar.model-usage",
+        "interval": 300
+      },
+      {
         "id": "bar.weather",
         "interval": 1800
       },
@@ -47,10 +51,16 @@
         "id": "bar.agents"
       },
       {
+        "id": "bar.meet"
+      },
+      {
         "id": "bar.bluetooth"
       },
       {
         "id": "bar.tailscale"
+      },
+      {
+        "id": "bar.dropbox"
       },
       {
         "id": "bar.wifi"

@@ -87,6 +87,11 @@ QtObject {
   // An agent working on this machine.
   readonly property string agents: glyph("f544")
 
+  // Service widgets.
+  readonly property string dropbox: glyph("f16b")
+  readonly property string video: glyph("f03d")
+  readonly property string chart: glyph("f201")
+
   // Calendar stepping.
   readonly property string chevronLeft: glyph("f053")
   readonly property string chevronRight: glyph("f054")

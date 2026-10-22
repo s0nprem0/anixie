@@ -29,6 +29,9 @@ QtObject {
   readonly property Component keyboardLayout: Component { KeyboardLayout {} }
   readonly property Component agents: Component { Agents {} }
   readonly property Component tailscale: Component { Tailscale {} }
+  readonly property Component dropbox: Component { Dropbox {} }
+  readonly property Component modelUsage: Component { ModelUsage {} }
+  readonly property Component meet: Component { Meet {} }
   readonly property Component systemStats: Component { SystemStats {} }
 
   readonly property var registry: ({
@@ -55,6 +58,9 @@ QtObject {
     "bar.keyboard-layout": keyboardLayout,
     "bar.agents": agents,
     "bar.tailscale": tailscale,
+    "bar.dropbox": dropbox,
+    "bar.model-usage": modelUsage,
+    "bar.meet": meet,
     "bar.system-stats": systemStats
   })
 
