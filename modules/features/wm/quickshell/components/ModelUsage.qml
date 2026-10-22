@@ -32,7 +32,7 @@ BarWidget {
       || String(oc.output) !== "0"
       || String(oc.cache) !== "0")
     const clUsed = cl && (Number(cl.input) > 0 || Number(cl.output) > 0 || Number(cl.cache) > 0)
-    return ocUsed || clUsed
+    return !!(ocUsed || clUsed)
   }
 
   readonly property string barLabel: {

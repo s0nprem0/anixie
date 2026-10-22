@@ -83,11 +83,11 @@ BarWidget {
 
     onHoveredChanged: {
       if (hovered) {
-        root.hoverClose.stop()
-        if (!root.drawerOpen) root.hoverOpen.restart()
+        hoverClose.stop()
+        if (!root.drawerOpen) hoverOpen.restart()
       } else {
-        root.hoverOpen.stop()
-        if (root.hoverOpened) root.hoverClose.restart()
+        hoverOpen.stop()
+        if (root.hoverOpened) hoverClose.restart()
       }
     }
   }
@@ -183,8 +183,8 @@ BarWidget {
         + (root.parked.length === 1 ? " widget parked" : " widgets parked")
         + " · click to open"
       onPressed: function () {
-        root.hoverOpen.stop()
-        root.hoverClose.stop()
+        hoverOpen.stop()
+        hoverClose.stop()
         root.hoverOpened = false
         PanelHost.toggle("tray", parkedButton, root.drawer)
       }
@@ -206,8 +206,8 @@ BarWidget {
       // when it leaves.
       onPointerInsideChanged: {
         root.drawerHovered = trayCard.pointerInside
-        if (trayCard.pointerInside) root.hoverClose.stop()
-        else if (root.hoverOpened) root.hoverClose.restart()
+        if (trayCard.pointerInside) hoverClose.stop()
+        else if (root.hoverOpened) hoverClose.restart()
       }
 
       PanelHero {
@@ -228,7 +228,12 @@ BarWidget {
           required property var modelData
 
           width: trayCard.contentWidth
-          height: item ? item.implicitHeight : 0
+          // A parked widget can still decide it has nothing to say — Dropbox
+          // when it is not installed, the keyboard layout when there is only
+          // one. Keep its slot out of the drawer entirely, not just invisible,
+          // or the hidden widget leaves a gap the size of its bar slot.
+          visible: item ? item.wantsSlot : false
+          height: item && item.wantsSlot ? item.implicitHeight : 0
           sourceComponent: ModuleRegistry.registry[modelData.id] || null
 
           onLoaded: {
