@@ -414,6 +414,8 @@ ShellRoot {
     function toggle(): void { NotificationHost.toggle() }
     function status(): string { return NotificationHost.doNotDisturb ? "on" : "off" }
     function dismissAll(): void { NotificationHost.dismissAll() }
+    function replay(): void { NotificationHost.replay() }
+    function closeReplay(): void { NotificationHost.closeReplay() }
   }
 
   // Moving the media widget between players, for the source-switch keys. The
@@ -506,16 +508,21 @@ ShellRoot {
 
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
-    visible: NotificationHost.tracked.length > 0
+    visible: NotificationHost.tracked.length > 0 || NotificationHost.replaying
 
     // A burst — a mailing list, a chat backlog — should not draw a column taller
     // than the screen with the last cards unreachable. The newest few are shown,
     // the rest are counted, and the history panel has them all. Groups are
     // already one card per consecutive app, so four is a lot of notifications.
-    readonly property int maxCards: 4
-    readonly property var shownGroups: NotificationHost.groups.slice(0, notificationWindow.maxCards)
-    readonly property int hiddenGroups: Math.max(0,
-      NotificationHost.groups.length - notificationWindow.shownGroups.length)
+    readonly property int maxCards: NotificationHost.replaying ? 10 : 4
+    readonly property var shownGroups: NotificationHost.replaying
+      ? NotificationHost.replayEntries.map(function (entry) {
+          return { app: String(entry.app || ""), items: [entry] }
+        })
+      : NotificationHost.groups.slice(0, notificationWindow.maxCards)
+    readonly property int hiddenGroups: NotificationHost.replaying
+      ? 0
+      : Math.max(0, NotificationHost.groups.length - notificationWindow.shownGroups.length)
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "quickshell-notifications"
@@ -538,6 +545,7 @@ ShellRoot {
           // circular and collapse both.
           notification: modelData.items.length > 0 ? modelData.items[0] : null
           group: modelData.items
+          replay: NotificationHost.replaying
         }
       }
 

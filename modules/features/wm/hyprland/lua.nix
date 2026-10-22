@@ -719,6 +719,7 @@ in
     bind(mod .. " + CTRL + N", "Night light", "toggle nightlight")
     bind(mod .. " + CTRL + I", "Stay awake", "toggle idle")
     bind(mod .. " + CTRL + comma", "Silence notifications", "toggle dnd")
+    bind(mod .. " + ALT + comma", "Replay notifications", "quickshell ipc call notify replay")
     bind(mod .. " + CTRL + O", "Toggle menu", "toggle")
 
     -- ------------------------------------------------------------------

@@ -272,8 +272,14 @@ QtObject {
     }
   }
 
-  function refresh() {
-    root.enqueue(root.readCommand(root.historyDir), root.absorbHistory)
+  // The callback is optional and runs after `entries` has been replaced. Replay
+  // uses it to take a copy of the latest history without the caller having to
+  // guess when the asynchronous directory read finished.
+  function refresh(handler) {
+    root.enqueue(root.readCommand(root.historyDir), function (text) {
+      root.absorbHistory(text)
+      if (handler) handler(root.entries)
+    })
   }
 
   // Only the directory reads collect output. Every other command's stdout is its

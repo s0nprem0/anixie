@@ -22,6 +22,13 @@ QtObject {
 
   property bool doNotDisturb: false
 
+  // Replayed history is deliberately separate from `tracked`: those
+  // notifications are gone, their senders' actions are dead, and they must not
+  // be swept into history a second time. The popup window draws either the live
+  // stack or this replay, never both.
+  property var replayEntries: []
+  property bool replaying: false
+
   readonly property var tracked: server.trackedNotifications ? server.trackedNotifications.values : []
 
   // Newest first, so the popup column reads top-down as most recent.
@@ -58,13 +65,46 @@ QtObject {
     for (let i = root.tracked.length - 1; i >= 0; i--) root.tracked[i].dismiss()
   }
 
+  // Show the newest history entries for a few seconds. `NotificationStore` reads
+  // from disk asynchronously, so the popup is only made visible once there is
+  // something to draw.
+  function replay() {
+    NotificationStore.refresh(function (entries) {
+      root.replayEntries = entries.slice(0, 10)
+      root.replaying = root.replayEntries.length > 0
+      if (root.replaying) root.replayTimer.restart()
+    })
+  }
+
+  function closeReplay() {
+    root.replayTimer.stop()
+    root.replayEntries = []
+    root.replaying = false
+  }
+
+  function dismissReplay(entry) {
+    const next = []
+    for (const item of root.replayEntries) if (item !== entry) next.push(item)
+    root.replayEntries = next
+    if (next.length === 0) root.closeReplay()
+  }
+
+  property Timer replayTimer: Timer {
+    interval: 12000
+    onTriggered: root.closeReplay()
+  }
+
   function toggle() {
     root.doNotDisturb = !root.doNotDisturb
   }
 
   // Silencing takes the current batch with it, so the screen matches the state
-  // the indicator is showing.
-  onDoNotDisturbChanged: if (root.doNotDisturb) root.dismissAll()
+  // the indicator is showing — and a replay, being a temporary view of the past,
+  // should not linger over the desktop.
+  onDoNotDisturbChanged: if (root.doNotDisturb) {
+    root.closeReplay()
+    root.dismissAll()
+  }
 
   property NotificationServer server: NotificationServer {
     // Editing the bar reloads the shell; that should not wipe what is on

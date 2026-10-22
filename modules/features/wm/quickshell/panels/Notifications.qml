@@ -178,6 +178,21 @@ Item {
       }
     }
 
+    // Replay the newest entries in the same cards used for live notifications.
+    // The popup is a separate window, so close the panel first rather than
+    // leaving it covering the desktop underneath the replay.
+    PanelActionButton {
+      width: card.contentWidth
+      visible: !root.empty
+      height: implicitHeight
+      label: "Replay last 10"
+      navigational: false
+      onClicked: {
+        NotificationHost.replay()
+        PanelHost.closeFocused()
+      }
+    }
+
     // Only offered when there is something to clear.
     PanelActionButton {
       width: card.contentWidth

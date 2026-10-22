@@ -14,9 +14,16 @@ Item {
   // The rest of the group, oldest included; one notification when it is alone.
   property var group: []
 
+  // A replayed history entry looks like a card but has no live client behind it.
+  // Clicking it removes just that card instead of dismissing a notification the
+  // daemon no longer owns.
+  property bool replay: false
+
   readonly property string appName: {
     if (!root.notification) return ""
-    const name = String(root.notification.appName || "")
+    // Live notifications expose appName; history snapshots store the same
+    // value as `app`, so replayed cards read either.
+    const name = String(root.notification.appName || root.notification.app || "")
     // The count rides on the app name rather than a badge of its own: it is the
     // same fact — who this is from, and how much of it there is — and it needs no
     // new geometry in a card laid out by hand.
@@ -90,6 +97,11 @@ Item {
     // card away — clicking a message opens it, it does not merely hide it. A
     // group goes together: one click on a stack of five puts five away.
     onClicked: {
+      if (root.replay) {
+        NotificationHost.dismissReplay(root.notification)
+        return
+      }
+
       const action = root.defaultAction
       if (action) action.invoke()
 
@@ -112,7 +124,7 @@ Item {
     anchors.fill: parent
     color: Theme.surface
     border.width: 1
-    border.color: root.critical ? Theme.danger : Theme.muted
+    border.color: root.critical ? Theme.danger : (root.replay ? Theme.accent : Theme.muted)
     radius: Theme.cornerRadius
 
     implicitHeight: content.implicitHeight + Style.space(20)
@@ -209,7 +221,7 @@ Item {
 
   Timer {
     interval: Math.round(root.displaySeconds * 1000)
-    running: root.displaySeconds > 0
+    running: !root.replay && root.displaySeconds > 0
     onTriggered: if (root.notification) root.notification.expire()
   }
 }
