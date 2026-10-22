@@ -21,9 +21,6 @@
     "center": [
       {
         "id": "bar.clock"
-      },
-      {
-        "id": "bar.world-clock"
       }
     ],
     "centerEnd": [
@@ -40,12 +37,23 @@
         "interval": 300
       }
     ],
-    "right": [
+    "tray": [
       {
-        "id": "bar.tray"
+        "id": "bar.world-clock"
       },
       {
         "id": "bar.keyboard-layout"
+      },
+      {
+        "id": "bar.tailscale"
+      },
+      {
+        "id": "bar.dropbox"
+      }
+    ],
+    "right": [
+      {
+        "id": "bar.tray"
       },
       {
         "id": "bar.agents"
@@ -55,12 +63,6 @@
       },
       {
         "id": "bar.bluetooth"
-      },
-      {
-        "id": "bar.tailscale"
-      },
-      {
-        "id": "bar.dropbox"
       },
       {
         "id": "bar.wifi"

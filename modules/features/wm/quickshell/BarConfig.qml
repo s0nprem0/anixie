@@ -55,7 +55,9 @@ QtObject {
   readonly property var layout: root.config.layout ? root.config.layout : {}
 
   // The layout entries of a section. The bar.json section names are the ones the
-  // bar already uses: left, centerBegin, center, centerEnd, right.
+  // bar already uses: left, centerBegin, center, centerEnd, right. `tray` is the
+  // sixth: its entries are parked, shown in the tray drawer rather than on the
+  // bar, which is how a widget stays available without taking a permanent slot.
   function section(name) {
     const entries = root.layout[name]
     return entries && entries.length ? entries : []

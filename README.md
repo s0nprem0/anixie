@@ -68,6 +68,8 @@ modules.json              where a widget goes when enabled from the menu/CLI
 
 `bar.json` ships the layout. One bar is drawn on every connected screen, with the
 same layout on each; panels and their hotkeys use the display they belong to.
+Entries under the `tray` section are parked in the tray drawer instead of taking
+a permanent slot on the bar.
 The shell writes its own copy when the layout or the background changes:
 
 ```
