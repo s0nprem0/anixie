@@ -17,6 +17,7 @@
     ./quickshell
     ./reminder
     ./screentime
+    ./share-picker
     ./toggles
     ./webapps
   ];

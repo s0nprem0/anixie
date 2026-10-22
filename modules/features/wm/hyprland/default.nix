@@ -3,6 +3,7 @@
 {
   imports = [
     ./lua.nix
+    ./plugins.nix
   ];
 
   # Tools invoked from binds in lua.nix. The bar and the launcher ship their own

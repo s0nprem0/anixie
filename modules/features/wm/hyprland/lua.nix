@@ -165,40 +165,83 @@ in
       return "rgba(" .. r .. g .. b .. "ff)"
     end
 
+    -- Glass is decided by a state file rather than a build-time flag, because
+    -- the plugin's config is read at load time and the toggle has to survive a
+    -- reload. No file means on, so a fresh install starts with the look the
+    -- plugin is there for.
+    local function glass_state()
+      local state_home = os.getenv("XDG_STATE_HOME")
+        or ((os.getenv("HOME") or "") .. "/.local/state")
+      local file = io.open(state_home .. "/anixie/glass", "r")
+      if not file then return true end
+
+      local value = file:read("l")
+      file:close()
+      return value == nil or value:gsub("%s+", "") ~= "false"
+    end
+    local glass_enabled = glass_state()
+
     hl.config({
       general = {
-        gaps_in = 5,
-        gaps_out = 10,
-        border_size = 2,
-        resize_on_border = true,
+        -- The scrolling layout is what the keybinds and the overview plugins
+        -- are built around: a row of columns you move along, rather than a
+        -- tree that reflows every time a window opens.
+        layout = "scrolling",
 
-        -- Edge snapping for floating windows; tiled windows ignore it.
-        snap = {
-          enabled = true,
-          window_gap = 8,
-          monitor_gap = 8,
-          respect_gaps = true;
-        };
+        gaps_in = 2,
+        gaps_out = 2,
+        border_size = 1,
+        resize_on_border = true,
 
         ["col.active_border"] = theme_colour("primary", "${render "@PRIMARY_RGBA_FF@"}"),
         ["col.inactive_border"] = theme_colour("muted", "${render "@MUTED_RGBA_AA@"}"),
       },
 
+      scrolling = {
+        column_width = 0.6,
+        follow_focus = true,
+        direction = "right",
+        fullscreen_on_one_column = true,
+        wrap_focus = false,
+        wrap_swapcol = false,
+      },
+
       decoration = {
-        rounding = 8,
-        active_opacity = 0.97,
-        inactive_opacity = 0.94,
+        rounding = 0,
+        rounding_power = 0,
+
+        -- Glass is a compositor effect, so ordinary opacity would double it.
+        -- When it is off the plugin is not drawing, and the windows get the
+        -- slight translucency the shell has everywhere else.
+        active_opacity = glass_enabled and 1.0 or 0.97,
+        inactive_opacity = glass_enabled and 1.0 or 0.94,
+
+        dim_inactive = true,
+        dim_strength = 0.08,
+        dim_special = 0.4,
 
         shadow = {
-          enabled = true,
+          enabled = false,
+          range = 6,
+          render_power = 2,
         };
 
         blur = {
           enabled = true,
-          size = 5,
-          passes = 2;
+          new_optimizations = true,
+          size = 4,
+          passes = 2,
+          contrast = 1.5,
+          brightness = 0.8,
+          vibrancy = 0,
+          vibrancy_darkness = 0,
+          popups = true,
         };
       },
+
+      animations = {
+        enabled = true;
+      };
 
       -- Keep the split direction when a window opens or closes, so the layout
       -- does not reshuffle itself around every change.
@@ -287,6 +330,324 @@ in
           end
         end
         file:close()
+      end
+    end
+
+    -- ------------------------------------------------------------------
+    -- Plugin settings
+    --
+    -- The values are the reference shell's. The plugins are out-of-tree, so
+    -- every use is guarded: a plugin that failed to build or load should leave
+    -- the rest of the desktop working, not abort this config.
+    -- ------------------------------------------------------------------
+    hl.config({
+      plugin = {
+        scrolloverview = {
+          gesture_distance = 300,
+          scale = 0.65,
+          workspace_gap = 2,
+          layout = "vertical",
+          wallpaper = 0,
+          blur = true,
+        },
+
+        dynamic_cursors = {
+          enabled = true,
+          mode = "tilt",
+          threshold = 1,
+          rotate = {
+            length = 20,
+            offset = 0.0,
+          },
+          tilt = {
+            limit = 5000,
+            activation = "negative_quadratic",
+            window = 100,
+            full = 60,
+          },
+          shake = {
+            enabled = false,
+            threshold = 6.0,
+            base = 4.0,
+            speed = 4.0,
+            influence = 0.0,
+            limit = 0.0,
+            timeout = 2000,
+            effects = false,
+            ipc = false,
+          },
+          hyprcursor = {
+            nearest = 1,
+            enabled = true,
+            resolution = -1,
+            fallback = "clientside",
+          },
+        },
+
+        hypr_edgehover = {
+          enabled = 1,
+          edges = "lrtb",
+          inset = 1,
+          max_distance = 0,
+          keyboard_focus = -1,
+          gap_pass = "hover,click,scroll,keyboard",
+          layer_pass = "hover,keyboard",
+          layer_namespaces = "",
+          overhang_pass = "hover,keyboard",
+          overhang_threshold = 8,
+          overhang_edge_width = 0,
+          steal_edge_width = 2,
+          zones_top = "0-100",
+          zones_bottom = "0-100",
+          zones_left = "0-100",
+          zones_right = "0-100",
+        },
+
+        -- Title bars belong to floating windows only. The patch this build
+        -- carries enforces that in the compositor; the setting here is what
+        -- the plugin reads when it makes the decision.
+        hyprbars = {
+          enabled = true,
+          only_floating = true,
+          hide_fullscreen = true,
+          bar_height = 26,
+          bar_color = "${render "@SURFACE_RGBA_FF@"}",
+          col = {
+            text = "${render "@FG_RGBA_FF@"}",
+          },
+          bar_text_font = "FiraCode Nerd Font",
+          bar_text_size = 9,
+          bar_text_weight = 600,
+          bar_text_align = "left",
+          bar_title_enabled = true,
+          bar_part_of_window = false,
+          bar_blur = false,
+        },
+      },
+    })
+
+    if hl.plugin.hyprbars then
+      hl.plugin.hyprbars.add_button({
+        bg_color = "rgba(00000000)",
+        fg_color = "${render "@DANGER_RGBA_FF@"}",
+        size = 14,
+        icon = "X",
+        action = "hyprctl dispatch 'hl.dsp.window.close()'",
+      })
+    end
+
+    -- ------------------------------------------------------------------
+    -- Animations
+    --
+    -- The curves are named after Material's motion roles rather than after
+    -- what they animate, so one curve can be reused by several animations
+    -- without the name becoming a lie.
+    -- ------------------------------------------------------------------
+    hl.curve("expressiveFastSpatial", {
+      type = "bezier",
+      points = { { 0.42, 1.67 }, { 0.21, 0.90 } },
+    })
+    hl.curve("expressiveSlowSpatial", {
+      type = "bezier",
+      points = { { 0.39, 1.29 }, { 0.35, 0.98 } },
+    })
+    hl.curve("expressiveDefaultSpatial", {
+      type = "bezier",
+      points = { { 0.38, 1.21 }, { 0.22, 1.00 } },
+    })
+    hl.curve("emphasizedDecel", {
+      type = "bezier",
+      points = { { 0.05, 0.7 }, { 0.1, 1 } },
+    })
+    hl.curve("emphasizedAccel", {
+      type = "bezier",
+      points = { { 0.3, 0 }, { 0.8, 0.15 } },
+    })
+    hl.curve("standardDecel", {
+      type = "bezier",
+      points = { { 0, 0 }, { 0, 1 } },
+    })
+    hl.curve("menu_decel", {
+      type = "bezier",
+      points = { { 0.1, 1 }, { 0, 1 } },
+    })
+    hl.curve("menu_accel", {
+      type = "bezier",
+      points = { { 0.52, 0.03 }, { 0.72, 0.08 } },
+    })
+    hl.curve("stall", {
+      type = "bezier",
+      points = { { 1, -0.1 }, { 0.7, 0.85 } },
+    })
+    hl.curve("wobbly", {
+      type = "bezier",
+      points = { { 0.2, 1.1 }, { 0.2, 1.0 } },
+    })
+
+    hl.animation({
+      leaf = "windowsIn",
+      enabled = true,
+      speed = 5,
+      bezier = "wobbly",
+      style = "popin 85%",
+    })
+    hl.animation({
+      leaf = "fadeIn",
+      enabled = true,
+      speed = 4,
+      bezier = "emphasizedDecel",
+    })
+    hl.animation({
+      leaf = "windowsOut",
+      enabled = true,
+      speed = 4,
+      bezier = "wobbly",
+      style = "popin 90%",
+    })
+    hl.animation({
+      leaf = "fadeOut",
+      enabled = true,
+      speed = 3,
+      bezier = "emphasizedDecel",
+    })
+    hl.animation({
+      leaf = "fade",
+      enabled = true,
+      speed = 4,
+      bezier = "emphasizedDecel",
+    })
+    hl.animation({
+      leaf = "windowsMove",
+      enabled = true,
+      speed = 5,
+      bezier = "wobbly",
+    })
+    hl.animation({
+      leaf = "border",
+      enabled = true,
+      speed = 10,
+      bezier = "emphasizedDecel",
+    })
+
+    hl.animation({
+      leaf = "layersIn",
+      enabled = true,
+      speed = 2.7,
+      bezier = "emphasizedDecel",
+      style = "popin 93%",
+    })
+    hl.animation({
+      leaf = "layersOut",
+      enabled = true,
+      speed = 2.4,
+      bezier = "menu_accel",
+      style = "popin 94%",
+    })
+    hl.animation({
+      leaf = "fadeLayersIn",
+      enabled = true,
+      speed = 0.5,
+      bezier = "menu_decel",
+    })
+    hl.animation({
+      leaf = "fadeLayersOut",
+      enabled = true,
+      speed = 2.7,
+      bezier = "stall",
+    })
+
+    hl.animation({
+      leaf = "workspaces",
+      enabled = true,
+      speed = 5.5,
+      bezier = "expressiveDefaultSpatial",
+      style = "slidefade 20%",
+    })
+    hl.animation({
+      leaf = "specialWorkspaceIn",
+      enabled = true,
+      speed = 2.8,
+      bezier = "emphasizedDecel",
+      style = "slidevert",
+    })
+    hl.animation({
+      leaf = "specialWorkspaceOut",
+      enabled = true,
+      speed = 1.2,
+      bezier = "emphasizedAccel",
+      style = "slidevert",
+    })
+    hl.animation({
+      leaf = "zoomFactor",
+      enabled = true,
+      speed = 3,
+      bezier = "standardDecel",
+    })
+
+    -- ------------------------------------------------------------------
+    -- Glass
+    --
+    -- The layer names are this shell's, not the reference's: every surface
+    -- Quickshell makes declares its own namespace, and glass has to be told
+    -- which ones are allowed to refract.
+    -- ------------------------------------------------------------------
+    if hl.plugin.hyprglass then
+      local accent = tonumber("0x" .. "${render "@ACCENT_HEX@"}") or 0xf6bc70
+
+      hl.plugin.hyprglass.config({
+        enabled = glass_enabled,
+        default_theme = "dark",
+        default_preset = "clear",
+        tint_color = accent * 0x100 + 0x22,
+        brightness = 0.7,
+        layers = {
+          enabled = glass_enabled and 1 or 0,
+        },
+      })
+
+      for _, namespace in ipairs({
+        "quickshell",
+        "quickshell-panel",
+        "quickshell-context",
+        "quickshell-context-curtain",
+        "quickshell-dock",
+        "quickshell-osd",
+        "quickshell-notifications",
+        "quickshell-picker",
+        "quickshell-capture-preview",
+      }) do
+        hl.plugin.hyprglass.layer(namespace, { preset = "clear" })
+      end
+
+      hl.plugin.hyprglass.preset("clear", {
+        blur_strength = 0.65,
+        blur_iterations = 3,
+        refraction_strength = 0.85,
+        chromatic_aberration = 1.6,
+        fresnel_strength = 0.85,
+        specular_strength = 2,
+        glass_opacity = 0.65,
+        edge_thickness = 2,
+        lens_distortion = 1.2,
+        dark = {
+          brightness = 0.85,
+          contrast = 0.8,
+          saturation = 0.85,
+          vibrancy = 0.6,
+          vibrancy_darkness = 0.12,
+          adaptive_dim = 0.2,
+          adaptive_boost = 0.1,
+        },
+      })
+
+      -- Glass already blurs what is behind a window; letting Hyprland blur it
+      -- as well doubles the effect and washes the edges out.
+      if glass_enabled then
+        hl.window_rule({
+          name = "prevent-double-blur",
+          match = { class = ".*" },
+          no_blur = true,
+        })
       end
     end
 
@@ -395,6 +756,27 @@ in
       match = { namespace = "hyprpicker" },
       no_anim = true,
     })
+
+    -- The shell's own surfaces. Layer blur is opt-in per namespace; without
+    -- these the bar and the popups render sharp over a blurred desktop.
+    for _, namespace in ipairs({
+      "quickshell",
+      "quickshell-panel",
+      "quickshell-context",
+      "quickshell-context-curtain",
+      "quickshell-dock",
+      "quickshell-osd",
+      "quickshell-notifications",
+      "quickshell-picker",
+      "quickshell-capture-preview",
+    }) do
+      hl.layer_rule({
+        name = "blur-" .. namespace,
+        match = { namespace = namespace },
+        blur = true,
+        ignore_alpha = 0.01,
+      })
+    end
 
     -- ------------------------------------------------------------------
     -- The webcam overlay
@@ -836,14 +1218,39 @@ in
     bind(mod .. " + ALT + L", "Cycle workspace layout", "quickshell ipc call workspaces cycle")
 
     -- ------------------------------------------------------------------
+    -- Layout and overview plugins
+    --
+    -- These are handlers rather than execs: the plugin call runs inside the
+    -- compositor, so there is no process to start and no IPC round-trip before
+    -- the animation begins. Every one is guarded, because a plugin that did not
+    -- load should leave the key doing nothing rather than aborting the config.
+    -- ------------------------------------------------------------------
+    bind_handler(mod .. " + D", "Toggle tiling and floating", function()
+      if hl.plugin.layoutmode then hl.plugin.layoutmode.toggle() end
+    end)
+
+    bind_handler(mod .. " + TAB", "Mission control", function()
+      if hl.plugin.hymission then hl.plugin.hymission.toggle() end
+    end)
+
+    bind_handler("ALT + TAB", "Window overview", function()
+      if hl.plugin.scrolloverview then hl.plugin.scrolloverview.overview("toggle") end
+    end)
+
+    bind(mod .. " + CTRL + ALT + G", "Toggle glass", "glass-toggle")
+
+    -- ------------------------------------------------------------------
     -- Scratchpad
     -- Keeps its window alive and hidden while every other workspace stays
     -- empty. Good for a long-running terminal.
     --
+    -- SUPER+grave rather than SUPER+TAB: TAB is mission control now, and a key
+    -- with two meanings is one that silently loses one of them.
+    --
     -- toggle_special takes the bare name: it applies the "special:" prefix
     -- itself, and passing one is rejected.
     -- ------------------------------------------------------------------
-    dispatch(mod .. " + TAB", "Scratchpad", "workspace.toggle_special", "special")
+    dispatch(mod .. " + grave", "Scratchpad", "workspace.toggle_special", "special")
 
     -- ------------------------------------------------------------------
     -- Session

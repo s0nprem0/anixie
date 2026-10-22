@@ -25,6 +25,45 @@
       url = "github:mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Hyprland plugins. The revisions are pinned to the compositor series this
+    # flake builds against (0.56): an out-of-tree plugin compiles against
+    # Hyprland's internal headers, so a nixpkgs bump that moves Hyprland is a
+    # plugin-build break, not a cosmetic one.
+    hyprland-preview-share-picker = {
+      url = "git+https://github.com/WhySoBad/hyprland-preview-share-picker?submodules=1";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    hyprland-scroll-overview = {
+      url = "github:yayuuu/hyprland-scroll-overview/7ff22457dc016239eff1b19c3ea57de93404b5c9";
+      flake = false;
+    };
+
+    hyprglass = {
+      url = "github:hyprnux/hyprglass/84c1a5ab217101a317d4edaab7fba2efcc1bf346";
+      flake = false;
+    };
+
+    hypr-dynamic-cursors = {
+      url = "github:VirtCode/hypr-dynamic-cursors/5a224284872208b5324759d535d65061043725de";
+      flake = false;
+    };
+
+    hypr-edgehover = {
+      url = "github:gfhdhytghd/hypr-edgehover/77b5e1445361b3a1f7b6f03bb4bee15e91229c94";
+      flake = false;
+    };
+
+    hymission = {
+      url = "github:gfhdhytghd/hymission/cff1070f6ee9fbafacca7f7efd76397fe1975510";
+      flake = false;
+    };
+
+    hyprland-plugins = {
+      url = "github:hyprwm/hyprland-plugins/7644cecdb947060682891a0db2a0cdc5c0b9e704";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -45,7 +84,12 @@
         system = "x86_64-linux";
 
         specialArgs = {
-          inherit host user flakeDir;
+          inherit
+            host
+            user
+            flakeDir
+            inputs
+            ;
         };
 
         modules = [
@@ -71,7 +115,12 @@
               # Forward the identity so Home Manager modules see the same
               # host/user/flakeDir arguments the NixOS modules do.
               extraSpecialArgs = {
-                inherit host user flakeDir;
+                inherit
+                  host
+                  user
+                  flakeDir
+                  inputs
+                  ;
               };
 
               # The apps are Home Manager modules, so they cannot sit in the
