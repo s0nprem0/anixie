@@ -137,6 +137,14 @@
           "label": "Silence notifications",
           "run": "toggle dnd",
           "state": "dnd"
+        },
+        {
+          "label": "Focus for 25 minutes",
+          "run": "focus start 25"
+        },
+        {
+          "label": "Stop focus",
+          "run": "focus stop"
         }
       ]
     },
@@ -171,6 +179,10 @@
         {
           "label": "Clean up generations\u2026",
           "run": "kitty -e nh clean all --keep 5"
+        },
+        {
+          "label": "Screen time & focus\u2026",
+          "run": "screentime panel"
         },
         {
           "label": "Power menu\u2026",

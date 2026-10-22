@@ -11,5 +11,6 @@
   "bar.dropbox": { "section": "right", "source": "components/Dropbox.qml" },
   "bar.model-usage": { "section": "centerEnd", "source": "components/ModelUsage.qml" },
   "bar.meet": { "section": "right", "source": "components/Meet.qml" },
-  "bar.system-stats": { "section": "right", "source": "components/SystemStats.qml" }
+  "bar.system-stats": { "section": "right", "source": "components/SystemStats.qml" },
+  "bar.screentime": { "section": "centerEnd", "source": "components/ScreenTime.qml" }
 }

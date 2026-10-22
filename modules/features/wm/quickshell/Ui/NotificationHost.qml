@@ -187,6 +187,15 @@ QtObject {
     onTriggered: root.closeReplay()
   }
 
+  // A caller that needs a known state rather than the inverse. Focus mode uses
+  // this so it can silence everything while it runs and then put back whatever
+  // the user had chosen before.
+  function setDnd(value) {
+    const next = !!value
+    if (root.doNotDisturb === next) return
+    root.doNotDisturb = next
+  }
+
   function toggle() {
     root.doNotDisturb = !root.doNotDisturb
   }

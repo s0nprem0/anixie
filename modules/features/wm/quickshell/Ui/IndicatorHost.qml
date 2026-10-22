@@ -35,6 +35,9 @@ QtObject {
 
   property int reminderCount: 0
 
+  // FocusHost pushes this while a focus block is running.
+  property bool focusActive: false
+
   function setNightlight(temperature) {
     const n = parseInt(temperature, 10)
     root.nightTemperature = isFinite(n) ? n : 0
@@ -51,6 +54,10 @@ QtObject {
   function setReminders(count) {
     const n = parseInt(count, 10)
     root.reminderCount = isFinite(n) && n > 0 ? n : 0
+  }
+
+  function setFocus(state) {
+    root.focusActive = String(state) === "true" || String(state) === "on"
   }
 
   property Process nightQuery: Process {

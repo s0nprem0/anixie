@@ -12,6 +12,16 @@ let
   # itself uses, written out here so the shell can watch it.
   themeState = "${config.xdg.stateHome}/anixie/theme/current";
 
+  # Focus mode's blocked app ids, rendered where FocusHost can read them without
+  # depending on the user's profile. The state (whether a block is running) lives
+  # in the state directory, not here.
+  focusConfig = pkgs.writeText "focus.json" (
+    builtins.toJSON {
+      blocked = config.features.wm.focus.blockedClasses;
+      defaultMinutes = config.features.wm.focus.defaultMinutes;
+    }
+  );
+
   # The whole palette list goes into the shell, not just the selected one, so it
   # can switch without a rebuild. JSON is a valid QML object literal, so the file
   # the `theme` command reads in the shell is the one that feeds this build.
@@ -60,6 +70,7 @@ let
     cp ${theme} $out/Theme.qml
     cp ${powerAlert} $out/Ui/PowerAlert.qml
     cp ${lockHost} $out/Ui/LockHost.qml
+    cp ${focusConfig} $out/focus.json
     rm -f $out/default.nix
   '';
 in

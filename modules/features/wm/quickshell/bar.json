@@ -25,6 +25,9 @@
     ],
     "centerEnd": [
       {
+        "id": "bar.screentime"
+      },
+      {
         "id": "bar.model-usage",
         "interval": 300
       },

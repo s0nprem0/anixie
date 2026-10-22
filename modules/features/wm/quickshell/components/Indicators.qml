@@ -33,6 +33,7 @@ BarWidget {
   readonly property bool stayAwake: IndicatorHost.stayAwake
   readonly property bool nightlight: IndicatorHost.nightlight
   readonly property int reminderCount: IndicatorHost.reminderCount
+  readonly property bool focusMode: IndicatorHost.focusActive
 
   readonly property var shown: {
     const list = []
@@ -41,6 +42,7 @@ BarWidget {
     if (root.wanted("StayAwake") && (root.alwaysShow || root.stayAwake)) list.push("StayAwake")
     if (root.wanted("NightLight") && (root.alwaysShow || root.nightlight)) list.push("NightLight")
     if (root.wanted("Reminder") && (root.alwaysShow || root.reminderCount > 0)) list.push("Reminder")
+    if (root.wanted("Focus") && (root.alwaysShow || root.focusMode)) list.push("Focus")
     return list
   }
 
@@ -65,6 +67,7 @@ BarWidget {
           : modelData === "NightLight" ? nightIndicator
           : modelData === "StayAwake" ? stayAwakeIndicator
           : modelData === "Reminder" ? reminderIndicator
+          : modelData === "Focus" ? focusIndicator
           : idleIndicator
       }
     }
@@ -147,4 +150,18 @@ BarWidget {
       }
     }
   }
+
+  Component {
+    id: focusIndicator
+
+    WidgetButton {
+      text: Util.clock
+      fontSize: Style.bar.iconFont
+      tooltipText: "Focus · " + FocusHost.remainingLabel + " left · click for screen time"
+      active: true
+      selected: true
+      onPressed: function () { Commands.run("screentime panel") }
+    }
+  }
+
 }

@@ -551,6 +551,25 @@ ShellRoot {
     function off(): string { return IdleHost.setEnabled(false) }
   }
 
+  // Focus mode and screen time. Both are shell-owned because both depend on
+  // things only the shell already watches: the toplevel list and the idle
+  // monitor.
+  IpcHandler {
+    target: "focus"
+
+    function start(minutes: string): string { return FocusHost.start(minutes) }
+    function extend(minutes: string): string { return FocusHost.extend(minutes) }
+    function stop(): string { return FocusHost.stop() }
+    function status(): string { return FocusHost.status() }
+  }
+
+  IpcHandler {
+    target: "screentime"
+
+    function status(): string { return ScreentimeStore.json() }
+    function reset(): string { ScreentimeStore.reset(); return "ok" }
+  }
+
   // The screenshot preview. Bottom right, over the desktop, gone on its own after
   // ten seconds unless it is pinned.
   //

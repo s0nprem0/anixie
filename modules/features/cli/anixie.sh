@@ -49,6 +49,8 @@ toggle|toggle||nightlight idle dnd stayawake status list|night light, idle, do-n
 snapshot|snapshot||create list restore prune|btrfs snapshots of /home: create, list, restore, prune
 update|rebuild||switch boot test|rebuild and switch the system
 bar|quickshell ipc call bar||toggle on off reset move enable disable background tray|the status bar: toggle, on, off
+focus|focus||start stop extend status|focus mode: start, stop, extend, status
+screentime|screentime||show json reset path|screen time for today: show, json, reset
 '
 
 # The loops below read the table through a here-document rather than a pipe, so

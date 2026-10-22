@@ -9,6 +9,8 @@ singleton BackgroundHost 1.0 BackgroundHost.qml
 BackgroundSurface 1.0 BackgroundSurface.qml
 singleton LockHost 1.0 LockHost.qml
 singleton IdleHost 1.0 IdleHost.qml
+singleton FocusHost 1.0 FocusHost.qml
+singleton ScreentimeStore 1.0 ScreentimeStore.qml
 Screensaver 1.0 Screensaver.qml
 LockSurface 1.0 LockSurface.qml
 singleton CapturePreview 1.0 CapturePreview.qml

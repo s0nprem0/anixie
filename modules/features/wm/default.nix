@@ -5,6 +5,7 @@
     ./clipboard
     ./display
     ./emoji
+    ./focus
     ./hypridle
     ./hyprland
     ./hyprsunset
@@ -15,6 +16,7 @@
     ./pick
     ./quickshell
     ./reminder
+    ./screentime
     ./toggles
     ./webapps
   ];
