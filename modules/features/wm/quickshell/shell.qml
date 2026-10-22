@@ -19,8 +19,9 @@ import "components"
 ShellRoot {
   // The desktop background. One layer-shell surface per output, on the
   // Background layer so windows sit over it, with an empty input region so it
-  // never takes a click meant for the desktop. Replaces awww: the path comes
-  // from the `wallpaper` command and changes crossfade in place.
+  // never takes a click meant for the desktop. The path comes from the
+  // `wallpaper` command and changes crossfade in place; video wallpapers still
+  // go to awww, so this surface steps aside for them.
   Variants {
     model: Quickshell.screens
 
@@ -39,6 +40,7 @@ ShellRoot {
       color: "transparent"
       exclusionMode: ExclusionMode.Ignore
       mask: Region {}
+      visible: !BackgroundHost.video
 
       WlrLayershell.layer: WlrLayer.Background
       WlrLayershell.namespace: "quickshell-background"
@@ -46,7 +48,7 @@ ShellRoot {
 
       BackgroundSurface {
         anchors.fill: parent
-        source: BackgroundHost.path
+        source: BackgroundHost.video ? "" : BackgroundHost.path
         revision: BackgroundHost.revision
       }
     }
@@ -521,6 +523,7 @@ ShellRoot {
     target: "background"
 
     function set(path: string): string { BackgroundHost.set(path); return "ok" }
+    function video(path: string): string { BackgroundHost.setVideo(path); return "ok" }
     function reload(): string { BackgroundHost.reload(); return "ok" }
     function current(): string { return BackgroundHost.path }
   }

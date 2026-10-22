@@ -8,8 +8,9 @@ let
 
   # The generated desktop wallpaper and its dimensions. A gradient rather than an
   # image file, so every palette carries its own without shipping pictures. The
-  # shell draws the resolved file on its background layer; this command writes
-  # the choice and tells a running shell to crossfade.
+  # shell draws stills on its background layer; videos still go through awww,
+  # because the shell has no video renderer yet. This command picks the owner and
+  # tells a running shell what to show.
   wallpaper = pkgs.writeShellScriptBin "wallpaper" (
     builtins.replaceStrings
       [
@@ -19,6 +20,10 @@ let
         "@DEFAULT_THEME@"
         "@JQ@"
         "@MAGICK@"
+        "@AWWW@"
+        "@AWWW_DAEMON@"
+        "@PGREP@"
+        "@PKILL@"
         "@QUICKSHELL@"
         "@WIDTH@"
         "@HEIGHT@"
@@ -30,6 +35,10 @@ let
         config.my.theme.theme
         "${pkgs.jq}/bin/jq"
         "${pkgs.imagemagick}/bin/magick"
+        "${pkgs.awww}/bin/awww"
+        "${pkgs.awww}/bin/awww-daemon"
+        "${pkgs.procps}/bin/pgrep"
+        "${pkgs.procps}/bin/pkill"
         "${pkgs.quickshell}/bin/quickshell"
         "1920"
         "1080"

@@ -20,6 +20,7 @@ QtObject {
     + "/anixie/theme/background"
 
   property string path: ""
+  property bool video: false
 
   // Bumped whenever the chosen file changes, including a theme that rewrites
   // the generated wallpaper at the same path. The surface uses it to reload a
@@ -51,23 +52,41 @@ QtObject {
   }
 
   function adopt(raw) {
-    const value = String(raw || "").trim()
-    if (value === "" || value === root.path) return
+    const lines = String(raw || "").split("\n").map(function (line) { return line.trim() })
+      .filter(function (line) { return line !== "" })
+    if (lines.length === 0) return
 
-    root.path = value
+    const nextVideo = lines[0] === "video"
+    const nextPath = nextVideo ? (lines[1] || "") : lines[0]
+    if (nextPath === "" || (nextPath === root.path && nextVideo === root.video)) return
+
+    root.video = nextVideo
+    root.path = nextPath
     root.revision += 1
   }
 
   // Called from the wallpaper command over IPC, and the alternative to editing
   // the file by hand. Writing the file as well means the choice survives a shell
   // restart even when the caller was not the wallpaper command.
-  function set(path) {
+  function apply(path, video) {
     const value = String(path || "").trim()
     if (value === "") return
 
+    root.video = !!video
     root.path = value
+
+    // Always bump: a theme can rewrite the generated still under the same name,
+    // and the surface has to load it again.
     root.revision += 1
-    root.stateFile.setText(value + "\n")
+    root.stateFile.setText(root.video ? "video\n" + value + "\n" : value + "\n")
+  }
+
+  function set(path) {
+    root.apply(path, false)
+  }
+
+  function setVideo(path) {
+    root.apply(path, true)
   }
 
   function reload() {

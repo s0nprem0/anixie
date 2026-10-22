@@ -30,7 +30,7 @@ Item {
 
   AnimatedImage {
     anchors.fill: parent
-    source: root.imageUrl(BackgroundHost.path)
+    source: BackgroundHost.video ? "" : root.imageUrl(BackgroundHost.path)
     sourceSize.width: width
     sourceSize.height: height
     fillMode: AnimatedImage.PreserveAspectCrop

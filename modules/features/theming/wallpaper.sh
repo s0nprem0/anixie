@@ -15,9 +15,10 @@
 #   wallpaper apply      re-apply the saved choice (run at login)
 #   wallpaper current    which background is in use
 #
-# The shell draws the wallpaper on its own background layer. This command only
-# decides which file that is: it writes the resolved path for a shell that starts
-# later, and tells a running one over IPC so the change crossfades now.
+# The shell draws still wallpapers on its own background layer. Videos are the
+# one case it cannot render yet, so they go to awww; this command decides which
+# of the two owns the output, writes the resolved path for a shell that starts
+# later, and tells a running shell over IPC so a still change crossfades.
 #
 # The choice is remembered per theme, so switching away and back restores it.
 # Backgrounds live beside the other user data, not in ~/.config, which Home
@@ -30,6 +31,10 @@ PALETTES="@PALETTES@"
 DEFAULT_THEME="@DEFAULT_THEME@"
 JQ="@JQ@"
 MAGICK="@MAGICK@"
+AWWW="@AWWW@"
+AWWW_DAEMON="@AWWW_DAEMON@"
+PGREP="@PGREP@"
+PKILL="@PKILL@"
 QUICKSHELL="@QUICKSHELL@"
 WIDTH="@WIDTH@"
 HEIGHT="@HEIGHT@"
@@ -96,12 +101,27 @@ apply() {
   fi
 
   mkdir -p "$STATE"
-  printf '%s\n' "$img" >"$STATE/background"
 
-  # Silent when the shell is not up: the login service and the shell both start
-  # at graphical-session.target, so the file above is what the shell reads when
-  # it wins the race.
-  "$QUICKSHELL" ipc call background set "$img" >/dev/null 2>&1 || true
+  case "$(printf '%s' "${img##*.}" | tr '[:upper:]' '[:lower:]')" in
+    mp4 | mkv | webm | mov | m4v | avi | ogv)
+      # awww still owns video playback; the shell hides its own background
+      # surface for this one instead of trying to decode a video as an image.
+      if ! "$PGREP" -x awww-daemon >/dev/null 2>&1; then
+        "$AWWW_DAEMON" >/dev/null 2>&1 &
+        sleep 1
+      fi
+      "$AWWW" img "$img" >/dev/null 2>&1 || true
+      printf 'video\n%s\n' "$img" >"$STATE/background"
+      "$QUICKSHELL" ipc call background video "$img" >/dev/null 2>&1 || true
+      ;;
+    *)
+      # Taking the output back from awww: kill it rather than leave two
+      # background surfaces arguing over the same layer.
+      "$PKILL" -x awww-daemon >/dev/null 2>&1 || true
+      printf '%s\n' "$img" >"$STATE/background"
+      "$QUICKSHELL" ipc call background set "$img" >/dev/null 2>&1 || true
+      ;;
+  esac
 }
 
 remember() {

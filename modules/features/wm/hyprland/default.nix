@@ -8,9 +8,9 @@
   # Tools invoked from binds in lua.nix. The bar and the launcher ship their own
   # packages, so only the standalone helpers belong here.
   home.packages = with pkgs; [
-    # The shell now draws the wallpaper on its background layer. awww is no
-    # longer started, but stays installed for one cycle as a manual fallback
-    # (`awww-daemon & awww img FILE`) until the in-shell path has been proven.
+    # The shell draws still wallpapers on its background layer. awww is only
+    # started by the `wallpaper` command for videos, which the shell cannot
+    # render yet. It remains the manual fallback too.
     awww
     brightnessctl
     cliphist
