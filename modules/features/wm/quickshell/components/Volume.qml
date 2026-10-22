@@ -52,13 +52,25 @@ BarWidget {
 
   BarIconButton {
     id: readout
+    contextMenu: function () {
+      return [
+        { label: "Audio panel", glyph: Util.volumeHigh, action: function () { PanelRegistry.toggle("audio", readout) } },
+        {
+          label: root.muted ? "Unmute" : "Mute",
+          glyph: root.muted ? Util.volumeMute : Util.volumeHigh,
+          action: function () { root.toggleMute() }
+        },
+        { separator: true },
+        { label: "Switch output", action: function () { Commands.run("audio-output-switch") } }
+      ]
+    }
     anchors.centerIn: parent
     text: root.glyph
     // Icon only; the level is in the tooltip and the OSD shows it while it changes.
     labelText: ""
     tooltipText: (root.sink ? root.sink.name : "No output")
       + (root.muted ? " · muted" : " · " + root.percent + "%")
-      + " · Super+Ctrl+A · right-click to mute · scroll to change"
+      + " · Super+Ctrl+A · right-click for menu · scroll to change"
 
     // Declared as an id rather than built inline: `Component { ... }` is an
     // object declaration, so it cannot be passed as a call argument.

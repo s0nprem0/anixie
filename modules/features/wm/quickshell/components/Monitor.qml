@@ -87,6 +87,10 @@ BarWidget {
 
   BarIconButton {
     id: readout
+    contextMenu: [
+      { label: "Brightness panel", glyph: Util.sun, action: function () { PanelRegistry.toggle("display", readout) } },
+      { label: "Displays panel", action: function () { PanelRegistry.toggle("displays", readout) } }
+    ]
     anchors.centerIn: parent
     text: Util.sun
     // Icon only; the level is in the tooltip and the OSD shows it while it changes.

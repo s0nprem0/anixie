@@ -81,6 +81,13 @@ BarWidget {
 
   BarIconButton {
     id: readout
+    contextMenu: [
+      { label: "Play or pause", glyph: Util.mediaPlay, action: function () { root.toggle() } },
+      { label: "Next track", glyph: Util.mediaNext, action: function () { root.next() } },
+      { label: "Previous track", glyph: Util.mediaPrevious, action: function () { root.previous() } },
+      { separator: true },
+      { label: "Media panel", glyph: Util.media, action: function () { PanelRegistry.toggle("media", readout) } }
+    ]
     anchors.centerIn: parent
     text: root.playing ? Util.glyph("f04c") : Util.glyph("f04b")
 

@@ -143,6 +143,9 @@ BarWidget {
 
   WidgetButton {
     id: readout
+    contextMenu: [
+      { label: "System panel", glyph: Util.cpu, action: function () { PanelRegistry.toggle("system", readout) } }
+    ]
     anchors.centerIn: parent
     text: ""
     hasVisualContent: true

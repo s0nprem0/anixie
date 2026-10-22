@@ -18,10 +18,12 @@ import "components"
 
 ShellRoot {
   // The desktop background. One layer-shell surface per output, on the
-  // Background layer so windows sit over it, with an empty input region so it
-  // never takes a click meant for the desktop. The path comes from the
-  // `wallpaper` command and changes crossfade in place; video wallpapers still
-  // go to awww, so this surface steps aside for them.
+  // Background layer so windows sit over it. It takes input only for the
+  // desktop context menu: the surface claims the pointer, but windows are above
+  // the background layer and keep theirs, and a left click still goes nowhere
+  // because the MouseArea accepts only the right button. The path comes from
+  // the `wallpaper` command and changes crossfade in place; video wallpapers
+  // still go to awww, so this surface steps aside for them.
   Variants {
     model: Quickshell.screens
 
@@ -39,7 +41,9 @@ ShellRoot {
 
       color: "transparent"
       exclusionMode: ExclusionMode.Ignore
-      mask: Region {}
+      mask: Region {
+        item: backgroundInput
+      }
       visible: !BackgroundHost.video
 
       WlrLayershell.layer: WlrLayer.Background
@@ -50,6 +54,24 @@ ShellRoot {
         anchors.fill: parent
         source: BackgroundHost.video ? "" : BackgroundHost.path
         revision: BackgroundHost.revision
+      }
+
+      MouseArea {
+        id: backgroundInput
+        anchors.fill: parent
+        acceptedButtons: Qt.RightButton
+        onClicked: function (mouse) {
+          ContextMenuHost.openAt([
+            { label: "Terminal", glyph: Util.keyboard, action: function () { Commands.run("kitty") } },
+            { label: "Files", glyph: Util.menu, action: function () { Commands.run("thunar") } },
+            { separator: true },
+            { label: "Theme picker", glyph: Util.sun, action: function () { Commands.run("theme") } },
+            { label: "Next theme", action: function () { Commands.run("theme next") } },
+            { separator: true },
+            { label: "Screen time & focus…", glyph: Util.clock, action: function () { Commands.run("screentime panel") } },
+            { label: "Lock", glyph: Util.lock, action: function () { Commands.run("quickshell ipc call lock lock") } }
+          ], backgroundInput, mouse.x, mouse.y)
+        }
       }
     }
   }

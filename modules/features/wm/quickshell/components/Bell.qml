@@ -30,6 +30,17 @@ BarWidget {
 
   BarIconButton {
     id: readout
+    contextMenu: function () {
+      return [
+        { label: "Notification history", glyph: Util.bell, action: function () { PanelRegistry.toggle("notifications", readout) } },
+        { label: "Replay last ten", action: function () { NotificationHost.replay() } },
+        { separator: true },
+        {
+          label: NotificationHost.doNotDisturb ? "Allow notifications" : "Silence notifications",
+          action: function () { NotificationHost.toggle() }
+        }
+      ]
+    }
 
     anchors.centerIn: parent
     text: Util.bell

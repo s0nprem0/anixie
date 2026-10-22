@@ -119,6 +119,10 @@ by its position from the left.
 Media, notifications and the forecast panel open from their widgets and have no
 key of their own.
 
+Right-click a bar widget for a small action menu; right-click the desktop for
+terminal, files, theme, screen-time and lock. Tray icons keep their own
+application menu (the app supplies it over DBusMenu).
+
 ## Themes
 
 `themes.json` holds ten colours per palette; everything else is derived.

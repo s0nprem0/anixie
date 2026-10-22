@@ -86,6 +86,10 @@ BarWidget {
   // the bars, not a font glyph.
   WidgetButton {
     id: readout
+    contextMenu: [
+      { label: "Network panel", glyph: Util.wifi, action: function () { PanelRegistry.toggle("network", readout) } },
+      { label: "Wi-Fi settings", action: function () { root.openSettings() } }
+    ]
     anchors.centerIn: parent
     keepSpace: true
     fixedWidth: Style.bar.iconSlot

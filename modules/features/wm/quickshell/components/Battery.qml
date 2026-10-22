@@ -60,13 +60,24 @@ BarWidget {
 
   BarIconButton {
     id: readout
+    contextMenu: function () {
+      return [
+        {
+          label: root.showPercent ? "Hide percentage" : "Show percentage",
+          action: function () { root.showPercent = !root.showPercent }
+        },
+        { separator: true },
+        { label: "Power panel", glyph: Util.bolt, action: function () { PanelRegistry.toggle("power", readout) } },
+        { label: "Session menu", glyph: Util.lock, action: function () { PanelRegistry.toggle("session", readout) } }
+      ]
+    }
     anchors.centerIn: parent
     text: root.charging ? Util.charging : root.glyph
     labelText: !root.vertical && root.showPercent ? root.level + "%" : ""
     active: root.charging
     foreground: root.level >= 0 && root.level <= 15 && !root.charging ? Theme.danger : Theme.fg
     tooltipText: (root.present ? "Battery " + root.level + "%" : "Battery")
-      + " · Super+Ctrl+P · right-click for the percentage"
+      + " · Super+Ctrl+P · right-click for menu"
 
     // The percentage is a toggle rather than permanent chrome: it costs a slot
     // on a 26px bar, and the panel carries the number when it is wanted.

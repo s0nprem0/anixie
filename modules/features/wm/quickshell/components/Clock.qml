@@ -204,6 +204,20 @@ BarWidget {
 
   WidgetButton {
     id: readout
+    contextMenu: function () {
+      return [
+        { label: "Calendar", glyph: Util.clock, action: function () { PanelRegistry.toggle("calendar", readout) } },
+        { label: "Clock timezone", action: function () { PanelRegistry.toggle("clock-zone", readout) } },
+        { separator: true },
+        {
+          label: root.altFormat ? "24-hour clock" : "12-hour clock",
+          action: function () {
+            root.altFormat = !root.altFormat
+            root.refresh()
+          }
+        }
+      ]
+    }
     anchors.centerIn: parent
     text: root.vertical || root.zone === ""
       ? root.stamp
@@ -212,7 +226,7 @@ BarWidget {
     centerFigures: false
     active: true
     useActiveColor: false
-    tooltipText: "Calendar · left-click for the month · right-click for the format"
+    tooltipText: "Calendar · left-click for the month · right-click for menu"
       + " · middle-click for the timezone"
       + (root.zone === "" ? "" : " · " + root.zone)
 

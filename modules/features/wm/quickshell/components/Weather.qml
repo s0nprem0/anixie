@@ -112,6 +112,10 @@ BarWidget {
   // so it is drawn as text, at the same size as the clock.
   WidgetButton {
     id: readout
+    contextMenu: [
+      { label: "Weather panel", glyph: Util.sun, action: function () { PanelRegistry.toggle("weather", readout) } },
+      { label: "Refresh", action: function () { root.refreshBar() } }
+    ]
     anchors.centerIn: parent
     text: root.temperature
     fontSize: Style.font.body

@@ -48,13 +48,22 @@ function detail(device) {
 
   BarIconButton {
     id: readout
+    contextMenu: function () {
+      return [
+        { label: "Bluetooth panel", glyph: Util.bluetooth, action: function () { PanelRegistry.toggle("bluetooth", readout) } },
+        {
+          label: root.powered ? "Turn Bluetooth off" : "Turn Bluetooth on",
+          action: function () { root.togglePower() }
+        }
+      ]
+    }
     anchors.centerIn: parent
     text: Util.bluetooth
     labelText: root.vertical || root.connectedCount === 0 ? "" : String(root.connectedCount)
     active: root.powered && root.connectedCount > 0
     dimmed: !root.powered
     tooltipText: !root.powered
-      ? "Bluetooth off · Super+Ctrl+B · right-click to turn on"
+      ? "Bluetooth off · Super+Ctrl+B · right-click for menu"
       : (root.connectedCount > 0
         ? root.connectedCount + " connected · Super+Ctrl+B"
         : "Bluetooth on · Super+Ctrl+B")

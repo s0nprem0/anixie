@@ -44,6 +44,12 @@ Item {
 
   property string tooltipText: ""
 
+  // Right-click entries: an array of { label, glyph, enabled, danger,
+  // separator, action } objects, or a function returning one when the entries
+  // depend on live state. Empty leaves the right button to the widget's own
+  // `pressed` handler, which is what every module did before this existed.
+  property var contextMenu: []
+
   signal pressed(int button)
   signal wheelMoved(int delta)
 
@@ -167,7 +173,18 @@ Item {
     onEntered: TooltipHost.show(root.tooltipText, root)
     onExited: TooltipHost.hide(root)
     onClicked: function (mouse) {
-      if (root.pressable) root.pressed(mouse.button)
+      if (!root.pressable) return
+
+      if (mouse.button === Qt.RightButton) {
+        const entries = typeof root.contextMenu === "function" ? root.contextMenu() : root.contextMenu
+        if (entries && entries.length > 0) {
+          TooltipHost.hide(root)
+          ContextMenuHost.open(entries, root)
+          return
+        }
+      }
+
+      root.pressed(mouse.button)
     }
     onWheel: function (wheel) {
       root.wheelMoved(wheel.angleDelta.y)
