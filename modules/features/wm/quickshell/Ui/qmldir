@@ -7,6 +7,10 @@ singleton BarDrag 1.0 BarDrag.qml
 singleton OsdHost 1.0 OsdHost.qml
 singleton BackgroundHost 1.0 BackgroundHost.qml
 BackgroundSurface 1.0 BackgroundSurface.qml
+singleton LockHost 1.0 LockHost.qml
+singleton IdleHost 1.0 IdleHost.qml
+Screensaver 1.0 Screensaver.qml
+LockSurface 1.0 LockSurface.qml
 singleton CapturePreview 1.0 CapturePreview.qml
 singleton NotificationHost 1.0 NotificationHost.qml
 singleton NotificationStore 1.0 NotificationStore.qml

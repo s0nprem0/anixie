@@ -855,7 +855,7 @@ in
 
     -- Lock is SUPER+CTRL+L. It used to share SUPER+SHIFT+A with the annotation
     -- bind, which is one key with two meanings and whichever fired last.
-    bind(mod .. " + CTRL + L", "Lock", "hyprlock")
+    bind(mod .. " + CTRL + L", "Lock", "quickshell ipc call lock lock")
 
     bind(mod .. " + SHIFT + R", "Reload config", "hyprctl reload")
 

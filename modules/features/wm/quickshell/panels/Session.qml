@@ -51,14 +51,14 @@ Item {
       label: "Lock"
       value: "Super+Ctrl+L"
       navigational: false
-      onClicked: root.run("hyprlock")
+      onClicked: root.run("quickshell ipc call lock lock")
     }
 
     PanelActionButton {
       width: card.contentWidth
       label: "Suspend"
       navigational: false
-      onClicked: root.run("systemctl suspend")
+      onClicked: root.run("quickshell ipc call lock suspend")
     }
 
     PanelActionButton {

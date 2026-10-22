@@ -54,30 +54,21 @@ nightlight_toggle() {
 
 # ---- idle lock ----
 #
-# The daemon is the switch: running means the screen will blank and lock on its
-# own, stopped means it will not. Nothing else tracks it, so there is nothing
-# that can disagree.
+# The shell owns the idle cycle now: its screensaver, blanking and lock timers
+# are one switch, exposed as the `idle` IPC target. hypridle remains only as the
+# pre-suspend guard, so the daemon is no longer the state to ask about.
 
 idle_state() {
-  if systemctl --user is-active --quiet hypridle; then
-    printf 'on'
-  else
-    printf 'off'
-  fi
+  local state
+  state=$("$quickshell" ipc call idle status 2>/dev/null) || state="off"
+  case "$state" in
+    on) printf 'on' ;;
+    *) printf 'off' ;;
+  esac
 }
 
 idle_toggle() {
-  if systemctl --user is-active --quiet hypridle; then
-    systemctl --user stop hypridle
-  else
-    systemctl --user start hypridle
-  fi
-  # Push the state that is now in force: "off" means the idle lock is off.
-  if systemctl --user is-active --quiet hypridle; then
-    "$quickshell" ipc call indicator idle on >/dev/null 2>&1 || true
-  else
-    "$quickshell" ipc call indicator idle off >/dev/null 2>&1 || true
-  fi
+  "$quickshell" ipc call idle toggle >/dev/null 2>&1 || die "the shell is not running"
 }
 
 # ---- do not disturb ----
@@ -101,9 +92,9 @@ dnd_toggle() {
 # ---- stay awake ----
 #
 # A logind inhibitor rather than another toggle of the same daemon. `idle` only
-# stops hypridle blanking and locking; closing the lid still suspends, and so
-# does an empty battery on the desktop's own policy. This one takes the sleep
-# class outright, for as long as it is running.
+# stops the shell's screensaver and lock timers; closing the lid still suspends,
+# and so does an empty battery on the desktop's own policy. This one takes the
+# sleep class outright, for as long as it is running.
 #
 # The inhibitor is a service rather than a backgrounded `sleep infinity`: an
 # inhibitor only exists while its process holds the lock, and one launched from

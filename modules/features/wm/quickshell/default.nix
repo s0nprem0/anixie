@@ -31,6 +31,10 @@ let
   # PATH (see Ui/PowerAlert.qml and the two placeholders below).
   powerAlert = pkgs.writeText "PowerAlert.qml" (render ./Ui/PowerAlert.qml);
 
+  # The lock screen needs fprintd-list and the hyprlock fallback by full path:
+  # the shell service's PATH is the user manager's, not the profile's.
+  lockHost = pkgs.writeText "LockHost.qml" (render ./Ui/LockHost.qml);
+
   # Quickshell resolves `import "components"` relative to the directory holding
   # shell.qml. Home Manager deploys every xdg.configFile entry as a separate
   # symlink, which would scatter the QML tree across the store, so the config is
@@ -40,6 +44,7 @@ let
     chmod -R u+w $out
     cp ${theme} $out/Theme.qml
     cp ${powerAlert} $out/Ui/PowerAlert.qml
+    cp ${lockHost} $out/Ui/LockHost.qml
     rm -f $out/default.nix
   '';
 in
@@ -75,6 +80,8 @@ in
       # action.
       "@NOTIFY_SEND@" = config.my.wm.notify.bin;
       "@QUICKSHELL@" = "${pkgs.quickshell}/bin/quickshell";
+      "@FPRINTD_LIST@" = "${pkgs.fprintd}/bin/fprintd-list";
+      "@HYPRLOCK@" = "${pkgs.hyprlock}/bin/hyprlock";
     };
 
     home.packages = [ pkgs.quickshell ];

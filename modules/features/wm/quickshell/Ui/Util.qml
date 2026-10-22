@@ -69,6 +69,9 @@ QtObject {
   // A key, for the indicator that says sudo is not asking for a password.
   readonly property string key: glyph("f084")
 
+  // The fingerprint reader on the lock screen.
+  readonly property string fingerprint: glyph("f577")
+
   // A laptop, for the indicator that says someone is logged in from elsewhere.
   readonly property string laptop: glyph("f109")
 

@@ -52,6 +52,40 @@ ShellRoot {
     }
   }
 
+  // The idle screensaver. It covers every output and takes the keyboard while it
+  // is up, so a key wakes it rather than reaching an application behind it. The
+  // compositor's session lock, not this, is the security boundary; this hides the
+  // desktop while the user is away and disappears on the first input.
+  Variants {
+    model: Quickshell.screens
+
+    delegate: PanelWindow {
+      required property var modelData
+      screen: modelData
+
+      implicitWidth: modelData.width
+      implicitHeight: modelData.height
+
+      anchors.top: true
+      anchors.bottom: true
+      anchors.left: true
+      anchors.right: true
+
+      color: "transparent"
+      exclusionMode: ExclusionMode.Ignore
+      visible: IdleHost.screensaverShown && !LockHost.locked
+
+      WlrLayershell.layer: WlrLayer.Overlay
+      WlrLayershell.namespace: "quickshell-screensaver"
+      WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+
+      Screensaver {
+        anchors.fill: parent
+        onWake: IdleHost.wake()
+      }
+    }
+  }
+
   // One bar per connected screen. `Variants` builds and destroys them as
   // displays come and go, and `screen: modelData` is what puts each copy on its
   // own output. Everything that hangs off a bar — panels, the curtain, drag and
@@ -485,6 +519,29 @@ ShellRoot {
     function set(path: string): string { BackgroundHost.set(path); return "ok" }
     function reload(): string { BackgroundHost.reload(); return "ok" }
     function current(): string { return BackgroundHost.path }
+  }
+
+  // The session lock and the idle cycle. `unlock` is deliberately available to
+  // the user's own processes: it is the recovery path from a TTY if the lock UI
+  // itself is misbehaving, and anyone who can run it already has the session.
+  IpcHandler {
+    target: "lock"
+
+    function lock(): string { LockHost.lock(); return "ok" }
+    function unlock(): string { LockHost.unlock(); return "ok" }
+    function suspend(): string { LockHost.lockAndSuspend(); return "ok" }
+    function fallback(): string { LockHost.fallbackLock(); return "ok" }
+    function status(): string { return LockHost.locked ? "locked" : "unlocked" }
+    function isLocked(): string { return LockHost.locked ? "true" : "false" }
+  }
+
+  IpcHandler {
+    target: "idle"
+
+    function status(): string { return IdleHost.enabled ? "on" : "off" }
+    function toggle(): string { return IdleHost.toggle() }
+    function on(): string { return IdleHost.setEnabled(true) }
+    function off(): string { return IdleHost.setEnabled(false) }
   }
 
   // The screenshot preview. Bottom right, over the desktop, gone on its own after

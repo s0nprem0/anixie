@@ -13,8 +13,9 @@ import Quickshell.Io
 // so the bar holds the answer instead of asking for it.
 //
 // Two things still have to be asked, and say why:
-//   - the system is asked once at startup, so a state set before the shell began
-//     is still right when it does;
+//   - the stay-awake inhibitor and the reminder count are asked once at startup,
+//     so a state set before the shell began is still right when it does. The idle
+//     lock is pushed by IdleHost, which owns it now;
 //   - the night light is re-read every 30 seconds, because hyprsunset changes the
 //     temperature on its own timetable (06:00 and 21:00 profiles) with nothing
 //     for the shell to hear. That one read is about 30ms every 30s.
@@ -26,7 +27,7 @@ QtObject {
   property int nightTemperature: 0
   readonly property bool nightlight: root.nightTemperature > 0 && root.nightTemperature < 6000
 
-  // The idle lock is off when the idle daemon is stopped.
+  // IdleHost pushes this: false means the idle lock is on.
   property bool idleStopped: false
 
   // Stay awake is on while its inhibitor is running.
@@ -60,14 +61,6 @@ QtObject {
     }
   }
 
-  // Exit non-zero when the unit is not active, which is the "off" reading.
-  property Process idleQuery: Process {
-    command: ["systemctl", "--user", "is-active", "hypridle"]
-    running: true
-    stdout: StdioCollector {
-      onStreamFinished: root.idleStopped = this.text.trim() !== "active"
-    }
-  }
 
   // Exit non-zero when the unit is not active, which is the "off" reading.
   property Process stayAwakeQuery: Process {
