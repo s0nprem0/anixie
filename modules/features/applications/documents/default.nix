@@ -12,7 +12,7 @@ in
   options.my.applications.documents.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
-    description = "Whether to install zathura (PDF reader) and xournalpp (PDF annotator).";
+    description = "Whether to install zathura (PDF reader, the default PDF handler) and xournalpp (PDF annotator).";
   };
 
   config = lib.mkIf cfg.enable {
@@ -22,5 +22,14 @@ in
       pkgs.zathura
       pkgs.xournalpp
     ];
+
+    # VectorCraft claims application/pdf in its desktop entry and Xournal++ does
+    # too, so without a stated default the winner is whichever entry is read
+    # first. Reading is the common case; xournalpp stays in Open With for the
+    # annotate case.
+    xdg.mimeApps = {
+      enable = true;
+      defaultApplications."application/pdf" = "org.pwmt.zathura.desktop";
+    };
   };
 }
