@@ -62,7 +62,12 @@ BarWidget {
   function applyStatus(text, error) {
     root.statusText = String(text || "").trim().split("\n")[0]
     root.lastError = String(error || "").trim().split("\n")[0]
-    root.running = root.statusText !== "" && !/not running/i.test(root.statusText)
+
+    // Depending on the release, the stopped message is "Dropbox isn't
+    // running!", "not running", or on stderr; test both streams and accept all
+    // of those spellings rather than treating any non-empty output as running.
+    const detail = (root.statusText + " " + root.lastError).toLowerCase()
+    root.running = detail.trim() !== "" && !/(isn'?t|not) running|stopped/.test(detail)
   }
 
   function applyRecent(text) {

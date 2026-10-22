@@ -38,6 +38,7 @@ BarWidget {
   property var accounts: []
   property var taildropTargets: []
   property bool busy: false
+  property bool detailsPending: false
   property string lastError: ""
 
   readonly property string stateLabel: root.needsLogin
@@ -75,24 +76,32 @@ BarWidget {
 
     status.running = false
     status.running = true
+  }
+
+  // Accounts and Taildrop targets only feed the panel, so they are read when it
+  // opens (and after an action that can change them) rather than on every
+  // status poll. The status process itself still runs on the bar's interval.
+  function refreshDetails() {
+    if (!root.installed) return
     if (!accounts.running) accounts.running = true
     if (!targets.running) targets.running = true
   }
 
-  function refreshSoon() {
+  function refreshSoon(details) {
     root.busy = true
+    if (details) root.detailsPending = true
     root.refreshTimer.restart()
   }
 
   function connect() {
     Commands.runQuoted("tailscale", [root.running ? "down" : "up"])
-    root.refreshSoon()
+    root.refreshSoon(true)
   }
 
   function switchAccount(id) {
     if (String(id) === "") return
     Commands.runQuoted("tailscale", ["switch", String(id)])
-    root.refreshSoon()
+    root.refreshSoon(true)
   }
 
   function setExitNode(ip) {
@@ -120,10 +129,12 @@ BarWidget {
   function apply(raw) {
     try {
       const data = JSON.parse(String(raw || "{}"))
+      const wasRunning = root.running
       root.backend = String(data.BackendState || "Unknown")
       root.running = root.backend === "Running"
       root.needsLogin = root.backend === "NeedsLogin" || root.backend === "NeedsMachineAuth"
       root.lastError = ""
+      if (!wasRunning && root.running) root.refreshDetails()
 
       const self = data.Self || {}
       root.selfHost = String(self.HostName || "")
@@ -269,6 +280,10 @@ BarWidget {
     onTriggered: {
       root.busy = false
       root.refresh()
+      if (root.detailsPending) {
+        root.detailsPending = false
+        root.refreshDetails()
+      }
     }
   }
 
@@ -334,6 +349,11 @@ BarWidget {
     Panel {
       id: card
       title: ""
+
+      Component.onCompleted: {
+        root.refreshDetails()
+        root.refresh()
+      }
 
       PanelHero {
         width: card.contentWidth

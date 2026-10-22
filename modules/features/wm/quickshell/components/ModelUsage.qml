@@ -39,7 +39,10 @@ BarWidget {
     if (!root.data) return ""
     if (root.opencode && Number(root.opencode.cost) > 0) return "$" + root.opencode.cost
     if (root.opencode && String(root.opencode.input) !== "0") return String(root.opencode.input)
-    if (root.claude) return root.formatCount(Number(root.claude.input) + Number(root.claude.output))
+    if (root.claude) {
+      const total = Number(root.claude.input) + Number(root.claude.output)
+      return root.formatCount(total > 0 ? total : Number(root.claude.cache))
+    }
     return ""
   }
 

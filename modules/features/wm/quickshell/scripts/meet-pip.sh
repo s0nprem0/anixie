@@ -14,7 +14,7 @@ set -eu
 hyprctl="${HYPRCTL:-hyprctl}"
 jq="${JQ:-jq}"
 mode="${1:-toggle}"
-match="Meet|meet\\.google\\.com"
+match="(^|[^A-Za-z0-9_])Meet([^A-Za-z0-9_]|$)|meet\\.google\\.com"
 
 clients=$("$hyprctl" clients -j 2>/dev/null || printf '[]')
 entry=$(
@@ -86,10 +86,25 @@ restore() {
   "$hyprctl" dispatch moveactive exact "$saved_x" "$saved_y" >/dev/null
 }
 
+state_is_valid() {
+  "$jq" -e '
+    (.address | type == "string") and
+    (.x | type == "number") and
+    (.y | type == "number") and
+    (.width | type == "number") and (.width > 0) and
+    (.height | type == "number") and (.height > 0) and
+    (.floating | type == "boolean") and
+    (.pinned | type == "boolean")
+  ' "$1" >/dev/null 2>&1
+}
+
 # A stale state file is from a window that has since closed or been restarted;
-# drop it rather than restoring geometry onto an unrelated window.
+# drop it rather than restoring geometry onto an unrelated window. A corrupt
+# file must also be discarded here: otherwise every toggle fails before it can
+# overwrite the state.
 if [ -f "$state_file" ]; then
-  if [ "$("$jq" -r '.address // empty' "$state_file" 2>/dev/null || true)" = "$address" ]; then
+  if state_is_valid "$state_file" \
+    && [ "$("$jq" -r '.address // empty' "$state_file" 2>/dev/null || true)" = "$address" ]; then
     restore "$state_file"
     rm -f "$state_file"
     exit 0
