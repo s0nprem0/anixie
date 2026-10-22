@@ -5,6 +5,8 @@ singleton Commands 1.0 Commands.qml
 singleton Bar 1.0 Bar.qml
 singleton BarDrag 1.0 BarDrag.qml
 singleton OsdHost 1.0 OsdHost.qml
+singleton BackgroundHost 1.0 BackgroundHost.qml
+BackgroundSurface 1.0 BackgroundSurface.qml
 singleton CapturePreview 1.0 CapturePreview.qml
 singleton NotificationHost 1.0 NotificationHost.qml
 singleton NotificationStore 1.0 NotificationStore.qml

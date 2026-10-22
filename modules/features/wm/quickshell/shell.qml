@@ -17,6 +17,41 @@ import "Ui"
 import "components"
 
 ShellRoot {
+  // The desktop background. One layer-shell surface per output, on the
+  // Background layer so windows sit over it, with an empty input region so it
+  // never takes a click meant for the desktop. Replaces awww: the path comes
+  // from the `wallpaper` command and changes crossfade in place.
+  Variants {
+    model: Quickshell.screens
+
+    delegate: PanelWindow {
+      required property var modelData
+      screen: modelData
+
+      implicitWidth: modelData.width
+      implicitHeight: modelData.height
+
+      anchors.top: true
+      anchors.bottom: true
+      anchors.left: true
+      anchors.right: true
+
+      color: "transparent"
+      exclusionMode: ExclusionMode.Ignore
+      mask: Region {}
+
+      WlrLayershell.layer: WlrLayer.Background
+      WlrLayershell.namespace: "quickshell-background"
+      WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+
+      BackgroundSurface {
+        anchors.fill: parent
+        source: BackgroundHost.path
+        revision: BackgroundHost.revision
+      }
+    }
+  }
+
   // One bar per connected screen. `Variants` builds and destroys them as
   // displays come and go, and `screen: modelData` is what puts each copy on its
   // own output. Everything that hangs off a bar — panels, the curtain, drag and
@@ -440,6 +475,16 @@ ShellRoot {
     function show(payload: string): string { OsdHost.showPayload(payload); return "ok" }
     function close(): string { OsdHost.hide(); return "ok" }
     function state(): string { return OsdHost.opened ? "open" : "closed" }
+  }
+
+  // The wallpaper path, for the `wallpaper` command and for scripts. Setting it
+  // writes the state file too, so a change made here survives a shell restart.
+  IpcHandler {
+    target: "background"
+
+    function set(path: string): string { BackgroundHost.set(path); return "ok" }
+    function reload(): string { BackgroundHost.reload(); return "ok" }
+    function current(): string { return BackgroundHost.path }
   }
 
   // The screenshot preview. Bottom right, over the desktop, gone on its own after

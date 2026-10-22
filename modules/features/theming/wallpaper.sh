@@ -15,6 +15,10 @@
 #   wallpaper apply      re-apply the saved choice (run at login)
 #   wallpaper current    which background is in use
 #
+# The shell draws the wallpaper on its own background layer. This command only
+# decides which file that is: it writes the resolved path for a shell that starts
+# later, and tells a running one over IPC so the change crossfades now.
+#
 # The choice is remembered per theme, so switching away and back restores it.
 # Backgrounds live beside the other user data, not in ~/.config, which Home
 # Manager owns read-only — the same reason the theme state does.
@@ -26,8 +30,7 @@ PALETTES="@PALETTES@"
 DEFAULT_THEME="@DEFAULT_THEME@"
 JQ="@JQ@"
 MAGICK="@MAGICK@"
-AWWW="@AWWW@"
-AWWW_DAEMON="@AWWW_DAEMON@"
+QUICKSHELL="@QUICKSHELL@"
 WIDTH="@WIDTH@"
 HEIGHT="@HEIGHT@"
 
@@ -79,6 +82,7 @@ generate() {
     \( -size "${WIDTH}x${HEIGHT}" radial-gradient:none-"$primary" \
     -alpha set -channel A -evaluate multiply 0.10 +channel \) \
     -compose over -composite \
+    -depth 8 \
     "$GENERATED"
 }
 
@@ -91,16 +95,13 @@ apply() {
     img="$choice"
   fi
 
-  # The daemon is started by Hyprland, but the login-time apply can beat it. Start
-  # it here when it is missing rather than leave the first login without a
-  # wallpaper until the next theme change.
-  if ! pgrep -x awww-daemon >/dev/null 2>&1; then
-    "$AWWW_DAEMON" >/dev/null 2>&1 &
-    sleep 1
-  fi
+  mkdir -p "$STATE"
+  printf '%s\n' "$img" >"$STATE/background"
 
-  "$AWWW" img "$img" --transition-type grow --transition-duration 1 2>/dev/null ||
-    "$AWWW" img "$img" 2>/dev/null || true
+  # Silent when the shell is not up: the login service and the shell both start
+  # at graphical-session.target, so the file above is what the shell reads when
+  # it wins the race.
+  "$QUICKSHELL" ipc call background set "$img" >/dev/null 2>&1 || true
 }
 
 remember() {

@@ -222,9 +222,9 @@ in
         hide_special_on_workspace_change = true;
       };
 
-      -- awww draws the wallpaper; Hyprland's own default would flash over it.
-      -- The logo and splash are off for the same reason: awww is already up by
-      -- the time the first frame is drawn.
+      -- The shell draws the wallpaper on its background layer; Hyprland's own
+      -- default would flash over it. The logo and splash are off for the same
+      -- reason: the shell is already up by the time the first frame is drawn.
       misc = {
         force_default_wallpaper = 0;
         disable_hyprland_logo = true;
@@ -327,13 +327,6 @@ in
       -- Named explicitly rather than importing the whole environment, which
       -- would drag every variable Hyprland happens to be carrying along.
       hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE")
-
-      -- awww-daemon aborts with SIGABRT if a second instance finds the socket
-      -- already taken, and it re-runs whenever Hyprland reloads its config, so
-      -- only start it when it is not already up. Matched on the process name
-      -- rather than the full command line: pgrep -f would match the shell
-      -- running this very line and the guard would never start anything.
-      hl.exec_cmd("pgrep awww-daemon > /dev/null || awww-daemon")
     end)
 
     -- ------------------------------------------------------------------
