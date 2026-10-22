@@ -463,6 +463,26 @@ in
       no_dim = true,
     })
 
+    -- File choosers are dialogs for the app that opened them, not documents
+    -- to tile beside it. Match the portal classes as well as the titles GTK
+    -- and Qt put on their choosers: an app can draw the dialog in its own
+    -- process, in which case the class is the parent's and only the title
+    -- identifies it.
+    hl.window_rule({
+      name = "file-chooser-float",
+      match = {
+        class = "^(xdg-desktop-portal-gtk|xdg-desktop-portal-kde)$",
+      },
+      float = true,
+    })
+    hl.window_rule({
+      name = "file-chooser-title-float",
+      match = {
+        title = "^(Open|Save) Files?$|^Save As$|^(Open|Select) Folder$|^Choose Files?$|^Select File$",
+      },
+      float = true,
+    })
+
     hl.on("layer.closed", function(layer)
       -- namespace is read off the layer rather than assumed: indexing nil raises
       -- inside the callback, and an event handler that dies silently is worse
