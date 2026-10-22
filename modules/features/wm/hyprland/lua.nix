@@ -847,9 +847,6 @@ in
 
     -- ------------------------------------------------------------------
     -- Session
-    -- SHIFT + M is the graceful logout: it prefers a shutdown helper when one
-    -- exists and falls back to a plain compositor exit.
-    -- ------------------------------------------------------------------
     -- The session menu rather than a bare exit: locking, sleeping and leaving
     -- belong on one key, and the two that lose something ask first.
     bind(mod .. " + M", "Session menu", "quickshell ipc call panel toggle session")

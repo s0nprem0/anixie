@@ -5,10 +5,12 @@ import "../Ui"
 // What the power key should open: lock, sleep, or leave — with the three that
 // lose something asking first.
 //
-// The commands go to logind rather than to the compositor. `hyprctl dispatch
-// exit` ends the session by killing the thing that draws it, which is the wrong
-// tool when the reason you are reaching for "log out" is that the compositor is
-// stuck. systemctl and loginctl work from outside it.
+// Log out asks the compositor to exit, not logind to terminate the session.
+// `loginctl terminate-session` kills Hyprland with SIGTERM instead of letting it
+// shut down, which makes the display manager's session helper crash and leaves
+// the machine on a black screen with no greeter. `hyprctl dispatch exit` is the
+// clean path back to GDM. The logind call stays behind it as a fallback for a
+// compositor that is stuck and cannot answer hyprctl.
 Item {
   id: root
 
@@ -64,7 +66,7 @@ Item {
       label: "Log out"
       navigational: false
       onClicked: root.ask(
-        'loginctl terminate-session "$XDG_SESSION_ID"',
+        "hyprctl dispatch 'hl.dsp.exit()' || loginctl terminate-session \"$XDG_SESSION_ID\"",
         "Log out of this session?",
         "Everything open will be closed.")
     }
