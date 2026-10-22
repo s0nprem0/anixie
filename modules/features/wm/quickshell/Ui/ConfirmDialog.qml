@@ -31,13 +31,28 @@ Item {
 
   visible: false
 
+  // The control that had the keyboard before the dialog took it. Restored after
+  // closing, so cancelling a confirmation does not leave the panel deaf to the
+  // arrow keys that were working a moment ago.
+  property Item previousFocus: null
+
   function open() {
+    const win = root.Window && root.Window.window ? root.Window.window : null
+    root.previousFocus = win ? win.activeFocusItem : null
     root.visible = true
     card.forceActiveFocus()
   }
 
   function close() {
     root.visible = false
+    const target = root.previousFocus
+    root.previousFocus = null
+    if (!target) return
+    // After the dialog is hidden, not before: making the focused card invisible
+    // moves the active focus itself, and would undo a restore done here.
+    Qt.callLater(function () {
+      if (target && target.visible) target.forceActiveFocus()
+    })
   }
 
   implicitWidth: 0
@@ -47,11 +62,22 @@ Item {
     id: scrim
     anchors.fill: parent
     color: Qt.rgba(0, 0, 0, 0.45)
+
+    // A scrim that only paints is not a scrim: without a handler the click
+    // falls through to the panel underneath and hits whatever row was behind
+    // the confirmation. Accept the click and do nothing with it.
+    MouseArea {
+      anchors.fill: parent
+      acceptedButtons: Qt.AllButtons
+    }
   }
 
   Rectangle {
     id: card
-    width: Style.space(340)
+    // A confirmation belongs to the panel that opened it, and the session panel
+    // is narrower than the dialog's preferred width. Cap it to the box instead
+    // of letting it hang over the screen edge.
+    width: Math.min(Style.space(340), parent.width - Style.space(20))
     height: cardColumn.implicitHeight + Style.space(20) * 2
     radius: Theme.cornerRadius
     color: Theme.surface
@@ -69,6 +95,14 @@ Item {
     Keys.onReturnPressed: {
       root.confirmed()
       root.close()
+    }
+
+    // The card's own background has no controls, but a click on it must not
+    // reach the row underneath. The buttons are declared after this area, so
+    // they stay on top and keep their own clicks.
+    MouseArea {
+      anchors.fill: parent
+      acceptedButtons: Qt.AllButtons
     }
 
     Column {
