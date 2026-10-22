@@ -15,6 +15,10 @@ Item {
 
   readonly property var leaders: ScreentimeStore.topApps(5)
 
+  // PanelRow's height grows with the text-size setting, so the list's explicit
+  // height has to grow with it. A fixed 20 works only at the default size.
+  readonly property int rowHeight: Math.max(20, Style.font.body + 8)
+
   Panel {
     id: card
     anchors.fill: parent
@@ -31,6 +35,14 @@ Item {
     PanelSectionHeader {
       width: card.contentWidth
       label: "TODAY"
+    }
+
+    PanelRow {
+      width: card.contentWidth
+      label: "Now"
+      value: ScreentimeStore.idleNow
+        ? "Idle"
+        : (ScreentimeStore.currentApp === "" ? "—" : ScreentimeStore.appLabel(ScreentimeStore.currentApp))
     }
 
     PanelRow {
@@ -61,9 +73,9 @@ Item {
     // The Repeater needs an explicit height: its delegates do not reliably feed
     // a Panel's content column (the notifications panel learned the same
     // lesson), and an unmeasured list makes the card short enough to hide it.
-    Item {
+    Column {
       width: card.contentWidth
-      height: root.leaders.length * 20
+      height: root.leaders.length * root.rowHeight
 
       Repeater {
         model: root.leaders
@@ -71,6 +83,7 @@ Item {
         delegate: PanelRow {
           required property var modelData
           width: parent.width
+          height: root.rowHeight
           label: ScreentimeStore.appLabel(modelData.app)
           value: ScreentimeStore.formatDuration(modelData.seconds)
         }
@@ -138,7 +151,17 @@ Item {
       label: "Reset today"
       danger: true
       navigational: false
-      onClicked: ScreentimeStore.reset()
+      onClicked: confirmReset.open()
     }
+  }
+
+  ConfirmDialog {
+    id: confirmReset
+    anchors.fill: parent
+    text: "Reset screen time?"
+    detail: "Today's totals and per-app breakdown will be cleared. Focus mode is not affected."
+    confirmText: "Reset"
+    danger: true
+    onConfirmed: ScreentimeStore.reset()
   }
 }

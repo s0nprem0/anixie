@@ -7,9 +7,10 @@
 #   screentime path       where today's file lives
 #   screentime panel      open the shell's screen-time/focus panel
 #
-# The shell (Ui/ScreentimeStore.qml) does the tracking. This reads the file it
-# writes, so it works even when the shell is restarting, and uses the shell's
-# IPC only for the reset that has to clear the live counters too.
+# The shell (Ui/ScreentimeStore.qml) does the tracking. It prefers the shell's
+# live counters over IPC and falls back to the file the shell writes when it is
+# restarting, so the summary is current while the shell is up and still works
+# while it is not.
 set -eu
 
 state="@STATE@"
@@ -18,6 +19,22 @@ quickshell="@QUICKSHELL@"
 
 day=$(date +%F)
 file="$state/$day.json"
+
+# The shell holds the live counters; the file is the last flush, up to a
+# minute old. Prefer the call when the shell answers with an object, and fall
+# back to the file when it is restarting.
+data() {
+  live=$("$quickshell" ipc call screentime status 2>/dev/null || true)
+  if [ -n "$live" ] && printf '%s' "$live" | "$jq" -e 'type == "object"' >/dev/null 2>&1; then
+    printf '%s' "$live"
+    return 0
+  fi
+  if [ -s "$file" ]; then
+    cat "$file"
+    return 0
+  fi
+  return 1
+}
 
 format_seconds() {
   total=${1:-0}
@@ -49,26 +66,27 @@ USAGE
 case "${1:-show}" in
   -h | --help) usage ;;
   "" | show)
-    if [ ! -s "$file" ]; then
+    if ! payload=$(data); then
       printf 'No screen time recorded today.\n'
       exit 0
     fi
-    active=$("$jq" -r '.active // 0' "$file" 2>/dev/null || echo 0)
-    idle=$("$jq" -r '.idle // 0' "$file" 2>/dev/null || echo 0)
+    active=$(printf '%s' "$payload" | "$jq" -r '.active // 0' 2>/dev/null || echo 0)
+    idle=$(printf '%s' "$payload" | "$jq" -r '.idle // 0' 2>/dev/null || echo 0)
     printf 'date:   %s\n' "$day"
     printf 'active: %s\n' "$(format_seconds "$active")"
     printf 'idle:   %s\n' "$(format_seconds "$idle")"
     printf 'total:  %s\n' "$(format_seconds "$((active + idle))")"
     printf '\napps:\n'
-    "$jq" -r '.apps // {} | to_entries | sort_by(-.value) | .[:8][] | "\(.value)\t\(.key)"' "$file" 2>/dev/null |
+    printf '%s' "$payload" |
+      "$jq" -r '.apps // {} | to_entries | sort_by(-.value) | .[:8][] | "\(.value)\t\(.key)"' 2>/dev/null |
       while IFS="$(printf '\t')" read -r seconds app; do
         [ -n "$app" ] || continue
         printf '  %-10s %s\n' "$(format_seconds "$seconds")" "$app"
       done
     ;;
   json)
-    if [ -s "$file" ]; then
-      cat "$file"
+    if payload=$(data); then
+      printf '%s\n' "$payload"
     else
       printf '{"date":"%s","apps":{},"idle":0,"active":0}\n' "$day"
     fi

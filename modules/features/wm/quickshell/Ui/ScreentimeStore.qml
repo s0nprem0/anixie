@@ -31,7 +31,19 @@ QtObject {
   property int secondsSinceSave: 0
 
   readonly property int totalSeconds: root.activeSeconds + root.idleSeconds
-  readonly property string todayLabel: root.day
+  readonly property bool idleNow: root.monitor.isIdle || LockHost.locked
+
+  // The file name is an ISO date because that is what sorts and what the CLI
+  // reads; the panel should not make a person parse that. Built by hand rather
+  // than with Intl, which the QML JS engine does not guarantee.
+  readonly property string todayLabel: {
+    const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    const months = ["January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"]
+    const date = new Date(root.day + "T12:00:00")
+    if (isNaN(date.getTime())) return root.day
+    return weekdays[date.getDay()] + ", " + months[date.getMonth()] + " " + date.getDate()
+  }
 
   function localDay(date) {
     const d = date || new Date()
@@ -151,7 +163,9 @@ QtObject {
   }
 
   property IdleMonitor monitor: IdleMonitor {
-    timeout: 60
+    // 30 seconds, not 60: the first minute of a break used to be credited to
+    // the last app before the idle monitor tripped.
+    timeout: 30
     respectInhibitors: true
   }
 
