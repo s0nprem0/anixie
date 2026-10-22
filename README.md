@@ -45,7 +45,7 @@ modules/system/           NixOS side: users, audio, network, boot, lock, snapsho
 modules/features/         per-user side
   applications/           packaged apps, one directory each
   cli/                    the `anixie` front door
-  power/                  power profiles per source
+  power/                  power profiles per source, battery thresholds
   shell/                  zsh, git, helix, kitty, yazi, tools
   theming/                palettes, templates, and the commands that apply them
   wm/                     Hyprland, Quickshell, capture, clipboard, picker, toggles
@@ -137,10 +137,12 @@ reproducible and what stops a runtime write — so they follow on the next rebui
 ## Everything else
 
 ```
-anixie shot [smart|region|windows|fullscreen] [copy|save|annotate]
+anixie shot [smart|region|windows|fullscreen|scroll] [copy|save|annotate|redact|text]
 anixie record                       # screen recording, webcam overlay, transcode
 anixie clipboard | emoji | menu | pick | reminder
 anixie toggle [dnd|idle|nightlight|stayawake]
+anixie focus start 25 | stop | extend 15 | status
+anixie screentime [show|json|reset|path|panel]
 notify -G f017 --exec "…" SUMMARY [BODY]   # a toast with a glyph and a click action
 anixie display …                    # monitors: scale, mirror, status
 anixie power …                      # profile for AC or battery
@@ -151,9 +153,54 @@ anixie webapp add NAME URL          # a site as an application
 OCR is `capture-text` (`Super+Ctrl+Print`): drag a region, the text is on the
 clipboard.
 
+`shot scroll` selects a region, pages down with Page Down, and stitches the
+frames, stopping when the view stops moving. `shot smart redact` opens satty
+with the blur tool, and `shot smart text` with the text tool.
+
+## Screen time, focus and battery
+
+Screen time is tracked in the shell from the focused toplevel and the idle
+monitor, and written one JSON file per day under
+`~/.local/state/anixie/screentime`. The bar's screen-time clock opens the
+breakdown; `anixie screentime` prints it, and `screentime panel` opens the panel
+(adding the widget to a saved bar layout that predates it).
+
+`anixie focus start 25` closes the app classes listed in
+`features.wm.focus.blockedClasses`, silences notifications, and shows a
+countdown indicator. The state survives a shell restart; `focus stop` puts the
+previous notification setting back. `Super+Ctrl+F` starts a 25-minute block and
+`Super+Ctrl+Shift+F` stops one.
+
+While on battery, the power watcher dims the screen and steps down the profile
+at 20% and again at 8%, restoring the brightness you had when mains returns.
+The thresholds, profiles and brightness levels are
+`features.power.batteryAutomation` options.
+
+## Secrets and disk encryption
+
+sops-nix is wired but off by default. To use it:
+
+```sh
+mkdir -p ~/.config/sops/age
+age-keygen -o ~/.config/sops/age/keys.txt   # public key is printed
+cp .sops.yaml.example .sops.yaml            # put the public key in it
+sops secrets/secrets.yaml                   # add the keys named in the module
+```
+
+Then set `my.secrets.enable = true` and declare the files under
+`my.secrets.secrets`. The age key stays outside the store; only the encrypted
+`secrets/secrets.yaml` is committed.
+
+The machine is **not encrypted**. LUKS cannot be added to a running root
+filesystem declaratively: back up, reinstall with LUKS, and then pin the device
+with `my.security.luks` (see `modules/system/encryption.nix`) or let
+`nixos-generate-config` write the `boot.initrd.luks.devices` entry. Enabling that
+module on an unencrypted root makes the machine unbootable.
+
 ## Things worth knowing
 
-- **No disk encryption.** A fresh install decision that is still open.
+- **No disk encryption yet.** Adding it needs a reinstall; see the secrets and
+  encryption section above.
 - **sudo asks for a password**; `wheelNeedsPassword = false` is one line away if
   a rebuild prompt is worse than the risk.
 - **The Craft Apps run under XWayland** — Wayland has no native file
