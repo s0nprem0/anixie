@@ -92,6 +92,13 @@ Widgets are looked up in `ModuleRegistry`, then in `modules.json` — a widget i
 section, a source file and optional settings, so one the default layout does not
 show is one line in the manifest rather than a code change.
 
+The weather follows the machine's IP unless its entry names a place. A city,
+postcode or `"lat,lon"` in `location` pins it instead, which is what a VPN needs:
+
+```json
+{ "id": "bar.weather", "interval": 1800, "location": "Malibu, CA" }
+```
+
 ## Panels
 
 One per widget, opening under it, several at once. Arrows walk the controls,

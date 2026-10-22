@@ -7,10 +7,11 @@ import Quickshell.Io
 // Weather: the current temperature in the bar, and a three-day forecast behind a
 // click.
 //
-// The reading comes from the same wttr.in geolocation the old bar module used, so
-// there is still nothing to configure. What changes is where the data goes: the
-// bar half asks wttr.in for the three values it draws, and the forecast half asks
-// for the full document and trims it, rather than one script printing both.
+// The reading comes from wttr.in, in the place named by `location` in this
+// widget's bar.json entry. Left out or empty, wttr.in geolocates the requestor by
+// IP, as it always did. What changes is where the data goes: the bar half asks
+// wttr.in for the three values it draws, and the forecast half asks for the full
+// document and trims it, rather than one script printing both.
 //
 // The temperature is written to a property from a Process result rather than
 // through a text binding for the same reason the clock is: a binding reading no
@@ -23,15 +24,35 @@ BarWidget {
   id: root
 
   // Reachable by hotkey as well as by click.
-  Component.onCompleted: PanelRegistry.register("weather", readout, forecastPanel)
+  Component.onCompleted: {
+    PanelRegistry.register("weather", readout, forecastPanel)
+    root.ready = true
+  }
+
+  // The entry is handed over after the module is built, so a change handler on
+  // `location` can fire before the Processes below exist.
+  property bool ready: false
 
   readonly property int interval: Number(root.setting("interval", 1800)) * 1000
+
+  // A city, postcode or "LAT,LON", as wttr.in accepts them. Empty means IP
+  // geolocation, which is what a VPN makes wrong — hence the override.
+  readonly property string location: String(root.setting("location", "")).trim()
 
   property string temperature: ""
   property string conditions: ""
 
   // The forecast, held as the parsed object once a request lands.
   property var forecast: null
+
+  // The location arrives with the bar.json entry after the module is built, so
+  // the first request may already be running on IP geolocation. Fetch again when
+  // it changes rather than waiting out the half-hour timer.
+  onLocationChanged: {
+    if (!root.ready) return
+    root.refreshBar()
+    if (root.forecast !== null) root.refreshForecast()
+  }
 
   // Whether a forecast request is in flight, so the panel can say it is looking
   // rather than that there is nothing — the two look identical otherwise, and a
@@ -106,7 +127,7 @@ BarWidget {
 
   Process {
     id: barQuery
-    command: ["sh", Quickshell.env("HOME") + "/.config/quickshell/scripts/weather-forecast.sh", "bar"]
+    command: ["sh", Quickshell.env("HOME") + "/.config/quickshell/scripts/weather-forecast.sh", "bar", root.location]
     running: true
     stdout: StdioCollector {
       onStreamFinished: root.applyBar(this.text)
@@ -115,7 +136,7 @@ BarWidget {
 
   Process {
     id: forecastQuery
-    command: ["sh", Quickshell.env("HOME") + "/.config/quickshell/scripts/weather-forecast.sh", "forecast"]
+    command: ["sh", Quickshell.env("HOME") + "/.config/quickshell/scripts/weather-forecast.sh", "forecast", root.location]
     stdout: StdioCollector {
       onStreamFinished: {
         root.applyForecast(this.text)

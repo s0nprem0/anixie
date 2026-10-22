@@ -30,7 +30,8 @@
       },
       {
         "id": "bar.weather",
-        "interval": 1800
+        "interval": 1800,
+        "location": ""
       },
       {
         "id": "bar.update",
