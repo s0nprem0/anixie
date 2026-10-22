@@ -8,6 +8,7 @@
     ./audio.nix
     ./fonts.nix
     ./firmware.nix
+    ./gaming.nix
     ./craftapps.nix
     ./users.nix
     ./auth.nix

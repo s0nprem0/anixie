@@ -6,6 +6,7 @@
     ./claude
     ./documents
     ./files
+    ./gaming
     ./media
     ./craftapps
     ./printer

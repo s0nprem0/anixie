@@ -176,6 +176,17 @@ at 20% and again at 8%, restoring the brightness you had when mains returns.
 The thresholds, profiles and brightness levels are
 `features.power.batteryAutomation` options.
 
+## Gaming
+
+`my.gaming` installs Steam and enables GameMode; `my.applications.gaming` adds
+gamescope, mangohud, protonup-qt, and (by default) Lutris, Heroic and RetroArch.
+Steam is a system package because Proton and older titles need 32-bit graphics,
+which `hardware.graphics.enable32Bit` turns on.
+
+Steam launch options: `mangohud %command%` for the overlay, `gamescope --
+%command%` for compositing. Remote Play and a gamescope session are off by
+default (`my.gaming.steam.remotePlay`, `my.gaming.steam.gamescopeSession`).
+
 ## Secrets and disk encryption
 
 sops-nix is wired but off by default. To use it:
