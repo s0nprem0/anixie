@@ -13,6 +13,12 @@
     noto-fonts
     noto-fonts-color-emoji
 
+    # Microsoft's fonts: the core set (Arial, Times New Roman, Courier New) that
+    # old documents and the web still assume, plus the Vista/Office families
+    # (Calibri, Cambria, Consolas) that modern .docx and .pptx files specify.
+    corefonts
+    vista-fonts
+
     # Other patched families, for the applications that let you choose: a
     # proportional one for prose, a condensed one for terminals, and the ones
     # that read better at small sizes.
