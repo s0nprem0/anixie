@@ -91,11 +91,15 @@ message="${*:-Reminder}"
 # runs as a service under the user manager, which does not necessarily carry
 # the invoking shell's path, and systemd-run resolves the command before the
 # timer is even created.
+# The app name is not decoration: NotificationHost trusts it through
+# do-not-disturb, the same way it trusts the screenshot and recording
+# confirmations, so a reminder the user set still speaks when the desktop is
+# silenced.
 systemd-run --user --quiet \
   --unit="$prefix-$(date +%s)-$$" \
   --description="Reminder: $message" \
   --on-active="${minutes}min" \
-  "@NOTIFY_SEND@" "Reminder" "$message"
+  "@NOTIFY_SEND@" -a reminders "Reminder" "$message"
 
 push_count
 

@@ -34,6 +34,11 @@ QtObject {
   readonly property string liveDir: root.stateDir + "/live"
   readonly property string historyDir: root.stateDir + "/history"
 
+  // Copies of images that a notification references, because the sender's own
+  // file does not outlive it. Named after the JSON entry's stem, so pruning an
+  // entry can remove the copy without reading the JSON.
+  readonly property string imagesDir: root.stateDir + "/images"
+
   // Bounded because nothing collects the files on its own, and a list nobody
   // scrolls to the end of is not worth unbounded disk.
   readonly property int historyLimit: 50
@@ -52,10 +57,68 @@ QtObject {
   // carry the timestamp too, and ids are reused by later notifications.
   property var live: ({})
 
+  // ---- images ----
+  //
+  // A sender's image only exists while it is live: web apps delete their scoped
+  // /tmp files when they close, and an image:// URL dies with the server object.
+  // So the file a snapshot references is our own copy, written under a name
+  // derived from the JSON entry's stem.
+
+  function imageStem(name) {
+    return String(name || "").replace(/\.json$/, "")
+  }
+
+  // The filesystem path behind a file-backed image value, or "" for anything a
+  // copy cannot capture: themed icon names, in-process image:// URLs, empty.
+  function localImageFile(value) {
+    let path = String(value || "")
+    if (path.indexOf("file://") === 0) {
+      path = path.slice(7)
+      try {
+        path = decodeURIComponent(path)
+      } catch (e) {
+      }
+    }
+    return path.charAt(0) === "/" ? path : ""
+  }
+
+  function imageCopy(name, notification) {
+    const value = String(notification.image || "")
+    const source = root.localImageFile(value)
+
+    // Nothing to copy, and nothing that would work after the sender is gone.
+    if (source === "") {
+      return { path: value.indexOf("image://") === 0 ? "" : value, from: "", to: "" }
+    }
+
+    const to = root.imagesDir + "/" + root.imageStem(name) + "-image"
+    return { path: to, from: source === to ? "" : source, to: to }
+  }
+
   // ---- commands ----
 
-  function writeCommand(dir, name, line) {
-    return ["sh", "-c", 'mkdir -p "$1" && printf "%s\\n" "$2" > "$1/$3"', "_", dir, line, name]
+  function writeCommand(dir, name, line, image) {
+    if (!image || !image.from) {
+      return ["sh", "-c", 'mkdir -p "$1" && printf "%s\\n" "$2" > "$1/$3"', "_", dir, line, name]
+    }
+
+    return ["sh", "-c",
+      'mkdir -p "$1" "$4" && printf "%s\\n" "$2" > "$1/$3" && cp -f -- "$5" "$6"',
+      "_", dir, line, name, root.imagesDir, image.from, image.to]
+  }
+
+  // Overwrite a file that is already on disk, keeping its name — and so its
+  // timestamp and its identity in history. The existence test is the guard
+  // against an update racing the archive that moved the file away: a
+  // notification that has left the screen is not brought back by a late
+  // property change.
+  function rewriteCommand(name, line, image) {
+    const copy = image && image.from ? 'cp -f -- "$5" "$6" 2>/dev/null; ' : ""
+    return ["sh", "-c",
+      '[ -e "$1/$2" ] || exit 0; mkdir -p "$3"; ' + copy
+      + 'printf "%s\\n" "$4" > "$1/$2"',
+      "_", root.liveDir, name, root.imagesDir, line,
+      image ? image.from : "", image ? image.to : ""]
   }
 
   // Write a notification that will never be tracked into history, and prune in
@@ -63,23 +126,28 @@ QtObject {
   // the second command run on another worker before the first had finished.
   function discardCommand(notification, stamp) {
     const name = stamp + "-" + String(notification.id) + ".json"
+    const image = root.imageCopy(name, notification)
+    const copy = image.from ? ' && cp -f -- "$6" "$7"' : ""
+
     return ["sh", "-c",
-      'mkdir -p "$2" && printf "%s\\n" "$3" > "$2/$1"'
+      'mkdir -p "$2" "$5" && printf "%s\\n" "$3" > "$2/$1"' + copy
       + ' && cd "$2" && ls -1t -- *.json 2>/dev/null'
-      + ' | tail -n +$(( $4 + 1 )) | xargs -r rm -f --',
-      "_", name, root.historyDir, root.snapshot(notification, stamp), String(root.historyLimit)]
+      + ' | tail -n +$(( $4 + 1 )) | while IFS= read -r f; do rm -f -- "$f" "$5/${f%.json}-image"; done',
+      "_", name, root.historyDir, root.snapshot(notification, stamp, image.path),
+      String(root.historyLimit), root.imagesDir, image.from, image.to]
   }
 
   // Archive and prune in one invocation: the move, then drop anything past the
   // limit with the newest kept. Sorting by modification time rather than by
   // name, because the names encode the same instant but `ls -t` does not care
-  // that they were written in that order.
+  // that they were written in that order. The image copy belongs to the entry,
+  // so it goes when the entry does.
   function archiveCommand(name) {
     return ["sh", "-c",
       'mkdir -p "$2" && mv -f "$1/$3" "$2/$3"'
       + ' && cd "$2" && ls -1t -- *.json 2>/dev/null'
-      + ' | tail -n +$(( $4 + 1 )) | xargs -r rm -f --',
-      "_", root.liveDir, root.historyDir, name, String(root.historyLimit)]
+      + ' | tail -n +$(( $4 + 1 )) | while IFS= read -r f; do rm -f -- "$f" "$5/${f%.json}-image"; done',
+      "_", root.liveDir, root.historyDir, name, String(root.historyLimit), root.imagesDir]
   }
 
   function readCommand(dir) {
@@ -87,7 +155,10 @@ QtObject {
   }
 
   function clearCommand() {
-    return ["sh", "-c", 'rm -f -- "$1"/*.json', "_", root.historyDir]
+    return ["sh", "-c",
+      'for f in "$1"/*.json; do [ -e "$f" ] || continue'
+      + '; b=${f##*/}; rm -f -- "$f" "$2/${b%.json}-image"; done',
+      "_", root.historyDir, root.imagesDir]
   }
 
   // Filename and contents of every live file, so the id-to-file map can be
@@ -121,8 +192,9 @@ QtObject {
       + '; case " $4 " in *" $b "*) continue ;; esac'
       + '; find "$f" -maxdepth 0 -mmin +2 -print -quit 2>/dev/null | grep -q . || continue'
       + '; mv -f -- "$f" "$2"/; done'
-      + '; cd "$2" && ls -1t -- *.json 2>/dev/null | tail -n +$(( $3 + 1 )) | xargs -r rm -f --',
-      "_", root.liveDir, root.historyDir, String(root.historyLimit), String(keep || "")]
+      + '; cd "$2" && ls -1t -- *.json 2>/dev/null | tail -n +$(( $3 + 1 ))'
+      + ' | while IFS= read -r f; do rm -f -- "$f" "$5/${f%.json}-image"; done',
+      "_", root.liveDir, root.historyDir, String(root.historyLimit), String(keep || ""), root.imagesDir]
   }
 
   // The listing runs first, and reaping is chained onto the end of it: a reaper
@@ -209,6 +281,66 @@ QtObject {
     return out
   }
 
+  // ---- in-place updates ----
+  //
+  // A client updating through replaces_id does not produce a second
+  // notification signal: the server rewrites the object it already holds and
+  // emits that object's property changes. So the live file is kept current by
+  // watching those signals, not by waiting for another arrival.
+  //
+  // `watched` also holds the object, so a repeated signal cannot attach a second
+  // set of handlers; `sweep` drops the entry when the notification leaves.
+
+  property var watched: ({})
+  property var pendingRewrites: ({})
+  property bool rewriteQueued: false
+
+  function watch(notification) {
+    const key = String(notification.id)
+    if (root.watched[key] === notification) return
+    root.watched[key] = notification
+
+    const signals = [
+      "summaryChanged", "bodyChanged", "appNameChanged", "appIconChanged",
+      "imageChanged", "urgencyChanged", "expireTimeoutChanged"
+    ]
+    for (const signal of signals) {
+      notification[signal].connect(function () { root.queueRewrite(notification) })
+    }
+  }
+
+  // One write per event-loop turn: a single update usually changes several
+  // roles at once, and each has its own signal.
+  function queueRewrite(notification) {
+    root.pendingRewrites[String(notification.id)] = notification
+
+    if (root.rewriteQueued) return
+    root.rewriteQueued = true
+    Qt.callLater(root.flushRewrites)
+  }
+
+  function flushRewrites() {
+    root.rewriteQueued = false
+
+    const pending = root.pendingRewrites
+    root.pendingRewrites = ({})
+
+    for (const key in pending) {
+      const notification = pending[key]
+      const name = root.live[key]
+
+      // Archived or dismissed while the rewrite was queued: the entry it belonged
+      // to is gone, and a late update must not create a second one.
+      if (!name || !notification.tracked) continue
+
+      const stamp = Number(name.slice(0, name.indexOf("-")))
+      if (!isFinite(stamp)) continue
+
+      const image = root.imageCopy(name, notification)
+      root.enqueue(root.rewriteCommand(name, root.snapshot(notification, stamp, image.path), image))
+    }
+  }
+
   // ---- use ----
 
   // Mirror a notification that has just arrived.
@@ -218,6 +350,10 @@ QtObject {
   // notification is looked for afterwards.
   function begin(notification, discard) {
     if (!notification) return
+
+    // Transient means the protocol does not want it kept beyond its time on
+    // screen. Showing it is enough: no live file to restore, no history row.
+    if (notification.transient) return
 
     // Silenced away rather than shown: no live file and no mapping, just a
     // record in history. Written straight there, in one command, because the
@@ -231,20 +367,37 @@ QtObject {
     // `lastGeneration` set. Its file is already on disk and the startup listing
     // maps it; writing a second one would leave the first orphaned and later
     // reaped into history beside it, so the entry would appear twice.
-    if (notification.lastGeneration) return
+    if (notification.lastGeneration) {
+      root.watch(notification)
+      return
+    }
 
     const key = String(notification.id)
+    const previous = root.live[key]
+
+    // The same object under the same id is a replaces_id update. Keep the file
+    // it was first written under — the name carries its timestamp and its place
+    // in history — and only rewrite the content.
+    if (previous && root.watched[key] === notification) {
+      root.queueRewrite(notification)
+      return
+    }
+
+    // A different object reusing the id is a new notification; ids are reused
+    // after the old one is gone. Archive the old entry and give this one its own
+    // timestamp rather than letting it inherit the previous card's identity.
+    if (previous) {
+      delete root.watched[key]
+      root.enqueue(root.archiveCommand(previous))
+    }
+
     const stamp = Date.now()
     const name = stamp + "-" + key + ".json"
-
-    // A client reusing an id through replaces_id is updating a notification it
-    // already sent. Archive the earlier file rather than leaving two entries for
-    // one notification.
-    const previous = root.live[key]
-    if (previous) root.enqueue(root.archiveCommand(previous))
+    const image = root.imageCopy(name, notification)
 
     root.live[key] = name
-    root.enqueue(root.writeCommand(root.liveDir, name, root.snapshot(notification, stamp)))
+    root.watch(notification)
+    root.enqueue(root.writeCommand(root.liveDir, name, root.snapshot(notification, stamp, image.path), image))
   }
 
   // Archive everything no longer on screen. Called with the ids the daemon still
@@ -265,6 +418,7 @@ QtObject {
 
     for (const id in gone) {
       delete root.live[id]
+      delete root.watched[id]
       // No handler: this command's output is `ls` and `rm`, not history.
       // Parsing it as JSON would replace the list with nothing every time a
       // notification expired.
@@ -324,14 +478,17 @@ QtObject {
   // Actions are deliberately not carried over: they are closures into the
   // sending client's process, which is gone by the time the notification reaches
   // history. A row offering a button that cannot work would be worse than none.
-  function snapshot(notification, stamp) {
+  //
+  // `imagePath` is the copy the store made, not the sender's original; it is
+  // passed separately because the copy's name depends on the entry's file name.
+  function snapshot(notification, stamp, imagePath) {
     return JSON.stringify({
       id: notification.id,
       app: String(notification.appName || ""),
       appIcon: String(notification.appIcon || ""),
       summary: String(notification.summary || ""),
       body: String(notification.body || ""),
-      image: String(notification.image || ""),
+      image: String(imagePath === undefined ? (notification.image || "") : imagePath),
       urgency: notification.urgency,
       timestamp: stamp
     })

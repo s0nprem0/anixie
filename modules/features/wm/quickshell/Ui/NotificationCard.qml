@@ -61,13 +61,17 @@ Item {
     return out
   }
 
-  // What the sender can ask for, as the protocol defines it: a positive timeout
-  // is seconds, zero means the sender will not say, and a negative one asks the
-  // server for its own default.
-  readonly property int serverDefaultSeconds: 5
+  // How long a toast stays, by urgency: a low notification is a glance, a
+  // normal one is long enough to read, and a critical one stays until it is
+  // dismissed. A failing battery or an alarm should not disappear while nobody
+  // is looking at the screen.
+  readonly property int lowSeconds: 5
+  readonly property int normalSeconds: 8
+  readonly property int senderCeilingSeconds: 30
 
   readonly property real displaySeconds: {
     if (!root.notification) return 0
+    if (root.notification.urgency === NotificationUrgency.Critical) return 0
 
     // `resident` deliberately does NOT appear here. The protocol defines it as
     // "do not remove the notification when an action is invoked" — it is about
@@ -75,28 +79,94 @@ Item {
     // as a lifetime is what left resident notifications from chat clients
     // stacking up on screen indefinitely, with no way to clear them but clicking
     // each one.
-    //
-    // A zero timeout is taken as the server default rather than literally
-    // forever, for the same reason: senders that pass 0 usually mean "no
-    // preference", and taking it literally leaves a toast on screen with nothing
-    // left to time it out.
+    const base = root.notification.urgency === NotificationUrgency.Low
+      ? root.lowSeconds
+      : root.normalSeconds
     const timeout = root.notification.expireTimeout
-    if (timeout > 0) return timeout
-    return root.serverDefaultSeconds
+
+    // A sender asking for longer is honoured, up to a point: an hour-long `-t`
+    // pins one card on screen and pushes everything after it away, and senders
+    // that ask for that usually expect the server to bound it. A zero or
+    // negative timeout means "no preference", so the urgency's own default
+    // stands.
+    return timeout > 0 ? Math.min(Math.max(base, timeout), root.senderCeilingSeconds) : base
+  }
+
+  // The countdown, pausable. A toast that vanishes while it is being read is
+  // worse than one that waits, so hovering stops it and leaving starts it again
+  // from the time that was left rather than from the top.
+  property int remainingMs: 0
+
+  function armExpiry() {
+    expiry.stop()
+    root.remainingMs = Math.round(root.displaySeconds * 1000)
+
+    if (root.replay || root.displaySeconds <= 0 || hover.hovered) return
+
+    expiry.interval = root.remainingMs
+    expiry.start()
+  }
+
+  function pauseExpiry() {
+    if (!expiry.running) return
+
+    // One millisecond rather than zero: a timer caught on its last tick should
+    // still be resumable, and a zero interval would fire the moment it starts.
+    root.remainingMs = Math.max(1, expiry.remaining)
+    expiry.stop()
+  }
+
+  function resumeExpiry() {
+    if (root.replay || root.displaySeconds <= 0 || root.remainingMs <= 0) return
+
+    expiry.interval = root.remainingMs
+    expiry.start()
+  }
+
+  Component.onCompleted: root.armExpiry()
+  onDisplaySecondsChanged: root.armExpiry()
+  onReplayChanged: root.armExpiry()
+
+  HoverHandler {
+    id: hover
+
+    onHoveredChanged: hover.hovered ? root.pauseExpiry() : root.resumeExpiry()
   }
 
   implicitWidth: Style.space(340)
   implicitHeight: card.implicitHeight
 
+  // Put the card away without running anything. A right-click is an explicit
+  // dismissal — including a resident notification, which only promises to
+  // survive an *action* — and a replayed row is not a live notification at all.
+  function dismissCard() {
+    if (root.replay) {
+      NotificationHost.dismissReplay(root.notification)
+      return
+    }
+
+    if (root.group.length > 0) {
+      for (const item of root.group) item.dismiss()
+    } else if (root.notification) {
+      root.notification.dismiss()
+    }
+  }
+
   // Declared first so it sits under everything: a click that no action button
   // claimed falls through to here and dismisses the notification.
   MouseArea {
     anchors.fill: parent
-    acceptedButtons: Qt.LeftButton | Qt.MiddleButton
-    // A click runs the default action if the sender offered one, then puts the
-    // card away — clicking a message opens it, it does not merely hide it. A
-    // group goes together: one click on a stack of five puts five away.
-    onClicked: {
+    acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
+    // A left click runs the default action if the sender offered one, then puts
+    // the card away — clicking a message opens it, it does not merely hide it. A
+    // group goes together: one click on a stack of five puts five away. A
+    // right-click never runs the action; it only dismisses.
+    onClicked: function (mouse) {
+      if (mouse.button === Qt.RightButton) {
+        root.dismissCard()
+        return
+      }
+
       if (root.replay) {
         NotificationHost.dismissReplay(root.notification)
         return
@@ -219,9 +289,53 @@ Item {
     }
   }
 
+  // The close button appears with the pointer, the way the reference's does: a
+  // toast is read, not operated, so nothing permanent is drawn over the text.
+  // It sits above the dismissal MouseArea and takes its own clicks, so pressing
+  // it dismisses without also running the sender's default action.
+  Item {
+    id: closeButton
+
+    anchors.top: parent.top
+    anchors.right: parent.right
+    anchors.margins: Style.space(4)
+    width: Style.space(18)
+    height: Style.space(18)
+
+    opacity: hover.hovered || closeArea.containsMouse ? 1 : 0
+    visible: opacity > 0
+
+    Behavior on opacity {
+      NumberAnimation { duration: Style.duration(120) }
+    }
+
+    Rectangle {
+      anchors.fill: parent
+      radius: Theme.cornerRadius
+      color: Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b,
+        closeArea.containsMouse ? Style.control.hoverFillAlpha : 0.08)
+    }
+
+    Text {
+      anchors.centerIn: parent
+      text: Util.close
+      color: Theme.muted
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      renderType: Text.NativeRendering
+    }
+
+    MouseArea {
+      id: closeArea
+      anchors.fill: parent
+      hoverEnabled: true
+      onClicked: root.dismissCard()
+    }
+  }
+
   Timer {
-    interval: Math.round(root.displaySeconds * 1000)
-    running: !root.replay && root.displaySeconds > 0
+    id: expiry
+    repeat: false
     onTriggered: if (root.notification) root.notification.expire()
   }
 }
