@@ -243,7 +243,7 @@ ShellRoot {
 
     // Keep the surface mapped while it fades out, then let it go. Binding
     // `visible` to `shown` alone would unmap it on the first frame of the fade.
-    visible: OsdHost.shown || osdCard.opacity > 0
+    visible: OsdHost.opened || osdCard.opacity > 0
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "quickshell-osd"
@@ -253,11 +253,13 @@ ShellRoot {
       id: osdCard
       anchors.fill: parent
       icon: OsdHost.icon
-      percent: OsdHost.percent
-      valueText: OsdHost.valueText
-      muted: OsdHost.muted
+      message: OsdHost.message
+      hasProgress: OsdHost.hasProgress
+      value: OsdHost.value
+      maxValue: OsdHost.maxValue
+      mediaOsd: OsdHost.mediaOsd
 
-      opacity: OsdHost.shown ? 1 : 0
+      opacity: OsdHost.opened ? 1 : 0
       Behavior on opacity {
         NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic }
       }
@@ -426,6 +428,18 @@ ShellRoot {
 
     function sourceSwitch(): void { MediaHost.next() }
     function sourceSwitchPrevious(): void { MediaHost.previous() }
+  }
+
+  // The OSD as a service: anything that can run `quickshell ipc` can ask for a
+  // readout without owning a window. The payload matches Omarchy's OSD — icon
+  // name, message, optional value/max, progress text and duration — so a script
+  // written for one desktop works on the other.
+  IpcHandler {
+    target: "osd"
+
+    function show(payload: string): string { OsdHost.showPayload(payload); return "ok" }
+    function close(): string { OsdHost.hide(); return "ok" }
+    function state(): string { return OsdHost.opened ? "open" : "closed" }
   }
 
   // The screenshot preview. Bottom right, over the desktop, gone on its own after

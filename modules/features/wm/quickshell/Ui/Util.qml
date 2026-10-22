@@ -114,6 +114,13 @@ QtObject {
   readonly property string volumeLow: glyph("f027")
   readonly property string volumeMute: glyph("f026")
 
+  // Media readouts, for the OSD a media key or script can ask for.
+  readonly property string media: glyph("f144")
+  readonly property string mediaPlay: glyph("f04b")
+  readonly property string mediaPause: glyph("f04c")
+  readonly property string mediaNext: glyph("f051")
+  readonly property string mediaPrevious: glyph("f048")
+
   readonly property string batteryFull: glyph("f240")
   readonly property string batteryThreeQuarters: glyph("f241")
   readonly property string batteryHalf: glyph("f242")

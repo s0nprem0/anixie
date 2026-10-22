@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import ".."
+import "Jsonc.js" as Jsonc
 
 // The menu: every command this shell has, flattened and searchable, with the
 // applications alongside them — built here, in the shell, rather than by a
@@ -62,6 +63,108 @@ QtObject {
     }
   }
 
+  // The user's own entries, merged over the shipped tree whenever the menu is
+  // opened. This is the one menu file meant to be edited, so it is writable
+  // under ~/.config rather than in the store, and it is JSONC so a comment or a
+  // trailing comma costs nothing.
+  readonly property string extensionPath: (Quickshell.env("XDG_CONFIG_HOME")
+    || Quickshell.env("HOME") + "/.config") + "/anixie/menu.json"
+
+  property var extension: ({ entries: [] })
+
+  property FileView extensionFile: FileView {
+    path: Qt.resolvedUrl(root.extensionPath)
+    printErrors: false
+    blockLoading: true
+    blockAllReads: true
+    watchChanges: true
+    onFileChanged: root.reloadExtension()
+  }
+
+  function parseExtension(text) {
+    const raw = String(text || "").trim()
+    if (raw === "") return { entries: [] }
+
+    try {
+      const parsed = Jsonc.parse(raw)
+      if (parsed && Array.isArray(parsed.entries)) return parsed
+      console.warn("menu: the extension needs an entries array")
+    } catch (error) {
+      console.warn("menu: could not read the extension: " + error)
+    }
+
+    return { entries: [] }
+  }
+
+  // Read fresh on each open rather than trusting a change notification: editing
+  // the file and pressing the key should show the edit, and the file is small
+  // enough that the blocking read is cheaper than a process to cat it.
+  function reloadExtension() {
+    try {
+      root.extensionFile.reload()
+      root.extension = root.parseExtension(root.extensionFile.text())
+    } catch (error) {
+      root.extension = { entries: [] }
+    }
+  }
+
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value))
+  }
+
+  // Merge the user's entries over the shipped ones, by group name for a group
+  // and by label within its group for a leaf. A user entry with the same
+  // identity replaces the shipped one; a new one is appended. `"hidden": true`
+  // removes the shipped entry instead, which is the only way to take something
+  // off the menu without a rebuild.
+  function mergeEntries(base, extra) {
+    const out = (base || []).map(function (entry) { return root.clone(entry) })
+    const items = Array.isArray(extra) ? extra : []
+
+    for (const item of items) {
+      if (!item || typeof item !== "object") continue
+
+      const isGroup = item.group !== undefined && Array.isArray(item.entries)
+      const key = isGroup ? "group" : "label"
+      const value = String(item[key] || "")
+
+      let found = -1
+      if (value !== "") {
+        for (let i = 0; i < out.length; i++) {
+          const candidate = out[i]
+          const candidateIsGroup = candidate && candidate.group !== undefined
+            && Array.isArray(candidate.entries)
+          if (candidateIsGroup === isGroup && String(candidate[key] || "") === value) {
+            found = i
+            break
+          }
+        }
+      }
+
+      if (item.hidden === true) {
+        if (found >= 0) out.splice(found, 1)
+        continue
+      }
+
+      if (isGroup) {
+        if (found >= 0) out[found].entries = root.mergeEntries(out[found].entries, item.entries)
+        else out.push(root.clone(item))
+        continue
+      }
+
+      if (found >= 0) out[found] = root.clone(item)
+      else out.push(root.clone(item))
+    }
+
+    return out
+  }
+
+  function entries() {
+    const shipped = root.tree && Array.isArray(root.tree.entries) ? root.tree.entries : []
+    const extra = root.extension && Array.isArray(root.extension.entries) ? root.extension.entries : []
+    return root.mergeEntries(shipped, extra)
+  }
+
   // The applications, sorted and deduplicated by name once per change to the
   // installed set rather than once per open. Two desktop entries can carry the
   // same Name, and the menu cannot tell those apart; the first one wins.
@@ -85,6 +188,7 @@ QtObject {
   // is first asked, and the scan takes a second or two, so a menu that asked on
   // its first open would open with no applications in it.
   function warm() {
+    root.reloadExtension()
     if (!root.tree) root.tree = root.parseTree()
     return root.apps.length
   }
@@ -148,6 +252,8 @@ QtObject {
       for (let i = 0; i < entries.length; i++) {
         const node = entries[i]
 
+        if (!node || node.hidden === true) continue
+
         if (node.group !== undefined) {
           walk(node.entries || [], prefix.concat([node.group]))
           continue
@@ -201,7 +307,7 @@ QtObject {
     }
 
     if (!root.tree) root.tree = root.parseTree()
-    walk(root.tree.entries || [], [])
+    walk(root.entries(), [])
     return out
   }
 
@@ -216,6 +322,8 @@ QtObject {
   }
 
   function open(only) {
+    root.reloadExtension()
+
     const group = String(only || "")
     const entries = root.shown(group)
     if (entries.length === 0) {
