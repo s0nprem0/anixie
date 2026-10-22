@@ -80,9 +80,9 @@ QtObject {
   // in front of the user. Trusted are our own confirmations for something the
   // user just did — reminders, a screenshot, a recording, an output switch — and
   // bare-CLI emergencies, which are almost always a system script rather than a
-  // brand.
+  // brand. `anixie-action` is the default `notify` sends for exactly those.
   readonly property var ownApps: [
-    "audio", "battery", "capture", "nixos", "record", "reminders", "sessions"
+    "anixie-action", "audio", "battery", "capture", "nixos", "record", "reminders", "sessions"
   ]
 
   function bypassesSilencing(notification) {

@@ -25,7 +25,8 @@ let
     "@GSR@" = "${pkgs.gpu-screen-recorder}/bin/gpu-screen-recorder";
     "@FFMPEG@" = "${pkgs.ffmpeg}/bin/ffmpeg";
     "@FFPROBE@" = "${pkgs.ffmpeg}/bin/ffprobe";
-    "@NOTIFY_SEND@" = "${pkgs.libnotify}/bin/notify-send";
+    "@NOTIFY_SEND@" = config.my.wm.notify.bin;
+    "@NOTIFY_SEND_RAW@" = "${pkgs.libnotify}/bin/notify-send";
     "@MPV@" = "${pkgs.mpv}/bin/mpv";
     "@SETSID@" = "${pkgs.util-linux}/bin/setsid";
     "@TESSERACT@" = "${pkgs.tesseract}/bin/tesseract";

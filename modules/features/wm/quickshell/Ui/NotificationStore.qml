@@ -489,8 +489,22 @@ QtObject {
       summary: String(notification.summary || ""),
       body: String(notification.body || ""),
       image: String(imagePath === undefined ? (notification.image || "") : imagePath),
+      // The glyph and command a sender attached with `notify`. They are data, not
+      // a live action, so unlike the action buttons they still work when the row
+      // is replayed from history.
+      glyph: root.hint(notification, "anixie-glyph"),
+      exec: root.hint(notification, "anixie-exec"),
       urgency: notification.urgency,
       timestamp: stamp
     })
+  }
+
+  function hint(notification, name) {
+    try {
+      const hints = notification ? notification.hints : null
+      return hints && hints[name] !== undefined ? String(hints[name]) : ""
+    } catch (e) {
+      return ""
+    }
   }
 }

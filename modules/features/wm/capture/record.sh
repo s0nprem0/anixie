@@ -33,6 +33,7 @@ gsr="@GSR@"
 ffmpeg="@FFMPEG@"
 ffprobe="@FFPROBE@"
 notify_send="@NOTIFY_SEND@"
+notify_send_raw="@NOTIFY_SEND_RAW@"
 mpv="@MPV@"
 setsid="@SETSID@"
 
@@ -91,11 +92,15 @@ notify() {
   title="$2"
   body="$3"
   shift 3
-  "$notify_send" -u "$urgency" -a record "$@" "$title" "$body" >/dev/null 2>&1
+  "$notify_send" -u "$urgency" -a record -G f03d "$@" "$title" "$body" >/dev/null 2>&1
 }
 
 # Announce a finished recording: the thumbnail as the notification's image, and a
 # Play button on it.
+#
+# This one uses notify-send directly rather than `notify`: the wait-and-print
+# action protocol is not part of the wrapper's smaller interface, and the image
+# hint already gives the card what a glyph would.
 #
 # Run in the background because `-A` implies `--wait` — notify-send stays up until
 # the notification is dismissed or the button is pressed, and by then the file is
@@ -106,14 +111,14 @@ announce_saved() {
   file="$1"
   preview="$2"
 
-  args=(-a record -u normal -t 10000)
+  args=(-a record -u normal -t 10000 -G f03d)
   if [ -n "$preview" ] && [ -f "$preview" ]; then
     args+=(-h "string:image-path:$preview")
   fi
   args+=(-A "default=Play")
 
   {
-    "$notify_send" "${args[@]}" "Recording saved" "$file" 2>/dev/null |
+    "$notify_send_raw" "${args[@]}" "Recording saved" "$file" 2>/dev/null |
       while read -r chosen; do
         if [ "$chosen" = "default" ]; then
           "$setsid" -f "$mpv" -- "$file" >/dev/null 2>&1

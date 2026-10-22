@@ -49,7 +49,7 @@ result=$(
 release_freeze
 
 if [ -z "$result" ]; then
-  "$notify_send" -u critical -a capture "No QR code found" "Nothing in that region decoded as a QR code." >/dev/null 2>&1
+  "$notify_send" -u normal -a capture -G f071 "No QR code found" "Nothing in that region decoded as a QR code." >/dev/null 2>&1
   exit 1
 fi
 
@@ -57,4 +57,4 @@ fi
 # names the fact of the copy and not the value, for the same reason.
 printf '%s' "$result" | "$wl_copy" --sensitive
 
-"$notify_send" -a capture "QR code copied" "The decoded value is on the clipboard." >/dev/null 2>&1
+"$notify_send" -a capture -G f0c5 "QR code copied" "The decoded value is on the clipboard." >/dev/null 2>&1

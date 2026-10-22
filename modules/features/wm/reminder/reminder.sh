@@ -94,12 +94,16 @@ message="${*:-Reminder}"
 # The app name is not decoration: NotificationHost trusts it through
 # do-not-disturb, the same way it trusts the screenshot and recording
 # confirmations, so a reminder the user set still speaks when the desktop is
-# silenced.
+# silenced. The glyph is the clock the bar uses for a queued reminder, and the
+# command opens the history the reminder was filed in; it uses the absolute
+# shell path because the command runs from the shell process, not from here.
 systemd-run --user --quiet \
   --unit="$prefix-$(date +%s)-$$" \
   --description="Reminder: $message" \
   --on-active="${minutes}min" \
-  "@NOTIFY_SEND@" -a reminders "Reminder" "$message"
+  "@NOTIFY_SEND@" -a reminders -u normal -G f017 \
+  --exec "@QUICKSHELL@ ipc call panel toggle notifications" \
+  "Reminder" "$message"
 
 push_count
 

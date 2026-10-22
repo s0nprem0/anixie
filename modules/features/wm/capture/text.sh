@@ -53,7 +53,7 @@ text=$(
 release_freeze
 
 if [ -z "$text" ]; then
-  "$notify_send" -u critical -a capture "No text found" "Nothing in that region was readable." >/dev/null 2>&1
+  "$notify_send" -u normal -a capture -G f071 "No text found" "Nothing in that region was readable." >/dev/null 2>&1
   exit 1
 fi
 
@@ -62,4 +62,4 @@ printf '%s' "$text" | "$wl_copy"
 # The first line stands in for the whole thing, so the notification says what was
 # picked up without repeating a page of it.
 first_line=$(printf '%s' "$text" | head -n 1 | cut -c 1-60)
-"$notify_send" -a capture "Text copied" "$first_line" >/dev/null 2>&1
+"$notify_send" -a capture -G f0c5 "Text copied" "$first_line" >/dev/null 2>&1

@@ -19,7 +19,7 @@ sinks=$(@PACTL@ -f json list sinks | @JQ@ "$available")
 count=$(printf '%s' "$sinks" | @JQ@ 'length')
 
 if [ "$count" -eq 0 ]; then
-  @NOTIFY_SEND@ -a Audio "No audio output" || true
+  @NOTIFY_SEND@ -a Audio -G f028 "No audio output" || true
   exit 1
 fi
 
@@ -37,4 +37,4 @@ description=$(printf '%s' "$row" | @JQ@ -r '.description // .properties."device.
 
 @OUTPUT_SET@ "$id" "$name"
 
-@NOTIFY_SEND@ -a Audio "Audio output" "$description" || true
+@NOTIFY_SEND@ -a Audio -G f028 "Audio output" "$description" || true

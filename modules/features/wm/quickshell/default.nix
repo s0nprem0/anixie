@@ -26,9 +26,9 @@ let
       (render ./Theme.qml)
   );
 
-  # The low-battery warning's shell path to notify-send, rendered in the same pass
-  # as the theme so the QML can call it without depending on the shell service's
-  # PATH (see Ui/PowerAlert.qml and the @NOTIFY_SEND@ placeholder below).
+  # The low-battery warning's sender and shell paths, rendered in the same pass as
+  # the theme so the QML can call them without depending on the shell service's
+  # PATH (see Ui/PowerAlert.qml and the two placeholders below).
   powerAlert = pkgs.writeText "PowerAlert.qml" (render ./Ui/PowerAlert.qml);
 
   # Quickshell resolves `import "components"` relative to the directory holding
@@ -65,11 +65,17 @@ in
   # Theme.qml is rendered through the shared palette renderer and carries the
   # bar's position the same way: a placeholder the theme module substitutes.
   config = {
-    my.theme.template.placeholders."@POSITION@" = config.features.wm.quickshell.position;
+    my.theme.template.placeholders = {
+      "@POSITION@" = config.features.wm.quickshell.position;
 
-    # The warning's notify-send, by full path: the shell service runs under the
-    # user manager, whose PATH is not guaranteed to carry the profile.
-    my.theme.template.placeholders."@NOTIFY_SEND@" = "${pkgs.libnotify}/bin/notify-send";
+      # The warning's sender and IPC entry point, by full path: the shell service
+      # runs under the user manager, whose PATH is not guaranteed to carry the
+      # profile. The sender is the same one the rest of the tree uses (see
+      # features/wm/notify), so a battery toast can carry a glyph or a click
+      # action.
+      "@NOTIFY_SEND@" = config.my.wm.notify.bin;
+      "@QUICKSHELL@" = "${pkgs.quickshell}/bin/quickshell";
+    };
 
     home.packages = [ pkgs.quickshell ];
 

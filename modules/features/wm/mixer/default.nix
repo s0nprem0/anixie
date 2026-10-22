@@ -16,7 +16,7 @@ let
     "@PACTL@" = "${pkgs.pulseaudio}/bin/pactl";
     "@JQ@" = "${pkgs.jq}/bin/jq";
     "@WPCTL@" = "${pkgs.wireplumber}/bin/wpctl";
-    "@NOTIFY_SEND@" = "${pkgs.libnotify}/bin/notify-send";
+    "@NOTIFY_SEND@" = config.my.wm.notify.bin;
   };
 
   render =

@@ -141,6 +141,7 @@ anixie shot [smart|region|windows|fullscreen] [copy|save|annotate]
 anixie record                       # screen recording, webcam overlay, transcode
 anixie clipboard | emoji | menu | pick | reminder
 anixie toggle [dnd|idle|nightlight|stayawake]
+notify -G f017 --exec "…" SUMMARY [BODY]   # a toast with a glyph and a click action
 anixie display …                    # monitors: scale, mirror, status
 anixie power …                      # profile for AC or battery
 anixie snapshot create|list|restore|prune

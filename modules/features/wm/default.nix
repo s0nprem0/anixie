@@ -11,6 +11,7 @@
     ./menu
     ./mixer
     ./network
+    ./notify
     ./pick
     ./quickshell
     ./reminder

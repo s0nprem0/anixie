@@ -16,8 +16,9 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # notify-send is the client that asks for a notification; the daemon that
-    # draws it lives in the shell (features/wm/quickshell).
+    # notify is the sender the shell understands (features/wm/notify); it is the
+    # client that asks for a notification, while the daemon that draws it lives
+    # in the shell (features/wm/quickshell).
     #
     # systemd-run is already on the system path, and is what turns a duration into
     # a timer that outlives the command that set it.
@@ -28,7 +29,7 @@ in
       (pkgs.writeShellScriptBin "reminder" (
         builtins.replaceStrings
           [ "@NOTIFY_SEND@" "@QUICKSHELL@" ]
-          [ "${pkgs.libnotify}/bin/notify-send" "${pkgs.quickshell}/bin/quickshell" ]
+          [ config.my.wm.notify.bin "${pkgs.quickshell}/bin/quickshell" ]
           (builtins.readFile ./reminder.sh)
       ))
     ];

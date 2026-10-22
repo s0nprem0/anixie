@@ -33,6 +33,27 @@ Item {
   readonly property string body: root.notification ? String(root.notification.body || "") : ""
   readonly property string image: root.notification ? String(root.notification.image || "") : ""
   readonly property string appIcon: root.notification ? String(root.notification.appIcon || "") : ""
+
+  // A sender using `notify` can carry a glyph and a command as hints. The live
+  // object exposes them in `hints`; a history entry keeps them as fields, since
+  // a replayed notification has no sender left to ask.
+  function hint(name, field) {
+    if (!root.notification) return ""
+
+    const stored = root.notification[field]
+    if (stored !== undefined) return String(stored || "")
+
+    const hints = root.notification.hints
+    return hints && hints[name] !== undefined ? String(hints[name]) : ""
+  }
+
+  readonly property string glyph: root.hint("anixie-glyph", "glyph")
+  readonly property string exec: root.hint("anixie-exec", "exec")
+
+  readonly property string imageSource: root.image !== ""
+    ? (root.image.indexOf("/") === 0 ? "file://" + root.image : root.image)
+    : (root.appIcon !== "" ? Quickshell.iconPath(root.appIcon, "") : "")
+
   readonly property bool critical: root.notification
     ? root.notification.urgency === NotificationUrgency.Critical
     : false
@@ -157,10 +178,11 @@ Item {
   MouseArea {
     anchors.fill: parent
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
-    // A left click runs the default action if the sender offered one, then puts
-    // the card away — clicking a message opens it, it does not merely hide it. A
-    // group goes together: one click on a stack of five puts five away. A
-    // right-click never runs the action; it only dismisses.
+    // A left click runs the command the sender attached (if any), else the
+    // protocol's default action, then puts the card away — clicking a message
+    // opens it, it does not merely hide it. A group goes together: one click on a
+    // stack of five puts five away. A right-click never runs anything; it only
+    // dismisses.
     onClicked: function (mouse) {
       if (mouse.button === Qt.RightButton) {
         root.dismissCard()
@@ -168,18 +190,25 @@ Item {
       }
 
       if (root.replay) {
+        if (root.exec !== "") Quickshell.execDetached(["sh", "-c", root.exec])
         NotificationHost.dismissReplay(root.notification)
         return
       }
 
       const action = root.defaultAction
-      if (action) action.invoke()
+      if (root.exec !== "") {
+        Quickshell.execDetached(["sh", "-c", root.exec])
+      } else if (action) {
+        action.invoke()
+      }
 
       // Resident means "do not remove me when an action is invoked"; it says
       // nothing about a plain dismissal click. So a resident notification
-      // survives a click that ran its action — the action buttons below already
-      // honour that — but the same click with nothing to run still puts it away.
-      const keepResident = action !== null
+      // survives a protocol action — the action buttons below already honour
+      // that — but the same click with nothing to run still puts it away. An
+      // attached command is data, not a resident sender's action, so it does not
+      // keep the card around.
+      const keepResident = root.exec === "" && action !== null
       if (root.group.length > 0) {
         for (const item of root.group) if (!(keepResident && item.resident)) item.dismiss()
       } else if (root.notification && !(keepResident && root.notification.resident)) {
@@ -209,13 +238,28 @@ Item {
       Image {
         width: Style.space(24)
         height: Style.space(24)
-        source: root.image !== ""
-          ? (root.image.indexOf("/") === 0 ? "file://" + root.image : root.image)
-          : (root.appIcon !== "" ? Quickshell.iconPath(root.appIcon, "") : "")
+        source: root.imageSource
+        visible: root.imageSource !== ""
         sourceSize.width: Style.bar.iconSize * 2
         sourceSize.height: Style.bar.iconSize * 2
         fillMode: Image.PreserveAspectFit
         smooth: true
+      }
+
+      // A glyph only stands in for the icon slot when there is no image or
+      // themed icon to show. The sender decides the glyph; the card only draws
+      // it, so a Nerd Font character never has to be written into a QML file.
+      Text {
+        width: Style.space(24)
+        height: Style.space(24)
+        visible: root.imageSource === "" && root.glyph !== ""
+        text: root.glyph
+        color: Theme.fg
+        font.family: Style.font.family
+        font.pixelSize: Style.space(17)
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        renderType: Text.NativeRendering
       }
 
       Column {
