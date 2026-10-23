@@ -70,12 +70,23 @@ let
   # applications it names should pay for it.
   themeApps = pkgs.writeShellScriptBin "theme-apps" (
     builtins.replaceStrings
-      [ "@PALETTES@" "@STATE_DIR@" "@JQ@" "@TMUX@" ]
+      [
+        "@PALETTES@"
+        "@STATE_DIR@"
+        "@JQ@"
+        "@TMUX@"
+        "@HELIX_TEMPLATE@"
+        "@YAZI_TEMPLATE@"
+        "@HYPRLOCK_TEMPLATE@"
+      ]
       [
         "${./themes.json}"
         stateDir
         "${pkgs.jq}/bin/jq"
         "${pkgs.tmux}/bin/tmux"
+        "${./templates/helix.toml}"
+        "${./templates/yazi.toml}"
+        "${./templates/hyprlock.conf}"
       ]
       (builtins.readFile ./theme-apps.sh)
   );

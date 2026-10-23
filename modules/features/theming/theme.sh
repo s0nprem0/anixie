@@ -14,13 +14,11 @@
 # the launcher. The shell is told over its IPC and switches immediately; Hyprland
 # reloads, kitty takes SIGUSR1, and the rest read the files written here.
 #
-# btop and tmux are rewritten on every switch, along with the resolved palette
-# that Hyprland and the wallpaper command read. GTK follows the mode through
-# gsettings (Adwaita/Adwaita-dark and Papirus/Papirus-Light), and Qt follows it
-# through qt6ct at the next application start. Helix, Yazi and the lock screen
-# keep the build-time configuration from the module's `theme` option, so they
-# follow on the next rebuild; their configs are store symlinks, which is what
-# makes them reproducible.
+# btop, tmux, Helix, Yazi and hyprlock are rewritten on every switch, along with
+# the resolved palette that Hyprland and the wallpaper command read. GTK follows
+# the mode through gsettings (Adwaita/Adwaita-dark and Papirus/Papirus-Light),
+# and Qt through qt6ct. Applications that read their config at startup pick the
+# new palette up then; nothing here needs a rebuild.
 #
 # The palettes are a JSON file rather than a Nix expression because this script
 # has to read the same list the shell was built from, and a shell script cannot
@@ -59,6 +57,10 @@ has() {
   # current picture, and it exists once a palette has been generated.
   [ "$1" = "wallpaper" ] && return 0
   "$jq" -e --arg n "$1" 'has($n)' "$palettes" >/dev/null 2>&1
+}
+
+mode_of() {
+  "$jq" -r --arg n "$1" '.[$n]._mode // "dark"' "$palettes"
 }
 
 # One colour out of the resolved palette. materialise() writes it for a curated
@@ -318,8 +320,11 @@ case "${1:-}" in
     ;;
   "")
     # The picker runs `theme set <name>` itself, so this has nothing left to do
-    # but hand over the names and be done.
-    names | pick --title 'theme' --on-select 'theme set {}'
+    # but hand over the names and be done. The label carries the mode; the value
+    # stays the name, so the command it runs does not change.
+    names | while IFS= read -r name; do
+      printf '%s (%s)\t%s\n' "$name" "$(mode_of "$name")" "$name"
+    done | pick --title 'theme' --on-select 'theme set {}'
     exit 0
     ;;
   *)

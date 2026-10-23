@@ -3,15 +3,18 @@
 #
 # Rendered when the theme changes rather than when the system is built, which is
 # the difference between a theme that reaches the editor and one that waits for a
-# rebuild. Each file lives where its application looks for it and is rewritten on
-# every switch; the applications pick it up at their next start (tmux is told, so
-# a running server changes at once).
+# rebuild. Each file lives in the state directory the Nix modules link into
+# ~/.config, and is rewritten on every switch; the applications pick it up at
+# their next start (tmux is told, so a running server changes at once).
 set -eu
 
 palettes="@PALETTES@"
 state_dir="@STATE_DIR@"
 jq="@JQ@"
 tmux="@TMUX@"
+helix_template="@HELIX_TEMPLATE@"
+yazi_template="@YAZI_TEMPLATE@"
+hyprlock_template="@HYPRLOCK_TEMPLATE@"
 generated="@STATE_DIR@/palette.json"
 
 name="${1:-}"
@@ -35,7 +38,44 @@ alt=$(colour accentAlt)
 danger=$(colour danger)
 success=$(colour success)
 
+mode=$(tr -d '[:space:]' <"$state_dir/mode" 2>/dev/null || printf 'dark')
+if [ "$mode" = "light" ]; then
+  helix_parent=base16_default_light
+else
+  helix_parent=base16_default_dark
+fi
+
 mkdir -p "$state_dir"
+
+# Render one of the templates with the palette. Only the placeholders the
+# templates actually use are listed; the hex values are safe inside the sed
+# expression because none of them contains the delimiter.
+render() {
+  sed \
+    -e "s|@BG@|$bg|g" \
+    -e "s|@SURFACE@|$surface|g" \
+    -e "s|@FG@|$fg|g" \
+    -e "s|@MUTED@|$muted|g" \
+    -e "s|@PRIMARY@|$primary|g" \
+    -e "s|@ACCENT@|$accent|g" \
+    -e "s|@ACCENT_ALT@|$alt|g" \
+    -e "s|@SUCCESS@|$success|g" \
+    -e "s|@DANGER@|$danger|g" \
+    -e "s|@HELIX_PARENT@|$helix_parent|g" \
+    -e "s|@BG_RGBA_F2@|rgba(${bg#\#}f2)|g" \
+    -e "s|@BG_RGBA_FF@|rgba(${bg#\#}ff)|g" \
+    -e "s|@SURFACE_RGBA_FF@|rgba(${surface#\#}ff)|g" \
+    -e "s|@FG_RGBA_FF@|rgba(${fg#\#}ff)|g" \
+    -e "s|@SUCCESS_RGBA_FF@|rgba(${success#\#}ff)|g" \
+    -e "s|@DANGER_RGBA_FF@|rgba(${danger#\#}ff)|g" \
+    -e "s|@ACCENT_ALT_RGBA_FF@|rgba(${alt#\#}ff)|g" \
+    -e "s|@MUTED_RGBA_FF@|rgba(${muted#\#}ff)|g" \
+    "$1" >"$2"
+}
+
+render "$helix_template" "$state_dir/helix.toml"
+render "$yazi_template" "$state_dir/yazi.toml"
+render "$hyprlock_template" "$state_dir/hyprlock.conf"
 
 # ---- tmux ----
 cat >"$state_dir/tmux.conf" <<EOF

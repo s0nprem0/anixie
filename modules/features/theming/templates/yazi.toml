@@ -1,0 +1,138 @@
+[cmp.active]
+reversed = true
+
+[cmp.border]
+fg = "@PRIMARY@"
+
+[confirm.border]
+fg = "@PRIMARY@"
+
+[confirm.title]
+fg = "@PRIMARY@"
+
+[help.border]
+fg = "@PRIMARY@"
+
+[help.chord]
+fg = "@ACCENT@"
+
+[input.border]
+fg = "@PRIMARY@"
+
+[input.selected]
+reversed = true
+
+[mgr.border_style]
+fg = "@SURFACE@"
+
+[mgr.count_copied]
+bg = "@SUCCESS@"
+fg = "@BG@"
+
+[mgr.count_cut]
+bg = "@DANGER@"
+fg = "@BG@"
+
+[mgr.count_selected]
+bg = "@ACCENT@"
+fg = "@BG@"
+
+[mgr.cwd]
+fg = "@PRIMARY@"
+
+[mgr.marker_copied]
+bg = "@SUCCESS@"
+fg = "@SUCCESS@"
+
+[mgr.marker_cut]
+bg = "@DANGER@"
+fg = "@DANGER@"
+
+[mgr.marker_selected]
+bg = "@ACCENT@"
+fg = "@ACCENT@"
+
+[mode.normal_alt]
+bg = "@SURFACE@"
+fg = "@PRIMARY@"
+
+[mode.normal_main]
+bg = "@PRIMARY@"
+fg = "@BG@"
+
+[mode.select_alt]
+bg = "@SURFACE@"
+fg = "@ACCENT@"
+
+[mode.select_main]
+bg = "@ACCENT@"
+fg = "@BG@"
+
+[mode.unset_alt]
+bg = "@SURFACE@"
+fg = "@DANGER@"
+
+[mode.unset_main]
+bg = "@DANGER@"
+fg = "@BG@"
+
+[notify.title_error]
+fg = "@DANGER@"
+
+[notify.title_info]
+fg = "@SUCCESS@"
+
+[notify.title_warn]
+fg = "@ACCENT_ALT@"
+
+[pick.active]
+fg = "@ACCENT@"
+
+[pick.border]
+fg = "@PRIMARY@"
+
+[spot.border]
+fg = "@PRIMARY@"
+
+[spot.title]
+fg = "@PRIMARY@"
+
+[status.perm_sep]
+fg = "@MUTED@"
+
+[status.progress_error]
+bg = "@SURFACE@"
+fg = "@DANGER@"
+
+[status.progress_normal]
+bg = "@SURFACE@"
+fg = "@SUCCESS@"
+
+[tabs.active]
+bg = "@PRIMARY@"
+fg = "@BG@"
+
+[tabs.inactive]
+bg = "@SURFACE@"
+fg = "@MUTED@"
+
+[tasks.border]
+fg = "@PRIMARY@"
+
+[tasks.hovered]
+fg = "@ACCENT@"
+
+[which.border]
+fg = "@PRIMARY@"
+
+[which.cand]
+fg = "@ACCENT@"
+
+[which.desc]
+fg = "@MUTED@"
+
+[which.rest]
+fg = "@MUTED@"
+
+[which.separator_style]
+fg = "@SURFACE@"

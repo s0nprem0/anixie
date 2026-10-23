@@ -138,14 +138,14 @@ anixie wallpaper set FILE       # or `wallpaper theme` for the palette's gradien
 ```
 
 A theme switched at runtime reaches the **shell, Hyprland's borders, kitty, btop
-and tmux immediately**. GTK follows through gsettings and Qt through qt6ct at the
-next application start. Helix, yazi and the lock screen keep the configs built
-from the module's `theme` option — store symlinks, which is what makes them
-reproducible — so they follow on the next rebuild. `theme wallpaper` uses
-matugen's smart mode unless `light` or `dark` is named, and falls back to the
-previous palette if the picture cannot be read. While `wallpaper` is the current
-theme, choosing a background through `anixie wallpaper` also regenerates the
-palette from it.
+and tmux immediately**. GTK follows through gsettings, Qt through qt6ct, and
+Helix, yazi and the lock screen through their state-directory configs; those
+applications take the change at their next start. No rebuild is needed for a
+theme switch. `theme wallpaper` uses matugen's smart mode unless `light` or
+`dark` is named, and falls back to the previous palette if the picture cannot be
+read. Results are cached per picture and mode, and a video contributes its first
+frame. While `wallpaper` is the current theme, choosing a background through
+`anixie wallpaper` also regenerates the palette from it.
 
 ## Everything else
 
