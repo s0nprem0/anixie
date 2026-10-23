@@ -80,6 +80,8 @@ let
         "@HYPRLOCK_TEMPLATE@"
         "@QT6CT_COLORS_TEMPLATE@"
         "@GTK_TEMPLATE@"
+        "@POINTER_CURSOR_THEME@"
+        "@POINTER_CURSOR_SIZE@"
       ]
       [
         "${./themes.json}"
@@ -91,6 +93,8 @@ let
         "${./templates/hyprlock.conf}"
         "${./templates/qt6ct-colors.conf}"
         "${./templates/gtk-settings.ini}"
+        config.home.pointerCursor.name
+        (toString config.home.pointerCursor.size)
       ]
       (builtins.readFile ./theme-apps.sh)
   );

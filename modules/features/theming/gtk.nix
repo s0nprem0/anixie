@@ -16,6 +16,8 @@ in
     "@GTK_THEME@" = if dark then "Adwaita-dark" else "Adwaita";
     "@GTK_ICON@" = if dark then "Papirus-Dark" else "Papirus-Light";
     "@GTK_DARK@" = if dark then "1" else "0";
+    "@CURSOR_THEME@" = config.home.pointerCursor.name;
+    "@CURSOR_SIZE@" = toString config.home.pointerCursor.size;
   };
 
   gtk = {

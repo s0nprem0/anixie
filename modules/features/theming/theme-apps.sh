@@ -17,6 +17,8 @@ yazi_template="@YAZI_TEMPLATE@"
 hyprlock_template="@HYPRLOCK_TEMPLATE@"
 qt6ct_colors_template="@QT6CT_COLORS_TEMPLATE@"
 gtk_template="@GTK_TEMPLATE@"
+cursor_theme="@POINTER_CURSOR_THEME@"
+cursor_size="@POINTER_CURSOR_SIZE@"
 generated="@STATE_DIR@/palette.json"
 
 name="${1:-}"
@@ -83,6 +85,8 @@ render() {
     -e "s|@GTK_THEME@|$gtk_theme|g" \
     -e "s|@GTK_ICON@|$gtk_icon|g" \
     -e "s|@GTK_DARK@|$gtk_dark|g" \
+    -e "s|@CURSOR_THEME@|$cursor_theme|g" \
+    -e "s|@CURSOR_SIZE@|$cursor_size|g" \
     -e "s|@BG_RGBA_F2@|rgba(${bg#\#}f2)|g" \
     -e "s|@BG_RGBA_FF@|rgba(${bg#\#}ff)|g" \
     -e "s|@SURFACE_RGBA_FF@|rgba(${surface#\#}ff)|g" \
