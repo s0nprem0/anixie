@@ -433,10 +433,6 @@ void toFloating() {
     g_floating = true;
     persistMode();
     refreshBars();
-
-    // Asynchronously switch Waybar variant, update mako dock, and notify user
-    const std::string switchCmd = homeDir() + "/doty/modules/scripts/layout_mode_switch floating";
-    asyncExec(switchCmd);
 }
 
 // Re-tile in snapshot order (each window lands next to its focused
@@ -538,10 +534,6 @@ void toTiling() {
     g_snap.clear();
     g_floating = false;
     persistMode();
-
-    // Asynchronously switch Waybar variant, update mako dock, and notify user
-    const std::string switchCmd = homeDir() + "/doty/modules/scripts/layout_mode_switch tiling";
-    asyncExec(switchCmd);
 }
 
 void toggle() {
