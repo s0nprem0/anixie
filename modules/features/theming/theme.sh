@@ -88,11 +88,27 @@ saved_wallpaper_mode() {
   esac
 }
 
+# Every file rendered from the palette assumes the same nine keys. A truncated
+# file, a failed write or a missing theme would otherwise reach the templates as
+# `null`, which Yazi refuses to parse and the others render as a colour called
+# "null". Checked before anything is written, so a bad palette leaves the
+# previous files alone instead of replacing them with broken ones.
+palette_ok() {
+  "$jq" -e '
+    type == "object" and
+    ([.background, .foreground, .surface, .muted, .primary, .accent,
+      .accentAlt, .danger, .success]
+      | all(type == "string" and length > 0))
+  ' "$1" >/dev/null 2>&1
+}
+
 # A generated palette is the only one with `_mode`: curated palettes are written
 # without it. That is what distinguishes a real wallpaper palette from the
 # resolved palette a curated theme leaves in the same file.
 wallpaper_palette() {
-  [ -f "$generated" ] && "$jq" -e 'has("_mode")' "$generated" >/dev/null 2>&1
+  [ -f "$generated" ] &&
+    palette_ok "$generated" &&
+    "$jq" -e 'has("_mode")' "$generated" >/dev/null 2>&1
 }
 
 # One colour out of the resolved palette. materialise() writes it for a curated
@@ -121,9 +137,12 @@ materialise() {
   if [ "$name" = "wallpaper" ]; then
     wallpaper_palette || die "the generated palette is missing; run 'theme wallpaper FILE'"
   else
+    "$jq" -e --arg n "$name" '.[$n] | type == "object"' "$palettes" >/dev/null 2>&1 \
+      || die "no such theme: $name"
     tmp=$(mktemp "$state_dir/palette.XXXXXX") || die "could not create a palette file"
     "$jq" --arg n "$name" '.[$n] | del(._mode)' "$palettes" >"$tmp" \
       || die "could not resolve $name"
+    palette_ok "$tmp" || die "theme $name is missing colours"
     mv "$tmp" "$generated"
   fi
 

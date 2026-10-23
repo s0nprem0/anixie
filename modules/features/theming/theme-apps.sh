@@ -42,6 +42,18 @@ alt=$(colour accentAlt)
 danger=$(colour danger)
 success=$(colour success)
 
+# Rendering a palette file with a missing key would write the literal string
+# "null" into every template — which is not a colour, and Yazi refuses to parse
+# its TOML at all. Refuse instead, leaving the last good files in place.
+for value in "$bg" "$fg" "$surface" "$muted" "$primary" "$accent" "$alt" "$danger" "$success"; do
+  case "$value" in
+    "" | null)
+      printf 'theme-apps: the palette is incomplete; keeping the previous files\n' >&2
+      exit 1
+      ;;
+  esac
+done
+
 mode=$(tr -d '[:space:]' <"$state_dir/mode" 2>/dev/null || printf 'dark')
 if [ "$mode" = "light" ]; then
   helix_parent=base16_default_light
