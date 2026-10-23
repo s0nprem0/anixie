@@ -191,18 +191,28 @@ step() {
 # path.
 use() {
   [ $# -ge 1 ] || { echo "wallpaper: use needs a value" >&2; exit 1; }
+  previous=$(chosen)
+  target=""
   if [ "$1" = generated ]; then
     remember generated
   else
     [ -f "$1" ] || { printf 'wallpaper: no such file: %s\n' "$1" >&2; exit 1; }
-    remember "$1"
+    target=$(readlink -f "$1" 2>/dev/null || printf '%s' "$1")
+    remember "$target"
   fi
 
   # In wallpaper mode the picture is the palette source, so selecting one updates
   # the colours as well as the background. Videos go through their first frame.
+  # If matugen cannot read it, put the previous choice back rather than leaving a
+  # wallpaper the palette does not match.
   if [ "$1" != generated ] && [ "$(current_theme)" = wallpaper ]; then
-    theme wallpaper "$1" auto
-    return
+    if command -v theme >/dev/null 2>&1 && theme wallpaper "$target"; then
+      return
+    fi
+    printf 'wallpaper: could not derive a palette; keeping the previous theme\n' >&2
+    remember "$previous"
+    apply
+    return 1
   fi
 
   apply

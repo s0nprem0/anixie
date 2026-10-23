@@ -15,6 +15,8 @@ tmux="@TMUX@"
 helix_template="@HELIX_TEMPLATE@"
 yazi_template="@YAZI_TEMPLATE@"
 hyprlock_template="@HYPRLOCK_TEMPLATE@"
+qt6ct_colors_template="@QT6CT_COLORS_TEMPLATE@"
+gtk_template="@GTK_TEMPLATE@"
 generated="@STATE_DIR@/palette.json"
 
 name="${1:-}"
@@ -41,8 +43,14 @@ success=$(colour success)
 mode=$(tr -d '[:space:]' <"$state_dir/mode" 2>/dev/null || printf 'dark')
 if [ "$mode" = "light" ]; then
   helix_parent=base16_default_light
+  gtk_theme=Adwaita
+  gtk_icon=Papirus-Light
+  gtk_dark=0
 else
   helix_parent=base16_default_dark
+  gtk_theme=Adwaita-dark
+  gtk_icon=Papirus-Dark
+  gtk_dark=1
 fi
 
 mkdir -p "$state_dir"
@@ -51,6 +59,7 @@ mkdir -p "$state_dir"
 # templates actually use are listed; the hex values are safe inside the sed
 # expression because none of them contains the delimiter.
 render() {
+  render_tmp=$(mktemp "$state_dir/.render.XXXXXX") || return 1
   sed \
     -e "s|@BG@|$bg|g" \
     -e "s|@SURFACE@|$surface|g" \
@@ -61,7 +70,19 @@ render() {
     -e "s|@ACCENT_ALT@|$alt|g" \
     -e "s|@SUCCESS@|$success|g" \
     -e "s|@DANGER@|$danger|g" \
+    -e "s|@BG_HEX@|${bg#\#}|g" \
+    -e "s|@SURFACE_HEX@|${surface#\#}|g" \
+    -e "s|@FG_HEX@|${fg#\#}|g" \
+    -e "s|@MUTED_HEX@|${muted#\#}|g" \
+    -e "s|@PRIMARY_HEX@|${primary#\#}|g" \
+    -e "s|@ACCENT_HEX@|${accent#\#}|g" \
+    -e "s|@ACCENT_ALT_HEX@|${alt#\#}|g" \
+    -e "s|@SUCCESS_HEX@|${success#\#}|g" \
+    -e "s|@DANGER_HEX@|${danger#\#}|g" \
     -e "s|@HELIX_PARENT@|$helix_parent|g" \
+    -e "s|@GTK_THEME@|$gtk_theme|g" \
+    -e "s|@GTK_ICON@|$gtk_icon|g" \
+    -e "s|@GTK_DARK@|$gtk_dark|g" \
     -e "s|@BG_RGBA_F2@|rgba(${bg#\#}f2)|g" \
     -e "s|@BG_RGBA_FF@|rgba(${bg#\#}ff)|g" \
     -e "s|@SURFACE_RGBA_FF@|rgba(${surface#\#}ff)|g" \
@@ -70,15 +91,23 @@ render() {
     -e "s|@DANGER_RGBA_FF@|rgba(${danger#\#}ff)|g" \
     -e "s|@ACCENT_ALT_RGBA_FF@|rgba(${alt#\#}ff)|g" \
     -e "s|@MUTED_RGBA_FF@|rgba(${muted#\#}ff)|g" \
-    "$1" >"$2"
+    "$1" >"$render_tmp" || {
+    rm -f "$render_tmp"
+    return 1
+  }
+  mv "$render_tmp" "$2"
 }
 
 render "$helix_template" "$state_dir/helix.toml"
 render "$yazi_template" "$state_dir/yazi.toml"
 render "$hyprlock_template" "$state_dir/hyprlock.conf"
+render "$qt6ct_colors_template" "$state_dir/qt6ct-colors.conf"
+render "$gtk_template" "$state_dir/gtk-3.0-settings.ini"
+render "$gtk_template" "$state_dir/gtk-4.0-settings.ini"
 
 # ---- tmux ----
-cat >"$state_dir/tmux.conf" <<EOF
+tmux_conf=$(mktemp "$state_dir/.tmux.XXXXXX") || exit 1
+cat >"$tmux_conf" <<EOF
 set -g status-style "bg=$surface,fg=$fg"
 set -g status-left-style "bg=$surface,fg=$muted"
 set -g status-right-style "bg=$surface,fg=$muted"
@@ -93,6 +122,7 @@ set -g clock-mode-colour "$primary"
 set -g copy-mode-match-style "bg=$surface,fg=$accent"
 set -g copy-mode-current-match-style "bg=$accent,fg=$bg"
 EOF
+mv "$tmux_conf" "$state_dir/tmux.conf"
 
 # Told, not left to notice: a running server changes now.
 "$tmux" source-file "$state_dir/tmux.conf" >/dev/null 2>&1 || true
@@ -103,7 +133,8 @@ EOF
 btop_themes="${XDG_CONFIG_HOME:-$HOME/.config}/btop/themes"
 mkdir -p "$btop_themes"
 
-cat >"$btop_themes/anixie.theme" <<EOF
+btop_theme=$(mktemp "$btop_themes/.anixie.XXXXXX") || exit 1
+cat >"$btop_theme" <<EOF
 theme[main_bg]="$bg"
 theme[main_fg]="$fg"
 theme[title]="$primary"
@@ -142,3 +173,4 @@ theme[upload_start]="$primary"
 theme[upload_mid]="$accent"
 theme[upload_end]="$alt"
 EOF
+mv "$btop_theme" "$btop_themes/anixie.theme"

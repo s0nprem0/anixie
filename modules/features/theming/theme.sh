@@ -7,6 +7,8 @@
 #   theme set NAME       switch to it
 #   theme wallpaper [FILE] [auto|light|dark]
 #                        derive a palette from a picture
+#   theme wallpaper-mode [auto|light|dark]
+#                        remember the mode for the next picture
 #   theme next | prev    step through the list
 #   theme apply          re-apply the current one (run at login)
 #
@@ -15,10 +17,10 @@
 # reloads, kitty takes SIGUSR1, and the rest read the files written here.
 #
 # btop, tmux, Helix, Yazi and hyprlock are rewritten on every switch, along with
-# the resolved palette that Hyprland and the wallpaper command read. GTK follows
-# the mode through gsettings (Adwaita/Adwaita-dark and Papirus/Papirus-Light),
-# and Qt through qt6ct. Applications that read their config at startup pick the
-# new palette up then; nothing here needs a rebuild.
+# the resolved palette that Hyprland and the wallpaper command read. GTK gets a
+# fresh settings.ini plus the gsettings colour scheme; Qt gets a qt6ct palette.
+# Applications that read their config at startup pick the new palette up then;
+# nothing here needs a rebuild.
 #
 # The palettes are a JSON file rather than a Nix expression because this script
 # has to read the same list the shell was built from, and a shell script cannot
@@ -44,9 +46,23 @@ sha256sum="@SHA256SUM@"
 stat="@STAT@"
 
 current_file="$state_dir/current"
+wallpaper_mode_file="$state_dir/wallpaper-mode"
 
 # shellcheck source=/dev/null
 . "@ANIXIE_LIB@"
+
+# Write a file through a temporary in the same directory, so a failure never
+# leaves a half-written palette or config behind.
+write_atomic() {
+  local file="$1" tmp
+  tmp=$(mktemp "$file.XXXXXX") || return 1
+  if cat >"$tmp"; then
+    mv "$tmp" "$file"
+  else
+    rm -f "$tmp"
+    return 1
+  fi
+}
 
 names() {
   "$jq" -r 'keys[]' "$palettes" | sort
@@ -61,6 +77,22 @@ has() {
 
 mode_of() {
   "$jq" -r --arg n "$1" '.[$n]._mode // "dark"' "$palettes"
+}
+
+saved_wallpaper_mode() {
+  local mode=""
+  [ -f "$wallpaper_mode_file" ] && mode=$(tr -d '[:space:]' <"$wallpaper_mode_file")
+  case "$mode" in
+    auto | smart | light | dark) printf '%s' "$mode" ;;
+    *) printf 'auto' ;;
+  esac
+}
+
+# A generated palette is the only one with `_mode`: curated palettes are written
+# without it. That is what distinguishes a real wallpaper palette from the
+# resolved palette a curated theme leaves in the same file.
+wallpaper_palette() {
+  [ -f "$generated" ] && "$jq" -e 'has("_mode")' "$generated" >/dev/null 2>&1
 }
 
 # One colour out of the resolved palette. materialise() writes it for a curated
@@ -87,7 +119,7 @@ materialise() {
   mkdir -p "$state_dir" || die "could not create $state_dir"
 
   if [ "$name" = "wallpaper" ]; then
-    [ -f "$generated" ] || die "the generated palette is missing; run 'theme wallpaper FILE'"
+    wallpaper_palette || die "the generated palette is missing; run 'theme wallpaper FILE'"
   else
     tmp=$(mktemp "$state_dir/palette.XXXXXX") || die "could not create a palette file"
     "$jq" --arg n "$name" '.[$n] | del(._mode)' "$palettes" >"$tmp" \
@@ -98,16 +130,19 @@ materialise() {
   # The mode is metadata, not a colour: the build-time configs need it, and so
   # does a runtime switch of the glass theme.
   if [ "$name" = "wallpaper" ]; then
-    "$jq" -r '._mode // "dark"' "$generated" >"$state_dir/mode"
+    "$jq" -r '._mode // "dark"' "$generated" | write_atomic "$state_dir/mode" \
+      || die "could not write $state_dir/mode"
   else
-    "$jq" -r --arg n "$name" '.[$n]._mode // "dark"' "$palettes" >"$state_dir/mode"
+    "$jq" -r --arg n "$name" '.[$n]._mode // "dark"' "$palettes" | write_atomic "$state_dir/mode" \
+      || die "could not write $state_dir/mode"
   fi
 
-  printf '%s\n' "$name" >"$current_file"
+  printf '%s\n' "$name" | write_atomic "$current_file" \
+    || die "could not write $current_file"
 
   # kitty reads this through an include in its generated config, so the same four
   # settings appear whether the theme was built in or set at runtime.
-  cat >"$state_dir/kitty.conf" <<EOF
+  write_atomic "$state_dir/kitty.conf" <<EOF || die "could not write $state_dir/kitty.conf"
 background $(colour background)
 foreground $(colour foreground)
 selection_background $(colour accent)
@@ -125,7 +160,7 @@ EOF
 # FileView watch on it never fired on this Quickshell, so a running shell has no
 # other way to hear about the change.
 tell_apps() {
-  local name="$1" mode gtk_theme icon_theme color_scheme qt_style
+  local name="$1" mode gtk_theme icon_theme color_scheme
 
   # A generated palette cannot be named to the shell — the shell was built with
   # the curated ones — so it is handed over whole.
@@ -144,12 +179,10 @@ tell_apps() {
     gtk_theme=Adwaita
     icon_theme=Papirus-Light
     color_scheme=prefer-light
-    qt_style=adwaita
   else
     gtk_theme=Adwaita-dark
     icon_theme=Papirus-Dark
     color_scheme=prefer-dark
-    qt_style=adwaita-dark
   fi
 
   GSETTINGS_SCHEMA_DIR="$gsettings_schema_dir" "$gsettings" set \
@@ -161,10 +194,12 @@ tell_apps() {
 
   # Qt reads qt6ct's config when an application starts. The file lives in the
   # state directory and is linked into ~/.config by the Nix module.
-  cat >"$state_dir/qt6ct.conf" <<EOF
+  write_atomic "$state_dir/qt6ct.conf" <<EOF || die "could not write $state_dir/qt6ct.conf"
 [Appearance]
+color_scheme_path=$state_dir/qt6ct-colors.conf
+custom_palette=true
 icon_theme=$icon_theme
-style=$qt_style
+style=Fusion
 EOF
 
   # The wallpaper follows the palette unless one of your own is set, in which
@@ -196,6 +231,12 @@ generate() {
 
   [ -n "$wp" ] && [ -f "$wp" ] || die "no picture to read a palette from — set one with 'wallpaper set FILE', or name one: 'theme wallpaper FILE'"
 
+  # The default background is a gradient made from the palette. Reading it back
+  # would be a circle, and it would happily overwrite the palette that made it.
+  if [ "$(readlink -f "$wp")" = "$(readlink -f "$state_dir/wallpaper.png")" ]; then
+    die "the current background is generated from the palette; set a picture with 'wallpaper set FILE' first"
+  fi
+
   # Cache the result per path, modification time and mode. Re-selecting the same
   # wallpaper is then instant, and an overwritten file is read again.
   mtime=$("$stat" -Lc %Y "$wp" 2>/dev/null || printf '0')
@@ -204,10 +245,15 @@ generate() {
   cache_dir="$state_dir/cache"
   cache="$cache_dir/palette-$key.json"
   mkdir -p "$cache_dir" || die "could not create $cache_dir"
+  find "$cache_dir" -type f -mtime +30 -delete 2>/dev/null || true
 
   if [ -f "$cache" ]; then
-    cp "$cache" "$generated"
-    return
+    if "$jq" -e 'has("background") and has("surface") and has("foreground") and has("muted") and has("primary") and has("accent") and has("accentAlt") and has("success") and has("danger") and (._mode == "dark" or ._mode == "light")' "$cache" >/dev/null 2>&1; then
+      tmp=$(mktemp "$state_dir/palette.XXXXXX") || die "could not create a palette file"
+      cp "$cache" "$tmp" && mv "$tmp" "$generated" || die "could not use the cached palette"
+      return
+    fi
+    rm -f "$cache"
   fi
 
   source="$wp"
@@ -255,16 +301,32 @@ generate() {
     || die "could not read the generated palette"
   mv "$tmp" "$generated"
 
-  cp "$generated" "$cache"
+  tmp=$(mktemp "$cache.XXXXXX") || die "could not create a cache file"
+  cp "$generated" "$tmp" && mv "$tmp" "$cache" || die "could not cache the palette"
 }
 
 set_theme() {
   local name="$1"
-  [ "$name" = "wallpaper" ] && generate "${2:-}" "${3:-auto}"
   has "$name" || die "no theme called \"$name\" (try: theme list)"
   materialise "$name"
   tell_apps "$name"
   printf 'Theme: %s\n' "$name"
+}
+
+wallpaper_theme() {
+  local wp="${1:-}" requested="${2:-}"
+  if [ -n "$requested" ]; then
+    case "$requested" in
+      auto | smart | light | dark) ;;
+      *) die "mode must be auto, light or dark" ;;
+    esac
+    printf '%s\n' "$requested" | write_atomic "$wallpaper_mode_file" \
+      || die "could not write $wallpaper_mode_file"
+  else
+    requested=$(saved_wallpaper_mode)
+  fi
+  generate "$wp" "$requested"
+  set_theme wallpaper
 }
 
 step() {
@@ -310,7 +372,21 @@ case "${1:-}" in
     set_theme "$2"
     ;;
   wallpaper)
-    set_theme wallpaper "${2:-}" "${3:-auto}"
+    wallpaper_theme "${2:-}" "${3:-}"
+    ;;
+  wallpaper-mode)
+    if [ $# -ge 2 ]; then
+      case "$2" in
+        auto | light | dark)
+          printf '%s\n' "$2" | write_atomic "$wallpaper_mode_file" \
+            || die "could not write $wallpaper_mode_file"
+          ;;
+        *) die "wallpaper-mode must be auto, light or dark" ;;
+      esac
+    else
+      saved_wallpaper_mode
+      printf '\n'
+    fi
     ;;
   next)
     step next
@@ -322,9 +398,14 @@ case "${1:-}" in
     # The picker runs `theme set <name>` itself, so this has nothing left to do
     # but hand over the names and be done. The label carries the mode; the value
     # stays the name, so the command it runs does not change.
-    names | while IFS= read -r name; do
-      printf '%s (%s)\t%s\n' "$name" "$(mode_of "$name")" "$name"
-    done | pick --title 'theme' --on-select 'theme set {}'
+    {
+      if wallpaper_palette; then
+        printf 'wallpaper (generated)\twallpaper\n'
+      fi
+      names | while IFS= read -r name; do
+        printf '%s (%s)\t%s\n' "$name" "$(mode_of "$name")" "$name"
+      done
+    } | pick --title 'theme' --on-select 'theme set {}'
     exit 0
     ;;
   *)

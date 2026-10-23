@@ -41,7 +41,7 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    color: Qt.rgba(0, 0, 0, 0.58)
+    color: Theme.lockScrim
   }
 
   // Empty areas focus the field; the field itself sits above this and takes its

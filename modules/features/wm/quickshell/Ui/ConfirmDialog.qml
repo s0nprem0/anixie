@@ -61,7 +61,7 @@ Item {
   Rectangle {
     id: scrim
     anchors.fill: parent
-    color: Qt.rgba(0, 0, 0, 0.45)
+    color: Theme.curtain
 
     // A scrim that only paints is not a scrim: without a handler the click
     // falls through to the panel underneath and hits whatever row was behind

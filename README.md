@@ -133,19 +133,22 @@ through gsettings (Adwaita/Adwaita-dark and Papirus/Papirus-Light icons).
 ```sh
 anixie theme list | set NAME | next | prev | current
 anixie theme wallpaper [FILE] [auto|light|dark]  # palette from a picture
+anixie theme wallpaper-mode [auto|light|dark]    # remember the next mode
 anixie textsize up|down|set N   # the whole shell, not just the bar
 anixie wallpaper set FILE       # or `wallpaper theme` for the palette's gradient
 ```
 
 A theme switched at runtime reaches the **shell, Hyprland's borders, kitty, btop
-and tmux immediately**. GTK follows through gsettings, Qt through qt6ct, and
-Helix, yazi and the lock screen through their state-directory configs; those
-applications take the change at their next start. No rebuild is needed for a
-theme switch. `theme wallpaper` uses matugen's smart mode unless `light` or
+and tmux immediately**. GTK follows through its state settings.ini and gsettings,
+Qt through a qt6ct palette, and Helix, yazi and the lock screen through their
+state-directory configs; those applications take the change at their next start.
+No rebuild is needed for a theme switch. `theme wallpaper` uses matugen's smart mode unless `light` or
 `dark` is named, and falls back to the previous palette if the picture cannot be
 read. Results are cached per picture and mode, and a video contributes its first
-frame. While `wallpaper` is the current theme, choosing a background through
-`anixie wallpaper` also regenerates the palette from it.
+frame. `theme wallpaper` remembers an explicit `auto`/`light`/`dark` choice for
+the next picture; `theme set wallpaper` reuses the last generated palette. While
+`wallpaper` is the current theme, choosing a background through `anixie
+wallpaper` also regenerates the palette from it.
 
 ## Everything else
 

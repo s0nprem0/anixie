@@ -78,6 +78,8 @@ let
         "@HELIX_TEMPLATE@"
         "@YAZI_TEMPLATE@"
         "@HYPRLOCK_TEMPLATE@"
+        "@QT6CT_COLORS_TEMPLATE@"
+        "@GTK_TEMPLATE@"
       ]
       [
         "${./themes.json}"
@@ -87,6 +89,8 @@ let
         "${./templates/helix.toml}"
         "${./templates/yazi.toml}"
         "${./templates/hyprlock.conf}"
+        "${./templates/qt6ct-colors.conf}"
+        "${./templates/gtk-settings.ini}"
       ]
       (builtins.readFile ./theme-apps.sh)
   );
@@ -172,7 +176,7 @@ in
     activation.anixieThemeState = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       state=${lib.escapeShellArg stateDir}
       mkdir -p "$state"
-      for file in kitty-font.conf textscale; do
+      for file in kitty-font.conf mode textscale; do
         if [ -L "$state/$file" ]; then
           value=$(cat "$state/$file" 2>/dev/null || true)
           rm -f "$state/$file"
@@ -184,6 +188,9 @@ in
       fi
       if [ ! -f "$state/textscale" ]; then
         printf '100\n' >"$state/textscale"
+      fi
+      if [ ! -f "$state/mode" ]; then
+        printf '%s\n' ${lib.escapeShellArg config.my.theme.mode} >"$state/mode"
       fi
     '';
   };

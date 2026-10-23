@@ -54,6 +54,12 @@ QtObject {
   // background rather than a separate token, so every palette gets one.
   readonly property color glass: Qt.rgba(bg.r, bg.g, bg.b, 0.95)
 
+  // A modal curtain is black in both modes, but lighter on a light desktop so it
+  // does not turn the whole screen grey. The lock uses the palette background
+  // instead: on a light theme a black scrim would leave the dark text unreadable.
+  readonly property color curtain: Qt.rgba(0, 0, 0, isLight ? 0.22 : 0.35)
+  readonly property color lockScrim: Qt.rgba(bg.r, bg.g, bg.b, isLight ? 0.82 : 0.58)
+
   // Which edge the bar sits on: top, bottom, left or right. Rendered from the Nix
   // module rather than read from bar.json, because the window is built once and
   // cannot be re-anchored afterwards — the value has to be known before the first

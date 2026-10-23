@@ -100,11 +100,11 @@
     "background": "#eff1f5",
     "surface": "#e6e9ef",
     "foreground": "#4c4f69",
-    "muted": "#8c8fa1",
+    "muted": "#5c5f77",
     "primary": "#1e66f5",
     "accent": "#179299",
     "accentAlt": "#8839ef",
-    "success": "#40a02b",
+    "success": "#2f7d32",
     "danger": "#d20f39"
   },
   "gruvbox-light": {
@@ -112,11 +112,11 @@
     "background": "#fbf1c7",
     "surface": "#ebdbb2",
     "foreground": "#3c3836",
-    "muted": "#928374",
+    "muted": "#665c54",
     "primary": "#076678",
     "accent": "#427b58",
     "accentAlt": "#8f3f71",
-    "success": "#79740e",
+    "success": "#6b6a0d",
     "danger": "#9d0006"
   },
   "rose-pine-dawn": {
@@ -124,11 +124,11 @@
     "background": "#faf4ed",
     "surface": "#f2e9e1",
     "foreground": "#575279",
-    "muted": "#9893a5",
+    "muted": "#6e6a86",
     "primary": "#286983",
     "accent": "#56949f",
     "accentAlt": "#907aa9",
-    "success": "#56949f",
-    "danger": "#b4637a"
+    "success": "#3d7a68",
+    "danger": "#a03d57"
   }
 }

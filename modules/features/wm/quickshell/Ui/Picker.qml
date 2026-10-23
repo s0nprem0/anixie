@@ -45,7 +45,7 @@ Item {
   // outside it, which is the gesture for "not this one".
   Rectangle {
     anchors.fill: parent
-    color: Qt.rgba(0, 0, 0, 0.35)
+    color: Theme.curtain
     opacity: root.reveal
   }
 
