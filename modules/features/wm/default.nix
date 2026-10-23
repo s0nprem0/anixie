@@ -6,7 +6,6 @@
     ./display
     ./emoji
     ./focus
-    ./hypridle
     ./hyprland
     ./hyprsunset
     ./menu

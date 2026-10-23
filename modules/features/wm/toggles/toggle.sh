@@ -55,8 +55,8 @@ nightlight_toggle() {
 # ---- idle lock ----
 #
 # The shell owns the idle cycle now: its screensaver, blanking and lock timers
-# are one switch, exposed as the `idle` IPC target. hypridle remains only as the
-# pre-suspend guard, so the daemon is no longer the state to ask about.
+# are one switch, exposed as the `idle` IPC target. The logind listener handles
+# the pre-suspend lock as well, so there is no second daemon to ask about.
 
 idle_state() {
   local state

@@ -150,8 +150,8 @@ hl.config({
     disable_splash_rendering = true;
 
     -- A blanked output should come back on the first key or mouse movement
-    -- rather than waiting for a click. hypridle's on-resume normally does
-    -- this itself; these cover a DPMS state set by anything else.
+    -- rather than waiting for a click. The logind listener's resume path
+    -- normally does this itself; these cover a DPMS state set by anything else.
     key_press_enables_dpms = true;
     mouse_move_enables_dpms = true;
   };

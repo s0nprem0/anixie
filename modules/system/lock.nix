@@ -3,11 +3,6 @@
   # acquire; it is no longer the lock on the lock key.
   programs.hyprlock.enable = true;
 
-  # hypridle is kept only as the pre-suspend guard now. Its idle, screensaver and
-  # lock listeners are gone: those live in the shell (see
-  # features/wm/quickshell/Ui/IdleHost.qml and LockHost.qml).
-  services.hypridle.enable = true;
-
   # The daemon behind pam_fprintd. Enabling it also makes the fingerprint module
   # available to PAM services; the shell's password service opts out below, so
   # the two lock flows stay separate.

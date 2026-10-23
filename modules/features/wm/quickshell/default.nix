@@ -50,12 +50,13 @@ let
   # into the same IPC call the key uses, filtered to this session.
   lockSignal = pkgs.writeShellScript "anixie-lock-signal" (
     builtins.replaceStrings
-      [ "@BUSCTL@" "@DBUS_MONITOR@" "@STDBUF@" "@QUICKSHELL@" ]
+      [ "@BUSCTL@" "@DBUS_MONITOR@" "@STDBUF@" "@QUICKSHELL@" "@HYPRCTL@" ]
       [
         "${pkgs.systemd}/bin/busctl"
         "${pkgs.dbus}/bin/dbus-monitor"
         "${pkgs.coreutils}/bin/stdbuf"
         "${pkgs.quickshell}/bin/quickshell"
+        "${pkgs.hyprland}/bin/hyprctl"
       ]
       (builtins.readFile ./lock-signal.sh)
   );

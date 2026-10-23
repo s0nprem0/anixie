@@ -11,12 +11,12 @@ import ".."
 //
 // The shell owns the whole cycle now: a Wayland idle notification starts it, a
 // screensaver covers the desktop, the display blanks, and the session locks. The
-// old hypridle service is kept only as the pre-suspend guard until this path has
-// been proven; its listeners are gone.
+// logind listener handles the pre-suspend lock and the post-resume DPMS, so the
+// old hypridle service is gone entirely.
 //
-// Timings follow the previous hypridle config, with a visual screensaver in the
-// gap before the display blanked: screensaver at 2.5 minutes, display off at 5,
-// lock at 10, and suspend at 30 on battery only. `respectInhibitors` keeps the
+// Timings follow the previous idle config, with a visual screensaver in the gap
+// before the display blanked: screensaver at 2.5 minutes, display off at 5, lock
+// at 10, and suspend at 30 on battery only. `respectInhibitors` keeps the
 // stay-awake service working without a second mechanism.
 QtObject {
   id: root
