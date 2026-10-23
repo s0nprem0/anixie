@@ -210,24 +210,12 @@ QtObject {
     root.showNamed(name, anchor, builder)
   }
 
-  // Open without taking the keyboard. The tray drawer is revealed by hovering,
-  // and a panel that stole the keys from the window being typed in because the
-  // pointer crossed the tray would be worse than no hover target at all.
-  function showPassive(name, anchor, builder) {
-    if (builder === undefined) {
-      root.showNamed(root.nameFor(anchor), name, anchor, false)
-      return
-    }
-
-    root.showNamed(name, anchor, builder, false)
-  }
-
-  function showNamed(name, anchor, builder, grabKeyboard) {
+  function showNamed(name, anchor, builder) {
     if (!name || !anchor || !builder) return
 
     const screenName = Screens.nameOf(anchor)
     if (root.isOpen(name, screenName)) {
-      if (grabKeyboard !== false) root.focus(name, screenName)
+      root.focus(name, screenName)
       return
     }
 
@@ -239,7 +227,7 @@ QtObject {
     root.entries = next
 
     root.openPanels.append({ name: name, screenName: screenName, key: key })
-    if (grabKeyboard !== false) root.focused = key
+    root.focused = key
   }
 
   // A name for a panel that has none: a module that only knows its anchor still

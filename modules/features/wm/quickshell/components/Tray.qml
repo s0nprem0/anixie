@@ -24,12 +24,10 @@ BarWidget {
 
   readonly property Component drawer: drawerComponent
 
-  // A hover reveal is passive: it opens the drawer without taking the keyboard,
-  // and closes it again when the pointer leaves both the tray and the drawer.
-  // A drawer opened by clicking the handle is left alone until it is dismissed.
-  property bool drawerHovered: false
-  property bool hoverOpened: false
-
+  // The drawer opens by clicking the handle or with `bar tray`, never on hover.
+  // A hover reveal made crossing the right end of the bar enough to open it,
+  // and a tray icon appearing could shift the layout under a resting pointer
+  // and open the drawer with no click at all.
   wantsSlot: root.items.length > 0 || root.parked.length > 0
   implicitWidth: row.implicitWidth
   implicitHeight: Style.bar.sizeHorizontal
@@ -41,29 +39,65 @@ BarWidget {
   readonly property string screenName: Screens.nameOf(root)
   readonly property bool drawerOpen: PanelHost.isOpen("tray", root.screenName)
 
-  function openDrawer() {
-    if (root.parked.length === 0 || root.drawerOpen) return
+  // The path for an item's icon, trying every name it might have gone by.
+  //
+  // A StatusNotifierItem is not required to publish a theme icon. Electron and
+  // flatpak apps often leave IconName empty because their icon arrives as a
+  // pixmap, which this service does not expose, and some publish an icon name
+  // that exists only in their desktop entry. Falling back to
+  // application-x-executable for all of those is why every one of them looked
+  // the same. The order is: what the item says, what its desktop entry says,
+  // the app id or title as a theme name, and the generic icon last.
+  function iconPath(item) {
+    if (!item) return ""
 
-    root.hoverOpened = true
-    PanelHost.showPassive("tray", parkedButton, root.drawer)
-  }
+    function resolve(name) {
+      if (!name) return ""
 
-  function closeDrawer() {
-    if (!root.drawerOpen) {
-      root.hoverOpened = false
-      root.drawerHovered = false
-      return
+      const value = String(name)
+      // A few items publish a path instead of a theme name. iconPath only
+      // understands theme names, so hand the file to Image as a URL.
+      if (value.indexOf("file://") === 0) return value
+      if (value.charAt(0) === "/") return "file://" + value
+
+      return Quickshell.iconPath(value, "")
     }
 
-    if (!root.hoverOpened) return
-    if (root.drawerHovered || trayHover.hovered) return
-    // A parked widget may have opened its own panel from the drawer. Closing the
-    // drawer would take that panel's anchor away with it, so it stays until the
-    // panel opened from it is gone.
-    if (PanelHost.countFor(root.screenName) > 1) return
+    // What the item itself published.
+    const direct = resolve(item.icon)
+    if (direct !== "") return direct
 
-    PanelHost.close("tray", root.screenName)
-    root.hoverOpened = false
+    const id = String(item.id || "")
+    const title = String(item.title || "")
+
+    // Some items name the desktop file, some the app id without the suffix,
+    // and flatpak ids are reverse-DNS. byId is exact, heuristicLookup is what
+    // covers a title that is the display name rather than the file id.
+    const entry = (id !== "" ? DesktopEntries.byId(id) : null)
+      || (id !== "" ? DesktopEntries.byId(id + ".desktop") : null)
+      || (title !== "" ? DesktopEntries.heuristicLookup(title) : null)
+
+    const fromEntry = resolve(entry ? entry.icon : "")
+    if (fromEntry !== "") return fromEntry
+
+    // Last resort before the generic icon: the app id is often the icon name
+    // even when no desktop file on this machine agrees.
+    const names = []
+    function add(name) {
+      if (name && names.indexOf(name) === -1) names.push(String(name))
+    }
+    if (id !== "") {
+      add(id)
+      add(id.replace(/\.desktop$/, ""))
+      add(id.toLowerCase())
+    }
+
+    for (let i = 0; i < names.length; i++) {
+      const path = resolve(names[i])
+      if (path !== "") return path
+    }
+
+    return Quickshell.iconPath("application-x-executable", "")
   }
 
   function openMenu(button) {
@@ -89,45 +123,11 @@ BarWidget {
     ], button)
   }
 
-  // Hovering the tray reveals the drawer. The delay keeps a pointer merely
-  // crossing the bar from opening it; leaving waits a little longer so the
-  // pointer can cross the gap into the drawer.
-  HoverHandler {
-    id: trayHover
-
-    onHoveredChanged: {
-      if (hovered) {
-        hoverClose.stop()
-        if (!root.drawerOpen) hoverOpen.restart()
-      } else {
-        hoverOpen.stop()
-        if (root.hoverOpened) hoverClose.restart()
-      }
-    }
-  }
-
-  Timer {
-    id: hoverOpen
-    interval: 250
-    onTriggered: root.openDrawer()
-  }
-
-  Timer {
-    id: hoverClose
-    interval: 300
-    onTriggered: root.closeDrawer()
-  }
-
+  // A drawer whose widgets all stopped reporting — Dropbox not installed, the
+  // keyboard layout collapsed to one entry — has nothing left to show. Close
+  // it rather than leaving an empty panel floating.
   onParkedChanged: {
-    if (root.parked.length === 0) {
-      if (hoverOpen) hoverOpen.stop()
-      if (hoverClose) hoverClose.stop()
-      root.hoverOpened = false
-      root.drawerHovered = false
-      if (root.drawerOpen) PanelHost.close("tray", root.screenName)
-    } else if (trayHover && trayHover.hovered && !root.drawerOpen) {
-      if (hoverOpen) hoverOpen.restart()
-    }
+    if (root.parked.length === 0 && root.drawerOpen) PanelHost.close("tray", root.screenName)
   }
 
   Row {
@@ -176,13 +176,12 @@ BarWidget {
 
         Image {
           anchors.centerIn: parent
-          source: button.item.icon !== ""
-            ? Quickshell.iconPath(button.item.icon, "application-x-executable")
-            : ""
+          source: root.iconPath(button.item)
           sourceSize.width: Style.bar.iconSize * 2
           sourceSize.height: Style.bar.iconSize * 2
           width: Style.bar.iconSize
           height: Style.bar.iconSize
+          fillMode: Image.PreserveAspectFit
           smooth: true
         }
       }
@@ -199,9 +198,6 @@ BarWidget {
         + (root.parked.length === 1 ? " widget parked" : " widgets parked")
         + " · click to open"
       onPressed: function () {
-        hoverOpen.stop()
-        hoverClose.stop()
-        root.hoverOpened = false
         PanelHost.toggle("tray", parkedButton, root.drawer)
       }
     }
@@ -216,15 +212,6 @@ BarWidget {
 
     Panel {
       id: trayCard
-
-      // Crossing the gap from the bar into the drawer must not close it. The
-      // close timer is cancelled while the pointer is on the card, and restarted
-      // when it leaves.
-      onPointerInsideChanged: {
-        root.drawerHovered = trayCard.pointerInside
-        if (trayCard.pointerInside) hoverClose.stop()
-        else if (root.hoverOpened) hoverClose.restart()
-      }
 
       PanelHero {
         width: trayCard.contentWidth
