@@ -7,8 +7,9 @@ import Quickshell.Io
 
 // Wi-Fi panel: the radio, what is in use, what is nearby, and a way to switch.
 //
-// nmcli is the only network manager here, so this is shell-driven rather than
-// backed by a native module the way audio and power are.
+// Reads and actions come from Quickshell.Networking, which talks to
+// NetworkManager over D-Bus. nmcli is kept for the few facts the service does
+// not expose: the profile name for DNS, the gateway, VPN links, and the QR.
 //
 // The shape follows the reference's panels: a hero row for the thing the panel is
 // *about* (the radio), then sections under a rule and a heading. The sections are
@@ -18,55 +19,54 @@ import Quickshell.Io
 Item {
   id: root
 
-  property var wifiDevice: ""
-  property var networks: []
-  property string activeSsid: ""
+  // Reads and actions come from the service; the panel only keeps the things
+  // the service does not expose (the profile name for DNS, the gateway, VPN
+  // links, and the QR).
+  readonly property var wifiDevice: NetworkHost.wifiDevice
+  readonly property var networks: NetworkHost.networks
+  readonly property string activeSsid: NetworkHost.activeSsid
+  readonly property bool connected: NetworkHost.connected
 
   // The NetworkManager profile behind the SSID. The two are not the same: a
-  // profile can be renamed, and every nmcli con verb (show, mod, delete, up)
-  // takes the profile name, not the SSID. Reading it from the device keeps the
-  // panel from acting on a connection it merely thinks is there.
+  // profile can be renamed, and every nmcli con verb (show, mod, up) takes the
+  // profile name, not the SSID. It is still read with nmcli because the service
+  // does not expose the profile name.
   property string activeConnection: ""
 
-  property bool scanning: false
+  readonly property bool scanning: NetworkHost.scanning
 
-  // nmcli exiting non-zero is not the same as there being no networks, and the
-  // panel says which it is rather than showing an empty list either way.
-  property bool failed: false
-  property string failure: ""
+  readonly property bool failed: NetworkHost.unavailable
+  readonly property string failure: NetworkHost.failure
 
-  // The radio. Read from nmcli rather than assumed, and written optimistically:
-  // the switch answers the click at once and the read-back confirms it, because
-  // `nmcli radio` takes a moment and a switch that lags its own click reads as
-  // broken.
-  property bool radioEnabled: true
-  property bool radioBusy: false
+  readonly property bool radioEnabled: NetworkHost.wifiEnabled
+  readonly property bool radioBusy: NetworkHost.radioPending
 
   // The row whose action is running, and which action it is. The row renders
   // "Connecting…" / "Disconnecting…" so a click that takes a second is visibly
   // doing something rather than looking ignored.
-  property string actionSsid: ""
-  property string actionKind: ""
+  readonly property string actionSsid: NetworkHost.actionSsid
+  readonly property string actionKind: NetworkHost.actionKind
 
   // The first line of the last action's failure. A connect that fails for any
   // reason other than a missing secret used to look exactly like one that
   // needed a password; this is where the difference is said out loud.
   property string actionError: ""
 
-  // True while an action is settling. The fast poll runs for the action and
-  // stops after it; restarting the timer directly removed its `running`
-  // binding and left it polling every 900ms for the rest of the panel's life.
-  property bool settling: false
-
   // A secured network that would not join because it has no stored key. The
-  // panel asks here rather than failing silently: NetworkManager wants secrets
-  // through a secret agent, and this shell is not one.
+  // service can hand the key over directly, so this is a prompt rather than a
+  // secret agent.
   property string askingSsid: ""
 
   // One action at a time. Two connects racing each other is not a faster connect,
-  // it is two nmcli processes fighting over the device and neither result
-  // trustworthy.
-  readonly property bool busy: root.actionKind !== ""
+  // it is two requests fighting over the device and neither result trustworthy.
+  readonly property bool busy: NetworkHost.busy
+
+  Connections {
+    target: NetworkHost
+
+    function onActionFailed(message) { root.actionError = message }
+    function onSecretRequested(ssid) { root.askingSsid = ssid }
+  }
 
   // ---- share by QR ----
   //
@@ -78,11 +78,6 @@ Item {
   property string qrError: ""
   readonly property bool qrReady: root.qrPath !== ""
 
-  // A bool, and it has to be one. Declared as a string this held the *text*
-  // "false" when there was no connection, which is truthy as far as every test
-  // of it is concerned — so the QR toggle was offered for a network the panel
-  // had just said was unavailable, and the hero's subtitle was empty rather than
-  // naming the state.
   // ---- DNS ----
   //
   // Per connection, not global: nmcli keeps it on the connection profile, which
@@ -110,7 +105,7 @@ Item {
     // Read by device, not by connection: the device is what the panel has, and
     // the answer includes the profile name, which is what the con verbs take.
     // It runs while disconnected too, so an Ethernet cable or VPN still shows.
-    if (root.wifiDevice === "") {
+    if (!root.wifiDevice) {
       root.activeConnection = ""
       root.address = ""
       root.gateway = ""
@@ -125,14 +120,11 @@ Item {
   }
 
   function forget() {
-    // The profile name, not the SSID: a renamed profile has a different one,
-    // and deleting by the wrong name either fails or deletes nothing.
-    const connection = root.activeConnection
-    if (!root.connected || connection === "") return
+    const item = root.networkFor(root.activeSsid)
+    if (!item) return
 
     root.actionError = ""
-    forgetProc.command = ["nmcli", "connection", "delete", connection]
-    forgetProc.running = true
+    NetworkHost.forget(item)
   }
 
   // The network row for an SSID, for deciding whether a failed connect could
@@ -144,8 +136,17 @@ Item {
     return null
   }
 
-  // One read for the facts the panel did not have: the profile name, the
-  // address, the other links that are up, and the VPN. The fields are asked for
+  onWifiDeviceChanged: root.refreshDetails()
+
+  // The service reports an address change when DHCP renews; the gateway and
+  // profile name live in the same nmcli read, so one refresh covers all three.
+  Connections {
+    target: root.wifiDevice
+    function onAddressChanged() { root.refreshDetails() }
+  }
+
+  // One read for the facts the service does not expose: the profile name, the
+  // gateway, the other links that are up, and the VPN. The fields are asked for
   // one at a time because `-g A,B` prints every value of A before B, so a
   // connection with two addresses put the second address where the gateway was
   // read from.
@@ -157,7 +158,7 @@ Item {
       + 'nmcli -g IP4.ADDRESS device show "$1" 2>/dev/null | head -1; echo ---; '
       + 'nmcli -g IP4.GATEWAY device show "$1" 2>/dev/null | head -1; echo ---; '
       + 'nmcli -t -f TYPE,STATE,CONNECTION device status 2>/dev/null | grep -E "^(ethernet|wireguard|tun|vpn):" || true',
-      "_", root.wifiDevice]
+      "_", root.wifiDevice ? root.wifiDevice.name : ""]
     stdout: StdioCollector {
       onStreamFinished: {
         const parts = String(this.text).split("---")
@@ -190,27 +191,6 @@ Item {
         // would otherwise leave DNS empty until the next change.
         root.refreshDns()
       }
-    }
-  }
-
-  Process {
-    id: forgetProc
-    running: false
-    stderr: StdioCollector { id: forgetErr }
-    onExited: function (exitCode) {
-      if (exitCode === 0) {
-        root.activeSsid = ""
-        root.activeConnection = ""
-        root.dns = ""
-        root.actionError = ""
-      } else {
-        const message = String(forgetErr.text || "").trim().split("\n")[0]
-        root.actionError = message !== "" ? message : "Could not forget this network"
-      }
-
-      root.refresh()
-      root.refreshDns()
-      root.refreshDetails()
     }
   }
 
@@ -276,17 +256,19 @@ Item {
         root.actionError = message !== "" ? message : "Could not change DNS"
       }
       root.refreshDns()
-      root.refresh()
+      root.refreshDetails()
     }
   }
 
   // refreshDetails reads the profile name and calls this once it is known, so
-  // DNS is never read against the previous network's name.
-  onActiveSsidChanged: root.refreshDetails()
+  // DNS is never read against the previous network's name. A code for one
+  // network is not a code for another, so a change takes it away.
+  onActiveSsidChanged: {
+    root.refreshDetails()
+    if (root.qrVisible) root.setQr(false)
+  }
 
   readonly property int qrSize: Style.space(180)
-
-  readonly property bool connected: root.activeSsid !== ""
 
   // What the empty list means, said in the list rather than in a line below it.
   // Four reasons to be empty and each says which it is, including "there is
@@ -369,379 +351,59 @@ Item {
     return home !== "" ? home + "/.local/state/anixie" : ""
   }
 
-  // A scan reports networks the device has not seen yet; connecting to a hidden
-  // network is out of scope, so only listed ones are offered.
-  function parse(raw) {
-    const found = []
-
-    for (let i = 0; i < raw.split("\n").length; i++) {
-      const row = raw.split("\n")[i]
-      if (row === "") continue
-
-      const parts = row.split(":")
-
-      // IN-USE,SSID,SIGNAL,SECURITY. The SSID is whatever sits between the
-      // first and the last two fields, rejoined, because nmcli escapes a colon
-      // inside an SSID as "\:" and a naive split would tear it in half.
-      if (parts.length < 4) continue
-
-      const inUse = parts[0] === "*"
-      const ssid = decodeSsid(parts.slice(1, parts.length - 2).join(":"))
-      if (ssid === "") continue
-
-      // nmcli reports an open network as "--"; anything else is some form of key
-      // or 802.1X, and the row only has to say "this one is not open".
-      const security = decodeSsid(parts[parts.length - 1])
-
-      found.push({
-        ssid: ssid,
-        signal: parseInt(parts[parts.length - 2], 10) || 0,
-        security: security,
-        secured: security !== "" && security !== "--",
-        inUse: inUse
-      })
-    }
-
-    // One row per access point, so a network broadcast by two radios — the 2.4
-    // and the 5 GHz of the same name — is listed twice, and two identical rows
-    // that do the same thing is not a list to choose from. The one in use wins
-    // over the stronger of the pair; otherwise the stronger one does, and the
-    // pair counts as secured if either half is.
-    const byName = {}
-
-    for (const network of found) {
-      const seen = byName[network.ssid]
-
-      if (!seen) {
-        byName[network.ssid] = network
-        continue
-      }
-
-      const takesIt = (network.inUse && !seen.inUse)
-        || (network.inUse === seen.inUse && network.signal > seen.signal)
-
-      const winner = takesIt ? network : seen
-      winner.secured = winner.secured || seen.secured
-      byName[network.ssid] = winner
-    }
-
-    const unique = Object.keys(byName).map(function (name) { return byName[name] })
-
-    // Strongest first, with the network in use pinned to the top.
-    unique.sort(function (a, b) {
-      if (a.inUse !== b.inUse) return a.inUse ? -1 : 1
-      return b.signal - a.signal
-    })
-
-    return unique
-  }
-
   function decodeSsid(value) {
     return String(value).replace(/\\(.)/g, "$1")
   }
 
   // ---- commands ----
+  //
+  // The service owns the list and the actions; these are the small wrappers the
+  // UI calls, plus the one details read that still needs nmcli.
 
-  // `--rescan no` is what makes this a status query. The default policy
-  // rescans when NetworkManager's cache is stale, so the ten-second poll was
-  // quietly starting real radio scans — the cost the bar's Wifi readout moved
-  // to D-Bus to avoid. The explicit Rescan button is the one that rescans.
-  Process {
-    id: listProc
-    running: true
-    command: ["nmcli", "-t", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "device", "wifi", "list", "--rescan", "no"]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const found = root.parse(this.text)
-        root.networks = found
-        const wasSsid = root.activeSsid
-        root.activeSsid = found.length && found[0].inUse ? found[0].ssid : ""
-
-        // A code for one network is not a code for another. When the network
-        // changes while the QR is up, take it away rather than leave a phone
-        // pointed at the wrong credentials. Only on a change, not on every poll —
-        // the scan runs periodically and would switch it off each time otherwise.
-        if (root.qrVisible && root.activeSsid !== wasSsid) root.setQr(false)
-
-        // The process that starts as part of building the shell can come back
-        // with its output already dropped, which reads as "no networks". Ask
-        // again rather than showing an empty list.
-        if (found.length === 0 && root.emptyRetries < 3) {
-          root.emptyRetries += 1
-          emptyRetry.restart()
-        }
-      }
-    }
-
-    stderr: StdioCollector {
-      onStreamFinished: root.failure = this.text.trim()
-    }
-
-    onExited: function (exitCode) {
-      // A successful read is a successful read whether or not it found anything.
-      if (exitCode === 0) {
-        root.failed = false
-        root.failure = ""
-        return
-      }
-
-      // The radio being off is not a failure: nmcli says so by exiting non-zero,
-      // and the list already says "Wireless is off". Painting the panel red for
-      // it made a switch look like a fault.
-      if (!root.radioEnabled) {
-        root.failed = false
-        root.failure = ""
-        return
-      }
-
-      root.failed = true
-      if (root.failure === "") root.failure = "nmcli exited with " + exitCode
-
-      // Nothing that was read before the failure can still be true. Saying
-      // "Unavailable" while a connection, an address, a DNS choice and a QR
-      // code for them are all still on screen is worse than saying nothing.
-      root.activeSsid = ""
-      root.activeConnection = ""
-      root.networks = []
-      root.address = ""
-      root.gateway = ""
-      root.wired = ""
-      root.vpn = ""
-      root.dns = ""
-      if (root.qrVisible) root.setQr(false)
-
-      // NetworkManager is still coming up on the first open of a session, and a
-      // failure that fixes itself in a second should not sit there for ten. The
-      // same budget as an empty list: three quick retries, then the slow poll.
-      if (root.emptyRetries < 3) {
-        root.emptyRetries += 1
-        emptyRetry.restart()
-      }
-    }
-  }
-
-  property int emptyRetries: 0
-
-  Timer {
-    id: emptyRetry
-    interval: 700
-    onTriggered: root.refresh()
-  }
-
-  Process {
-    id: scanProc
-    running: false
-    stderr: StdioCollector { id: scanErr }
-    onExited: function (exitCode) {
-      if (exitCode === 0) return
-
-      const message = String(scanErr.text || "").trim().split("\n")[0]
-
-      // "Scanning not allowed immediately following previous scan" is not a
-      // failure: the scan already in progress is the one the poll is waiting
-      // for, so leave `scanning` set and let it finish.
-      if (/scanning not allowed/i.test(message)) return
-
-      root.scanning = false
-      scanTimeout.stop()
-      root.actionError = message !== "" ? message : "Could not scan for networks"
-    }
-  }
-
-  Process {
-    id: actionProc
-    running: false
-    stderr: StdioCollector { id: actionErr }
-    onExited: function (exitCode) {
-      const kind = root.actionKind
-      const ssid = root.actionSsid
-      const message = String(actionErr.text || "").trim().split("\n")[0]
-
-      // Cleared on exit rather than on the re-read, so a failed connect still
-      // takes the row out of its "Connecting…" state instead of leaving it there.
-      root.actionSsid = ""
-      root.actionKind = ""
-      root.settling = false
-
-      if (exitCode !== 0) {
-        // A secret that NetworkManager wanted is a password prompt; anything
-        // else — out of range, device busy, polkit denied — is said out loud
-        // rather than dressed up as a password problem.
-        const net = root.networkFor(ssid)
-        const secret = /secrets were required|no secrets|password|802-11-wireless-security/i.test(message)
-        const askAnyway = message === "" && net !== null && net.secured
-
-        if (kind === "connect" && (secret || askAnyway)) {
-          root.askingSsid = ssid
-          root.actionError = "Could not join " + ssid + ". Check the password."
-        } else {
-          root.actionError = message !== ""
-            ? message
-            : "Could not " + (kind === "disconnect" ? "disconnect" : "connect")
-        }
-      }
-
-      root.refresh()
-    }
-  }
-
-  Process {
-    id: deviceProc
-    running: true
-    command: ["nmcli", "-t", "-f", "DEVICE,TYPE", "device", "status"]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const rows = this.text.split("\n")
-        for (let i = 0; i < rows.length; i++) {
-          const parts = rows[i].split(":")
-          if (parts[1] === "wifi") root.wifiDevice = parts[0]
-        }
-
-        // The device name is what every read below keys on; ask once it is known.
-        if (root.wifiDevice !== "") root.refreshDetails()
-      }
-    }
-  }
-
-  Process {
-    id: radioGet
-    running: true
-    command: ["nmcli", "-t", "radio", "wifi"]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        // Read-back confirms the optimistic value, and is also what tells the
-        // panel on first open that the radio is already off.
-        root.radioEnabled = this.text.trim() === "enabled"
-      }
-    }
-  }
-
-  Process {
-    id: radioSet
-    running: false
-    stderr: StdioCollector { id: radioErr }
-    onExited: function (exitCode) {
-      root.radioBusy = false
-      if (exitCode !== 0) {
-        const message = String(radioErr.text || "").trim().split("\n")[0]
-        root.actionError = message !== "" ? message : "Could not change the radio"
-      }
-      // Read the radio back either way: a failed write leaves the optimistic
-      // value wrong, and a switch should show what is, not what was asked.
-      radioGet.running = false
-      radioGet.running = true
-      root.refresh()
-    }
-  }
-
-  function refresh() {
-    listProc.running = false
-    listProc.running = true
-  }
-
-  // Ask again after a failure. The flag is cleared first so the panel stops
-  // treating the last failure as the current state, and put back by the read
-  // that follows if the failure was not transient after all.
   function retry() {
-    root.failed = false
-    root.failure = ""
     root.actionError = ""
-    root.emptyRetries = 0
-    root.refresh()
+    NetworkHost.scan()
   }
 
   function rescan() {
     if (!root.radioEnabled) return
 
     root.actionError = ""
-    root.scanning = true
-    scanProc.command = ["nmcli", "device", "wifi", "rescan"]
-    scanProc.running = true
-
-    // Keep the list refreshing for the few seconds a scan takes. The first
-    // reply after `rescan` can still be the pre-scan cache, so clearing
-    // `scanning` when it arrives stopped the poll before the new results.
-    scanTimeout.restart()
+    NetworkHost.scan()
   }
 
   function connect(ssid) {
-    if (ssid === "" || !root.radioEnabled) return
+    const item = typeof ssid === "string" ? root.networkFor(ssid) : ssid
+    if (!item || !root.radioEnabled) return
 
     root.actionError = ""
-    root.actionSsid = ssid
-    root.actionKind = "connect"
-    root.settling = true
-    actionProc.command = ["nmcli", "device", "wifi", "connect", ssid]
-    actionProc.running = true
+    NetworkHost.connect(item)
   }
 
   function disconnect(ssid) {
-    if (root.wifiDevice === "") return
+    const item = typeof ssid === "string" ? root.networkFor(ssid) : ssid
+    if (!item) return
 
     root.actionError = ""
-    root.actionSsid = ssid
-    root.actionKind = "disconnect"
-    root.settling = true
-    actionProc.command = ["nmcli", "device", "disconnect", root.wifiDevice]
-    actionProc.running = true
+    NetworkHost.disconnect(item)
   }
 
-  // The secret goes on the command line, which is visible in the process list
-  // for the moment nmcli runs. That is the price of not being a secret agent;
-  // the alternative is a D-Bus agent and a keyring.
   function connectSecret(secret) {
     if (root.askingSsid === "" || secret === "") return
 
-    const ssid = root.askingSsid
+    const item = root.networkFor(root.askingSsid)
     root.askingSsid = ""
     root.actionError = ""
-    root.actionSsid = ssid
-    root.actionKind = "connect"
-    root.settling = true
-    actionProc.command = ["nmcli", "device", "wifi", "connect", ssid, "password", secret]
-    actionProc.running = true
+    if (item) NetworkHost.connectWithPsk(item, secret)
   }
 
   function setRadio(on) {
     root.actionError = ""
-    root.radioBusy = true
-    root.radioEnabled = on
+    NetworkHost.setWifiEnabled(on)
 
     // Nothing the radio was connected to survives it going off, so neither does
-    // the claim to be connected, or the code for that connection.
-    if (!on) {
-      root.activeSsid = ""
-      if (root.qrVisible) root.setQr(false)
-    }
-
-    radioSet.command = ["nmcli", "radio", "wifi", on ? "on" : "off"]
-    radioSet.running = true
-  }
-
-  // The fast poll, for a scan or an action that is still in flight. Bound to
-  // both flags rather than restarted: `restart()` assigns `running`, which
-  // removes the binding and leaves the timer on forever.
-  Timer {
-    id: settle
-    interval: 900
-    repeat: true
-    running: root.scanning || root.settling
-    onTriggered: root.refresh()
-  }
-
-  Timer {
-    id: scanTimeout
-    interval: 5000
-    repeat: false
-    onTriggered: root.scanning = false
-  }
-
-  Timer {
-    interval: 10000
-    repeat: true
-    running: true
-    triggeredOnStart: true
-    onTriggered: root.refresh()
+    // the code for that connection.
+    if (!on && root.qrVisible) root.setQr(false)
   }
 
   Component.onCompleted: {
@@ -749,16 +411,12 @@ Item {
     // made it is off in this fresh panel.
     if (root.stateDir !== "") rmQr.running = true
 
-    deviceProc.running = false
-    deviceProc.running = true
-    radioGet.running = false
-    radioGet.running = true
-    root.emptyRetries = 0
-    root.failed = false
-    root.refresh()
+    NetworkHost.activate()
+    root.refreshDetails()
   }
 
   Component.onDestruction: {
+    NetworkHost.deactivate()
     qrQuery.running = false
     if (root.stateDir !== "") rmQr.running = true
   }

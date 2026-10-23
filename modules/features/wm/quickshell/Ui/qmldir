@@ -8,6 +8,7 @@ singleton OsdHost 1.0 OsdHost.qml
 singleton BackgroundHost 1.0 BackgroundHost.qml
 BackgroundSurface 1.0 BackgroundSurface.qml
 singleton LockHost 1.0 LockHost.qml
+singleton NetworkHost 1.0 NetworkHost.qml
 singleton IdleHost 1.0 IdleHost.qml
 singleton ContextMenuHost 1.0 ContextMenuHost.qml
 singleton FocusHost 1.0 FocusHost.qml
