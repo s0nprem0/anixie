@@ -1,14 +1,6 @@
 -- ------------------------------------------------------------------
 -- Monitors
---
--- Scaling steps the monitor you are on through 1x, 1.25x, 1.6x, 2x, 3x and 4x,
--- and the choice is remembered by the `monitors` command rather than by this
--- file — see the note on the monitor rules above.
---
--- `/` is `slash` by keysym name, the same reason `[` is bracketleft below.
 -- ------------------------------------------------------------------
-bind(mod .. " + slash", "Scale up", "monitors scale up")
-bind(mod .. " + ALT + slash", "Scale down", "monitors scale down")
 
 -- The laptop panel on its own, and mirroring it onto whatever is plugged in.
 -- Both are no-ops without the hardware: `monitors internal` falls back to the
