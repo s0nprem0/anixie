@@ -22,7 +22,8 @@
 #
 # The choice is remembered per theme, so switching away and back restores it.
 # While the current theme is `wallpaper`, picking a picture also regenerates the
-# palette from it, so the colours follow the background.
+# palette from it, so the colours follow the background. A video contributes its
+# first frame.
 # Backgrounds live beside the other user data, not in ~/.config, which Home
 # Manager owns read-only — the same reason the theme state does.
 set -eu
@@ -198,16 +199,10 @@ use() {
   fi
 
   # In wallpaper mode the picture is the palette source, so selecting one updates
-  # the colours as well as the background. Videos are skipped: matugen cannot read
-  # a frame out of them here, and a failed read would leave the old palette behind.
+  # the colours as well as the background. Videos go through their first frame.
   if [ "$1" != generated ] && [ "$(current_theme)" = wallpaper ]; then
-    case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
-      *.mp4 | *.m4v | *.mov | *.webm | *.mkv | *.avi | *.ogv) ;;
-      *)
-        theme wallpaper "$1" auto
-        return
-        ;;
-    esac
+    theme wallpaper "$1" auto
+    return
   fi
 
   apply

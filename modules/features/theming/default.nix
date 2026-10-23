@@ -94,6 +94,10 @@ let
         "@WALLPAPER@"
         "@THEME_APPS@"
         "@MATUGEN@"
+        "@MAGICK@"
+        "@FFMPEG@"
+        "@SHA256SUM@"
+        "@STAT@"
         "@GENERATED@"
         "@ANIXIE_LIB@"
       ]
@@ -109,6 +113,10 @@ let
         "${wallpaper}/bin/wallpaper"
         "${themeApps}/bin/theme-apps"
         "${pkgs.matugen}/bin/matugen"
+        "${pkgs.imagemagick}/bin/magick"
+        "${pkgs.ffmpeg}/bin/ffmpeg"
+        "${pkgs.coreutils}/bin/sha256sum"
+        "${pkgs.coreutils}/bin/stat"
         "${stateDir}/palette.json"
         "${../cli/lib.sh}"
       ]

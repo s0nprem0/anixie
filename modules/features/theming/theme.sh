@@ -40,6 +40,10 @@ gsettings="@GSETTINGS@"
 gsettings_schema_dir="@GSETTINGS_SCHEMA_DIR@"
 jq="@JQ@"
 wallpaper="@WALLPAPER@"
+magick="@MAGICK@"
+ffmpeg="@FFMPEG@"
+sha256sum="@SHA256SUM@"
+stat="@STAT@"
 
 current_file="$state_dir/current"
 
@@ -168,9 +172,12 @@ EOF
 
 # Read the current wallpaper into a palette. Deliberately last in the order of
 # things that can fail: a wallpaper matugen cannot parse leaves the previous
-# palette in place rather than half-applying a new one.
+# palette in place rather than half-applying a new one. Results are cached by
+# path, modification time and requested mode; videos use their first frame.
 generate() {
   local wp="${1:-}" requested="${2:-auto}" mode json tmp
+  local source mtime key cache_dir cache frame saturation mono
+  local -a args
   mkdir -p "$state_dir" || die "could not create $state_dir"
 
   case "$requested" in
@@ -187,10 +194,51 @@ generate() {
 
   [ -n "$wp" ] && [ -f "$wp" ] || die "no picture to read a palette from — set one with 'wallpaper set FILE', or name one: 'theme wallpaper FILE'"
 
+  # Cache the result per path, modification time and mode. Re-selecting the same
+  # wallpaper is then instant, and an overwritten file is read again.
+  mtime=$("$stat" -Lc %Y "$wp" 2>/dev/null || printf '0')
+  key=$(printf '%s\n%s\n%s\n' "$wp" "$mtime" "$requested" | "$sha256sum")
+  key=${key%% *}
+  cache_dir="$state_dir/cache"
+  cache="$cache_dir/palette-$key.json"
+  mkdir -p "$cache_dir" || die "could not create $cache_dir"
+
+  if [ -f "$cache" ]; then
+    cp "$cache" "$generated"
+    return
+  fi
+
+  source="$wp"
+  case "$(printf '%s' "${source##*.}" | tr '[:upper:]' '[:lower:]')" in
+    mp4 | m4v | mov | webm | mkv | avi | ogv)
+      frame="$cache_dir/frame-$key.jpg"
+      if [ ! -f "$frame" ]; then
+        "$ffmpeg" -y -loglevel error -i "$source" -frames:v 1 -q:v 2 "$frame" \
+          || die "could not read a frame from $wp"
+      fi
+      source="$frame"
+      ;;
+  esac
+
+  # A monochrome picture would otherwise get a tinted Material palette; ask
+  # matugen for the neutral one instead.
+  saturation=$("$magick" "$source" -colorspace HSL -channel G -separate \
+    -format '%[fx:mean]' info: 2>/dev/null || printf '1')
+  if awk -v s="$saturation" 'BEGIN { exit !(s < 0.08) }'; then
+    mono=1
+  else
+    mono=0
+  fi
+
+  args=(image "$source" --mode "$requested" --source-color-index 0 --json hex)
   # --source-color-index keeps matugen from asking which colour to use: that
   # prompt is a hard error when this runs from a keybind or a service.
-  json=$("$matugen" image "$wp" --mode "$requested" --source-color-index 0 --json hex 2>/dev/null) \
-    || die "matugen could not read $wp"
+  if [ "$mono" = "1" ]; then
+    args+=(--type scheme-monochrome)
+  fi
+
+  json=$("$matugen" "${args[@]}" 2>/dev/null) \
+    || die "matugen could not read $source"
   [ -f "$generated" ] || die "matugen wrote no palette"
 
   mode=$(printf '%s' "$json" | "$jq" -r '.mode // empty' 2>/dev/null || true)
@@ -204,6 +252,8 @@ generate() {
   "$jq" --arg mode "$mode" '. + {_mode: $mode}' "$generated" >"$tmp" \
     || die "could not read the generated palette"
   mv "$tmp" "$generated"
+
+  cp "$generated" "$cache"
 }
 
 set_theme() {
