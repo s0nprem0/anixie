@@ -51,14 +51,20 @@ Item {
       label: "Lock"
       value: "Super+Ctrl+L"
       navigational: false
-      onClicked: root.run("quickshell ipc call lock lock")
+      onClicked: {
+        LockHost.lock()
+        PanelHost.closeFocused()
+      }
     }
 
     PanelActionButton {
       width: card.contentWidth
       label: "Suspend"
       navigational: false
-      onClicked: root.run("quickshell ipc call lock suspend")
+      onClicked: {
+        LockHost.lockAndSuspend()
+        PanelHost.closeFocused()
+      }
     }
 
     PanelActionButton {

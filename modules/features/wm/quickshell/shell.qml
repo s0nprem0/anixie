@@ -70,7 +70,7 @@ ShellRoot {
             { label: "Next theme", action: function () { Commands.run("theme next") } },
             { separator: true },
             { label: "Screen time & focus…", glyph: Util.clock, action: function () { Commands.run("screentime panel") } },
-            { label: "Lock", glyph: Util.lock, action: function () { Commands.run("quickshell ipc call lock lock") } }
+            { label: "Lock", glyph: Util.lock, action: function () { LockHost.lock() } }
           ], backgroundInput, mouse.x, mouse.y)
         }
       }

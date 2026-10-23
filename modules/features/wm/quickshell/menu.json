@@ -198,7 +198,7 @@
         },
         {
           "label": "Lock",
-          "run": "hyprlock"
+          "run": "quickshell ipc call lock lock"
         },
         {
           "label": "Reload config",
