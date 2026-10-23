@@ -19,6 +19,12 @@
     corefonts
     vista-fonts
 
+    # Text laid over a photo: Inter for small captions and watermarks, Fraunces
+    # for a display line. The UI's mono is wrong for both — a caption needs a
+    # neutral grotesque, and a title needs a face with some edge.
+    inter
+    fraunces
+
     # Other patched families, for the applications that let you choose: a
     # proportional one for prose, a condensed one for terminals, and the ones
     # that read better at small sizes.
