@@ -489,11 +489,12 @@ QtObject {
       summary: String(notification.summary || ""),
       body: String(notification.body || ""),
       image: String(imagePath === undefined ? (notification.image || "") : imagePath),
-      // The glyph and command a sender attached with `notify`. They are data, not
+      // The glyph and argv a sender attached with `notify`. They are data, not
       // a live action, so unlike the action buttons they still work when the row
-      // is replayed from history.
+      // is replayed from history. The argv is a JSON array, never a shell
+      // string: a notification must not be able to turn its text into syntax.
       glyph: root.hint(notification, "anixie-glyph"),
-      exec: root.hint(notification, "anixie-exec"),
+      execArgv: root.hint(notification, "anixie-exec"),
       urgency: notification.urgency,
       timestamp: stamp
     })

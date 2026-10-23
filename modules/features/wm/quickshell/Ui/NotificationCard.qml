@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Services.Notifications
 import ".."
 import "."
+import "NotificationText.js" as NotificationText
 
 // One notification: sender and icon, summary, body, and any actions the sender
 // offered. Clicking the card dismisses it.
@@ -11,7 +12,9 @@ Item {
 
   property var notification: null
 
-  // The rest of the group, oldest included; one notification when it is alone.
+  // The notifications this card belongs to. The popup passes one per card now;
+  // the property is kept so a future deck can group them without changing the
+  // card's click behaviour.
   property var group: []
 
   // A replayed history entry looks like a card but has no live client behind it.
@@ -19,20 +22,39 @@ Item {
   // daemon no longer owns.
   property bool replay: false
 
-  readonly property string appName: {
-    if (!root.notification) return ""
-    // Live notifications expose appName; history snapshots store the same
-    // value as `app`, so replayed cards read either.
-    const name = String(root.notification.appName || root.notification.app || "")
-    // The count rides on the app name rather than a badge of its own: it is the
-    // same fact — who this is from, and how much of it there is — and it needs no
-    // new geometry in a card laid out by hand.
-    return root.group.length > 1 ? name + "  ·  " + root.group.length : name
-  }
+  readonly property string appName: root.notification
+    ? String(root.notification.appName || root.notification.app || "")
+    : ""
+  readonly property string appLabel: root.group.length > 1
+    ? root.appName + "  ·  " + root.group.length
+    : root.appName
   readonly property string summary: root.notification ? String(root.notification.summary || "") : ""
   readonly property string body: root.notification ? String(root.notification.body || "") : ""
   readonly property string image: root.notification ? String(root.notification.image || "") : ""
   readonly property string appIcon: root.notification ? String(root.notification.appIcon || "") : ""
+  readonly property string initial: root.appName !== "" ? root.appName.substring(0, 1).toUpperCase() : ""
+
+  // Live notifications carry no arrival time; the card records one so the age
+  // beside the sender behaves like the history rows. Snapshot timestamps are
+  // milliseconds, the same unit as Date.now().
+  property double arrivedAt: Date.now()
+  readonly property double stamp: root.notification && root.notification.timestamp !== undefined
+    ? Number(root.notification.timestamp)
+    : root.arrivedAt
+
+  // Re-evaluates the age while the card is on screen. A toast can stay up for
+  // half a minute; a clock that never moves reads as frozen.
+  property int nowTick: 0
+
+  function ago() {
+    if (!root.stamp) return ""
+    const now = Date.now() + (root.nowTick * 0)
+    const seconds = Math.max(0, Math.floor((now - root.stamp) / 1000))
+    if (seconds < 300) return ""
+    if (seconds < 3600) return Math.round(seconds / 60) + "m ago"
+    const date = new Date(root.stamp)
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  }
 
   // A sender using `notify` can carry a glyph and a command as hints. The live
   // object exposes them in `hints`; a history entry keeps them as fields, since
@@ -48,11 +70,27 @@ Item {
   }
 
   readonly property string glyph: root.hint("anixie-glyph", "glyph")
-  readonly property string exec: root.hint("anixie-exec", "exec")
+  readonly property var execArgv: {
+    const raw = root.hint("anixie-exec", "execArgv")
+    return NotificationText.execArgv(raw)
+  }
+  readonly property string link: NotificationText.link(root.summary + "\n" + root.body)
+  readonly property var codes: NotificationText.codes(root.summary + "\n" + root.body)
 
-  readonly property string imageSource: root.image !== ""
-    ? (root.image.indexOf("/") === 0 ? "file://" + root.image : root.image)
-    : (root.appIcon !== "" ? Quickshell.iconPath(root.appIcon, "") : "")
+  readonly property string imageSource: {
+    if (root.image !== "") {
+      return root.image.indexOf("/") === 0 ? "file://" + root.image : root.image
+    }
+    if (root.appIcon === "") return ""
+    if (root.appIcon.indexOf("/") === 0) return "file://" + root.appIcon
+    if (root.appIcon.indexOf("file://") === 0) return root.appIcon
+    if (root.appIcon.indexOf("image://icon/") === 0) {
+      const name = root.appIcon.slice("image://icon/".length).split("?")[0]
+      return Quickshell.iconPath(name, true)
+    }
+    if (root.appIcon.indexOf("image://") === 0) return root.appIcon
+    return Quickshell.iconPath(root.appIcon, true)
+  }
 
   readonly property bool critical: root.notification
     ? root.notification.urgency === NotificationUrgency.Critical
@@ -145,6 +183,10 @@ Item {
   }
 
   Component.onCompleted: root.armExpiry()
+  onNotificationChanged: {
+    root.arrivedAt = Date.now()
+    root.armExpiry()
+  }
   onDisplaySecondsChanged: root.armExpiry()
   onReplayChanged: root.armExpiry()
 
@@ -154,7 +196,7 @@ Item {
     onHoveredChanged: hover.hovered ? root.pauseExpiry() : root.resumeExpiry()
   }
 
-  implicitWidth: Style.space(340)
+  implicitWidth: Style.space(380)
   implicitHeight: card.implicitHeight
 
   // Put the card away without running anything. A right-click is an explicit
@@ -178,11 +220,10 @@ Item {
   MouseArea {
     anchors.fill: parent
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
-    // A left click runs the command the sender attached (if any), else the
-    // protocol's default action, then puts the card away — clicking a message
-    // opens it, it does not merely hide it. A group goes together: one click on a
-    // stack of five puts five away. A right-click never runs anything; it only
-    // dismisses.
+    // A left click runs the sender's command (if any), else the protocol's
+    // default action, else takes you to the window that sent it. A group goes
+    // together: one click on a stack of five puts five away. A right-click never
+    // runs anything; it only dismisses.
     onClicked: function (mouse) {
       if (mouse.button === Qt.RightButton) {
         root.dismissCard()
@@ -190,16 +231,20 @@ Item {
       }
 
       if (root.replay) {
-        if (root.exec !== "") Quickshell.execDetached(["sh", "-c", root.exec])
+        if (root.execArgv) Quickshell.execDetached(root.execArgv)
+        else if (root.link !== "") Quickshell.execDetached(["xdg-open", root.link])
+        else NotificationHost.activate(root.notification, "")
         NotificationHost.dismissReplay(root.notification)
         return
       }
 
       const action = root.defaultAction
-      if (root.exec !== "") {
-        Quickshell.execDetached(["sh", "-c", root.exec])
+      if (root.execArgv) {
+        Quickshell.execDetached(root.execArgv)
       } else if (action) {
         action.invoke()
+      } else {
+        NotificationHost.activate(root.notification, root.link)
       }
 
       // Resident means "do not remove me when an action is invoked"; it says
@@ -208,7 +253,7 @@ Item {
       // that — but the same click with nothing to run still puts it away. An
       // attached command is data, not a resident sender's action, so it does not
       // keep the card around.
-      const keepResident = root.exec === "" && action !== null
+      const keepResident = !root.execArgv && action !== null
       if (root.group.length > 0) {
         for (const item of root.group) if (!(keepResident && item.resident)) item.dismiss()
       } else if (root.notification && !(keepResident && root.notification.resident)) {
@@ -236,12 +281,12 @@ Item {
       spacing: Style.space(10)
 
       Image {
-        width: Style.space(24)
-        height: Style.space(24)
+        width: Style.space(40)
+        height: Style.space(40)
         source: root.imageSource
         visible: root.imageSource !== ""
-        sourceSize.width: Style.bar.iconSize * 2
-        sourceSize.height: Style.bar.iconSize * 2
+        sourceSize.width: width * 2
+        sourceSize.height: height * 2
         fillMode: Image.PreserveAspectFit
         smooth: true
       }
@@ -250,20 +295,36 @@ Item {
       // themed icon to show. The sender decides the glyph; the card only draws
       // it, so a Nerd Font character never has to be written into a QML file.
       Text {
-        width: Style.space(24)
-        height: Style.space(24)
+        width: Style.space(40)
+        height: Style.space(40)
         visible: root.imageSource === "" && root.glyph !== ""
         text: root.glyph
         color: Theme.fg
         font.family: Style.font.family
-        font.pixelSize: Style.space(17)
+        font.pixelSize: Style.space(22)
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        renderType: Text.NativeRendering
+      }
+
+      // A sender with no image and no glyph still gets a mark rather than a
+      // blank slot: the first letter is the same fallback the dock uses.
+      Text {
+        width: Style.space(40)
+        height: Style.space(40)
+        visible: root.imageSource === "" && root.glyph === "" && root.initial !== ""
+        text: root.initial
+        color: Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.subtitle
+        font.weight: Font.DemiBold
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         renderType: Text.NativeRendering
       }
 
       Column {
-        width: content.width - Style.space(24) - Style.space(10)
+        width: content.width - Style.space(40) - Style.space(10)
         spacing: Style.space(3)
 
         Text {
@@ -286,14 +347,14 @@ Item {
           font.family: Style.font.family
           font.pixelSize: Style.font.bodySmall
           wrapMode: Text.WordWrap
-          maximumLineCount: 4
+          maximumLineCount: hover.hovered ? 8 : 3
           elide: Text.ElideRight
         }
 
         Text {
           width: parent.width
           visible: root.appName !== ""
-          text: root.appName
+          text: root.appLabel + (root.ago() !== "" ? "  ·  " + root.ago() : "")
           textFormat: Text.PlainText
           color: Theme.muted
           font.family: Style.font.family
@@ -301,11 +362,26 @@ Item {
           elide: Text.ElideRight
         }
 
-        // Only the actions the sender actually offered, in its order.
+        // Code detection and the sender's actions in one row: both are things
+        // the card can do, and both should be visible without hunting through a
+        // menu. The code is copied sensitive so it does not enter clipboard
+        // history.
         Row {
           width: parent.width
-          visible: root.actions.length > 0
+          visible: root.actions.length > 0 || root.codes.length > 0
           spacing: Style.space(6)
+
+          WidgetButton {
+            visible: root.codes.length > 0
+            text: "Copy code"
+            fontSize: Style.font.bodySmall
+            centerFigures: false
+            useActiveColor: false
+            onPressed: function () {
+              if (root.codes.length === 0) return
+              Quickshell.execDetached(["wl-copy", "--sensitive", "--", String(root.codes[0])])
+            }
+          }
 
           Repeater {
             model: root.actions
@@ -333,10 +409,71 @@ Item {
     }
   }
 
+  // A snooze is a quiet with an end time. It sits beside close and only appears
+  // with the pointer, so the card stays readable until someone reaches for it.
+  function openSnoozeMenu(anchor) {
+    const entries = []
+    const options = NotificationHost.snoozeOptions()
+    for (let i = 0; i < options.length; i++) {
+      const option = options[i]
+      entries.push({
+        label: option.label,
+        glyph: Util.clock,
+        action: function () { NotificationHost.snooze(root.appName, option.seconds) }
+      })
+    }
+    entries.push({ separator: true })
+    entries.push({
+      label: "Snooze everything",
+      glyph: Util.clock,
+      action: function () { NotificationHost.snooze("*", NotificationHost.untilTomorrow()) }
+    })
+    ContextMenuHost.openAt(entries, anchor, 0, anchor.height)
+  }
+
   // The close button appears with the pointer, the way the reference's does: a
   // toast is read, not operated, so nothing permanent is drawn over the text.
   // It sits above the dismissal MouseArea and takes its own clicks, so pressing
   // it dismisses without also running the sender's default action.
+  Item {
+    id: snoozeButton
+
+    anchors.top: parent.top
+    anchors.right: closeButton.left
+    anchors.topMargin: Style.space(4)
+    anchors.rightMargin: Style.space(2)
+    width: Style.space(18)
+    height: Style.space(18)
+
+    opacity: hover.hovered || snoozeArea.containsMouse ? 1 : 0
+    visible: opacity > 0
+
+    Behavior on opacity { NumberAnimation { duration: Style.duration(120) } }
+
+    Rectangle {
+      anchors.fill: parent
+      radius: Theme.cornerRadius
+      color: Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b,
+        snoozeArea.containsMouse ? Style.control.hoverFillAlpha : 0.08)
+    }
+
+    Text {
+      anchors.centerIn: parent
+      text: Util.clock
+      color: Theme.muted
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      renderType: Text.NativeRendering
+    }
+
+    MouseArea {
+      id: snoozeArea
+      anchors.fill: parent
+      hoverEnabled: true
+      onClicked: root.openSnoozeMenu(snoozeButton)
+    }
+  }
+
   Item {
     id: closeButton
 
@@ -381,5 +518,12 @@ Item {
     id: expiry
     repeat: false
     onTriggered: if (root.notification) root.notification.expire()
+  }
+
+  Timer {
+    interval: 30000
+    repeat: true
+    running: true
+    onTriggered: root.nowTick++
   }
 }

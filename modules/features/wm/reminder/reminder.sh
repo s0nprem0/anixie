@@ -102,8 +102,8 @@ systemd-run --user --quiet \
   --description="Reminder: $message" \
   --on-active="${minutes}min" \
   "@NOTIFY_SEND@" -a reminders -u normal -G f017 \
-  --exec "@QUICKSHELL@ ipc call panel toggle notifications" \
-  "Reminder" "$message"
+  "Reminder" "$message" \
+  --exec "@QUICKSHELL@" ipc call panel toggle notifications
 
 push_count
 

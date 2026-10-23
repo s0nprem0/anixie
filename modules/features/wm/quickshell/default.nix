@@ -48,6 +48,10 @@ let
   # the shell service's PATH is the user manager's, not the profile's.
   lockHost = pkgs.writeText "LockHost.qml" (render ./Ui/LockHost.qml);
 
+  # The notification display choice is read by the shell's window loop, so it
+  # has to be in the QML rather than a runtime preference no surface can see yet.
+  shell = pkgs.writeText "shell.qml" (render ./shell.qml);
+
   # `loginctl lock-session` and anything else that uses logind's Lock signal do
   # not know the lock lives in the shell. One small listener turns that signal
   # into the same IPC call the key uses, filtered to this session.
@@ -71,6 +75,7 @@ let
   shellConfig = pkgs.runCommand "quickshell-config" { } ''
     cp -rL ${./.} $out
     chmod -R u+w $out
+    cp ${shell} $out/shell.qml
     cp ${theme} $out/Theme.qml
     cp ${powerAlert} $out/Ui/PowerAlert.qml
     cp ${lockHost} $out/Ui/LockHost.qml
@@ -79,6 +84,18 @@ let
   '';
 in
 {
+  options.anixie.wm.quickshell.notificationsDisplay = lib.mkOption {
+    type = lib.types.enum [
+      "focused"
+      "all"
+    ];
+    default = "focused";
+    description = ''
+      Which outputs show notification popups. `focused` follows the active
+      monitor; `all` draws the same stack on every connected output.
+    '';
+  };
+
   options.anixie.wm.quickshell.position = lib.mkOption {
     type = lib.types.enum [
       "top"
@@ -102,6 +119,7 @@ in
   config = {
     anixie.theme.template.placeholders = {
       "@POSITION@" = config.anixie.wm.quickshell.position;
+      "@NOTIFICATIONS_DISPLAY@" = config.anixie.wm.quickshell.notificationsDisplay;
 
       # The warning's sender and IPC entry point, by full path: the shell service
       # runs under the user manager, whose PATH is not guaranteed to carry the

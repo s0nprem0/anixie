@@ -153,7 +153,7 @@ anixie clipboard | emoji | menu | pick | reminder
 anixie toggle [dnd|idle|nightlight|stayawake]
 anixie focus start 25 | stop | extend 15 | status
 anixie screentime [show|json|reset|path|panel]
-notify -G f017 --exec "…" SUMMARY [BODY]   # a toast with a glyph and a click action
+notify -G f017 SUMMARY [BODY] --exec COMMAND [ARG...]   # a toast with a glyph and a click action
 anixie display …                    # monitors: scale, mirror, status
 anixie power …                      # profile for AC or battery
 anixie snapshot create|list|restore|prune

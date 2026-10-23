@@ -16,7 +16,7 @@ BarWidget {
   // Reachable by hotkey as well as by click, like every other panel.
   Component.onCompleted: PanelRegistry.register("notifications", readout, historyPanel)
 
-  readonly property bool silenced: NotificationHost.doNotDisturb
+  readonly property bool silenced: NotificationHost.doNotDisturb || NotificationHost.hasSnoozes
 
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
@@ -36,8 +36,12 @@ BarWidget {
         { label: "Replay last ten", action: function () { NotificationHost.replay() } },
         { separator: true },
         {
-          label: NotificationHost.doNotDisturb ? "Allow notifications" : "Silence notifications",
-          action: function () { NotificationHost.toggle() }
+          label: (NotificationHost.doNotDisturb || NotificationHost.hasSnoozes) ? "Allow notifications" : "Silence notifications",
+          action: function () {
+            const sources = NotificationHost.quietSources()
+            for (const source of sources) NotificationHost.unsnooze(source.key)
+            NotificationHost.setDnd(!root.silenced)
+          }
         }
       ]
     }

@@ -42,8 +42,8 @@ QtObject {
   function notify(urgency, summary, body, icon) {
     Quickshell.execDetached([
       "@NOTIFY_SEND@", "-a", "Battery", "-u", urgency, "-i", icon,
-      "--exec", "@QUICKSHELL@ ipc call panel toggle power",
-      summary, body
+      summary, body,
+      "--exec", "@QUICKSHELL@", "ipc", "call", "panel", "toggle", "power"
     ])
   }
 

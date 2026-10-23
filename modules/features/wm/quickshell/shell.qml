@@ -657,79 +657,83 @@ ShellRoot {
 
   // Notification popups. Top right, over everything, and taking no keyboard:
   // a notification is there to be read, not typed into. Sized to its stack, so
-  // an empty one leaves no window behind to swallow clicks.
-  PanelWindow {
-    id: notificationWindow
-    screen: Screens.focused
+  // an empty one leaves no window behind to swallow clicks. The output choice is
+  // build-time: a window that can follow focus can also be duplicated per output.
+  Variants {
+    model: "@NOTIFICATIONS_DISPLAY@" === "all"
+      ? Quickshell.screens
+      : (Screens.focused ? [Screens.focused] : [])
 
-    anchors.top: true
-    anchors.right: true
+    delegate: PanelWindow {
+      id: notificationWindow
+      required property var modelData
+      screen: modelData
 
-    // Clear of the bar on whichever edge it is: the cards sit under a top bar
-    // and beside a right one, rather than over it.
-    margins.top: Theme.position === "top"
-      ? Style.bar.sizeHorizontal + Style.space(10)
-      : Style.space(10)
-    margins.right: Theme.position === "right"
-      ? Style.bar.sizeVertical + Style.space(10)
-      : Style.space(10)
+      anchors.top: true
+      anchors.right: true
 
-    implicitWidth: notificationColumn.implicitWidth
-    implicitHeight: notificationColumn.implicitHeight
+      // Clear of the bar on whichever edge it is: the cards sit under a top bar
+      // and beside a right one, rather than over it.
+      margins.top: Theme.position === "top"
+        ? Style.bar.sizeHorizontal + Style.space(10)
+        : Style.space(10)
+      margins.right: Theme.position === "right"
+        ? Style.bar.sizeVertical + Style.space(10)
+        : Style.space(10)
 
-    color: "transparent"
-    exclusionMode: ExclusionMode.Ignore
-    visible: NotificationHost.tracked.length > 0 || NotificationHost.replaying
+      implicitWidth: notificationColumn.implicitWidth
+      implicitHeight: notificationColumn.implicitHeight
 
-    // A burst — a mailing list, a chat backlog — should not draw a column taller
-    // than the screen with the last cards unreachable. The newest few are shown,
-    // the rest are counted, and the history panel has them all. Groups are
-    // already one card per consecutive app, so four is a lot of notifications.
-    readonly property int maxCards: NotificationHost.replaying ? 10 : 4
-    readonly property var shownGroups: NotificationHost.replaying
-      ? NotificationHost.replayEntries.map(function (entry) {
-          return { app: String(entry.app || ""), items: [entry] }
-        })
-      : NotificationHost.groups.slice(0, notificationWindow.maxCards)
-    readonly property int hiddenGroups: NotificationHost.replaying
-      ? 0
-      : Math.max(0, NotificationHost.groups.length - notificationWindow.shownGroups.length)
+      color: "transparent"
+      exclusionMode: ExclusionMode.Ignore
+      visible: NotificationHost.tracked.length > 0 || NotificationHost.replaying
 
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "quickshell-notifications"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+      // A burst — a mailing list, a chat backlog — should not draw a column taller
+      // than the screen with the last cards unreachable. The newest few are shown,
+      // the rest are counted, and the history panel has them all.
+      readonly property int maxCards: NotificationHost.replaying ? 10 : 4
+      readonly property var items: NotificationHost.replaying
+        ? NotificationHost.replayEntries
+        : NotificationHost.groupedItems
+      readonly property var shownItems: notificationWindow.items.slice(0, notificationWindow.maxCards)
+      readonly property int hiddenCount: Math.max(0, notificationWindow.items.length - notificationWindow.shownItems.length)
 
-    Column {
-      id: notificationColumn
+      WlrLayershell.layer: WlrLayer.Overlay
+      WlrLayershell.namespace: "quickshell-notifications"
+      WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-      anchors.fill: parent
-      spacing: Style.space(8)
+      Column {
+        id: notificationColumn
 
-      Repeater {
-        model: notificationWindow.shownGroups
+        anchors.fill: parent
+        spacing: Style.space(8)
 
-        delegate: NotificationCard {
-          required property var modelData
+        Repeater {
+          model: notificationWindow.shownItems
 
-          // Width comes from the card's own implicit width, which is what sizes
-          // the column and so the window. Binding it back to the column would be
-          // circular and collapse both.
-          notification: modelData.items.length > 0 ? modelData.items[0] : null
-          group: modelData.items
-          replay: NotificationHost.replaying
+          delegate: NotificationCard {
+            required property var modelData
+
+            // Width comes from the card's own implicit width, which is what sizes
+            // the column and so the window. Binding it back to the column would be
+            // circular and collapse both.
+            notification: modelData
+            group: [modelData]
+            replay: NotificationHost.replaying
+          }
+        }
+
+        Text {
+          visible: notificationWindow.hiddenCount > 0
+          height: implicitHeight
+          text: "+" + notificationWindow.hiddenCount + " more"
+          color: Theme.muted
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+          renderType: Text.NativeRendering
         }
       }
-
-      Text {
-        visible: notificationWindow.hiddenGroups > 0
-        height: implicitHeight
-        text: "+" + notificationWindow.hiddenGroups + " more"
-        color: Theme.muted
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        renderType: Text.NativeRendering
       }
-    }
   }
 
   // The picker. Covers the whole output and takes the keyboard for as long as it

@@ -2,15 +2,15 @@
 # notify — send a notification the shell can draw and keep.
 #
 # A front door to notify-send for the two things the freedesktop action API
-# cannot carry through history: a glyph for the icon slot, and a shell command to
-# run when the card is clicked. Both travel as hints, so they survive the popup
+# cannot carry through history: a glyph for the icon slot, and a command to run
+# when the card is clicked. Both travel as hints, so they survive the popup
 # moving into history and still work when a replay is clicked.
 #
-#   notify [options] SUMMARY [BODY]
+#   notify [options] SUMMARY [BODY] [--exec COMMAND [ARG...]]
 #
 #   -g, --glyph GLYPH       the glyph itself, for callers that can write one
 #   -G, --glyph-code HEX    the same, by Unicode code point (e.g. f017)
-#   -e, --exec COMMAND      shell command run when the card is clicked
+#   -e, --exec COMMAND...   command and arguments run when the card is clicked
 #   -a, --app-name NAME     sender name (default: anixie-action)
 #   -u, --urgency LEVEL     low, normal or critical (default: low)
 #   -t, --expire-time MS    how long the toast stays, in milliseconds
@@ -23,18 +23,19 @@
 set -eu
 
 notify_send="@NOTIFY_SEND@"
+jq="@JQ@"
 
 usage() {
   cat <<'EOF'
 notify — send a notification the shell can draw and keep
 
 Usage:
-  notify [options] SUMMARY [BODY]
+  notify [options] SUMMARY [BODY] [--exec COMMAND [ARG...]]
 
 Options:
   -g, --glyph GLYPH       glyph for the icon slot
   -G, --glyph-code HEX    glyph by Unicode code point (e.g. f017)
-  -e, --exec COMMAND      shell command run when the card is clicked
+  -e, --exec COMMAND...   command and arguments run when the card is clicked
   -a, --app-name NAME     sender name (default: anixie-action)
   -u, --urgency LEVEL     low, normal or critical (default: low)
   -t, --expire-time MS    how long the toast stays, in milliseconds
@@ -85,7 +86,7 @@ want() {
 app=anixie-action
 urgency=low
 glyph=""
-exec_cmd=""
+exec_json=""
 icon=""
 expire=""
 
@@ -102,11 +103,6 @@ while [ "$#" -gt 0 ]; do
         printf 'notify: invalid code point "%s"\n' "$2" >&2
         exit 2
       }
-      shift 2
-      ;;
-    -e | --exec)
-      want "$1" "$#"
-      exec_cmd=$2
       shift 2
       ;;
     -a | --app-name)
@@ -152,19 +148,38 @@ done
   printf 'notify: a summary is required\n' >&2
   exit 2
 }
-[ "$#" -le 2 ] || {
-  printf 'notify: unexpected arguments after the body\n' >&2
-  exit 2
-}
-
 summary=$1
+shift
 body=""
-[ "$#" -eq 2 ] && body=$2
+if [ "$#" -gt 0 ] && [ "$1" != "--exec" ] && [ "$1" != "-e" ]; then
+  body=$1
+  shift
+fi
+
+if [ "$#" -gt 0 ]; then
+  case "$1" in
+    -e | --exec)
+      shift
+      [ "$#" -ge 1 ] || {
+        printf 'notify: --exec needs a command\n' >&2
+        exit 2
+      }
+      exec_json=$("$jq" -cn '$ARGS.positional' --args -- "$@") || {
+        printf 'notify: could not encode the click command\n' >&2
+        exit 2
+      }
+      ;;
+    *)
+      printf 'notify: unexpected argument "%s"\n' "$1" >&2
+      exit 2
+      ;;
+  esac
+fi
 
 set -- "$notify_send" -a "$app" -u "$urgency"
 [ -n "$icon" ] && set -- "$@" -i "$icon"
 [ -n "$expire" ] && set -- "$@" -t "$expire"
 [ -n "$glyph" ] && set -- "$@" "--hint=string:anixie-glyph:$glyph"
-[ -n "$exec_cmd" ] && set -- "$@" "--hint=string:anixie-exec:$exec_cmd"
+[ -n "$exec_json" ] && set -- "$@" "--hint=string:anixie-exec:$exec_json"
 
 exec "$@" "$summary" "$body"

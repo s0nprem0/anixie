@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Notifications
+import "NotificationText.js" as NotificationText
 
 // The notification daemon. The shell owns org.freedesktop.Notifications
 // itself, so there is no second process to keep in step with it — the same
@@ -75,6 +76,193 @@ QtObject {
     }
   }
 
+  // ---- snoozes ----
+  //
+  // A snooze is a time-bounded silence per sender, plus one for everything. DND
+  // is the explicit switch; these are the "not now" choices a card's zzz opens.
+  // They live beside DND so a shell restart does not bring every notification
+  // back in the middle of the quiet the user asked for.
+  property double globalSnoozeUntil: 0
+  property var snoozes: ({})
+
+  readonly property string snoozesPath: NotificationStore.stateDir + "/snoozes.json"
+  property bool _hydratingSnoozes: false
+  property string _pendingSnoozes: ""
+
+  function sourceOf(notification) {
+    return String(notification && notification.appName ? notification.appName : "").toLowerCase()
+  }
+
+  function loadSnoozes() {
+    let text = ""
+    try {
+      text = String(root.snoozesFile.text()).trim()
+    } catch (e) {
+    }
+    if (text === "") return
+
+    let parsed = null
+    try {
+      parsed = JSON.parse(text)
+    } catch (e) {
+      return
+    }
+    if (!parsed || typeof parsed !== "object") return
+
+    root._hydratingSnoozes = true
+    const now = Date.now() / 1000
+    const globalUntil = Number(parsed.globalUntil || 0)
+    root.globalSnoozeUntil = globalUntil > now ? globalUntil : 0
+    const sources = parsed.sources && typeof parsed.sources === "object" ? parsed.sources : {}
+    const next = {}
+    for (const key in sources) {
+      const until = Number(sources[key] || 0)
+      if (until > now) next[String(key)] = until
+    }
+    root.snoozes = next
+    root._hydratingSnoozes = false
+  }
+
+  function saveSnoozes() {
+    root._pendingSnoozes = JSON.stringify({
+      globalUntil: root.globalSnoozeUntil,
+      sources: root.snoozes
+    }) + "\n"
+    root.snoozesMkdir.running = false
+    root.snoozesMkdir.running = true
+  }
+
+  property FileView snoozesFile: FileView {
+    path: Qt.resolvedUrl(root.snoozesPath)
+    printErrors: false
+    blockLoading: true
+    atomicWrites: true
+
+    Component.onCompleted: root.loadSnoozes()
+  }
+
+  property Process snoozesMkdir: Process {
+    command: ["mkdir", "-p", NotificationStore.stateDir]
+    running: false
+
+    onExited: {
+      if (root._pendingSnoozes === "") return
+      root.snoozesFile.setText(root._pendingSnoozes)
+      root._pendingSnoozes = ""
+    }
+  }
+
+  // Trims expired entries without asking the user to do anything. The file is
+  // rewritten only when something actually went away.
+  readonly property bool hasSnoozes: {
+    const now = Date.now() / 1000
+    if (root.globalSnoozeUntil > now) return true
+    for (const key in root.snoozes) if (Number(root.snoozes[key] || 0) > now) return true
+    return false
+  }
+
+  property Timer snoozeTicker: Timer {
+    interval: 30000
+    repeat: true
+    running: root.hasSnoozes
+    onTriggered: root.pruneSnoozes()
+  }
+
+  function pruneSnoozes() {
+    const now = Date.now() / 1000
+    const next = {}
+    let changed = root.globalSnoozeUntil > 0 && root.globalSnoozeUntil <= now
+    if (changed) root.globalSnoozeUntil = 0
+    for (const key in root.snoozes) {
+      if (Number(root.snoozes[key] || 0) > now) next[key] = root.snoozes[key]
+      else changed = true
+    }
+    if (!changed) return
+    root.snoozes = next
+    root.saveSnoozes()
+  }
+
+  function snoozeOptions() {
+    return [
+      { label: "For 15 minutes", seconds: 15 * 60 },
+      { label: "For 1 hour", seconds: 60 * 60 },
+      { label: "Until tomorrow 8am", seconds: root.untilTomorrow() }
+    ]
+  }
+
+  function untilTomorrow() {
+    const now = new Date()
+    const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 8, 0, 0, 0)
+    return Math.max(60, Math.round((next.getTime() - now.getTime()) / 1000))
+  }
+
+  function snooze(source, seconds) {
+    const value = Number(seconds)
+    if (!isFinite(value) || value <= 0) return
+
+    const now = Date.now() / 1000
+    const until = now + value
+    const next = {}
+    for (const key in root.snoozes) {
+      if (Number(root.snoozes[key] || 0) > now) next[key] = root.snoozes[key]
+    }
+
+    if (source === "*") root.globalSnoozeUntil = until
+    else if (source !== "") next[String(source).toLowerCase()] = until
+
+    root.snoozes = next
+    root.saveSnoozes()
+    root.dismissSource(source)
+    root.closeReplay()
+  }
+
+  function unsnooze(source) {
+    if (source === "*") {
+      root.globalSnoozeUntil = 0
+    } else {
+      const next = {}
+      for (const key in root.snoozes) if (key !== source) next[key] = root.snoozes[key]
+      root.snoozes = next
+    }
+    root.saveSnoozes()
+  }
+
+  function dismissSource(source) {
+    const wanted = String(source || "").toLowerCase()
+    for (let i = root.tracked.length - 1; i >= 0; i--) {
+      const item = root.tracked[i]
+      if (wanted === "*" || root.sourceOf(item) === wanted) item.dismiss()
+    }
+  }
+
+  function quietSources() {
+    const now = Date.now() / 1000
+    const out = []
+    if (root.globalSnoozeUntil > now) out.push({ key: "*", label: "Everything", until: root.globalSnoozeUntil })
+    for (const key in root.snoozes) {
+      const until = Number(root.snoozes[key] || 0)
+      if (until > now) out.push({ key: key, label: key, until: until })
+    }
+    return out
+  }
+
+  property bool codesBypassQuiet: true
+
+  function codeBypass(notification) {
+    if (!root.codesBypassQuiet || !notification) return false
+    const text = String(notification.summary || "") + "\n" + String(notification.body || "")
+    return NotificationText.code(text) !== ""
+  }
+
+  function isQuiet(notification) {
+    if (root.bypassesSilencing(notification)) return false
+    if (root.codeBypass(notification)) return false
+    const now = Date.now() / 1000
+    if (root.doNotDisturb) return true
+    if (root.globalSnoozeUntil > now) return true
+    return Number(root.snoozes[root.sourceOf(notification)] || 0) > now
+  }
+
   // Which senders are allowed through silencing. Critical urgency by itself is
   // not a reason: chat applications mark everything critical to force their way
   // in front of the user. Trusted are our own confirmations for something the
@@ -108,11 +296,10 @@ QtObject {
     return list
   }
 
-  // Notifications from one application, collapsed into one card wherever they
-  // sit in the stack. A chat that sends five messages should take one card and
-  // a number, not five cards that push everything else off the screen — and a
-  // second message from an app already on screen belongs with the first, not in
-  // a separate card below whatever arrived in between.
+  // Notifications from one application, kept together wherever they sit in the
+  // stack. The popup draws each one as its own card; the grouping only decides
+  // the order, so a chat's messages stay beside each other instead of being
+  // split by whatever arrived in between.
   readonly property var groups: {
     const out = []
     const byApp = ({})
@@ -134,6 +321,16 @@ QtObject {
     return out
   }
 
+  // The groups flattened back into one list, in group order. The popup draws
+  // these as individual cards rather than collapsing a group to its newest one:
+  // a chat that sends three messages should show three cards, not hide two
+  // behind a count.
+  readonly property var groupedItems: {
+    const out = []
+    for (const group of root.groups) for (const item of group.items) out.push(item)
+    return out
+  }
+
   function dismiss(item) {
     if (item) item.dismiss()
   }
@@ -148,7 +345,7 @@ QtObject {
   function dismissSilenced() {
     for (let i = root.tracked.length - 1; i >= 0; i--) {
       const item = root.tracked[i]
-      if (!root.bypassesSilencing(item)) item.dismiss()
+      if (!root.bypassesSilencing(item) && !root.codeBypass(item)) item.dismiss()
     }
   }
 
@@ -180,6 +377,89 @@ QtObject {
     for (const item of root.replayEntries) if (item !== entry) next.push(item)
     root.replayEntries = next
     if (next.length === 0) root.closeReplay()
+  }
+
+  // ---- click routing ----
+  //
+  // A chat notification usually carries no action: clicking it should take you
+  // to the window that sent it, not just hide the card. `hyprctl clients` is
+  // needed because this build's toplevels do not expose a class; it runs only on
+  // a click, never while notifications are arriving.
+  property var pendingFocus: null
+
+  function activate(notification, link) {
+    const app = String(notification && (notification.appName || notification.app) ? (notification.appName || notification.app) : "")
+    root.focusSource(app, String(link || ""))
+  }
+
+  function focusSource(app, link) {
+    root.pendingFocus = { app: String(app || "").toLowerCase(), link: String(link || "") }
+    root.focusClients.running = false
+    root.focusClients.running = true
+  }
+
+  function focusFrom(text) {
+    const pending = root.pendingFocus
+    root.pendingFocus = null
+    if (!pending) return
+
+    let clients = []
+    try {
+      clients = JSON.parse(String(text || ""))
+    } catch (e) {
+      clients = []
+    }
+    if (!Array.isArray(clients)) clients = []
+
+    const wanted = String(pending.app || "")
+    let best = null
+    for (let i = 0; i < clients.length; i++) {
+      const client = clients[i]
+      if (!client || !client.address) continue
+      const klass = String(client.class || client.initialClass || "").toLowerCase()
+      const title = String(client.title || "").toLowerCase()
+
+      let score = 0
+      if (wanted !== "") {
+        if (klass === wanted) score = 3
+        else if (klass.indexOf(wanted) !== -1) score = 2
+        else if (title.indexOf(wanted) !== -1) score = 1
+      }
+      if (score === 0) continue
+
+      const order = Number(client.focusHistoryID === undefined ? 9999 : client.focusHistoryID)
+      if (!best || score > best.score || (score === best.score && order < best.order)) {
+        best = { address: String(client.address), score: score, order: order }
+      }
+    }
+
+    if (best) {
+      // Dispatched as Lua: the config manager rewrites the old
+      // `focuswindow address:0x..` form before evaluating, and that is not a Lua
+      // expression, so it fails. This is the form the dock uses.
+      Quickshell.execDetached(["hyprctl", "dispatch", 'hl.dsp.focus({window = "' + best.address + '"})'])
+      return
+    }
+
+    if (pending.link !== "") Quickshell.execDetached(["xdg-open", pending.link])
+  }
+
+  property Process focusClients: Process {
+    command: ["hyprctl", "clients", "-j"]
+    running: false
+
+    stdout: StdioCollector {
+      onStreamFinished: root.focusFrom(this.text)
+    }
+
+    onExited: {
+      // A failed `hyprctl` still has to clear the pending click, or the next one
+      // would think it already has an answer. If it produced no output at all,
+      // the link is the only useful fallback left.
+      const pending = root.pendingFocus
+      root.pendingFocus = null
+      if (pending && pending.link !== "") Quickshell.execDetached(["xdg-open", pending.link])
+    }
   }
 
   property Timer replayTimer: Timer {
@@ -231,7 +511,7 @@ QtObject {
       // something the user just did, and a genuine CLI emergency, still show.
       // Everything else is written to history and left untracked, so it never
       // becomes a popup.
-      const quiet = root.doNotDisturb && !root.bypassesSilencing(notification)
+      const quiet = root.isQuiet(notification)
 
       // An app repeating itself — a polling script, a volume readout — is one
       // piece of information. Keep the newest card instead of stacking an

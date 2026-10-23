@@ -28,7 +28,7 @@ BarWidget {
     return list.length === 0 || list.indexOf(id) !== -1
   }
 
-  readonly property bool dnd: NotificationHost.doNotDisturb
+  readonly property bool dnd: NotificationHost.doNotDisturb || NotificationHost.hasSnoozes
   readonly property bool idleStopped: IndicatorHost.idleStopped
   readonly property bool stayAwake: IndicatorHost.stayAwake
   readonly property bool nightlight: IndicatorHost.nightlight
@@ -83,7 +83,11 @@ BarWidget {
       active: root.dnd
       selected: root.dnd
       dimmed: !root.dnd
-      onPressed: function () { NotificationHost.toggle() }
+      onPressed: function () {
+        const sources = NotificationHost.quietSources()
+        for (const source of sources) NotificationHost.unsnooze(source.key)
+        NotificationHost.setDnd(!root.dnd)
+      }
     }
   }
 

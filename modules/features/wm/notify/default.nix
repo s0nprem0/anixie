@@ -12,9 +12,10 @@ let
   # full path because the wrapper is also called from systemd timers and from
   # Hyprland binds, neither of which necessarily carries the user's profile path.
   notify = pkgs.writeShellScriptBin "notify" (
-    builtins.replaceStrings [ "@NOTIFY_SEND@" ] [ "${pkgs.libnotify}/bin/notify-send" ] (
-      builtins.readFile ./notify.sh
-    )
+    builtins.replaceStrings
+      [ "@NOTIFY_SEND@" "@JQ@" ]
+      [ "${pkgs.libnotify}/bin/notify-send" "${pkgs.jq}/bin/jq" ]
+      (builtins.readFile ./notify.sh)
   );
 in
 {
