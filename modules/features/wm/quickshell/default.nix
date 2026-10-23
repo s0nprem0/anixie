@@ -19,8 +19,8 @@ let
   # in the state directory, not here.
   focusConfig = pkgs.writeText "focus.json" (
     builtins.toJSON {
-      blocked = config.features.wm.focus.blockedClasses;
-      defaultMinutes = config.features.wm.focus.defaultMinutes;
+      blocked = config.my.wm.focus.blockedClasses;
+      defaultMinutes = config.my.wm.focus.defaultMinutes;
     }
   );
 
@@ -79,7 +79,7 @@ let
   '';
 in
 {
-  options.features.wm.quickshell.position = lib.mkOption {
+  options.my.wm.quickshell.position = lib.mkOption {
     type = lib.types.enum [
       "top"
       "bottom"
@@ -101,7 +101,7 @@ in
   # bar's position the same way: a placeholder the theme module substitutes.
   config = {
     my.theme.template.placeholders = {
-      "@POSITION@" = config.features.wm.quickshell.position;
+      "@POSITION@" = config.my.wm.quickshell.position;
 
       # The warning's sender and IPC entry point, by full path: the shell service
       # runs under the user manager, whose PATH is not guaranteed to carry the

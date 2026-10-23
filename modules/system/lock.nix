@@ -3,10 +3,9 @@
   # acquire; it is no longer the lock on the lock key.
   programs.hyprlock.enable = true;
 
-  # The daemon behind pam_fprintd. Enabling it also makes the fingerprint module
-  # available to PAM services; the shell's password service opts out below, so
-  # the two lock flows stay separate.
-  services.fprintd.enable = true;
+  # fprintd itself is enabled by auth.nix, which owns the fingerprint PAM
+  # services. The shell's password service opts out below, so the two lock flows
+  # stay separate.
 
   # Password authentication for the shell's lock surface. unixAuth is the
   # default; fprintAuth is turned off because the lock has a separate fingerprint

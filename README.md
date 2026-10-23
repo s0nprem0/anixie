@@ -176,7 +176,7 @@ breakdown; `anixie screentime` prints it, and `screentime panel` opens the panel
 (adding the widget to a saved bar layout that predates it).
 
 `anixie focus start 25` closes the app classes listed in
-`features.wm.focus.blockedClasses`, silences notifications, and shows a
+`my.wm.focus.blockedClasses`, silences notifications, and shows a
 countdown indicator. The state survives a shell restart; `focus stop` puts the
 previous notification setting back. `Super+Ctrl+F` starts a 25-minute block and
 `Super+Ctrl+Shift+F` stops one.
@@ -184,7 +184,7 @@ previous notification setting back. `Super+Ctrl+F` starts a 25-minute block and
 While on battery, the power watcher dims the screen and steps down the profile
 at 20% and again at 8%, restoring the brightness you had when mains returns.
 The thresholds, profiles and brightness levels are
-`features.power.batteryAutomation` options.
+`my.power.batteryAutomation` options.
 
 ## Gaming
 

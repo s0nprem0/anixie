@@ -7,7 +7,7 @@
 }:
 
 let
-  cfg = config.features.wm.sharePicker;
+  cfg = config.my.wm.sharePicker;
 
   render = config.my.theme.template.render;
 
@@ -24,7 +24,7 @@ let
       (builtins.readFile ./config.yaml);
 in
 {
-  options.features.wm.sharePicker.enable = lib.mkOption {
+  options.my.wm.sharePicker.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to use the preview-share picker for portal screen sharing.";
