@@ -55,12 +55,28 @@ BarWidget {
       if (!name) return ""
 
       const value = String(name)
+
+      // The tray service publishes a theme icon as an image:// URL. Strip that
+      // back to the name so the existence check runs on what the provider is
+      // looking for; otherwise a missing icon becomes Quickshell's black and
+      // purple missing-image square instead of falling through to the next
+      // candidate in the list.
+      if (value.indexOf("image://icon/") === 0) {
+        const rest = value.slice("image://icon/".length)
+        const query = rest.indexOf("?")
+        const iconName = query === -1 ? rest : rest.slice(0, query)
+        return Quickshell.iconPath(iconName, true)
+      }
+
+      // Any other image provider URL is already a usable source.
+      if (value.indexOf("image://") === 0) return value
+
       // A few items publish a path instead of a theme name. iconPath only
       // understands theme names, so hand the file to Image as a URL.
       if (value.indexOf("file://") === 0) return value
       if (value.charAt(0) === "/") return "file://" + value
 
-      return Quickshell.iconPath(value, "")
+      return Quickshell.iconPath(value, true)
     }
 
     // What the item itself published.
@@ -97,7 +113,7 @@ BarWidget {
       if (path !== "") return path
     }
 
-    return Quickshell.iconPath("application-x-executable", "")
+    return Quickshell.iconPath("application-x-executable", true)
   }
 
   function openMenu(button) {
