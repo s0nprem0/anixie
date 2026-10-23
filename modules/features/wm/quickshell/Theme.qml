@@ -104,6 +104,23 @@ QtObject {
     }
   }
 
+  // A wallpaper palette is not in the embedded list: it is whatever matugen
+  // last generated, and the file beside the saved name is the only copy a
+  // restarted shell has. Without this, `wallpaper` fell back to the default
+  // theme whenever the shell restarted, even though the other apps kept it.
+  function reloadCustom() {
+    let raw = ""
+    try {
+      raw = paletteFile.text()
+    } catch (e) {
+      return false
+    }
+
+    if (String(raw).trim() === "") return false
+    root.setCustom(raw)
+    return root.custom !== null
+  }
+
   function reload() {
     let raw = ""
     try {
@@ -113,6 +130,10 @@ QtObject {
     }
 
     const wanted = String(raw).trim()
+    if (wanted === "wallpaper") {
+      if (!root.reloadCustom()) root.name = root.defaultName
+      return
+    }
     if (wanted !== "" && palettes[wanted] !== undefined) root.name = wanted
   }
 
@@ -124,6 +145,12 @@ QtObject {
   // nothing, the live path goes through the shell's IPC, the same way the dock and
   // the panels are driven. This is only here so a shell that restarts comes back
   // on the saved theme rather than the built-in default.
+  property FileView paletteFile: FileView {
+    path: Qt.resolvedUrl("@THEME_PALETTE@")
+    printErrors: false
+    blockLoading: true
+  }
+
   property FileView themeFile: FileView {
     path: Qt.resolvedUrl("@THEME_STATE@")
     printErrors: false

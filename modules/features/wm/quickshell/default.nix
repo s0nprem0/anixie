@@ -8,9 +8,11 @@
 let
   render = config.my.theme.template.render;
 
-  # Where the `theme` command records the live choice. The same path the command
-  # itself uses, written out here so the shell can watch it.
-  themeState = "${config.xdg.stateHome}/anixie/theme/current";
+  # Where the `theme` command records the live choice, and the resolved palette
+  # a wallpaper-derived theme leaves beside it. A restarted shell reads both: the
+  # name is not in the embedded list, so it needs the colours too.
+  themeState = "${config.my.theme.stateDir}/current";
+  themePalette = "${config.my.theme.stateDir}/palette.json";
 
   # Focus mode's blocked app ids, rendered where FocusHost can read them without
   # depending on the user's profile. The state (whether a block is running) lives
@@ -27,11 +29,12 @@ let
   # the `theme` command reads in the shell is the one that feeds this build.
   theme = pkgs.writeText "Theme.qml" (
     builtins.replaceStrings
-      [ "@PALETTES_JSON@" "@DEFAULT_THEME@" "@THEME_STATE@" ]
+      [ "@PALETTES_JSON@" "@DEFAULT_THEME@" "@THEME_STATE@" "@THEME_PALETTE@" ]
       [
         (builtins.toJSON config.my.theme.palettes)
         config.my.theme.theme
         themeState
+        themePalette
       ]
       (render ./Theme.qml)
   );
