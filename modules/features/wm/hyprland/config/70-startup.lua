@@ -5,7 +5,7 @@ hl.on("hyprland.start", function()
   -- cliphist is fed both kinds of clipboard, so a screenshot copied with
   -- Super+Shift+C is in the history alongside any copied text. The wrapper
   -- drops selections that password managers mark as secrets.
-  hl.exec_cmd("clipboard-watch")
+  hl.exec_cmd("app-launch clipboard-watch")
 
   -- Push this Hyprland's socket and instance signature into both the
   -- D-Bus activation environment and the systemd user manager. Home

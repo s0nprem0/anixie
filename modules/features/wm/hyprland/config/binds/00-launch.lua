@@ -1,7 +1,7 @@
 -- ------------------------------------------------------------------
 -- Launching
 -- ------------------------------------------------------------------
-bind(mod .. " + RETURN", "Terminal", terminal)
+bind(mod .. " + RETURN", "Terminal", app(terminal))
 
 bind_global(mod .. " + SPACE", "Menu", "menu")
 
@@ -35,4 +35,4 @@ bind(mod .. " + SHIFT + RETURN", "Browser",
 -- The editor command reads the user's EDITOR, falling back to nvim. This is a
 -- raw Lua file, not a Nix string, so the dollar-brace needs no escaping to
 -- reach the shell.
-bind(mod .. " + SHIFT + N", "Editor", "${EDITOR:-nvim}")
+bind(mod .. " + SHIFT + N", "Editor", app("${EDITOR:-nvim}"))

@@ -26,9 +26,9 @@ BarWidget {
       // than by running `menu` to come back in over IPC.
       if (button === Qt.LeftButton) {
         if (root.launcher === "menu") MenuHost.open("")
-        else Commands.run(root.launcher)
+        else Commands.run("app-launch " + root.launcher)
       }
-      else if (button === Qt.RightButton) Commands.run(root.terminal)
+      else if (button === Qt.RightButton) Commands.run("app-launch " + root.terminal)
     }
   }
 }

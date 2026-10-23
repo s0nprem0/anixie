@@ -9,7 +9,7 @@ import "../Ui"
 // `loginctl terminate-session` kills Hyprland with SIGTERM instead of letting it
 // shut down, which makes the display manager's session helper crash and leaves
 // the machine on a black screen with no greeter. `hyprctl dispatch exit` is the
-// clean path back to GDM. The logind call stays behind it as a fallback for a
+// clean path back to the greeter. The logind call stays behind it as a fallback for a
 // compositor that is stuck and cannot answer hyprctl.
 Item {
   id: root

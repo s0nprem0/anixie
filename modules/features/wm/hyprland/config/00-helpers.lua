@@ -1,6 +1,15 @@
 local mod = "SUPER"
 local terminal = "kitty"
 
+-- Applications go through UWSM's transient-scope helper (installed by
+-- hyprland/default.nix), so systemd tracks each one as its own app unit
+-- instead of accumulating them in the compositor's cgroup. Short-lived
+-- helpers — hyprctl, quickshell ipc, the pickers — deliberately do not:
+-- a scope for a process that exits in milliseconds is noise.
+local function app(command)
+  return "app-launch " .. command
+end
+
 -- ------------------------------------------------------------------
 -- Bind helpers
 --

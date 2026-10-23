@@ -63,8 +63,8 @@ ShellRoot {
         acceptedButtons: Qt.RightButton
         onClicked: function (mouse) {
           ContextMenuHost.openAt([
-            { label: "Terminal", glyph: Util.keyboard, action: function () { Commands.run("kitty") } },
-            { label: "Files", glyph: Util.menu, action: function () { Commands.run("thunar") } },
+            { label: "Terminal", glyph: Util.keyboard, action: function () { Commands.app("kitty") } },
+            { label: "Files", glyph: Util.menu, action: function () { Commands.app("thunar") } },
             { separator: true },
             { label: "Theme picker", glyph: Util.sun, action: function () { Commands.run("theme") } },
             { label: "Next theme", action: function () { Commands.run("theme next") } },

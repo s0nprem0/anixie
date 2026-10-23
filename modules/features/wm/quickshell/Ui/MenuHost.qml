@@ -350,13 +350,18 @@ QtObject {
 
   // Run a desktop entry. Detached, so an application outlives a shell restart
   // rather than being taken down with it, and from the entry's own working
-  // directory, which `command` alone does not carry.
+  // directory, which `command` alone does not carry. `app-launch` puts it in
+  // its own systemd scope under UWSM; without it the process would stay in the
+  // compositor's cgroup.
   function launch(entry) {
     if (!entry) return
     const command = entry.runInTerminal
       ? [root.terminal, "-e"].concat(entry.command)
       : entry.command
-    Quickshell.execDetached({ command: command, workingDirectory: entry.workingDirectory })
+    Quickshell.execDetached({
+      command: ["app-launch"].concat(command),
+      workingDirectory: entry.workingDirectory
+    })
   }
 
   // Launch an application by name, so the launcher can be scripted: `menu btop++`.

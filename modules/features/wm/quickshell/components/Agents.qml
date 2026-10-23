@@ -68,7 +68,7 @@ BarWidget {
       + (root.sessions === 1 ? " agent session" : " agent sessions")
       + " · click to start another"
     onPressed: function () {
-      Commands.runQuoted("kitty", ["-e", root.launcher])
+      Commands.app("kitty", ["-e", root.launcher])
     }
   }
 }

@@ -33,6 +33,14 @@ QtObject {
     })
   }
 
+  // A user-facing application, launched through the UWSM scope helper. Use
+  // this for anything with a window or a tray icon, so systemd owns a unit for
+  // it rather than it living in the compositor's cgroup. Short tools and IPC
+  // calls stay on run/runQuoted.
+  function app(binary, args) {
+    root.runQuoted("app-launch", [String(binary)].concat(args || []))
+  }
+
   // A binary and its arguments, each quoted individually. The right shape for
   // anything taking a window title or other text that may contain spaces and
   // quotes, where a hand-built command line is a quoting bug waiting to happen.

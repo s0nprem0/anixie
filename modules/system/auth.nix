@@ -1,5 +1,3 @@
-{ lib, ... }:
-
 {
   # Fingerprint sign-in, where the machine has a reader. No sensor showed up on
   # this Vivobook — the only i2c device is the ELAN touchpad, and nothing on the
@@ -13,13 +11,12 @@
   # reader first. Only services that already exist are named here — defining a
   # PAM service that nothing uses would write a config with nothing in it.
   #
-  # mkForce because the GDM module sets fprintAuth to false on the services it
-  # touches, and its plain definition would otherwise win over this one.
+  # greetd's PAM service authenticates through the `login` substack, so the
+  # greeter picks the reader up from `login` below without a service of its own.
   security.pam.services = {
-    hyprlock.fprintAuth = lib.mkForce true; # the session lock
-    sudo.fprintAuth = lib.mkForce true; # a terminal's privilege escalation
-    gdm.fprintAuth = lib.mkForce true; # the display manager's login
-    login.fprintAuth = lib.mkForce true; # the console login
-    polkit-1.fprintAuth = lib.mkForce true; # the shell's polkit prompt
+    hyprlock.fprintAuth = true; # the session lock
+    sudo.fprintAuth = true; # a terminal's privilege escalation
+    login.fprintAuth = true; # the console and greetd's greeter
+    polkit-1.fprintAuth = true; # the shell's polkit prompt
   };
 }

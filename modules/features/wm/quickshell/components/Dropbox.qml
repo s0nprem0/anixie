@@ -56,7 +56,7 @@ BarWidget {
   }
 
   function open(path) {
-    if (String(path) !== "") Commands.runQuoted("xdg-open", [String(path)])
+    if (String(path) !== "") Commands.app("xdg-open", [String(path)])
   }
 
   function applyStatus(text, error) {

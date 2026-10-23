@@ -72,7 +72,7 @@ BarWidget {
     tooltipText: "This tree is newer than the running system · click to rebuild"
 
     onPressed: function () {
-      Commands.run("kitty -e anixie update")
+      Commands.app("kitty", ["-e", "anixie", "update"])
     }
   }
 }
