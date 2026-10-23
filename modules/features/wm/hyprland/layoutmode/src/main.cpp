@@ -65,6 +65,8 @@
 #include <hyprland/src/config/ConfigValue.hpp>
 #include <hyprland/src/config/ConfigManager.hpp>
 #include <hyprland/src/debug/HyprCtl.hpp>
+#include <hyprland/src/managers/eventLoop/EventLoopTimer.hpp>
+#include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
 #include <hyprland/src/devices/IPointer.hpp>
 #include <hyprland/src/output/Monitor.hpp>
 #undef private
@@ -100,6 +102,9 @@ std::unordered_map<std::string, CBox>            g_floatGeomsByClass;
 std::vector<Desktop::View::CWindow*> g_nativeFloating; // floating before us: never touch
 PHLWINDOW g_focusBefore;
 PHLWINDOW g_lastFocusedWindow;
+
+bool                  g_geomsDirty = false;
+SP<CEventLoopTimer>   g_geomSaveTimer;
 
 bool isNative(Desktop::View::CWindow* raw) {
     return std::find(g_nativeFloating.begin(), g_nativeFloating.end(), raw) != g_nativeFloating.end();
@@ -150,6 +155,34 @@ void ensureParent(const std::string& path) {
         std::filesystem::create_directories(parent, ec);
 }
 
+bool writeAtomic(const std::string& path, const std::string& content) {
+    if (path.empty())
+        return false;
+    ensureParent(path);
+
+    const auto tmp = path + ".tmp";
+    {
+        std::ofstream f(tmp, std::ios::trunc);
+        if (!f)
+            return false;
+        f << content;
+        f.flush();
+        if (!f) {
+            std::error_code ec;
+            std::filesystem::remove(tmp, ec);
+            return false;
+        }
+    }
+
+    std::error_code ec;
+    std::filesystem::rename(tmp, path, ec);
+    if (ec) {
+        std::filesystem::remove(tmp, ec);
+        return false;
+    }
+    return true;
+}
+
 void saveGeometriesToDisk() {
     const auto path = geomsPath();
     if (path.empty())
@@ -168,9 +201,34 @@ void saveGeometriesToDisk() {
         };
     }
 
-    std::ofstream f(path, std::ios::trunc);
-    if (f)
-        f << root.dump(2) << "\n";
+    writeAtomic(path, root.dump(2) + "\n");
+}
+
+void flushGeomSave() {
+    if (!g_geomsDirty)
+        return;
+    g_geomsDirty = false;
+    saveGeometriesToDisk();
+}
+
+// Geometry changes arrive in bursts while a window is dragged or focused. Keep
+// the latest state in memory and write it once the burst settles; a plugin exit
+// flushes immediately.
+void scheduleGeomSave() {
+    g_geomsDirty = true;
+    if (!g_pEventLoopManager) {
+        flushGeomSave();
+        return;
+    }
+
+    if (!g_geomSaveTimer) {
+        g_geomSaveTimer = makeShared<CEventLoopTimer>(std::nullopt, [](SP<CEventLoopTimer> self, void*) {
+            flushGeomSave();
+            self->cancel();
+        }, nullptr);
+        g_pEventLoopManager->addTimer(g_geomSaveTimer);
+    }
+    g_geomSaveTimer->updateTimeout(std::chrono::milliseconds(250));
 }
 
 void loadGeometriesFromDisk() {
@@ -265,7 +323,7 @@ void saveWindowGeom(const PHLWINDOW& w) {
 
     g_floatGeoms[w.get()] = box;
     g_floatGeomsByClass[cls] = box;
-    saveGeometriesToDisk();
+    scheduleGeomSave();
 }
 
 void applyWindowGeom(const PHLWINDOW& w) {
@@ -355,7 +413,12 @@ bool overviewActive() {
     if (!g_pHyprCtl)
         return false;
     const std::string reply = g_pHyprCtl->getReply("hymission-overview-state");
-    return reply.find("\"active\":true") != std::string::npos;
+    try {
+        const auto state = nlohmann::json::parse(reply);
+        return state.value("active", false);
+    } catch (...) {
+        return false;
+    }
 }
 
 bool barsShouldBeOn() {
@@ -377,10 +440,7 @@ void persistMode() {
     const auto path = statePath();
     if (path.empty())
         return;
-    ensureParent(path);
-    std::ofstream f(path, std::ios::trunc);
-    if (f)
-        f << (g_floating ? "floating" : "tiling") << "\n";
+    writeAtomic(path, g_floating ? "floating\n" : "tiling\n");
 }
 
 // Snapshot the exact tape of every scrolling workspace with tiled windows,
@@ -493,7 +553,9 @@ void toTiling() {
             }
         }
     }
-    // newcomers (opened while floating): tile after everything else.
+    // newcomers (opened while floating, or floated by hand during this mode):
+    // tile after everything else. Toggling back is a request for the tiled
+    // layout, so individual floats made in floating mode do not survive it.
     // Natively-floating windows (predating our float) are left alone.
     for (const auto& w : std::vector<PHLWINDOW>(Desktop::windowState()->windows().begin(), Desktop::windowState()->windows().end())) {
         if (!w->m_isFloating || !w->m_isMapped)
@@ -604,9 +666,16 @@ int luaToggle(lua_State*) {
 
 std::string hyprctlLayoutmode(eHyprCtlOutputFormat, std::string args) {
     // exact=false passes the remainder in various shapes ("toggle",
-    // "layoutmode toggle", ...), so match leniently
-    if (args.find("toggle") != std::string::npos)
-        toggle();
+    // "layoutmode toggle", ...). Match whole words so "notoggle" or a future
+    // "toggle-foo" is not a toggle.
+    std::istringstream words(args);
+    std::string word;
+    while (words >> word) {
+        if (word == "toggle") {
+            toggle();
+            break;
+        }
+    }
     if (g_floating)
         return "{\"text\":\"F\",\"class\":\"floating\",\"tooltip\":\"Floating layout — click to tile\"}\n";
     return "{\"text\":\"T\",\"class\":\"tiling\",\"tooltip\":\"Tiling layout — click to float\"}\n";
@@ -639,7 +708,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 
     if (!HyprlandAPI::addLuaFunction(g_handle, "layoutmode", "toggle", luaToggle)) {
         HyprlandAPI::addNotification(g_handle, "[layoutmode] failed to register lua function", CHyprColor(1.F, 0.3F, 0.3F, 1.F), 5000);
-        return {"layoutmode", "Global tiling/floating toggle", "parazeeknova",  "0.2.1"};
+        return {"layoutmode", "Global tiling/floating toggle", "parazeeknova",  "0.3.0"};
     }
 
     g_hyprCmd = HyprlandAPI::registerHyprCtlCommand(g_handle, SHyprCtlCommand{
@@ -668,6 +737,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     (void)floatingListener;
 
     static const auto closeListener = Event::bus()->m_events.window.close.listen([](PHLWINDOW w) {
+        if (!w)
+            return;
+        const auto raw = w.get();
+        g_nativeFloating.erase(std::remove(g_nativeFloating.begin(), g_nativeFloating.end(), raw), g_nativeFloating.end());
         saveWindowGeom(w);
         refreshBars();
     });
@@ -718,12 +791,18 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     } catch (...) {
     }
 
-    return {"layoutmode", "Global tiling/floating toggle", "parazeeknova",  "0.2.1"};
+    return {"layoutmode", "Global tiling/floating toggle", "parazeeknova",  "0.3.0"};
 }
 
 APICALL EXPORT void PLUGIN_EXIT() {
     for (const auto& w : Desktop::windowState()->windows()) {
         saveWindowGeom(w);
+    }
+    flushGeomSave();
+    if (g_geomSaveTimer) {
+        if (g_pEventLoopManager)
+            g_pEventLoopManager->removeTimer(g_geomSaveTimer);
+        g_geomSaveTimer.reset();
     }
     if (g_hyprCmd) {
         HyprlandAPI::unregisterHyprCtlCommand(g_handle, g_hyprCmd);
