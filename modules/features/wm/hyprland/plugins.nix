@@ -170,7 +170,9 @@ let
       pkgs.pkg-config
       pkgs.hyprland
     ];
-    buildInputs = pkgs.hyprland.buildInputs;
+    # The floating geometry cache is JSON keyed by window class; nlohmann
+    # handles escaping the key instead of hand-built string concatenation.
+    buildInputs = pkgs.hyprland.buildInputs ++ [ pkgs.nlohmann_json ];
 
     postInstall = ''
       ln -s "$out/lib/libhyprland-layoutmode.so" "$out/lib/liblayoutmode.so"

@@ -11,12 +11,13 @@ add_compile_options(
 )
 
 find_package(PkgConfig REQUIRED)
+find_package(nlohmann_json REQUIRED)
 pkg_check_modules(HYPR_DEPS REQUIRED hyprland)
 
 add_library(layoutmode SHARED src/main.cpp)
 
 target_include_directories(layoutmode PRIVATE ${HYPR_DEPS_INCLUDE_DIRS})
-target_link_libraries(layoutmode PRIVATE ${HYPR_DEPS_LIBRARIES})
+target_link_libraries(layoutmode PRIVATE ${HYPR_DEPS_LIBRARIES} nlohmann_json::nlohmann_json)
 
 set_target_properties(layoutmode PROPERTIES OUTPUT_NAME "hyprland-layoutmode")
 

@@ -40,6 +40,9 @@
 #include <utility>
 #include <vector>
 
+#include <filesystem>
+#include <nlohmann/json.hpp>
+
 // access compositor internals like hymission does; scoped so libstdc++
 // headers (parsed later) are unaffected
 #define private public
@@ -62,7 +65,6 @@
 #include <hyprland/src/config/ConfigValue.hpp>
 #include <hyprland/src/config/ConfigManager.hpp>
 #include <hyprland/src/debug/HyprCtl.hpp>
-#include <hyprland/src/config/supplementary/executor/Executor.hpp>
 #include <hyprland/src/devices/IPointer.hpp>
 #include <hyprland/src/output/Monitor.hpp>
 #undef private
@@ -103,67 +105,106 @@ bool isNative(Desktop::View::CWindow* raw) {
     return std::find(g_nativeFloating.begin(), g_nativeFloating.end(), raw) != g_nativeFloating.end();
 }
 
-std::string homeDir() {
-    const char* h = getenv("HOME");
-    return h ? h : "/home/parazeeknova";
+std::string envDir(const char* variable, const char* fallback) {
+    const char* value = getenv(variable);
+    if (value && *value)
+        return value;
+    const char* home = getenv("HOME");
+    return home && *home ? std::string(home) + fallback : "";
+}
+
+std::string cacheDir() {
+    return envDir("XDG_CACHE_HOME", "/.cache");
+}
+
+std::string stateDir() {
+    return envDir("XDG_STATE_HOME", "/.local/state");
 }
 
 std::string statePath() {
-    return homeDir() + "/.cache/hypr_layout_mode";
+    const auto dir = stateDir();
+    return dir.empty() ? "" : dir + "/hypr/layoutmode";
+}
+
+std::string legacyStatePath() {
+    const auto dir = cacheDir();
+    return dir.empty() ? "" : dir + "/hypr_layout_mode";
 }
 
 std::string geomsPath() {
-    return homeDir() + "/.cache/hypr_float_geometries.json";
+    const auto dir = stateDir();
+    return dir.empty() ? "" : dir + "/hypr/float-geometries.json";
+}
+
+std::string legacyGeomsPath() {
+    const auto dir = cacheDir();
+    return dir.empty() ? "" : dir + "/hypr_float_geometries.json";
+}
+
+void ensureParent(const std::string& path) {
+    if (path.empty())
+        return;
+    std::error_code ec;
+    const auto parent = std::filesystem::path(path).parent_path();
+    if (!parent.empty())
+        std::filesystem::create_directories(parent, ec);
 }
 
 void saveGeometriesToDisk() {
-    std::ofstream f(geomsPath(), std::ios::trunc);
-    if (!f)
+    const auto path = geomsPath();
+    if (path.empty())
         return;
-    f << "{\n";
-    bool first = true;
+    ensureParent(path);
+
+    nlohmann::json root = nlohmann::json::object();
     for (const auto& [cls, box] : g_floatGeomsByClass) {
         if (cls.empty() || box.width <= 10 || box.height <= 10)
             continue;
-        if (!first)
-            f << ",\n";
-        first = false;
-        f << "  \"" << cls << "\": {\"x\": " << static_cast<int>(box.x)
-          << ", \"y\": " << static_cast<int>(box.y)
-          << ", \"w\": " << static_cast<int>(box.width)
-          << ", \"h\": " << static_cast<int>(box.height) << "}";
+        root[cls] = {
+            {"x", static_cast<int>(box.x)},
+            {"y", static_cast<int>(box.y)},
+            {"w", static_cast<int>(box.width)},
+            {"h", static_cast<int>(box.height)},
+        };
     }
-    f << "\n}\n";
+
+    std::ofstream f(path, std::ios::trunc);
+    if (f)
+        f << root.dump(2) << "\n";
 }
 
 void loadGeometriesFromDisk() {
-    std::ifstream f(geomsPath());
+    auto path = geomsPath();
+    std::ifstream f(path);
+    if (!f) {
+        path = legacyGeomsPath();
+        if (path.empty())
+            return;
+        f.open(path);
+    }
     if (!f)
         return;
-    std::string line;
-    while (std::getline(f, line)) {
-        auto q1 = line.find('"');
-        if (q1 == std::string::npos)
+
+    nlohmann::json root;
+    try {
+        f >> root;
+    } catch (...) {
+        return;
+    }
+    if (!root.is_object())
+        return;
+
+    for (auto it = root.begin(); it != root.end(); ++it) {
+        if (!it.value().is_object())
             continue;
-        auto q2 = line.find('"', q1 + 1);
-        if (q2 == std::string::npos)
-            continue;
-        std::string cls = line.substr(q1 + 1, q2 - q1 - 1);
-        auto xPos = line.find("\"x\":");
-        auto yPos = line.find("\"y\":");
-        auto wPos = line.find("\"w\":");
-        auto hPos = line.find("\"h\":");
-        if (xPos != std::string::npos && yPos != std::string::npos &&
-            wPos != std::string::npos && hPos != std::string::npos) {
-            try {
-                double x = std::stod(line.substr(xPos + 4));
-                double y = std::stod(line.substr(yPos + 4));
-                double w = std::stod(line.substr(wPos + 4));
-                double h = std::stod(line.substr(hPos + 4));
-                if (w > 10 && h > 10)
-                    g_floatGeomsByClass[cls] = CBox{x, y, w, h};
-            } catch (...) {
-            }
+        try {
+            const double x = it.value().at("x").get<double>();
+            const double y = it.value().at("y").get<double>();
+            const double w = it.value().at("w").get<double>();
+            const double h = it.value().at("h").get<double>();
+            if (w > 10 && h > 10)
+                g_floatGeomsByClass[it.key()] = CBox{x, y, w, h};
+        } catch (...) {
         }
     }
 }
@@ -251,11 +292,6 @@ void applyWindowGeom(const PHLWINDOW& w) {
     }
 }
 
-inline void asyncExec(const std::string& cmd) {
-    if (Config::Supplementary::executor())
-        Config::Supplementary::executor()->spawnRaw(cmd);
-}
-
 Layout::Tiled::CScrollingAlgorithm* scrollingFor(const PHLWORKSPACE& ws) {
     if (!ws || !ws->m_space)
         return nullptr;
@@ -296,18 +332,6 @@ PHLWINDOW findWin(Desktop::View::CWindow* raw) {
     return nullptr;
 }
 
-// Glass-aware bar theme: translucent + blurred with glass, solid without.
-// Called on every toggle and via `hyprctl layoutmode syncbars` (wired into
-// theme_switcher's glass toggle) so bars follow glass changes live.
-bool glassEnabled() {
-    std::ifstream f(homeDir() + "/.cache/quickshell/glass_state");
-    if (!f)
-        return true;
-    std::string s;
-    f >> s;
-    return s == "true";
-}
-
 // Non-aborting config writes: CConfigValue's ctor RASSERTs when the key
 // doesn't exist (crashed the compositor at boot when hyprbars loads after
 // us). getConfigValue() returns a safe optional-style reply instead.
@@ -321,12 +345,6 @@ void setConfigValue(const std::string& name, const T& value) {
     if (*reply.type != typeid(T))
         return;
     *rc<T*>(*reply.dataptr) = value;
-}
-
-void syncBarTheme() {
-    const bool glass = glassEnabled();
-    setConfigValue<Config::BOOL>("plugin:hyprbars:bar_blur", static_cast<Config::BOOL>(glass ? 1 : 0));
-    setConfigValue<Config::INTEGER>("plugin:hyprbars:bar_color", static_cast<Config::INTEGER>(glass ? 0xA619120C : 0xFF19120C));
 }
 
 // Title bars live only in floating mode. Individual window floating and
@@ -345,8 +363,9 @@ bool barsShouldBeOn() {
 }
 
 void setBars(bool on) {
+    // The bar's colour, blur and themed surface belong to hyprbars' own config;
+    // layoutmode only decides whether title bars exist in this mode.
     setConfigValue<Config::BOOL>("plugin:hyprbars:enabled", static_cast<Config::BOOL>(on ? 1 : 0));
-    syncBarTheme();
 }
 
 // recompute bars from the current context (mode + fullscreen + overview)
@@ -355,7 +374,11 @@ void refreshBars() {
 }
 
 void persistMode() {
-    std::ofstream f(statePath(), std::ios::trunc);
+    const auto path = statePath();
+    if (path.empty())
+        return;
+    ensureParent(path);
+    std::ofstream f(path, std::ios::trunc);
     if (f)
         f << (g_floating ? "floating" : "tiling") << "\n";
 }
@@ -543,8 +566,8 @@ void toggle() {
         else
             toFloating();
     } catch (const std::exception& e) {
-        const std::string cmd = std::string("notify-send -u critical -a \"Layout\" \"Toggle failed\" \"") + e.what() + "\" 2>/dev/null";
-        asyncExec(cmd);
+        if (g_handle)
+            HyprlandAPI::addNotification(g_handle, "[layoutmode] toggle failed: " + std::string(e.what()), CHyprColor(1.F, 0.3F, 0.3F, 1.F), 5000);
     }
 }
 
@@ -584,10 +607,6 @@ std::string hyprctlLayoutmode(eHyprCtlOutputFormat, std::string args) {
     // "layoutmode toggle", ...), so match leniently
     if (args.find("toggle") != std::string::npos)
         toggle();
-    else if (args.find("syncbars") != std::string::npos)
-        syncBarTheme();
-    else if (args.find("syncoverview") != std::string::npos)
-        refreshBars();
     if (g_floating)
         return "{\"text\":\"F\",\"class\":\"floating\",\"tooltip\":\"Floating layout — click to tile\"}\n";
     return "{\"text\":\"T\",\"class\":\"tiling\",\"tooltip\":\"Tiling layout — click to float\"}\n";
@@ -605,6 +624,13 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     loadGeometriesFromDisk();
 
     std::ifstream f(statePath());
+    if (!f) {
+        const auto legacy = legacyStatePath();
+        if (!legacy.empty()) {
+            f.clear();
+            f.open(legacy);
+        }
+    }
     if (f) {
         std::string mode;
         f >> mode;
@@ -673,6 +699,24 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     // hyprbars may load after us; re-sync bars on every config reload
     static const auto cfgListener = Event::bus()->m_events.config.reloaded.listen([]() { refreshBars(); });
     (void)cfgListener;
+
+    // A plugin reload can leave the saved mode and the live windows disagreeing.
+    // If the mode says floating and there are still tiled windows, snapshot and
+    // float them now; otherwise only the bars need syncing.
+    try {
+        bool hasTiled = false;
+        for (const auto& w : Desktop::windowState()->windows()) {
+            if (qualifies(w)) {
+                hasTiled = true;
+                break;
+            }
+        }
+        if (g_floating && hasTiled)
+            toFloating();
+        else
+            refreshBars();
+    } catch (...) {
+    }
 
     return {"layoutmode", "Global tiling/floating toggle", "parazeeknova",  "0.2.1"};
 }
