@@ -30,12 +30,6 @@ in
   services = {
     # greetd owns PAM and the VT; tuigreet is just the terminal UI it starts.
     # GDM brought the GNOME session stack along to draw one login prompt.
-    displayManager = {
-      # Used by autologin and tooling, not by greetd: the greeter lists every
-      # session and remembers the last choice in /var/cache/tuigreet.
-      defaultSession = "hyprland-uwsm";
-    };
-
     greetd = {
       enable = true;
 
@@ -47,11 +41,6 @@ in
         command = tuigreet;
         user = "greeter";
       };
-    };
-
-    xserver.xkb = {
-      layout = "us";
-      variant = "";
     };
 
     libinput.enable = true;
