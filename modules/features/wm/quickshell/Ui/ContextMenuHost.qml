@@ -43,11 +43,11 @@ QtObject {
   // Away from the bar, the same direction a tooltip takes: below a top bar,
   // above a bottom one, beside a side bar.
   function barEdge() {
-    return Theme.position === "bottom"
+    return BarContext.position === "bottom"
       ? Edges.Top
-      : Theme.position === "left"
+      : BarContext.position === "left"
         ? Edges.Right
-        : Theme.position === "right"
+        : BarContext.position === "right"
           ? Edges.Left
           : Edges.Bottom
   }

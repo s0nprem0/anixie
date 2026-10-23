@@ -89,14 +89,51 @@ QtObject {
       raw = ""
     }
 
-    if (raw.trim() === "") return
+    if (raw.trim() === "") {
+      root.state = null
+      root.savedText = ""
+      return
+    }
 
     try {
       const parsed = JSON.parse(raw)
-      if (parsed && typeof parsed === "object") root.state = parsed
+      if (parsed && typeof parsed === "object") {
+        root.state = parsed
+        root.savedText = raw
+      }
     } catch (e) {
       console.warn("quickshell bar: the saved layout is not valid JSON, using bar.json")
     }
+  }
+
+  // A watch on the saved file can fire for the shell's own write as well as for
+  // an editor's. Compare against what was last written before re-reading, so a
+  // drag does not replace the layout with a half-written copy in the same turn.
+  function reloadSavedIfChanged() {
+    let raw = ""
+    try {
+      root.savedFile.reload()
+      raw = root.savedFile.text()
+    } catch (e) {
+      raw = ""
+    }
+    if (raw === root.savedText) return
+    root.reloadSaved()
+  }
+
+  // A write through FileView emits its watch signal before the adapter has
+  // necessarily read the new bytes. Re-reading immediately can therefore parse
+  // the previous layout and undo the write. Let the write settle first.
+  property Timer reloadWatch: Timer {
+    interval: 200
+    repeat: false
+    onTriggered: root.reloadSavedIfChanged()
+  }
+
+  function reload() {
+    root.reloadBuiltin()
+    root.savedFile.reload()
+    root.reloadSaved()
   }
 
   // Where a module should go, given a section name and an index in that section's
@@ -181,8 +218,9 @@ QtObject {
   }
 
   function isEnabled(id) {
-    for (const name in root.layout) {
-      const list = root.layout[name]
+    const layout = root.config.layout || {}
+    for (const name in layout) {
+      const list = layout[name]
       for (let i = 0; i < list.length; i++) {
         if (list[i] && list[i].id === id) return true
       }
@@ -264,6 +302,137 @@ QtObject {
     root.save(next)
   }
 
+  // The edge the bar is on. `position` lives beside `background` in the saved
+  // layout rather than in the Nix-rendered Theme, so changing it does not need a
+  // rebuild. BarContext reads it live; the shell recreates its bar windows when
+  // it changes, since a mapped layer surface cannot be re-anchored reliably.
+  function setPosition(value) {
+    const position = String(value || "")
+    if (["top", "bottom", "left", "right"].indexOf(position) === -1) return false
+
+    const next = JSON.parse(JSON.stringify(root.config))
+    next.position = position
+    root.save(next)
+    return true
+  }
+
+  // The current value of one setting on a widget, for `bar get` and the menu's
+  // checked rows. Undefined when the widget or key is absent.
+  function settingOf(id, key) {
+    const layout = root.config.layout || {}
+    for (const name in layout) {
+      const list = layout[name]
+      if (!Array.isArray(list)) continue
+      for (let i = 0; i < list.length; i++) {
+        const entry = list[i]
+        if (entry && entry.id === id) return entry[key]
+      }
+    }
+    return undefined
+  }
+
+  // Change one setting on a widget that is already in the layout. Values arrive
+  // as strings from `bar set`; the caller decides whether a value is a number,
+  // a boolean or text (see the IPC handler in shell.qml).
+  function setSetting(id, key, value) {
+    if (!id || !key) return false
+
+    const next = JSON.parse(JSON.stringify(root.config))
+    next.layout = next.layout || {}
+
+    for (const name in next.layout) {
+      const list = next.layout[name]
+      if (!Array.isArray(list)) continue
+      for (let i = 0; i < list.length; i++) {
+        const entry = list[i]
+        if (entry && entry.id === id) {
+          entry[key] = value
+          root.save(next)
+          return true
+        }
+      }
+    }
+
+    return false
+  }
+
+  // Every widget this shell can draw: the registry's built-ins, the manifest's
+  // drop-ins, and anything already parked in the saved layout. Keeping the
+  // registry in the list matters because a built-in such as `bar.menu` can be
+  // disabled too, and then it has to appear in the enable list again.
+  function knownModules() {
+    const out = []
+    function add(id) {
+      id = String(id || "")
+      if (id !== "" && out.indexOf(id) === -1) out.push(id)
+    }
+
+    for (const id in ModuleRegistry.registry) add(id)
+    for (const id in root.defaults) add(id)
+
+    const layout = root.config.layout || {}
+    for (const name in layout) {
+      const list = layout[name]
+      if (!Array.isArray(list)) continue
+      for (let i = 0; i < list.length; i++) {
+        if (list[i]) add(list[i].id)
+      }
+    }
+
+    const parked = root.config.disabled || []
+    for (let i = 0; i < parked.length; i++) {
+      if (parked[i] && parked[i].entry) add(parked[i].entry.id)
+    }
+
+    out.sort()
+    return out
+  }
+
+  // The widgets that are not currently on the bar. Used by the menu's plugin
+  // catalog: the id is both the label and the argument to `bar enable`.
+  function availableModules() {
+    return root.knownModules().filter(function (id) { return !root.isEnabled(id) })
+  }
+
+  // Every widget currently in a layout section, including the tray. Sorted so
+  // the two catalog lists are stable.
+  function enabledModules() {
+    const out = []
+    const layout = root.config.layout || {}
+    for (const name in layout) {
+      const list = layout[name]
+      if (!Array.isArray(list)) continue
+      for (let i = 0; i < list.length; i++) {
+        const entry = list[i]
+        if (entry && entry.id && out.indexOf(String(entry.id)) === -1) out.push(String(entry.id))
+      }
+    }
+    out.sort()
+    return out
+  }
+
+  // Where a widget is now, for the `bar modules` readout. Falls back to the
+  // manifest's default section for a widget that is parked.
+  function sectionFor(id) {
+    const layout = root.config.layout || {}
+    for (const name in layout) {
+      const list = layout[name]
+      if (!Array.isArray(list)) continue
+      for (let i = 0; i < list.length; i++) {
+        if (list[i] && list[i].id === id) return name
+      }
+    }
+
+    const parked = root.config.disabled || []
+    for (let i = 0; i < parked.length; i++) {
+      if (parked[i] && parked[i].entry && parked[i].entry.id === id) {
+        return String(parked[i].section || root.sectionOf(id))
+      }
+    }
+
+    return root.sectionOf(id)
+  }
+
   function save(next) {
     // The in-memory layout moves immediately, before the file is written. The
     // write goes through a process and a file adapter, and a second move in that
@@ -324,7 +493,9 @@ QtObject {
     path: root.savedPath
     printErrors: false
     blockLoading: true
+    watchChanges: true
 
     Component.onCompleted: root.reloadSaved()
+    onFileChanged: root.reloadWatch.restart()
   }
 }

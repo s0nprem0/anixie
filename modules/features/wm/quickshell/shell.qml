@@ -18,6 +18,20 @@ import "Ui"
 import "components"
 
 ShellRoot {
+  id: shell
+
+  // Rebuilt when the bar switches edges. Layer surfaces cannot be re-anchored
+  // reliably after they are mapped, so the window is recreated instead: the
+  // position in the model makes Variants destroy and rebuild each per-screen bar.
+  readonly property var barSurfaces: {
+    const out = []
+    const screens = Quickshell.screens
+    for (let i = 0; i < screens.length; i++) {
+      out.push({ screen: screens[i], position: BarContext.position })
+    }
+    return out
+  }
+
   // The desktop background. One layer-shell surface per output, on the
   // Background layer so windows sit over it. It takes input only for the
   // desktop context menu: the surface claims the pointer, but windows are above
@@ -112,16 +126,17 @@ ShellRoot {
   }
 
   // One bar per connected screen. `Variants` builds and destroys them as
-  // displays come and go, and `screen: modelData` is what puts each copy on its
-  // own output. Everything that hangs off a bar — panels, the curtain, drag and
-  // drop — looks the bar up by screen name (see Ui/Screens.qml).
+  // displays or the bar's edge change, and `screen: targetScreen` is what puts
+  // each copy on its own output. Everything that hangs off a bar — panels, the
+  // curtain, drag and drop — looks the bar up by screen name (see Ui/Screens.qml).
   Variants {
-    model: Quickshell.screens
+    model: shell.barSurfaces
 
     delegate: PanelWindow {
       id: bar
       required property var modelData
-      screen: modelData
+      readonly property var targetScreen: modelData.screen
+      screen: targetScreen
 
       // Edges are set from the position rather than by switching between four
       // blocks of anchors: a single anchors block can express any edge, and
@@ -143,9 +158,9 @@ ShellRoot {
       // the same width.
       implicitWidth: BarContext.vertical
         ? Style.bar.sizeVertical
-        : modelData.width
+        : targetScreen.width
       implicitHeight: BarContext.vertical
-        ? modelData.height
+        ? targetScreen.height
         : Style.bar.sizeHorizontal
 
       color: "transparent"
@@ -428,6 +443,47 @@ ShellRoot {
     }
     function reset(): void { BarConfig.reset() }
     function background(mode: string): void { BarConfig.setBackground(mode) }
+    function position(value: string): string {
+      return BarConfig.setPosition(value)
+        ? "ok"
+        : "position must be top, bottom, left or right"
+    }
+
+    // Per-widget settings. A value that parses as JSON becomes a number or
+    // boolean; everything else stays text, so `format "dddd HH:mm"` and
+    // `interval 600` both land in the shape the widget reads.
+    function set(id: string, key: string, value: string): string {
+      let parsed = value
+      try {
+        const candidate = JSON.parse(value)
+        if (candidate !== null && typeof candidate !== "object") parsed = candidate
+      } catch (e) {
+      }
+      const existed = BarConfig.settingOf(id, key) !== undefined
+      if (!BarConfig.setSetting(id, key, parsed)) {
+        return "no widget called \"" + id + "\" on the bar"
+      }
+      return existed ? "ok" : "ok (new setting)"
+    }
+
+    // The current value of one widget setting, as JSON. Useful from a shell and
+    // the source for the menu's checked rows.
+    function get(id: string, key: string): string {
+      const value = BarConfig.settingOf(id, key)
+      return value === undefined ? "" : JSON.stringify(value)
+    }
+
+    function reload(): void { BarConfig.reload() }
+
+    // The widget catalog, for `anixie bar modules`: known widgets with their
+    // current section and state, one tab-separated row each.
+    function modules(): string {
+      const ids = BarConfig.knownModules()
+      return ids.map(function (id) {
+        return id + "\t" + BarConfig.sectionFor(id) + "\t"
+          + (BarConfig.isEnabled(id) ? "on" : "off")
+      }).join("\n")
+    }
 
     // Taking a widget off the bar and putting it back. The place it came from is
     // remembered, so `enable` restores rather than appends; a widget that was
@@ -611,10 +667,10 @@ ShellRoot {
     anchors.right: true
     anchors.bottom: true
     // The same clearance the notifications get, from the other corner.
-    margins.right: Theme.position === "right"
+    margins.right: BarContext.position === "right"
       ? Style.bar.sizeVertical + Style.space(24)
       : Style.space(24)
-    margins.bottom: Theme.position === "bottom"
+    margins.bottom: BarContext.position === "bottom"
       ? Style.bar.sizeHorizontal + Style.space(24)
       : Style.space(24)
     implicitWidth: previewCard.implicitWidth
@@ -680,10 +736,10 @@ ShellRoot {
 
       // Clear of the bar on whichever edge it is: the cards sit under a top bar
       // and beside a right one, rather than over it.
-      margins.top: Theme.position === "top"
+      margins.top: BarContext.position === "top"
         ? Style.bar.sizeHorizontal + Style.space(10)
         : Style.space(10)
-      margins.right: Theme.position === "right"
+      margins.right: BarContext.position === "right"
         ? Style.bar.sizeVertical + Style.space(10)
         : Style.space(10)
 

@@ -10,12 +10,17 @@ import "Ui"
 // where the bar is only as wide as an icon. Passing this down through a
 // singleton keeps it out of every module's constructor.
 //
-// The value comes from Theme, which Nix renders, rather than from bar.json,
-// because the bar window is built once and cannot be re-anchored afterwards.
+// The value is the saved bar position when one exists, with the Nix-rendered
+// Theme as the default. Keeping it here rather than in Theme lets `bar position`
+// move the bar without rebuilding, while a fresh install still starts from the
+// configured edge.
 QtObject {
   id: root
 
-  property string position: Theme.position
+  readonly property string position: {
+    const saved = String(BarConfig.config.position || "")
+    return ["top", "bottom", "left", "right"].indexOf(saved) === -1 ? Theme.position : saved
+  }
 
   readonly property bool vertical: position === "left" || position === "right"
 

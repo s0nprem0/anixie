@@ -152,6 +152,21 @@
           "run": "shortcuts"
         },
         {
+          "group": "Plugins",
+          "entries": [
+            {
+              "label": "Enable a widget",
+              "list": "bar-modules",
+              "run": "quickshell ipc call bar enable {}"
+            },
+            {
+              "label": "Disable a widget",
+              "list": "bar-enabled",
+              "run": "quickshell ipc call bar disable {}"
+            }
+          ]
+        },
+        {
           "group": "Text size",
           "entries": [
             {
@@ -176,16 +191,64 @@
               "run": "quickshell ipc call bar toggle"
             },
             {
+              "group": "Position",
+              "entries": [
+                {
+                  "label": "Top",
+                  "run": "quickshell ipc call bar position top",
+                  "state": "bar-position-top"
+                },
+                {
+                  "label": "Bottom",
+                  "run": "quickshell ipc call bar position bottom",
+                  "state": "bar-position-bottom"
+                },
+                {
+                  "label": "Left",
+                  "run": "quickshell ipc call bar position left",
+                  "state": "bar-position-left"
+                },
+                {
+                  "label": "Right",
+                  "run": "quickshell ipc call bar position right",
+                  "state": "bar-position-right"
+                }
+              ]
+            },
+            {
+              "group": "Clock format",
+              "entries": [
+                {
+                  "label": "Friday 22:56",
+                  "run": "quickshell ipc call bar set bar.clock format 'dddd HH:mm'",
+                  "state": "bar-clock-format-friday"
+                },
+                {
+                  "label": "Fri 23 Oct 22:56",
+                  "run": "quickshell ipc call bar set bar.clock format 'ddd dd MMM  HH:mm'",
+                  "state": "bar-clock-format-date"
+                },
+                {
+                  "label": "22:56",
+                  "run": "quickshell ipc call bar set bar.clock format 'HH:mm'",
+                  "state": "bar-clock-format-time"
+                }
+              ]
+            },
+            {
               "label": "Background \u2014 opaque",
-              "run": "quickshell ipc call bar background opaque"
+              "run": "quickshell ipc call bar background opaque",
+              "state": "bar-background-opaque"
             },
             {
               "label": "Background \u2014 glassy",
-              "run": "quickshell ipc call bar background glassy"
+              "run": "quickshell ipc call bar background glassy",
+              "state": "bar-background-glassy"
             },
             {
               "label": "Background \u2014 clear",
-              "run": "quickshell ipc call bar background clear"
+              "run": "quickshell ipc call bar background clear",
+              "state": "bar-background-clear"
             },
             {
               "label": "Reset bar layout",

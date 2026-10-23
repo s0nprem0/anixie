@@ -65,7 +65,7 @@ modules.json              where a widget goes when enabled from the menu/CLI
 same layout on each; panels and their hotkeys use the display they belong to.
 Entries under the `tray` section are parked in the tray drawer instead of taking
 a permanent slot on the bar.
-The shell writes its own copy when the layout or the background changes:
+The shell writes its own copy when the layout, background, position, or a widget setting changes:
 
 ```
 ~/.local/state/anixie/bar/bar.json
@@ -76,6 +76,11 @@ which **takes precedence** over `bar.json` until you reset it:
 ```sh
 anixie bar reset                  # back to the shipped layout
 anixie bar move bar.bell center 0 # move by id, section, index
+anixie bar position bottom        # top | bottom | left | right
+anixie bar set bar.clock format "HH:mm"  # one widget's setting
+anixie bar get bar.clock format   # read it back (JSON)
+anixie bar modules                # the catalog: id, section, on/off
+anixie bar reload                 # re-read the saved layout from disk
 anixie bar enable bar.media       # put a widget back (manifest decides where)
 anixie bar disable bar.bell       # take it off; the place it came from is kept
 anixie bar background glassy      # clear | glassy | opaque (also double-click)
@@ -83,9 +88,16 @@ anixie bar tray                   # open the tray drawer (parked widgets)
 anixie bar toggle|on|off          # hide the bar, keeping panels and hotkeys
 ```
 
+Position is saved with the layout too, so a switch does not need a rebuild. The
+Nix option `anixie.wm.quickshell.position` is the default a fresh state starts
+from. After editing the saved layout by hand, run `anixie bar reload`; the
+shipped `bar.json` still changes only with a rebuild. The same controls are in
+**Menu → Setup → Bar**.
+
 Widgets are looked up in `ModuleRegistry`, then in `modules.json` — a widget is a
 section, a source file and optional settings, so one the default layout does not
-show is one line in the manifest rather than a code change.
+show is one line in the manifest rather than a code change. **Menu → Setup →
+Plugins** lists what can be enabled or disabled without editing JSON.
 
 The weather follows the machine's IP unless its entry names a place. A city,
 postcode or `"lat,lon"` in `location` pins it instead, which is what a VPN needs:

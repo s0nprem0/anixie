@@ -204,6 +204,14 @@ QtObject {
       return Theme.names().map(function (name) {
         return { label: name, icon: "", app: null }
       })
+    case "bar-modules":
+      return BarConfig.availableModules().map(function (id) {
+        return { label: String(id), icon: "", app: null }
+      })
+    case "bar-enabled":
+      return BarConfig.enabledModules().map(function (id) {
+        return { label: String(id), icon: "", app: null }
+      })
     }
     console.warn("menu: no list called \"" + source + "\"")
     return []
@@ -215,6 +223,22 @@ QtObject {
     case "nightlight": return IndicatorHost.nightlight ? "on" : "off"
     case "idle": return IndicatorHost.idleStopped ? "off" : "on"
     case "dnd": return NotificationHost.doNotDisturb ? "on" : "off"
+    case "bar-position-top": return BarContext.position === "top" ? "current" : ""
+    case "bar-position-bottom": return BarContext.position === "bottom" ? "current" : ""
+    case "bar-position-left": return BarContext.position === "left" ? "current" : ""
+    case "bar-position-right": return BarContext.position === "right" ? "current" : ""
+    case "bar-background-opaque":
+      return String(BarConfig.config.background || "clear") === "opaque" ? "current" : ""
+    case "bar-background-glassy":
+      return String(BarConfig.config.background || "clear") === "glassy" ? "current" : ""
+    case "bar-background-clear":
+      return String(BarConfig.config.background || "clear") === "clear" ? "current" : ""
+    case "bar-clock-format-friday":
+      return String(BarConfig.settingOf("bar.clock", "format") || "dddd HH:mm") === "dddd HH:mm" ? "current" : ""
+    case "bar-clock-format-date":
+      return String(BarConfig.settingOf("bar.clock", "format") || "dddd HH:mm") === "ddd dd MMM  HH:mm" ? "current" : ""
+    case "bar-clock-format-time":
+      return String(BarConfig.settingOf("bar.clock", "format") || "dddd HH:mm") === "HH:mm" ? "current" : ""
     }
     console.warn("menu: no state called \"" + source + "\"")
     return ""

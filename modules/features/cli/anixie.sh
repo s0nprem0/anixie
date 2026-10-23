@@ -48,7 +48,7 @@ reminder|reminder||show count clear -i|set and list reminders
 toggle|toggle||nightlight idle dnd stayawake status list|night light, idle, do-not-disturb
 snapshot|snapshot||create list restore prune|btrfs snapshots of /home: create, list, restore, prune
 update|rebuild||switch boot test|rebuild and switch the system
-bar|quickshell ipc call bar||toggle on off reset move enable disable background tray|the status bar: toggle, on, off
+bar|quickshell ipc call bar||toggle on off reset reload move enable disable background position get set modules tray|the status bar: toggle, position, layout, settings
 focus|focus||start stop extend status|focus mode: start, stop, extend, status
 screentime|screentime||show json reset path|screen time for today: show, json, reset
 '

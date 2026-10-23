@@ -113,9 +113,9 @@ in
       Which edge the bar sits on. A side bar becomes a column and its modules
       drop their labels, since a 28px-wide bar has room for an icon only.
 
-      This is set here rather than in bar.json because the bar window is built
-      once and cannot be re-anchored afterwards, so the edge has to be known
-      before the first frame.
+      This is the default for a fresh state; `bar position` saves a runtime
+      override in the writable bar layout, so changing the edge does not need a
+      rebuild.
     '';
   };
 

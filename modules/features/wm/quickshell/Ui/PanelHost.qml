@@ -117,7 +117,7 @@ QtObject {
   // it occupies, so a bottom or side bar opens them where the pointer is rather
   // than at a fixed corner.
   readonly property bool vertical: BarContext.vertical
-  readonly property string position: Theme.position
+  readonly property string position: BarContext.position
   readonly property real barExtent: root.vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal
 
   // The most room a panel may take beside the bar, less a margin so its far

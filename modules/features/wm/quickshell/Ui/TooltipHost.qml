@@ -19,11 +19,11 @@ QtObject {
   // bar, above a bottom one, and beside a vertical one — a fixed "below" put a
   // bottom bar's tooltips off the bottom of the screen and a side bar's across
   // its own modules.
-  readonly property int edge: Theme.position === "bottom"
+  readonly property int edge: BarContext.position === "bottom"
     ? Edges.Top
-    : Theme.position === "left"
+    : BarContext.position === "left"
       ? Edges.Right
-      : Theme.position === "right"
+      : BarContext.position === "right"
         ? Edges.Left
         : Edges.Bottom
 
