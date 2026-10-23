@@ -45,3 +45,11 @@ bind("SHIFT + XF86AudioPause", "Switch media source",
 
 bind("XF86MonBrightnessUp", "Brighter", "brightnessctl set +5%", { locked = true, repeating = true })
 bind("XF86MonBrightnessDown", "Dimmer", "brightnessctl set 5%-", { locked = true, repeating = true })
+-- ALT steps by one point, the same gesture the volume keys have, so a level can
+-- be set exactly without holding the key and overshooting.
+bind("ALT + XF86MonBrightnessUp", "Brighter precisely", "brightnessctl set +1%", { locked = true, repeating = true })
+bind("ALT + XF86MonBrightnessDown", "Dimmer precisely", "brightnessctl set 1%-", { locked = true, repeating = true })
+-- SHIFT jumps to the ends, which is what the panel's slider cannot do in one
+-- press when the screen is too bright to find it.
+bind("SHIFT + XF86MonBrightnessUp", "Maximum brightness", "brightnessctl set 100%", { locked = true })
+bind("SHIFT + XF86MonBrightnessDown", "Minimum brightness", "brightnessctl set 1%", { locked = true })

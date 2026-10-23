@@ -3,6 +3,12 @@
 -- ------------------------------------------------------------------
 bind(mod .. " + RETURN", "Terminal", app(terminal))
 
+-- The file manager and the system monitor, on Omarchy's keys. Thunar is the
+-- default directory handler, so this is the same application a "show in folder"
+-- opens; btop runs inside the terminal rather than as a toplevel of its own.
+bind(mod .. " + SHIFT + F", "File manager", app("thunar"))
+bind(mod .. " + SHIFT + T", "System monitor", app(terminal .. " btop"))
+
 bind_global(mod .. " + SPACE", "Menu", "menu")
 
 -- The same descriptions the menu is built from, as a searchable sheet. Hyprland

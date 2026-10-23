@@ -48,5 +48,13 @@ bind(mod .. " + SHIFT + SPACE", "Toggle bar", "quickshell ipc call bar toggle")
 --
 -- The reference's key, and the reason it is this one: it is the only theme
 -- gesture that needs a picker, so it wants the space bar with everything held.
--- ------------------------------------------------------------------
+-- Omarchy also puts the theme picker on CTRL+T, which is quicker once the
+-- gesture is learned; both stay bound rather than moving a key that is already
+-- in muscle memory.
 bind(mod .. " + CTRL + SHIFT + SPACE", "Theme picker", "theme")
+bind(mod .. " + CTRL + T", "Theme picker", "theme")
+
+-- The background picker, next to the theme picker. `wallpaper` with no argument
+-- lists the generated background and the pictures for the current theme; it is
+-- the same command the shell's desktop context menu calls.
+bind(mod .. " + CTRL + SPACE", "Wallpaper picker", "wallpaper")
