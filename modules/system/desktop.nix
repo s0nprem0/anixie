@@ -56,6 +56,14 @@ in
     # `thunar /run/media/$USER/<label>` resolves to a mounted volume rather than a
     # path that does not exist yet.
     gvfs.enable = true;
+
+    # NixOS turns Speech Dispatcher on for every graphical desktop, on the
+    # assumption that a screen reader may need it. There is none here, and it is
+    # not free: the package drags in the Mbrola voice set (~645 MiB), the daemon
+    # is D-Bus-activated into every session, and mbrola keeps a synthesis process
+    # resident once something has spoken. Set false rather than left at the
+    # default; re-enable it if Orca or an app's read-aloud feature is wanted.
+    speechd.enable = false;
   };
 
   # Registers the Hyprland sessions (plain and UWSM) with the display manager
