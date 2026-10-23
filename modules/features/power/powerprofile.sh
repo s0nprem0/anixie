@@ -145,6 +145,7 @@ preferred() {
 apply() {
   src="$(source_name)"
   profile="$(preferred "$src")"
+  mkdir -p "$STATE"
 
   if [ "$src" = "ac" ]; then
     restore_brightness
@@ -170,16 +171,30 @@ apply() {
   fi
 
   "$PPD" set "$profile" 2>/dev/null || true
+  printf '%s\n' "$src" >"$STATE/last-source"
 }
 
 # The periodic check. Unlike `apply`, it does not touch the profile while the
 # charge is healthy: a profile chosen by hand should survive until the cable
 # moves or a threshold is crossed. It does keep the dim state honest, which is
 # the part UPower's own events cannot be trusted to deliver at every percent.
+#
+# The source is compared here as well as in the udev listener. A missed uevent
+# (or a service that started after the cable had already moved) would otherwise
+# leave the machine on the other source's profile — performance on battery —
+# until the next physical plug, which is exactly the case this watcher exists to
+# prevent. Following a source change does not stomp on a hand-picked profile:
+# `apply` still uses the stored choice for the new source.
 check_battery() {
   [ "$AUTO" = "1" ] || return 0
 
+  mkdir -p "$STATE"
   src="$(source_name)"
+  if [ "$(cat "$STATE/last-source" 2>/dev/null || true)" != "$src" ]; then
+    apply
+    return 0
+  fi
+
   if [ "$src" = "ac" ]; then
     restore_brightness
     rm -f "$STATE/low-notified" "$STATE/critical-notified"
@@ -255,7 +270,10 @@ case "${1:-}" in
         esac
       done &
     monitor=$!
-    trap 'kill "$monitor" 2>/dev/null' TERM INT
+    # A clean stop rather than letting the interrupted `sleep` fall through
+    # `set -e` and exit 1: stopping a user service is not a failure, and the
+    # status=1 the journal used to record on every logout looked like one.
+    trap 'kill "$monitor" 2>/dev/null; exit 0' TERM INT
 
     while :; do
       sleep 30
