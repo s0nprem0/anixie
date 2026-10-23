@@ -373,6 +373,7 @@
         "url": "https://github.com/WhySoBad/hyprland-preview-share-picker"
       },
       "original": {
+        "rev": "07602efe7a65dcef5399e22c162edf9fc331c46d",
         "submodules": true,
         "type": "git",
         "url": "https://github.com/WhySoBad/hyprland-preview-share-picker"

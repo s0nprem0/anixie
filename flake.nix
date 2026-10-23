@@ -31,7 +31,11 @@
     # Hyprland's internal headers, so a nixpkgs bump that moves Hyprland is a
     # plugin-build break, not a cosmetic one.
     hyprland-preview-share-picker = {
-      url = "git+https://github.com/WhySoBad/hyprland-preview-share-picker?submodules=1";
+      # Pinned to a revision like every other plugin input, rather than tracking
+      # master. The picker is a separate binary, not an in-process plugin, but a
+      # floating branch still makes `nix flake update` a larger, less reviewable
+      # change than a compositor bump should be.
+      url = "git+https://github.com/WhySoBad/hyprland-preview-share-picker?rev=07602efe7a65dcef5399e22c162edf9fc331c46d&submodules=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
