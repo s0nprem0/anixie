@@ -25,13 +25,17 @@
     inter
     fraunces
 
-    # Other patched families, for the applications that let you choose: a
-    # proportional one for prose, a condensed one for terminals, and the ones
-    # that read better at small sizes.
+    # Other patched families, for the applications that let you choose: FiraCode
+    # for the floating title bars, Hack and Victor Mono for the editors and
+    # terminals that read better at small sizes.
+    #
+    # Iosevka and the Nerd Font build of Noto used to be here too. They are not
+    # referenced anywhere in the tree, and they are the two largest font trees
+    # in nixpkgs — 1.1 GiB and 1.0 GiB unpacked — for glyph coverage `noto-fonts`
+    # above already provides. Dropping them takes ~2.2 GiB out of the closure and
+    # the fontconfig cache; add one back if a specific app wants it.
     nerd-fonts.fira-code
-    nerd-fonts.noto
     nerd-fonts.hack
-    nerd-fonts.iosevka
     nerd-fonts.victor-mono
   ];
 }
