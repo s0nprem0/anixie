@@ -68,6 +68,38 @@ names() {
   "$jq" -r 'keys[]' "$palettes" | sort
 }
 
+# A square swatch for the picker: background, surface, primary and accent in
+# four quadrants. Cached under the state directory and regenerated when the
+# palette file changes.
+preview_dir="$state_dir/previews"
+
+palette_colour() {
+  "$jq" -r --arg n "$1" --arg k "$2" '.[$n][$k]' "$palettes"
+}
+
+theme_preview() {
+  local name="$1" preview="$preview_dir/$1.png"
+  mkdir -p "$preview_dir" || return 1
+  if [ -f "$preview" ] && [ ! "$palettes" -nt "$preview" ]; then
+    printf '%s' "$preview"
+    return 0
+  fi
+
+  local bg surface primary accent
+  bg=$(palette_colour "$name" background) || return 1
+  surface=$(palette_colour "$name" surface) || return 1
+  primary=$(palette_colour "$name" primary) || return 1
+  accent=$(palette_colour "$name" accent) || return 1
+
+  "$magick" -size 64x64 "xc:$bg" \
+    -fill "$surface" -draw 'rectangle 0,0 31,31' \
+    -fill "$primary" -draw 'rectangle 32,0 63,31' \
+    -fill "$accent" -draw 'rectangle 0,32 31,63' \
+    -fill "$bg" -draw 'rectangle 32,32 63,63' \
+    "$preview" >/dev/null 2>&1 || return 1
+  printf '%s' "$preview"
+}
+
 has() {
   # `wallpaper` is not in the file: it is whatever matugen last made of the
   # current picture, and it exists once a palette has been generated.
@@ -88,11 +120,13 @@ saved_wallpaper_mode() {
   esac
 }
 
-# Every file rendered from the palette assumes the same nine keys. A truncated
+# Every file rendered from the palette assumes the same core keys. A truncated
 # file, a failed write or a missing theme would otherwise reach the templates as
 # `null`, which Yazi refuses to parse and the others render as a colour called
 # "null". Checked before anything is written, so a bad palette leaves the
-# previous files alone instead of replacing them with broken ones.
+# previous files alone instead of replacing them with broken ones. `yellow` is
+# optional because a palette generated before that token existed falls back to
+# the accent.
 palette_ok() {
   "$jq" -e '
     type == "object" and
@@ -114,7 +148,14 @@ wallpaper_palette() {
 # One colour out of the resolved palette. materialise() writes it for a curated
 # theme; matugen writes it for a wallpaper.
 colour() {
-  "$jq" -r --arg k "$1" '.[$k]' "$generated"
+  local value
+  value=$("$jq" -r --arg k "$1" '.[$k] // empty' "$generated")
+  # A palette generated before the ANSI yellow token existed still has a usable
+  # accent; use it rather than writing "null" into kitty's colour3.
+  if [ -z "$value" ] && [ "$1" = "yellow" ]; then
+    value=$("$jq" -r '.["accent"]' "$generated")
+  fi
+  printf '%s' "$value"
 }
 
 current() {
@@ -166,6 +207,22 @@ background $(colour background)
 foreground $(colour foreground)
 selection_background $(colour accent)
 selection_foreground $(colour background)
+color0 $(colour background)
+color8 $(colour muted)
+color1 $(colour danger)
+color9 $(colour danger)
+color2 $(colour success)
+color10 $(colour success)
+color3 $(colour yellow)
+color11 $(colour yellow)
+color4 $(colour primary)
+color12 $(colour primary)
+color5 $(colour accentAlt)
+color13 $(colour accentAlt)
+color6 $(colour accent)
+color14 $(colour accent)
+color7 $(colour foreground)
+color15 $(colour foreground)
 EOF
 
   # tmux, btop, and whichever others have learned to read the state directory.
@@ -419,10 +476,15 @@ case "${1:-}" in
     # stays the name, so the command it runs does not change.
     {
       if wallpaper_palette; then
-        printf 'wallpaper (generated)\twallpaper\n'
+        if [ -f "$state_dir/wallpaper.png" ]; then
+          printf 'wallpaper (generated)\twallpaper\t\t\t%s\n' "$state_dir/wallpaper.png"
+        else
+          printf 'wallpaper (generated)\twallpaper\n'
+        fi
       fi
       names | while IFS= read -r name; do
-        printf '%s (%s)\t%s\n' "$name" "$(mode_of "$name")" "$name"
+        preview=$(theme_preview "$name" 2>/dev/null || true)
+        printf '%s (%s)\t%s\t\t\t%s\n' "$name" "$(mode_of "$name")" "$name" "$preview"
       done
     } | pick --title 'theme' --on-select 'theme set {}'
     exit 0

@@ -1,0 +1,25 @@
+/* libadwaita named colours, so the palette reaches GTK4 applications too. */
+@define-color window_bg_color @BG@;
+@define-color window_fg_color @FG@;
+@define-color view_bg_color @SURFACE@;
+@define-color view_fg_color @FG@;
+@define-color headerbar_bg_color @BG@;
+@define-color headerbar_fg_color @FG@;
+@define-color headerbar_border_color @MUTED@;
+@define-color card_bg_color @SURFACE@;
+@define-color card_fg_color @FG@;
+@define-color dialog_bg_color @SURFACE@;
+@define-color dialog_fg_color @FG@;
+@define-color popover_bg_color @SURFACE@;
+@define-color popover_fg_color @FG@;
+@define-color accent_bg_color @PRIMARY@;
+@define-color accent_fg_color @BG@;
+@define-color destructive_bg_color @DANGER@;
+@define-color destructive_fg_color @BG@;
+@define-color success_bg_color @SUCCESS@;
+@define-color success_fg_color @BG@;
+@define-color warning_bg_color @YELLOW@;
+@define-color warning_fg_color @BG@;
+@define-color error_bg_color @DANGER@;
+@define-color error_fg_color @BG@;
+@define-color borders @MUTED@;

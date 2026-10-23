@@ -120,7 +120,7 @@ application menu (the app supplies it over DBusMenu).
 
 ## Themes
 
-`themes.json` holds nine colours and a mode per palette; everything else is
+`themes.json` holds ten colours and a mode per palette; everything else is
 derived. Light and dark palettes switch the same surfaces; GTK follows the mode
 through gsettings (Adwaita/Adwaita-dark and Papirus/Papirus-Light icons).
 
@@ -143,6 +143,15 @@ frame. `theme wallpaper` remembers an explicit `auto`/`light`/`dark` choice for
 the next picture; `theme set wallpaper` reuses the last generated palette. While
 `wallpaper` is the current theme, choosing a background through `anixie
 wallpaper` also regenerates the palette from it.
+
+The terminal gets the full 16-colour ANSI palette, so kitty, the zsh prompt,
+fzf, bat and eza follow the theme rather than only the terminal background. GTK
+also gets palette-derived `gtk.css` files, not just the Adwaita light/dark
+switch. The picker previews a palette's colours as a small swatch.
+
+Applications without a supported config format can be reached through
+`~/.config/anixie/theme-hooks/*.sh`. Each executable hook runs after a switch
+with `ANIXIE_THEME`, `ANIXIE_MODE`, and the palette colours in the environment.
 
 ## Everything else
 

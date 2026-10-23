@@ -17,6 +17,8 @@ yazi_template="@YAZI_TEMPLATE@"
 hyprlock_template="@HYPRLOCK_TEMPLATE@"
 qt6ct_colors_template="@QT6CT_COLORS_TEMPLATE@"
 gtk_template="@GTK_TEMPLATE@"
+gtk3_css_template="@GTK3_CSS_TEMPLATE@"
+gtk4_css_template="@GTK4_CSS_TEMPLATE@"
 cursor_theme="@POINTER_CURSOR_THEME@"
 cursor_size="@POINTER_CURSOR_SIZE@"
 generated="@STATE_DIR@/palette.json"
@@ -39,8 +41,15 @@ muted=$(colour muted)
 primary=$(colour primary)
 accent=$(colour accent)
 alt=$(colour accentAlt)
+yellow=$(colour yellow)
 danger=$(colour danger)
 success=$(colour success)
+
+# A generated palette from before the yellow token existed still gets a usable
+# terminal yellow instead of the literal string "null".
+case "$yellow" in
+  "" | null) yellow=$accent ;;
+esac
 
 # Rendering a palette file with a missing key would write the literal string
 # "null" into every template — which is not a colour, and Yazi refuses to parse
@@ -82,6 +91,7 @@ render() {
     -e "s|@PRIMARY@|$primary|g" \
     -e "s|@ACCENT@|$accent|g" \
     -e "s|@ACCENT_ALT@|$alt|g" \
+    -e "s|@YELLOW@|$yellow|g" \
     -e "s|@SUCCESS@|$success|g" \
     -e "s|@DANGER@|$danger|g" \
     -e "s|@BG_HEX@|${bg#\#}|g" \
@@ -91,6 +101,7 @@ render() {
     -e "s|@PRIMARY_HEX@|${primary#\#}|g" \
     -e "s|@ACCENT_HEX@|${accent#\#}|g" \
     -e "s|@ACCENT_ALT_HEX@|${alt#\#}|g" \
+    -e "s|@YELLOW_HEX@|${yellow#\#}|g" \
     -e "s|@SUCCESS_HEX@|${success#\#}|g" \
     -e "s|@DANGER_HEX@|${danger#\#}|g" \
     -e "s|@HELIX_PARENT@|$helix_parent|g" \
@@ -120,6 +131,8 @@ render "$hyprlock_template" "$state_dir/hyprlock.conf"
 render "$qt6ct_colors_template" "$state_dir/qt6ct-colors.conf"
 render "$gtk_template" "$state_dir/gtk-3.0-settings.ini"
 render "$gtk_template" "$state_dir/gtk-4.0-settings.ini"
+render "$gtk3_css_template" "$state_dir/gtk-3.0.css"
+render "$gtk4_css_template" "$state_dir/gtk-4.0.css"
 
 # ---- tmux ----
 tmux_conf=$(mktemp "$state_dir/.tmux.XXXXXX") || exit 1
@@ -190,3 +203,33 @@ theme[upload_mid]="$accent"
 theme[upload_end]="$alt"
 EOF
 mv "$btop_theme" "$btop_themes/anixie.theme"
+
+# ---- terminal tools ----
+# The zsh prompt uses ANSI names, which kitty now maps to the palette. bat and
+# eza are told to use those same ANSI names, and fzf gets an explicit palette so
+# its chrome does not stay on the default grey.
+terminal_env="$state_dir/terminal.zsh"
+terminal_tmp=$(mktemp "$state_dir/.terminal.XXXXXX") || exit 1
+cat >"$terminal_tmp" <<EOF
+export BAT_THEME=ansi
+export EZA_COLORS='di=34:ln=36:ex=32:or=31:mi=31:*.tar=31:*.zip=31:*.gz=31:*.7z=31:*.jpg=35:*.png=35:*.mp4=35'
+export FZF_DEFAULT_OPTS="\${FZF_DEFAULT_OPTS:-} --color=fg:$fg,bg:$bg,hl:$primary,fg+:$fg,bg+:$surface,hl+:$primary,info:$accent,prompt:$primary,pointer:$accent,marker:$success,spinner:$accent,header:$muted,border:$surface"
+EOF
+mv "$terminal_tmp" "$terminal_env"
+
+# ---- user hooks ----
+# Applications without a config format worth owning get a small contract instead:
+# an executable under ~/.config/anixie/theme-hooks receives the palette in the
+# environment after every switch.
+hook_dir="${XDG_CONFIG_HOME:-$HOME/.config}/anixie/theme-hooks"
+if [ -d "$hook_dir" ]; then
+  for hook in "$hook_dir"/*.sh; do
+    [ -x "$hook" ] || continue
+    env ANIXIE_THEME="$name" ANIXIE_MODE="$mode" \
+      ANIXIE_BG="$bg" ANIXIE_FG="$fg" ANIXIE_SURFACE="$surface" \
+      ANIXIE_MUTED="$muted" ANIXIE_PRIMARY="$primary" ANIXIE_ACCENT="$accent" \
+      ANIXIE_ACCENT_ALT="$alt" ANIXIE_YELLOW="$yellow" \
+      ANIXIE_DANGER="$danger" ANIXIE_SUCCESS="$success" \
+      "$hook" >/dev/null 2>&1 || true
+  done
+fi

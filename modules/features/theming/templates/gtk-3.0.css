@@ -1,0 +1,21 @@
+/* Palette overrides for Adwaita; the settings.ini beside this file picks the
+   dark or light variant, and this file replaces its named colours. */
+@define-color theme_bg_color @BG@;
+@define-color theme_fg_color @FG@;
+@define-color theme_base_color @SURFACE@;
+@define-color theme_text_color @FG@;
+@define-color theme_selected_bg_color @PRIMARY@;
+@define-color theme_selected_fg_color @BG@;
+@define-color theme_unfocused_bg_color @BG@;
+@define-color theme_unfocused_fg_color @MUTED@;
+@define-color theme_unfocused_base_color @SURFACE@;
+@define-color theme_unfocused_text_color @MUTED@;
+@define-color insensitive_bg_color @BG@;
+@define-color insensitive_fg_color @MUTED@;
+@define-color borders @MUTED@;
+@define-color unfocused_borders @MUTED@;
+@define-color warning_color @YELLOW@;
+@define-color error_color @DANGER@;
+@define-color success_color @SUCCESS@;
+@define-color content_view_bg @SURFACE@;
+@define-color text_view_bg @SURFACE@;

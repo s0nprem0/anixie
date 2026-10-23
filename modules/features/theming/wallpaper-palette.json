@@ -6,6 +6,7 @@
   "primary": "{{colors.primary.default.hex}}",
   "accent": "{{colors.tertiary.default.hex}}",
   "accentAlt": "{{colors.secondary.default.hex}}",
+  "yellow": "{{colors.tertiary.default.hex}}",
   "success": "{{colors.tertiary.default.hex}}",
   "danger": "{{colors.error.default.hex}}"
 }

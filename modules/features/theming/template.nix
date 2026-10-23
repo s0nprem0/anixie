@@ -13,6 +13,7 @@ let
     accent = "ACCENT";
     accentAlt = "ACCENT_ALT";
     success = "SUCCESS";
+    yellow = "YELLOW";
     danger = "DANGER";
   };
 

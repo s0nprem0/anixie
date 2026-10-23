@@ -9,7 +9,8 @@
     "accent": "#86e1fc",
     "accentAlt": "#c099ff",
     "success": "#c3e88d",
-    "danger": "#ff757f"
+    "danger": "#ff757f",
+    "yellow": "#e0af68"
   },
   "catppuccin-mocha": {
     "_mode": "dark",
@@ -21,7 +22,8 @@
     "accent": "#89dceb",
     "accentAlt": "#cba6f7",
     "success": "#a6e3a1",
-    "danger": "#f38ba8"
+    "danger": "#f38ba8",
+    "yellow": "#f9e2af"
   },
   "gruvbox-dark": {
     "_mode": "dark",
@@ -33,7 +35,8 @@
     "accent": "#8ec07c",
     "accentAlt": "#d3869b",
     "success": "#b8bb26",
-    "danger": "#fb4934"
+    "danger": "#fb4934",
+    "yellow": "#fabd2f"
   },
   "nord": {
     "_mode": "dark",
@@ -45,7 +48,8 @@
     "accent": "#88c0d0",
     "accentAlt": "#b48ead",
     "success": "#a3be8c",
-    "danger": "#bf616a"
+    "danger": "#bf616a",
+    "yellow": "#ebcb8b"
   },
   "dracula": {
     "_mode": "dark",
@@ -57,7 +61,8 @@
     "accent": "#8be9fd",
     "accentAlt": "#ff79c6",
     "success": "#50fa7b",
-    "danger": "#ff5555"
+    "danger": "#ff5555",
+    "yellow": "#f1fa8c"
   },
   "everforest-dark": {
     "_mode": "dark",
@@ -69,7 +74,8 @@
     "accent": "#83c092",
     "accentAlt": "#d699b6",
     "success": "#a7c080",
-    "danger": "#e67e80"
+    "danger": "#e67e80",
+    "yellow": "#dbbc7f"
   },
   "rose-pine": {
     "_mode": "dark",
@@ -81,7 +87,8 @@
     "accent": "#ebbcba",
     "accentAlt": "#c4a7e7",
     "success": "#31748f",
-    "danger": "#eb6f92"
+    "danger": "#eb6f92",
+    "yellow": "#f6c177"
   },
   "kanagawa": {
     "_mode": "dark",
@@ -93,7 +100,8 @@
     "accent": "#7fb4ca",
     "accentAlt": "#957fb8",
     "success": "#98bb6c",
-    "danger": "#e82424"
+    "danger": "#e82424",
+    "yellow": "#e6c384"
   },
   "catppuccin-latte": {
     "_mode": "light",
@@ -105,7 +113,8 @@
     "accent": "#179299",
     "accentAlt": "#8839ef",
     "success": "#2f7d32",
-    "danger": "#d20f39"
+    "danger": "#d20f39",
+    "yellow": "#df8e1d"
   },
   "gruvbox-light": {
     "_mode": "light",
@@ -117,7 +126,8 @@
     "accent": "#427b58",
     "accentAlt": "#8f3f71",
     "success": "#6b6a0d",
-    "danger": "#9d0006"
+    "danger": "#9d0006",
+    "yellow": "#b57614"
   },
   "rose-pine-dawn": {
     "_mode": "light",
@@ -129,6 +139,7 @@
     "accent": "#56949f",
     "accentAlt": "#907aa9",
     "success": "#3d7a68",
-    "danger": "#a03d57"
+    "danger": "#a03d57",
+    "yellow": "#ea9d34"
   }
 }

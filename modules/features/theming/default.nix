@@ -80,6 +80,8 @@ let
         "@HYPRLOCK_TEMPLATE@"
         "@QT6CT_COLORS_TEMPLATE@"
         "@GTK_TEMPLATE@"
+        "@GTK3_CSS_TEMPLATE@"
+        "@GTK4_CSS_TEMPLATE@"
         "@POINTER_CURSOR_THEME@"
         "@POINTER_CURSOR_SIZE@"
       ]
@@ -93,6 +95,8 @@ let
         "${./templates/hyprlock.conf}"
         "${./templates/qt6ct-colors.conf}"
         "${./templates/gtk-settings.ini}"
+        "${./templates/gtk-3.0.css}"
+        "${./templates/gtk-4.0.css}"
         config.home.pointerCursor.name
         (toString config.home.pointerCursor.size)
       ]
