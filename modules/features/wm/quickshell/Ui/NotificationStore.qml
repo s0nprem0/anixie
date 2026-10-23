@@ -61,6 +61,10 @@ QtObject {
   // carry the timestamp too, and ids are reused by later notifications.
   property var live: ({})
 
+  // The rows read out of live/ at startup. The host takes them for the restore
+  // grace before the normal sweep archives them.
+  property var liveEntries: []
+
   // Why a tracked notification left the screen. The daemon records this from the
   // notification's closed() signal, and sweep writes it into the archived row.
   property var closes: ({})
@@ -484,6 +488,7 @@ QtObject {
   // filename, a tab, and the one-line JSON body; a torn write simply does not
   // parse and is left for the reaper.
   function absorbLive(text) {
+    root.liveEntries = []
     for (const line of String(text || "").split("\n")) {
       const tab = line.indexOf("\t")
       if (tab <= 0) continue
@@ -495,7 +500,10 @@ QtObject {
         // A mapping made while the listing was in flight is newer than any file
         // on disk; leave it alone.
         const key = String(value.id)
-        if (root.live[key] === undefined) root.live[key] = line.slice(0, tab)
+        if (root.live[key] === undefined) {
+          root.live[key] = line.slice(0, tab)
+          root.liveEntries.push(value)
+        }
       } catch (e) {
       }
     }
@@ -505,6 +513,14 @@ QtObject {
 
     root.ready = true
     root.enqueue(root.reapCommand(keep.join(" ")))
+  }
+
+  // Hand the startup rows to the host exactly once. They are snapshots from a
+  // previous shell, not live Notification objects.
+  function takeLive() {
+    const out = root.liveEntries
+    root.liveEntries = []
+    return out
   }
 
   function noteClose(id, reason) {

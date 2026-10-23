@@ -411,6 +411,49 @@ QtObject {
   property var replayEntries: []
   property bool replaying: false
 
+  // Notifications that were on screen when the previous shell stopped. They are
+  // history snapshots, but they get a short grace in the live deck so a restart
+  // — which an update performs — does not silently swallow them.
+  property var restoredEntries: []
+  property bool restoring: false
+
+  property Timer restoreTimer: Timer {
+    interval: 20000
+    onTriggered: root.closeRestored()
+  }
+
+  function restoreLive(entries) {
+    if (!entries || entries.length === 0) return
+    root.restoredEntries = entries.slice().sort(function (a, b) {
+      return Number(b.timestamp || 0) - Number(a.timestamp || 0)
+    }).slice(0, 10)
+    root.restoring = root.restoredEntries.length > 0
+    if (root.restoring) root.restoreTimer.restart()
+  }
+
+  function closeRestored() {
+    root.restoreTimer.stop()
+    root.restoredEntries = []
+    root.restoring = false
+  }
+
+  function restoreFromStore() {
+    if (!NotificationStore.ready) return
+
+    // A config reload re-emits the notifications the server still holds; those
+    // are already live and must not be duplicated from disk. A full restart has
+    // none tracked, so every live file is a card to put back for a moment.
+    const liveIds = {}
+    for (const notification of root.tracked) liveIds[String(notification.id)] = true
+    const restored = NotificationStore.takeLive().filter(function (entry) {
+      return liveIds[String(entry.id)] !== true
+    })
+    root.restoreLive(restored)
+    root.sweepNow()
+  }
+
+  Component.onCompleted: root.restoreFromStore()
+
   readonly property var tracked: server.trackedNotifications ? server.trackedNotifications.values : []
 
   // Newest first, so the popup column reads top-down as most recent.
@@ -466,6 +509,7 @@ QtObject {
 
   function dismissAll() {
     for (let i = root.tracked.length - 1; i >= 0; i--) root.tracked[i].dismiss()
+    root.closeRestored()
   }
 
   function dismissOne() {
@@ -544,6 +588,7 @@ QtObject {
   // from disk asynchronously, so the popup is only made visible once there is
   // something to draw.
   function replay() {
+    root.closeRestored()
     NotificationStore.refresh(function (entries) {
       // Held notifications were never shown; replaying them as if they had been
       // would be a different action from replaying closed history.
@@ -559,6 +604,7 @@ QtObject {
   // exist.
   function replayEntry(entry) {
     if (!entry) return
+    root.closeRestored()
     root.replayEntries = [entry]
     root.replaying = true
     root.replayTimer.restart()
@@ -571,6 +617,14 @@ QtObject {
   }
 
   function dismissReplay(entry) {
+    if (root.restoring) {
+      const restored = []
+      for (const item of root.restoredEntries) if (item !== entry) restored.push(item)
+      root.restoredEntries = restored
+      if (restored.length === 0) root.closeRestored()
+      return
+    }
+
     const next = []
     for (const item of root.replayEntries) if (item !== entry) next.push(item)
     root.replayEntries = next
@@ -722,6 +776,7 @@ QtObject {
 
     if (root.doNotDisturb) {
       root.closeReplay()
+      root.closeRestored()
       root.dismissSilenced()
     }
   }
@@ -803,8 +858,6 @@ QtObject {
   // not survive, and is archived now rather than left for the reaper.
   property Connections storeReady: Connections {
     target: NotificationStore
-    function onReadyChanged() {
-      if (NotificationStore.ready) root.sweepNow()
-    }
+    function onReadyChanged() { root.restoreFromStore() }
   }
 }

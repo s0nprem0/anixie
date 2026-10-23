@@ -579,6 +579,13 @@ Item {
               width: parent.width
               height: root.rowHeight
 
+              Rectangle {
+                anchors.fill: parent
+                visible: rowMouse.containsMouse
+                radius: Theme.cornerRadius
+                color: Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.rowHoverAlpha)
+              }
+
               Column {
                 id: rowBody
 
@@ -642,6 +649,17 @@ Item {
                 visible: row.index < groupDelegate.modelData.entries.length - 1
                 color: Theme.muted
                 opacity: 0.3
+              }
+
+              MouseArea {
+                id: rowMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                  NotificationHost.replayEntry(row.modelData)
+                  PanelHost.closeFocused()
+                }
               }
             }
           }

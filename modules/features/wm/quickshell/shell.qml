@@ -704,17 +704,27 @@ ShellRoot {
         }
         return false
       }
-      visible: NotificationHost.tracked.length > 0 || NotificationHost.replaying || !notificationWindow.fullscreenOnOutput
+      visible: NotificationHost.tracked.length > 0 || NotificationHost.replaying
+        || NotificationHost.restoring || !notificationWindow.fullscreenOnOutput
 
       // A burst — a mailing list, a chat backlog — should not draw a column taller
       // than the screen with the last cards unreachable. The newest few are shown,
       // the rest are counted, and the history panel has them all.
-      readonly property int maxCards: NotificationHost.replaying ? 10 : 4
-      readonly property var decks: NotificationHost.replaying
-        ? NotificationHost.replayEntries.map(function (entry) {
-            return { items: [entry] }
+      readonly property int maxCards: NotificationHost.replaying || NotificationHost.restoring ? 10 : 4
+      readonly property var decks: {
+        if (NotificationHost.replaying) {
+          return NotificationHost.replayEntries.map(function (entry) {
+            return { items: [entry], restored: false }
           })
-        : NotificationHost.groups
+        }
+
+        const out = []
+        if (NotificationHost.restoring) {
+          for (const entry of NotificationHost.restoredEntries) out.push({ items: [entry], restored: true })
+        }
+        for (const group of NotificationHost.groups) out.push({ items: group.items, restored: false })
+        return out
+      }
       readonly property var shownDecks: notificationWindow.decks.slice(0, notificationWindow.maxCards)
       readonly property int hiddenCount: Math.max(0, notificationWindow.decks.length - notificationWindow.shownDecks.length)
 
@@ -735,8 +745,8 @@ ShellRoot {
             required property var modelData
 
             items: modelData.items
-            replay: NotificationHost.replaying
-            forceExpanded: NotificationHost.replaying
+            replay: NotificationHost.replaying || modelData.restored === true
+            forceExpanded: NotificationHost.replaying || modelData.restored === true
           }
         }
 
