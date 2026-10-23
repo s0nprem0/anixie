@@ -142,77 +142,34 @@ BarWidget {
   // A drawer whose widgets all stopped reporting — Dropbox not installed, the
   // keyboard layout collapsed to one entry — has nothing left to show. Close
   // it rather than leaving an empty panel floating.
-  onParkedChanged: {
-    if (root.parked.length === 0 && root.drawerOpen) PanelHost.close("tray", root.screenName)
+  function closeIfEmpty() {
+    if (root.parked.length === 0 && root.items.length === 0 && root.drawerOpen) {
+      PanelHost.close("tray", root.screenName)
+    }
   }
 
+  onParkedChanged: root.closeIfEmpty()
+  onItemsChanged: root.closeIfEmpty()
+
+  // The chevron is the tray's only bar slot. App icons live in the drawer, so a
+  // new tray item cannot reflow the right section or open under the pointer.
   Row {
     id: row
     anchors.centerIn: parent
     spacing: 0
 
-    Repeater {
-      model: root.items
-
-      delegate: WidgetButton {
-        id: button
-        required property var modelData
-
-        readonly property var item: modelData
-
-        // A tray icon is an image from the icon theme, not text or a glyph, so
-        // the usual content check is overridden and the image below stands in
-        // for it. The slot keeps every icon the same size regardless.
-        hasVisualContent: true
-        fixedWidth: Style.bar.iconSlot
-        fixedHeight: Style.bar.iconSlot
-        active: false
-        tooltipText: {
-          const title = button.item.tooltipTitle || button.item.title || ""
-          const description = button.item.tooltipDescription || ""
-          return description !== "" ? title + "\n" + description : title
-        }
-
-        onPressed: function (which) {
-          if (which === Qt.RightButton) {
-            root.openMenu(button)
-          } else if (which === Qt.LeftButton) {
-            // An item that is only a menu has no activate action of its own, so
-            // a left click that would otherwise do nothing opens it instead.
-            if (button.item.onlyMenu && button.item.hasMenu) root.openMenu(button)
-            else button.item.activate()
-          } else if (which === Qt.MiddleButton) {
-            button.item.secondaryActivate()
-          }
-        }
-
-        onWheelMoved: function (delta) {
-          button.item.scroll(delta > 0 ? 1 : -1, false)
-        }
-
-        Image {
-          anchors.centerIn: parent
-          source: root.iconPath(button.item)
-          sourceSize.width: Style.bar.iconSize * 2
-          sourceSize.height: Style.bar.iconSize * 2
-          width: Style.bar.iconSize
-          height: Style.bar.iconSize
-          fillMode: Image.PreserveAspectFit
-          smooth: true
-        }
-      }
-    }
-
-    // The handle. Only when there is something parked — an empty tray does not
-    // need to say it is empty.
     BarIconButton {
       id: parkedButton
-      visible: root.parked.length > 0
-      text: Util.chevronDown
+      text: root.drawerOpen ? Util.chevronUp : Util.chevronDown
       labelText: ""
-      tooltipText: root.parked.length
-        + (root.parked.length === 1 ? " widget parked" : " widgets parked")
-        + " · click to open"
+      tooltipText: {
+        const apps = root.items.length
+        const widgets = root.parked.length
+        const parts = []
+        if (apps > 0) parts.push(apps + (apps === 1 ? " tray app" : " tray apps"))
+        if (widgets > 0) parts.push(widgets + (widgets === 1 ? " parked widget" : " parked widgets"))
+        return parts.join(" · ") + " · click to open"
+      }
       onPressed: function () {
         PanelHost.toggle("tray", parkedButton, root.drawer)
       }
@@ -232,12 +189,79 @@ BarWidget {
       PanelHero {
         width: trayCard.contentWidth
         glyph: Util.menu
-        title: "Parked"
-        subtitle: root.parked.length
-          + (root.parked.length === 1 ? " widget" : " widgets")
+        title: "Tray"
+        subtitle: {
+          const apps = root.items.length
+          const widgets = root.parked.length
+          const parts = []
+          if (apps > 0) parts.push(apps + (apps === 1 ? " app" : " apps"))
+          if (widgets > 0) parts.push(widgets + (widgets === 1 ? " parked widget" : " parked widgets"))
+          return parts.join(" · ")
+        }
       }
 
-      PanelSeparator {}
+      // The system tray's own icons, in the drawer rather than on the bar.
+      Row {
+        width: trayCard.contentWidth
+        visible: root.items.length > 0
+        spacing: 0
+
+        Repeater {
+          model: root.items
+
+          delegate: WidgetButton {
+            id: button
+            required property var modelData
+
+            readonly property var item: modelData
+
+            // A tray icon is an image from the icon theme, not text or a glyph, so
+            // the usual content check is overridden and the image below stands in
+            // for it. The slot keeps every icon the same size regardless.
+            hasVisualContent: true
+            fixedWidth: Style.bar.iconSlot
+            fixedHeight: Style.bar.iconSlot
+            active: false
+            tooltipText: {
+              const title = button.item.tooltipTitle || button.item.title || ""
+              const description = button.item.tooltipDescription || ""
+              return description !== "" ? title + "\n" + description : title
+            }
+
+            onPressed: function (which) {
+              if (which === Qt.RightButton) {
+                root.openMenu(button)
+              } else if (which === Qt.LeftButton) {
+                // An item that is only a menu has no activate action of its own, so
+                // a left click that would otherwise do nothing opens it instead.
+                if (button.item.onlyMenu && button.item.hasMenu) root.openMenu(button)
+                else button.item.activate()
+              } else if (which === Qt.MiddleButton) {
+                button.item.secondaryActivate()
+              }
+            }
+
+            onWheelMoved: function (delta) {
+              button.item.scroll(delta > 0 ? 1 : -1, false)
+            }
+
+            Image {
+              anchors.centerIn: parent
+              source: root.iconPath(button.item)
+              sourceSize.width: Style.bar.iconSize * 2
+              sourceSize.height: Style.bar.iconSize * 2
+              width: Style.bar.iconSize
+              height: Style.bar.iconSize
+              fillMode: Image.PreserveAspectFit
+              smooth: true
+            }
+          }
+        }
+      }
+
+      PanelSeparator {
+        visible: root.parked.length > 0
+      }
 
       Repeater {
         model: root.parked

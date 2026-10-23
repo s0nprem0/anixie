@@ -39,9 +39,11 @@ BarWidget {
 
   readonly property int focusedId: root.activeWorkspace ? root.activeWorkspace.id : -1
 
-  // The focused workspace keeps its number, so the row always reads 1 2 3 4 5.
-  // Clicking that number cycles its layout; the other numbers focus their
-  // workspace as before.
+  // The first five slots are always shown, whether or not a workspace has been
+  // created yet, so the row does not reshuffle as windows come and go. Any
+  // workspace beyond them is appended when it exists. Clicking the focused
+  // number cycles its layout; the others focus their workspace.
+  readonly property int slots: Math.max(1, Number(root.setting("slots", 5)))
   readonly property var layouts: ["dwindle", "master", "scrolling"]
   property string layout: "dwindle"
 
@@ -51,10 +53,13 @@ BarWidget {
 
   function workspaceIds() {
     const ids = []
+    for (let i = 1; i <= root.slots; i++) ids.push(i)
+
     for (let i = 0; i < root.workspaces.length; i++) {
       const id = root.workspaces[i].id
       if (id > 0 && ids.indexOf(id) === -1) ids.push(id)
     }
+
     ids.sort(function (a, b) {
       return a - b
     })
@@ -173,7 +178,11 @@ BarWidget {
 
         text: button.modelData === 10 ? "0" : String(button.modelData)
         active: button.focused
-        selected: button.focused
+        // The active workspace is a brighter number, not a filled block: the
+        // reference bar uses the block for hover and mode switches, not for the
+        // workspace you are merely on.
+        activeColor: Theme.accent
+        selected: false
         dimmed: !button.focused && !root.occupied(button.modelData)
         horizontalMargin: 6
         verticalPadding: 6

@@ -101,6 +101,7 @@ QtObject {
   readonly property string chevronLeft: glyph("f053")
   readonly property string chevronRight: glyph("f054")
   readonly property string chevronDown: glyph("f078")
+  readonly property string chevronUp: glyph("f077")
 
   // Display brightness.
   readonly property string sun: glyph("f185")

@@ -20,12 +20,13 @@
     ],
     "center": [
       {
-        "id": "bar.clock"
+        "id": "bar.clock",
+        "format": "dddd HH:mm"
       }
     ],
     "centerEnd": [
       {
-        "id": "bar.screentime"
+        "id": "bar.world-clock"
       },
       {
         "id": "bar.model-usage",
@@ -43,12 +44,6 @@
     ],
     "tray": [
       {
-        "id": "bar.world-clock"
-      },
-      {
-        "id": "bar.keyboard-layout"
-      },
-      {
         "id": "bar.tailscale"
       },
       {
@@ -58,6 +53,9 @@
     "right": [
       {
         "id": "bar.tray"
+      },
+      {
+        "id": "bar.keyboard-layout"
       },
       {
         "id": "bar.agents"
