@@ -402,7 +402,15 @@ void setConfigValue(const std::string& name, const T& value) {
         return; // key not registered (plugin not loaded yet) — skip silently
     if (*reply.type != typeid(T))
         return;
-    *rc<T*>(*reply.dataptr) = value;
+
+    // Only write when it actually changes. hyprbars reacts to this value (and
+    // layoutmode refreshes it from window/config events); rewriting the same
+    // value on every event made the two plugins feed each other and left the
+    // compositor at 100% CPU. A no-op write breaks the cycle.
+    auto& slot = *rc<T*>(*reply.dataptr);
+    if (slot == value)
+        return;
+    slot = value;
 }
 
 // Title bars live only in floating mode. Individual window floating and
