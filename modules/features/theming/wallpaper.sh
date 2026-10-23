@@ -158,11 +158,18 @@ pick_one() {
   dir="$(theme_dir)"
   mkdir -p "$dir"
   {
-    printf 'Generated (from the %s palette)\tgenerated\n' "$(current_theme)"
+    # The fifth field is the picker's preview: the generated still when there is
+    # one, and the picture itself for everything else. A row without a preview
+    # still lists; the icon slot just stays empty.
+    if [ -f "$GENERATED" ]; then
+      printf 'Generated (from the %s palette)\tgenerated\t\t\t%s\n' "$(current_theme)" "$GENERATED"
+    else
+      printf 'Generated (from the %s palette)\tgenerated\n' "$(current_theme)"
+    fi
     if [ -d "$dir" ]; then
       for f in "$dir"/*; do
         [ -f "$f" ] || continue
-        printf '%s\t%s\n' "$(basename "$f")" "$f"
+        printf '%s\t%s\t\t\t%s\n' "$(basename "$f")" "$f" "$f"
       done
     fi
   } | pick --title "wallpaper — $(current_theme)" --on-select 'wallpaper use {}'
