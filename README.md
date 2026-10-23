@@ -20,12 +20,6 @@ enough for `nix build`, but commit before `nh os switch`.
 **Going back** is a generation away: pick the previous one in the systemd-boot
 menu, or `nixos-rebuild switch --rollback`.
 
-**If the keyboard stops behaving**, the Lua config's binds cannot be removed by
-`hyprctl reload`. `./revert-hyprland.sh` points `~/.config/hypr` back at the
-hyprlang files from the running build (or from a path you pass it) and reloads;
-it lives outside the flake on purpose, so it still works when a build is the
-thing that is broken.
-
 The shell is a systemd user service:
 
 ```sh

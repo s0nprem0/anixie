@@ -185,7 +185,6 @@
                   set -eu
                   find ${./modules} -name '*.sh' -print0 |
                     xargs -0 shellcheck -S warning -f gcc
-                  shellcheck -S warning -f gcc ${./revert-hyprland.sh}
                   touch $out
                 '';
 
