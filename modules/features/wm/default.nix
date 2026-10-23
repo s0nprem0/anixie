@@ -18,6 +18,7 @@
     ./reminder
     ./screentime
     ./share-picker
+    ./shortcuts
     ./toggles
     ./webapps
   ];

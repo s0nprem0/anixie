@@ -5,6 +5,11 @@ bind(mod .. " + RETURN", "Terminal", app(terminal))
 
 bind_global(mod .. " + SPACE", "Menu", "menu")
 
+-- The same descriptions the menu is built from, as a searchable sheet. Hyprland
+-- already carries them (see 00-helpers.lua), so this is a reader over
+-- `hyprctl binds` rather than a second list.
+bind(mod .. " + SLASH", "Keyboard shortcuts", "shortcuts")
+
 -- Asks how long, then for a message, and the timer it sets keeps running
 -- after this shell is gone.
 bind(mod .. " + R", "Reminder", "reminder -i")
