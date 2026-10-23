@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "NotificationText.js" as NotificationText
 
 // Notification history, kept on disk so it outlives the shell.
 //
@@ -40,8 +41,11 @@ QtObject {
   readonly property string imagesDir: root.stateDir + "/images"
 
   // Bounded because nothing collects the files on its own, and a list nobody
-  // scrolls to the end of is not worth unbounded disk.
+  // scrolls to the end of is not worth unbounded disk. The time bound is the
+  // more important one: an old message is rarely what someone is looking for,
+  // and keeping it is a small privacy cost.
   readonly property int historyLimit: 50
+  readonly property int historyHours: 24
 
   // Newest first. Empty until something reads the directory, so the panel reads
   // on demand rather than the daemon holding a copy nothing else needs.
@@ -161,6 +165,18 @@ QtObject {
       "_", root.historyDir, root.imagesDir]
   }
 
+  // Drop entries older than the retention window. Called before a history read
+  // rather than on a timer: the panel is the only reader, and an archive that is
+  // never opened is not costing anything until it is.
+  function pruneHistoryCommand() {
+    return ["sh", "-c",
+      'now=$(date +%s); max=$3; mkdir -p "$1"; for f in "$1"/*.json; do'
+      + ' [ -e "$f" ] || continue; age=$((now - $(stat -c %Y "$f")))'
+      + '; [ "$age" -le "$max" ] && continue'
+      + '; b=${f##*/}; b=${b%.json}; rm -f -- "$f" "$2/$b-image"; done',
+      "_", root.historyDir, root.imagesDir, String(root.historyHours * 3600)]
+  }
+
   // Filename and contents of every live file, so the id-to-file map can be
   // rebuilt after a reload. The daemon keeps its tracked notifications across a
   // reload, but this object does not, and a notification with no mapping can
@@ -199,7 +215,10 @@ QtObject {
 
   // The listing runs first, and reaping is chained onto the end of it: a reaper
   // running beside the listing could move a file the map is about to claim.
-  Component.onCompleted: root.enqueue(root.listLiveCommand(), root.absorbLive)
+  Component.onCompleted: {
+    root.enqueue(root.listLiveCommand(), root.absorbLive)
+    root.enqueue(root.pruneHistoryCommand())
+  }
 
   // ---- worker pool ----
   //
@@ -430,9 +449,14 @@ QtObject {
   // uses it to take a copy of the latest history without the caller having to
   // guess when the asynchronous directory read finished.
   function refresh(handler) {
-    root.enqueue(root.readCommand(root.historyDir), function (text) {
-      root.absorbHistory(text)
-      if (handler) handler(root.entries)
+    // Prune first, then read in the same chain: two workers draining the queue
+    // side by side would let the read win the race and briefly show an expired
+    // entry.
+    root.enqueue(root.pruneHistoryCommand(), function () {
+      root.enqueue(root.readCommand(root.historyDir), function (text) {
+        root.absorbHistory(text)
+        if (handler) handler(root.entries)
+      })
     })
   }
 
@@ -482,12 +506,22 @@ QtObject {
   // `imagePath` is the copy the store made, not the sender's original; it is
   // passed separately because the copy's name depends on the entry's file name.
   function snapshot(notification, stamp, imagePath) {
+    const rawSummary = String(notification.summary || "")
+    const rawBody = String(notification.body || "")
+    const foundCodes = NotificationText.codes(rawSummary + "\n" + rawBody)
+
     return JSON.stringify({
       id: notification.id,
       app: String(notification.appName || ""),
+      // A browser notification is grouped by its site, not by the browser. The
+      // resolved source is stored so history rows and replays agree with the
+      // live card.
+      source: NotificationText.source(notification),
+      sourceKey: NotificationText.sourceKey(notification),
       appIcon: String(notification.appIcon || ""),
-      summary: String(notification.summary || ""),
-      body: String(notification.body || ""),
+      summary: NotificationText.redact(rawSummary, foundCodes),
+      body: NotificationText.redact(rawBody, foundCodes),
+      redacted: foundCodes.length > 0,
       image: String(imagePath === undefined ? (notification.image || "") : imagePath),
       // The glyph and argv a sender attached with `notify`. They are data, not
       // a live action, so unlike the action buttons they still work when the row

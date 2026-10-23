@@ -686,7 +686,18 @@ ShellRoot {
 
       color: "transparent"
       exclusionMode: ExclusionMode.Ignore
-      visible: NotificationHost.tracked.length > 0 || NotificationHost.replaying
+      // Step aside over a fullscreen window when there is nothing to show, so
+      // the fullscreen surface can be scanned out directly. A notification brings
+      // the popup back over it, the way a toast should.
+      readonly property bool fullscreenOnOutput: {
+        const name = String(modelData.name)
+        const list = Hyprland.workspaces ? Hyprland.workspaces.values : []
+        for (const workspace of list) {
+          if (workspace.monitor && String(workspace.monitor.name) === name && workspace.hasFullscreen) return true
+        }
+        return false
+      }
+      visible: NotificationHost.tracked.length > 0 || NotificationHost.replaying || !notificationWindow.fullscreenOnOutput
 
       // A burst — a mailing list, a chat backlog — should not draw a column taller
       // than the screen with the last cards unreachable. The newest few are shown,

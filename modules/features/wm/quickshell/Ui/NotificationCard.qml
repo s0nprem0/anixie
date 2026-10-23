@@ -25,14 +25,16 @@ Item {
   readonly property string appName: root.notification
     ? String(root.notification.appName || root.notification.app || "")
     : ""
+  readonly property string sourceLabel: NotificationText.source(root.notification) || root.appName
+  readonly property string sourceKey: NotificationText.sourceKey(root.notification) || root.appName.toLowerCase()
   readonly property string appLabel: root.group.length > 1
-    ? root.appName + "  ·  " + root.group.length
-    : root.appName
+    ? root.sourceLabel + "  ·  " + root.group.length
+    : root.sourceLabel
   readonly property string summary: root.notification ? String(root.notification.summary || "") : ""
   readonly property string body: root.notification ? String(root.notification.body || "") : ""
   readonly property string image: root.notification ? String(root.notification.image || "") : ""
   readonly property string appIcon: root.notification ? String(root.notification.appIcon || "") : ""
-  readonly property string initial: root.appName !== "" ? root.appName.substring(0, 1).toUpperCase() : ""
+  readonly property string initial: root.sourceLabel !== "" ? root.sourceLabel.substring(0, 1).toUpperCase() : ""
 
   // Live notifications carry no arrival time; the card records one so the age
   // beside the sender behaves like the history rows. Snapshot timestamps are
@@ -76,6 +78,7 @@ Item {
   }
   readonly property string link: NotificationText.link(root.summary + "\n" + root.body)
   readonly property var codes: NotificationText.codes(root.summary + "\n" + root.body)
+  readonly property string displayBody: NotificationText.displayBody(root.notification)
 
   readonly property string imageSource: {
     if (root.image !== "") {
@@ -329,7 +332,7 @@ Item {
 
         Text {
           width: parent.width
-          text: root.summary
+          text: NotificationText.plain(root.summary)
           textFormat: Text.PlainText
           color: Theme.fg
           font.family: Style.font.family
@@ -340,15 +343,19 @@ Item {
 
         Text {
           width: parent.width
-          visible: root.body !== ""
-          text: root.body
-          textFormat: Text.PlainText
+          visible: root.displayBody !== ""
+          text: NotificationText.rich(root.displayBody)
+          textFormat: Text.RichText
           color: Theme.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.bodySmall
           wrapMode: Text.WordWrap
           maximumLineCount: hover.hovered ? 8 : 3
           elide: Text.ElideRight
+          onLinkActivated: function (link) {
+            const safe = NotificationText.safeUrl(link)
+            if (safe !== "") Quickshell.execDetached(["xdg-open", safe])
+          }
         }
 
         Text {
@@ -419,7 +426,7 @@ Item {
       entries.push({
         label: option.label,
         glyph: Util.clock,
-        action: function () { NotificationHost.snooze(root.appName, option.seconds) }
+        action: function () { NotificationHost.snooze(root.sourceKey, option.seconds) }
       })
     }
     entries.push({ separator: true })

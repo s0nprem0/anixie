@@ -1,6 +1,7 @@
 import QtQuick
 import ".."
 import "../Ui"
+import "../Ui/NotificationText.js" as NotificationText
 
 // Notification history: everything the daemon has seen since the last time it
 // was cleared, newest first.
@@ -26,12 +27,13 @@ Item {
     const byApp = ({})
     const order = []
     for (const entry of root.entries) {
-      const app = String(entry.app || "Unknown")
-      if (!byApp[app]) {
-        byApp[app] = { app: app, entries: [] }
-        order.push(app)
+      const key = String(entry.sourceKey || entry.app || "unknown").toLowerCase()
+      const label = String(entry.source || entry.app || "Unknown")
+      if (!byApp[key]) {
+        byApp[key] = { key: key, app: label, entries: [] }
+        order.push(key)
       }
-      byApp[app].entries.push(entry)
+      byApp[key].entries.push(entry)
     }
     return order.map(function (app) { return byApp[app] })
   }
@@ -50,6 +52,7 @@ Item {
   function sourceLabel(value) {
     const name = String(value || "")
     if (name === "*") return "Everything"
+    if (name.indexOf(".") !== -1) return name
     return name.charAt(0).toUpperCase() + name.slice(1)
   }
 
@@ -213,7 +216,7 @@ Item {
                     // its children by their height rather than their implicit height,
                     // and Text leaves `height` at 0 unless it is stated.
                     height: implicitHeight
-                    text: row.modelData.summary !== "" ? row.modelData.summary : "(no summary)"
+                    text: row.modelData.summary !== "" ? NotificationText.preview(row.modelData.summary) : "(no summary)"
                     textFormat: Text.PlainText
                     color: Theme.fg
                     font.family: Style.font.family
@@ -237,7 +240,7 @@ Item {
                   width: parent.width
                   height: implicitHeight
                   visible: row.modelData.body !== ""
-                  text: row.modelData.body
+                  text: NotificationText.preview(row.modelData.body)
                   textFormat: Text.PlainText
                   color: Theme.muted
                   font.family: Style.font.family

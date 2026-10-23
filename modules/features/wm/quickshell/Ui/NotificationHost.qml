@@ -90,7 +90,7 @@ QtObject {
   property string _pendingSnoozes: ""
 
   function sourceOf(notification) {
-    return String(notification && notification.appName ? notification.appName : "").toLowerCase()
+    return NotificationText.sourceKey(notification)
   }
 
   function loadSnoozes() {
@@ -296,25 +296,30 @@ QtObject {
     return list
   }
 
-  // Notifications from one application, kept together wherever they sit in the
-  // stack. The popup draws each one as its own card; the grouping only decides
-  // the order, so a chat's messages stay beside each other instead of being
-  // split by whatever arrived in between.
+  // Notifications from one source, kept together wherever they sit in the stack.
+  // A browser is grouped by the site it names, not by the browser process, so a
+  // Slack message and a GitHub message do not collapse into "Google-chrome".
+  // The popup draws each one as its own card; the grouping only decides the
+  // order, so a conversation stays beside itself.
   readonly property var groups: {
     const out = []
     const byApp = ({})
 
     for (const item of root.stacked) {
-      const app = String(item.appName || "").toLowerCase()
-      const existing = byApp[app]
+      const key = NotificationText.sourceKey(item)
+      const existing = byApp[key]
 
       if (existing) {
         existing.items.push(item)
         continue
       }
 
-      const next = { app: app, items: [item] }
-      byApp[app] = next
+      const next = {
+        key: key,
+        label: NotificationText.source(item) || key,
+        items: [item]
+      }
+      byApp[key] = next
       out.push(next)
     }
 
@@ -501,10 +506,13 @@ QtObject {
 
     // What the card can actually draw, told to senders. Both default to false:
     // an application that checks the server's capabilities will not send the
-    // action buttons the card renders, nor the image it would show. Markup is
-    // left off because the body is drawn as plain text.
+    // action buttons the card renders, nor the image it would show. The body is
+    // sanitised by NotificationText before it is drawn as rich text, and images
+    // beyond the sender's own are still not requested.
     actionsSupported: true
     imageSupported: true
+    bodyMarkupSupported: true
+    bodyHyperlinksSupported: true
 
     onNotification: function (notification) {
       // Silencing means "do not interrupt me", but our own feedback for

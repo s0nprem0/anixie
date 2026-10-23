@@ -129,3 +129,145 @@ function execArgv(value) {
   if (value[0] === "" || value[0].charAt(0) === "-") return null
   return value
 }
+
+// ---- body rendering ----
+//
+// Senders may mark up the body; the card is about to draw it as rich text. Only
+// the small set below is kept. Everything else is escaped or dropped, and a link
+// still has to pass the same policy as a plain one.
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
+function sanitizeTag(raw) {
+  var tag = String(raw || "").toLowerCase()
+  if (tag === "<b>" || tag === "</b>"
+      || tag === "<i>" || tag === "</i>"
+      || tag === "<u>" || tag === "</u>"
+      || tag === "<br>" || tag === "<br/>" || tag === "<br />") return tag
+  if (/^<\/a\s*>$/.test(tag)) return "</a>"
+
+  var href = String(raw || "").match(/^<a\s+[^>]*href\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>$/i)
+  if (href) {
+    var url = safeUrl(href[1] || href[2] || "")
+    return url !== "" ? '<a href="' + escapeHtml(url) + '">' : ""
+  }
+  return ""
+}
+
+function rich(text) {
+  var source = String(text || "")
+  if (source.length > 32768) source = source.slice(0, 32768)
+
+  var out = ""
+  var last = 0
+  var re = /<[^>]*>/g
+  var match
+  while ((match = re.exec(source)) !== null) {
+    out += escapeHtml(source.slice(last, match.index))
+    out += sanitizeTag(match[0])
+    last = re.lastIndex
+  }
+  out += escapeHtml(source.slice(last))
+  return out
+}
+
+function plain(text) {
+  return String(text || "")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+}
+
+// The line a history row previews. It is deliberately plain: the panel is a
+// list, not a second renderer, and tags clipped mid-row are noise.
+function preview(text) {
+  return plain(text).replace(/\s+/g, " ").trim()
+}
+
+// ---- sources ----
+//
+// A browser's app name is the browser, not the site. Chromium puts the origin in
+// the leading anchor of a web notification, so a browser notification is grouped
+// and iconised by the site instead of every site collapsing into "Google-chrome".
+var BROWSER = /\b(chrome|chromium|firefox|zen|brave|edge|vivaldi|helium)\b/i
+
+function isBrowser(app) {
+  return BROWSER.test(String(app || ""))
+}
+
+function hostname(url) {
+  var safe = safeUrl(url)
+  if (safe === "") return ""
+  var match = safe.match(/^https?:\/\/([^/?#]+)/i)
+  if (!match) return ""
+  var host = String(match[1]).toLowerCase()
+  if (host.indexOf("@") !== -1) host = host.slice(host.lastIndexOf("@") + 1)
+  if (host.indexOf(":") !== -1) host = host.slice(0, host.indexOf(":"))
+  if (host.indexOf("www.") === 0) host = host.slice(4)
+  return host
+}
+
+function browserSource(notification) {
+  var body = String(notification && notification.body ? notification.body : "")
+  var summary = String(notification && notification.summary ? notification.summary : "")
+  var anchor = (body + "\n" + summary).match(/<a\s+[^>]*href\s*=\s*["']([^"']+)["']/i)
+  if (anchor) return hostname(anchor[1])
+  // A link in the middle of a message is content, not the origin. Without the
+  // anchor Chromium adds, the browser's app name is the honest answer.
+  return ""
+}
+
+function source(notification) {
+  if (!notification) return ""
+  if (notification.sourceKey !== undefined && notification.sourceKey !== "") {
+    return String(notification.source || notification.sourceKey)
+  }
+
+  var app = String(notification.appName || notification.app || "")
+  if (isBrowser(app)) {
+    var site = browserSource(notification)
+    if (site !== "") return site
+  }
+  return app
+}
+
+function sourceKey(notification) {
+  return source(notification).toLowerCase()
+}
+
+// A browser body starts with the origin anchor Chromium adds; the card already
+// shows that origin as its source, so remove the duplicate from the body.
+function displayBody(notification) {
+  var body = String(notification && notification.body ? notification.body : "")
+  var app = String(notification && (notification.appName || notification.app) ? (notification.appName || notification.app) : "")
+  if (isBrowser(app)) body = body.replace(/^\s*<a\b[^>]*>.*?<\/a>\s*/i, "")
+  return body
+}
+
+// ---- redaction ----
+//
+// A verification code is useful for a few minutes and a liability in a history
+// file for a day. The stored copy replaces every spelling of the detected code.
+function redact(text, codeList) {
+  var out = String(text || "")
+  var list = Array.isArray(codeList) ? codeList : []
+  for (var i = 0; i < list.length; i++) {
+    var code = String(list[i] || "")
+    if (code === "") continue
+    var pattern = code.split("").join("[\\s-]?")
+    out = out.replace(new RegExp(pattern, "gi"), "[code]")
+  }
+  return out
+}
