@@ -441,12 +441,20 @@ ShellRoot {
     function move(id: string, section: string, index: string): void {
       BarConfig.move(id, section, Number(index))
     }
-    function reset(): void { BarConfig.reset() }
+    function reset(): void {
+      PanelHost.closeAll()
+      BarConfig.reset()
+    }
     function background(mode: string): void { BarConfig.setBackground(mode) }
     function position(value: string): string {
-      return BarConfig.setPosition(value)
-        ? "ok"
-        : "position must be top, bottom, left or right"
+      const changed = BarContext.position !== value
+      if (!BarConfig.setPosition(value)) {
+        return "position must be top, bottom, left or right"
+      }
+      // Moving the edge replaces the bar surface the panels are anchored to;
+      // closing them is better than leaving them attached to a destroyed item.
+      if (changed) PanelHost.closeAll()
+      return "ok"
     }
 
     // Per-widget settings. A value that parses as JSON becomes a number or
@@ -473,7 +481,10 @@ ShellRoot {
       return value === undefined ? "" : JSON.stringify(value)
     }
 
-    function reload(): void { BarConfig.reload() }
+    function reload(): void {
+      PanelHost.closeAll()
+      BarConfig.reload()
+    }
 
     // The widget catalog, for `anixie bar modules`: known widgets with their
     // current section and state, one tab-separated row each.

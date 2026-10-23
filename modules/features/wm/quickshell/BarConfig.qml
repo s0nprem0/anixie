@@ -106,30 +106,9 @@ QtObject {
     }
   }
 
-  // A watch on the saved file can fire for the shell's own write as well as for
-  // an editor's. Compare against what was last written before re-reading, so a
-  // drag does not replace the layout with a half-written copy in the same turn.
-  function reloadSavedIfChanged() {
-    let raw = ""
-    try {
-      root.savedFile.reload()
-      raw = root.savedFile.text()
-    } catch (e) {
-      raw = ""
-    }
-    if (raw === root.savedText) return
-    root.reloadSaved()
-  }
-
-  // A write through FileView emits its watch signal before the adapter has
-  // necessarily read the new bytes. Re-reading immediately can therefore parse
-  // the previous layout and undo the write. Let the write settle first.
-  property Timer reloadWatch: Timer {
-    interval: 200
-    repeat: false
-    onTriggered: root.reloadSavedIfChanged()
-  }
-
+  // Re-read the saved layout after an editor wrote it. FileView's change watch
+  // was not reliable for this file on this Quickshell build, so reloading is an
+  // explicit command rather than a background reaction.
   function reload() {
     root.reloadBuiltin()
     root.savedFile.reload()
@@ -493,9 +472,7 @@ QtObject {
     path: root.savedPath
     printErrors: false
     blockLoading: true
-    watchChanges: true
 
     Component.onCompleted: root.reloadSaved()
-    onFileChanged: root.reloadWatch.restart()
   }
 }
