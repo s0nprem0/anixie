@@ -48,9 +48,13 @@ let
   # the shell service's PATH is the user manager's, not the profile's.
   lockHost = pkgs.writeText "LockHost.qml" (render ./Ui/LockHost.qml);
 
-  # The notification display choice is read by the shell's window loop, so it
-  # has to be in the QML rather than a runtime preference no surface can see yet.
+  # The notification display choice is read by the shell's window loop; the
+  # panel writes it to NotificationHost, and this is the initial default.
   shell = pkgs.writeText "shell.qml" (render ./shell.qml);
+
+  # NotificationHost carries the build-time default display mode; the panel
+  # overrides it at runtime and persists the choice beside the quiet state.
+  notificationHost = pkgs.writeText "NotificationHost.qml" (render ./Ui/NotificationHost.qml);
 
   # `loginctl lock-session` and anything else that uses logind's Lock signal do
   # not know the lock lives in the shell. One small listener turns that signal
@@ -77,6 +81,7 @@ let
     chmod -R u+w $out
     cp ${shell} $out/shell.qml
     cp ${theme} $out/Theme.qml
+    cp ${notificationHost} $out/Ui/NotificationHost.qml
     cp ${powerAlert} $out/Ui/PowerAlert.qml
     cp ${lockHost} $out/Ui/LockHost.qml
     cp ${focusConfig} $out/focus.json

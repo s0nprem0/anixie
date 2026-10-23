@@ -45,7 +45,7 @@ QtObject {
   // more important one: an old message is rarely what someone is looking for,
   // and keeping it is a small privacy cost.
   readonly property int historyLimit: 50
-  readonly property int historyHours: 24
+  property int historyHours: 24
 
   // Newest first. Empty until something reads the directory, so the panel reads
   // on demand rather than the daemon holding a copy nothing else needs.
@@ -61,6 +61,10 @@ QtObject {
   // carry the timestamp too, and ids are reused by later notifications.
   property var live: ({})
 
+  // Why a tracked notification left the screen. The daemon records this from the
+  // notification's closed() signal, and sweep writes it into the archived row.
+  property var closes: ({})
+
   // ---- images ----
   //
   // A sender's image only exists while it is live: web apps delete their scoped
@@ -73,27 +77,19 @@ QtObject {
   }
 
   // The filesystem path behind a file-backed image value, or "" for anything a
-  // copy cannot capture: themed icon names, in-process image:// URLs, empty.
+  // copy cannot capture: themed icon names, in-process image:// URLs, unsafe
+  // paths. NotificationText owns the path policy so the card and the store agree.
   function localImageFile(value) {
-    let path = String(value || "")
-    if (path.indexOf("file://") === 0) {
-      path = path.slice(7)
-      try {
-        path = decodeURIComponent(path)
-      } catch (e) {
-      }
-    }
-    return path.charAt(0) === "/" ? path : ""
+    return NotificationText.localImagePath(value)
   }
 
   function imageCopy(name, notification) {
     const value = String(notification.image || "")
     const source = root.localImageFile(value)
 
-    // Nothing to copy, and nothing that would work after the sender is gone.
-    if (source === "") {
-      return { path: value.indexOf("image://") === 0 ? "" : value, from: "", to: "" }
-    }
+    // Nothing safe to copy. An image:// URL dies with the sender, and a path
+    // outside the policy is not one the panel should keep either.
+    if (source === "") return { path: "", from: "", to: "" }
 
     const to = root.imagesDir + "/" + root.imageStem(name) + "-image"
     return { path: to, from: source === to ? "" : source, to: to }
@@ -128,7 +124,7 @@ QtObject {
   // Write a notification that will never be tracked into history, and prune in
   // the same invocation. Doing it as a write followed by an archive would let
   // the second command run on another worker before the first had finished.
-  function discardCommand(notification, stamp) {
+  function discardCommand(notification, stamp, reason) {
     const name = stamp + "-" + String(notification.id) + ".json"
     const image = root.imageCopy(name, notification)
     const copy = image.from ? ' && cp -f -- "$6" "$7"' : ""
@@ -137,7 +133,7 @@ QtObject {
       'mkdir -p "$2" "$5" && printf "%s\\n" "$3" > "$2/$1"' + copy
       + ' && cd "$2" && ls -1t -- *.json 2>/dev/null'
       + ' | tail -n +$(( $4 + 1 )) | while IFS= read -r f; do rm -f -- "$f" "$5/${f%.json}-image"; done',
-      "_", name, root.historyDir, root.snapshot(notification, stamp, image.path),
+      "_", name, root.historyDir, root.snapshot(notification, stamp, image.path, true, reason),
       String(root.historyLimit), root.imagesDir, image.from, image.to]
   }
 
@@ -146,12 +142,16 @@ QtObject {
   // name, because the names encode the same instant but `ls -t` does not care
   // that they were written in that order. The image copy belongs to the entry,
   // so it goes when the entry does.
-  function archiveCommand(name) {
+  function archiveCommand(name, reason) {
+    const tag = reason
+      ? " && jq -c --arg r \"$6\" '. + {closedReason: $r}' \"$2/$3\" > \"$2/$3.tmp\" && mv -f \"$2/$3.tmp\" \"$2/$3\""
+      : ""
+
     return ["sh", "-c",
-      'mkdir -p "$2" && mv -f "$1/$3" "$2/$3"'
+      'mkdir -p "$2" && mv -f "$1/$3" "$2/$3"' + tag
       + ' && cd "$2" && ls -1t -- *.json 2>/dev/null'
       + ' | tail -n +$(( $4 + 1 )) | while IFS= read -r f; do rm -f -- "$f" "$5/${f%.json}-image"; done',
-      "_", root.liveDir, root.historyDir, name, String(root.historyLimit), root.imagesDir]
+      "_", root.liveDir, root.historyDir, name, String(root.historyLimit), root.imagesDir, String(reason || "")]
   }
 
   function readCommand(dir) {
@@ -161,6 +161,16 @@ QtObject {
   function clearCommand() {
     return ["sh", "-c",
       'for f in "$1"/*.json; do [ -e "$f" ] || continue'
+      + '; b=${f##*/}; rm -f -- "$f" "$2/${b%.json}-image"; done',
+      "_", root.historyDir, root.imagesDir]
+  }
+
+  // Quiet notifications are held, not dismissed. Clearing them is a separate
+  // action from clearing the closed history.
+  function clearHeldCommand() {
+    return ["sh", "-c",
+      'for f in "$1"/*.json; do [ -e "$f" ] || continue'
+      + "; grep -q '\"quiet\":true' \"$f\" || continue"
       + '; b=${f##*/}; rm -f -- "$f" "$2/${b%.json}-image"; done',
       "_", root.historyDir, root.imagesDir]
   }
@@ -367,7 +377,7 @@ QtObject {
   // Recorded even while silenced: silencing means "do not interrupt me", not
   // "pretend it never happened", and history is exactly where a muted
   // notification is looked for afterwards.
-  function begin(notification, discard) {
+  function begin(notification, discard, reason) {
     if (!notification) return
 
     // Transient means the protocol does not want it kept beyond its time on
@@ -378,7 +388,7 @@ QtObject {
     // record in history. Written straight there, in one command, because the
     // worker pool would otherwise be free to archive before the write landed.
     if (discard) {
-      root.enqueue(root.discardCommand(notification, Date.now()))
+      root.enqueue(root.discardCommand(notification, Date.now(), reason))
       return
     }
 
@@ -407,7 +417,8 @@ QtObject {
     // timestamp rather than letting it inherit the previous card's identity.
     if (previous) {
       delete root.watched[key]
-      root.enqueue(root.archiveCommand(previous))
+      root.enqueue(root.archiveCommand(previous, root.closes[key] || ""))
+      delete root.closes[key]
     }
 
     const stamp = Date.now()
@@ -441,7 +452,9 @@ QtObject {
       // No handler: this command's output is `ls` and `rm`, not history.
       // Parsing it as JSON would replace the list with nothing every time a
       // notification expired.
-      root.enqueue(root.archiveCommand(gone[id]))
+      const reason = root.closes[id] || ""
+      delete root.closes[id]
+      root.enqueue(root.archiveCommand(gone[id], reason))
     }
   }
 
@@ -494,9 +507,20 @@ QtObject {
     root.enqueue(root.reapCommand(keep.join(" ")))
   }
 
+  function noteClose(id, reason) {
+    const key = String(id)
+    if (key === "") return
+    root.closes[key] = String(reason || "")
+  }
+
   function clear() {
     root.entries = []
     root.enqueue(root.clearCommand())
+  }
+
+  function clearHeld() {
+    root.entries = root.entries.filter(function (entry) { return entry.quiet !== true })
+    root.enqueue(root.clearHeldCommand())
   }
 
   // Actions are deliberately not carried over: they are closures into the
@@ -505,14 +529,14 @@ QtObject {
   //
   // `imagePath` is the copy the store made, not the sender's original; it is
   // passed separately because the copy's name depends on the entry's file name.
-  function snapshot(notification, stamp, imagePath) {
-    const rawSummary = String(notification.summary || "")
-    const rawBody = String(notification.body || "")
+  function snapshot(notification, stamp, imagePath, quiet, closedReason) {
+    const rawSummary = String(notification.summary || "").slice(0, 2048)
+    const rawBody = String(notification.body || "").slice(0, 32768)
     const foundCodes = NotificationText.codes(rawSummary + "\n" + rawBody)
 
     return JSON.stringify({
       id: notification.id,
-      app: String(notification.appName || ""),
+      app: String(notification.appName || "").slice(0, 256),
       // A browser notification is grouped by its site, not by the browser. The
       // resolved source is stored so history rows and replays agree with the
       // live card.
@@ -522,6 +546,11 @@ QtObject {
       summary: NotificationText.redact(rawSummary, foundCodes),
       body: NotificationText.redact(rawBody, foundCodes),
       redacted: foundCodes.length > 0,
+      // A quiet notification was written straight to history instead of being
+      // shown. The panel lists those under their source rather than mixing them
+      // into the closed history.
+      quiet: quiet === true,
+      closedReason: String(closedReason || ""),
       image: String(imagePath === undefined ? (notification.image || "") : imagePath),
       // The glyph and argv a sender attached with `notify`. They are data, not
       // a live action, so unlike the action buttons they still work when the row

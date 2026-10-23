@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Notifications
+import Quickshell.Services.Pipewire
 import "NotificationText.js" as NotificationText
 
 // The notification daemon. The shell owns org.freedesktop.Notifications
@@ -85,6 +86,15 @@ QtObject {
   property double globalSnoozeUntil: 0
   property var snoozes: ({})
 
+  // Preferences live beside the quiet state: the panel can change them and the
+  // shell reads the same values for its window loop. The build-time value is
+  // only the initial default.
+  readonly property string defaultDisplayMode: "@NOTIFICATIONS_DISPLAY@"
+  property string displayMode: defaultDisplayMode
+  property string displayName: ""
+  property bool fullscreenStepAside: true
+  property int historyHours: 24
+
   readonly property string snoozesPath: NotificationStore.stateDir + "/snoozes.json"
   property bool _hydratingSnoozes: false
   property string _pendingSnoozes: ""
@@ -120,13 +130,27 @@ QtObject {
       if (until > now) next[String(key)] = until
     }
     root.snoozes = next
+    root.codesBypassQuiet = parsed.codesBypassQuiet !== false
+    root.offerSnoozeWhenSharing = parsed.offerSnoozeWhenSharing !== false
+    root.displayMode = parsed.displayMode === "all" || parsed.displayMode === "specific"
+      ? parsed.displayMode : root.defaultDisplayMode
+    root.displayName = String(parsed.displayName || "")
+    root.fullscreenStepAside = parsed.fullscreenStepAside !== false
+    root.historyHours = Number(parsed.historyHours || 24)
+    NotificationStore.historyHours = root.historyHours
     root._hydratingSnoozes = false
   }
 
   function saveSnoozes() {
     root._pendingSnoozes = JSON.stringify({
       globalUntil: root.globalSnoozeUntil,
-      sources: root.snoozes
+      sources: root.snoozes,
+      codesBypassQuiet: root.codesBypassQuiet,
+      offerSnoozeWhenSharing: root.offerSnoozeWhenSharing,
+      displayMode: root.displayMode,
+      displayName: root.displayName,
+      fullscreenStepAside: root.fullscreenStepAside,
+      historyHours: root.historyHours
     }) + "\n"
     root.snoozesMkdir.running = false
     root.snoozesMkdir.running = true
@@ -247,20 +271,120 @@ QtObject {
   }
 
   property bool codesBypassQuiet: true
+  property bool offerSnoozeWhenSharing: true
+
+  function setCodesBypass(value) {
+    root.codesBypassQuiet = !!value
+    root.saveSnoozes()
+  }
+
+  function setDisplayMode(value) {
+    const mode = String(value || "")
+    if (mode !== "focused" && mode !== "all" && mode !== "specific") return
+    root.displayMode = mode
+    root.saveSnoozes()
+  }
+
+  function setDisplayName(value) {
+    root.displayName = String(value || "")
+    root.saveSnoozes()
+  }
+
+  function setFullscreenStepAside(value) {
+    root.fullscreenStepAside = !!value
+    root.saveSnoozes()
+  }
+
+  function setOfferSnoozeWhenSharing(value) {
+    root.offerSnoozeWhenSharing = !!value
+    root.saveSnoozes()
+  }
+
+  function setHistoryHours(value) {
+    const hours = Number(value)
+    if (!isFinite(hours) || hours <= 0) return
+    root.historyHours = hours
+    NotificationStore.historyHours = hours
+    root.saveSnoozes()
+    NotificationStore.refresh()
+  }
 
   function codeBypass(notification) {
     if (!root.codesBypassQuiet || !notification) return false
-    const text = String(notification.summary || "") + "\n" + String(notification.body || "")
+    const text = String(notification.summary || "").slice(0, 2048)
+      + "\n" + String(notification.body || "").slice(0, 32768)
     return NotificationText.code(text) !== ""
   }
 
-  function isQuiet(notification) {
-    if (root.bypassesSilencing(notification)) return false
-    if (root.codeBypass(notification)) return false
+  function quietReason(notification) {
+    if (root.bypassesSilencing(notification)) return ""
+    if (root.codeBypass(notification)) return ""
     const now = Date.now() / 1000
-    if (root.doNotDisturb) return true
-    if (root.globalSnoozeUntil > now) return true
-    return Number(root.snoozes[root.sourceOf(notification)] || 0) > now
+    if (root.doNotDisturb) return "silenced"
+    if (root.globalSnoozeUntil > now) return "snoozed"
+    if (Number(root.snoozes[root.sourceOf(notification)] || 0) > now) return "snoozed"
+    return ""
+  }
+
+  function isQuiet(notification) {
+    return root.quietReason(notification) !== ""
+  }
+
+  // ---- screen sharing ----
+  //
+  // A portal screen share is a PipeWire video source named xdph-streaming-*.
+  // Watching the node's lifetime, not frame activity, avoids treating a
+  // screenshot or a VNC session as sharing.
+  readonly property var sharingCandidates: {
+    const nodes = Pipewire.nodes ? Pipewire.nodes.values : []
+    const out = []
+    for (let i = 0; i < nodes.length && out.length < 64; i++) {
+      if (nodes[i].type === PwNodeType.VideoSource) out.push(nodes[i])
+    }
+    return out
+  }
+
+  property PwObjectTracker sharingTracker: PwObjectTracker {
+    objects: root.sharingCandidates
+  }
+
+  readonly property int sharingStreams: {
+    if (!Pipewire.ready) return 0
+    let count = 0
+    for (let i = 0; i < root.sharingCandidates.length; i++) {
+      const node = root.sharingCandidates[i]
+      if (!node.ready) continue
+      const props = node.properties
+      if (props["media.class"] === "Video/Source"
+          && String(props["media.name"] || "").indexOf("xdph-streaming-") === 0) count++
+    }
+    return count
+  }
+
+  readonly property bool sharingActive: root.sharingStreams > 0
+  readonly property bool sharingDetectionAvailable: Pipewire.ready
+  property bool sharingOfferHandled: false
+  readonly property bool sharingOfferPending: root.offerSnoozeWhenSharing
+    && root.sharingActive
+    && !root.sharingOfferHandled
+    && !root.doNotDisturb
+    && root.globalSnoozeUntil <= Date.now() / 1000
+
+  onSharingActiveChanged: {
+    root.sharingOfferHandled = root.sharingActive
+      && (root.doNotDisturb || root.globalSnoozeUntil > Date.now() / 1000)
+  }
+  onGlobalSnoozeUntilChanged: if (root.globalSnoozeUntil > Date.now() / 1000 && root.sharingActive) root.sharingOfferHandled = true
+
+  function dismissSharingOffer() {
+    if (root.sharingActive) root.sharingOfferHandled = true
+  }
+
+  function snoozeSharingOffer(seconds) {
+    const value = Number(seconds)
+    if (!root.sharingOfferPending || [1800, 3600, 14400].indexOf(value) === -1) return
+    root.sharingOfferHandled = true
+    root.snooze("*", value)
   }
 
   // Which senders are allowed through silencing. Critical urgency by itself is
@@ -344,6 +468,62 @@ QtObject {
     for (let i = root.tracked.length - 1; i >= 0; i--) root.tracked[i].dismiss()
   }
 
+  function dismissOne() {
+    const item = root.stacked.length > 0 ? root.stacked[0] : null
+    if (!item) return "none"
+    item.dismiss()
+    return "ok"
+  }
+
+  function count() {
+    return String(root.tracked.length)
+  }
+
+  function hint(notification, name) {
+    try {
+      const hints = notification ? notification.hints : null
+      return hints && hints[name] !== undefined ? String(hints[name]) : ""
+    } catch (e) {
+      return ""
+    }
+  }
+
+  function defaultAction(notification) {
+    if (!notification || !notification.actions) return null
+    for (const action of notification.actions) {
+      if (String(action.identifier) === "default") return action
+    }
+    return null
+  }
+
+  function invokeNotification(notification) {
+    if (!notification) return "none"
+
+    const exec = NotificationText.execArgv(root.hint(notification, "anixie-exec"))
+    if (exec) {
+      Quickshell.execDetached(exec)
+      notification.dismiss()
+      return "ok"
+    }
+
+    const action = root.defaultAction(notification)
+    if (action) {
+      action.invoke()
+      if (!notification.resident) notification.dismiss()
+      return "ok"
+    }
+
+    const text = String(notification.summary || "") + "\n" + String(notification.body || "")
+    root.activate(notification, NotificationText.link(text))
+    notification.dismiss()
+    return "ok"
+  }
+
+  function invokeLast() {
+    const item = root.stacked.length > 0 ? root.stacked[0] : null
+    return item ? root.invokeNotification(item) : "none"
+  }
+
   // What silencing may take with it: everything except the messages that are
   // allowed through it. Turning DND on must not throw away the critical alert
   // that was meant to survive it.
@@ -365,10 +545,23 @@ QtObject {
   // something to draw.
   function replay() {
     NotificationStore.refresh(function (entries) {
-      root.replayEntries = entries.slice(0, 10)
+      // Held notifications were never shown; replaying them as if they had been
+      // would be a different action from replaying closed history.
+      const shown = entries.filter(function (entry) { return entry.quiet !== true })
+      root.replayEntries = shown.slice(0, 10)
       root.replaying = root.replayEntries.length > 0
       if (root.replaying) root.replayTimer.restart()
     })
+  }
+
+  // A held row in the panel. It is still a history snapshot, so it opens as a
+  // replay card rather than as a live notification with actions that no longer
+  // exist.
+  function replayEntry(entry) {
+    if (!entry) return
+    root.replayEntries = [entry]
+    root.replaying = true
+    root.replayTimer.restart()
   }
 
   function closeReplay() {
@@ -394,11 +587,18 @@ QtObject {
 
   function activate(notification, link) {
     const app = String(notification && (notification.appName || notification.app) ? (notification.appName || notification.app) : "")
-    root.focusSource(app, String(link || ""))
+    const source = notification && (notification.source || notification.sourceKey)
+      ? String(notification.source || notification.sourceKey)
+      : NotificationText.source(notification)
+    root.focusSource(app, String(link || ""), source)
   }
 
-  function focusSource(app, link) {
-    root.pendingFocus = { app: String(app || "").toLowerCase(), link: String(link || "") }
+  function focusSource(app, link, source) {
+    root.pendingFocus = {
+      app: String(app || "").toLowerCase(),
+      link: String(link || ""),
+      source: String(source || "").toLowerCase()
+    }
     root.focusClients.running = false
     root.focusClients.running = true
   }
@@ -417,7 +617,12 @@ QtObject {
     if (!Array.isArray(clients)) clients = []
 
     const wanted = String(pending.app || "")
+    const source = String(pending.source || "")
+    const browser = NotificationText.isBrowser(wanted)
+    const siteSource = source !== "" && source.indexOf(".") !== -1
+    const sourceBrands = NotificationText.brands(source)
     let best = null
+
     for (let i = 0; i < clients.length; i++) {
       const client = clients[i]
       if (!client || !client.address) continue
@@ -430,15 +635,30 @@ QtObject {
         else if (klass.indexOf(wanted) !== -1) score = 2
         else if (title.indexOf(wanted) !== -1) score = 1
       }
+
+      let sourceMatch = false
+      if (browser && source !== "") {
+        for (let b = 0; b < sourceBrands.length; b++) {
+          if (title.indexOf(sourceBrands[b]) !== -1) {
+            sourceMatch = true
+            score = Math.max(score, 4)
+            break
+          }
+        }
+        // Without a site match, any browser window is only a fallback; opening
+        // the site is more honest than focusing an unrelated tab.
+        if (!sourceMatch && score > 0) score = 1
+      }
+
       if (score === 0) continue
 
       const order = Number(client.focusHistoryID === undefined ? 9999 : client.focusHistoryID)
       if (!best || score > best.score || (score === best.score && order < best.order)) {
-        best = { address: String(client.address), score: score, order: order }
+        best = { address: String(client.address), score: score, order: order, sourceMatch: sourceMatch }
       }
     }
 
-    if (best) {
+    if (best && (!browser || !siteSource || best.sourceMatch)) {
       // Dispatched as Lua: the config manager rewrites the old
       // `focuswindow address:0x..` form before evaluating, and that is not a Lua
       // expression, so it fails. This is the form the dock uses.
@@ -446,6 +666,12 @@ QtObject {
       return
     }
 
+    // A browser notification's site is a better target than a random browser
+    // window. A link in the body is the last resort.
+    if (browser && siteSource) {
+      Quickshell.execDetached(["xdg-open", "https://" + source + "/"])
+      return
+    }
     if (pending.link !== "") Quickshell.execDetached(["xdg-open", pending.link])
   }
 
@@ -491,6 +717,7 @@ QtObject {
   onDoNotDisturbChanged: {
     if (root._hydrating) return
 
+    if (root.doNotDisturb && root.sharingActive) root.sharingOfferHandled = true
     root.saveDnd()
 
     if (root.doNotDisturb) {
@@ -519,7 +746,8 @@ QtObject {
       // something the user just did, and a genuine CLI emergency, still show.
       // Everything else is written to history and left untracked, so it never
       // becomes a popup.
-      const quiet = root.isQuiet(notification)
+      const reason = root.quietReason(notification)
+      const quiet = reason !== ""
 
       // An app repeating itself — a polling script, a volume readout — is one
       // piece of information. Keep the newest card instead of stacking an
@@ -536,9 +764,15 @@ QtObject {
         }
       }
 
-      NotificationStore.begin(notification, quiet)
+      NotificationStore.begin(notification, quiet, reason)
       if (quiet) return
 
+      notification.closed.connect(function (closeReason) {
+        const label = closeReason === 1 ? "expired"
+          : closeReason === 2 ? "dismissed"
+          : "closed"
+        NotificationStore.noteClose(notification.id, label)
+      })
       notification.tracked = true
     }
   }

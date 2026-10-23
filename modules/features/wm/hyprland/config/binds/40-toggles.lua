@@ -17,6 +17,8 @@ bind(mod .. " + CTRL + SHIFT + F", "Stop focus", "focus stop")
 
 bind(mod .. " + CTRL + N", "Night light", "toggle nightlight")
 bind(mod .. " + CTRL + I", "Stay awake", "toggle idle")
+bind(mod .. " + CTRL + SHIFT + comma", "Dismiss newest notification", "quickshell ipc call notify dismissOne")
+bind(mod .. " + ALT + SHIFT + comma", "Open newest notification", "quickshell ipc call notify invokeLast")
 bind(mod .. " + CTRL + comma", "Silence notifications", "toggle dnd")
 bind(mod .. " + ALT + comma", "Replay notifications", "quickshell ipc call notify replay")
 bind(mod .. " + CTRL + O", "Toggle menu", "toggle")

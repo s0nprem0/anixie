@@ -220,8 +220,8 @@ function hostname(url) {
 }
 
 function browserSource(notification) {
-  var body = String(notification && notification.body ? notification.body : "")
-  var summary = String(notification && notification.summary ? notification.summary : "")
+  var body = String(notification && notification.body ? notification.body : "").slice(0, 32768)
+  var summary = String(notification && notification.summary ? notification.summary : "").slice(0, 2048)
   var anchor = (body + "\n" + summary).match(/<a\s+[^>]*href\s*=\s*["']([^"']+)["']/i)
   if (anchor) return hostname(anchor[1])
   // A link in the middle of a message is content, not the origin. Without the
@@ -270,4 +270,65 @@ function redact(text, codeList) {
     out = out.replace(new RegExp(pattern, "gi"), "[code]")
   }
   return out
+}
+
+// ---- click targets ----
+
+// Labels worth looking for in a browser title. "app.slack.com" gives "slack";
+// "news.ycombinator.com" gives "news" and "ycombinator". Public suffixes and
+// common subdomains are skipped so every google.com notification does not match
+// the first Chrome window.
+var GENERIC_LABELS = {
+  www: 1, app: 1, web: 1, my: 1, m: 1, mail: 1, mobile: 1,
+  com: 1, org: 1, net: 1, io: 1, co: 1, dev: 1, ai: 1, so: 1, uk: 1
+}
+
+function brands(host) {
+  var labels = String(host || "").toLowerCase().split(".")
+  var out = []
+  for (var i = 0; i < labels.length; i++) {
+    if (labels[i].length >= 4 && !GENERIC_LABELS[labels[i]]) {
+      out.push(labels[i])
+      break
+    }
+  }
+  var registered = labels.length >= 2 ? labels[labels.length - 2] : ""
+  if (registered.length >= 4 && !GENERIC_LABELS[registered] && out.indexOf(registered) < 0) {
+    out.push(registered)
+  }
+  return out
+}
+
+// ---- sender images ----
+//
+// The card is about to load a path the sender chose. A native sender can already
+// read it; a sandboxed one should not be able to make the shell read a kernel
+// file or another service's state. A path must be absolute, bounded, free of
+// control characters and dot segments, and outside /proc, /sys, /dev, and /run
+// except for this user's runtime directory.
+var MAX_IMAGE_PATH = 1024
+var KERNEL_PATHS = /^\/(?:proc|sys|dev)(?:\/|$)/
+var RUN_PATHS = /^\/(?:var\/)?run(?:\/|$)/
+
+function localImagePath(value) {
+  var text = String(value || "")
+  if (text.indexOf("image://") === 0) return ""
+  if (text.indexOf("file://") === 0) {
+    if (!/^file:\/\/\//i.test(text) || /[?#]/.test(text)) return ""
+    try {
+      text = decodeURIComponent(text.slice("file://".length))
+    } catch (e) {
+      return ""
+    }
+  }
+  if (text.length === 0 || text.length > MAX_IMAGE_PATH || text.charAt(0) !== "/") return ""
+  if (/[\x00-\x1f\x7f-\x9f]/.test(text)) return ""
+
+  var parts = text.slice(1).split("/")
+  for (var i = 0; i < parts.length; i++) {
+    if (parts[i] === "" || parts[i] === "." || parts[i] === "..") return ""
+  }
+  if (KERNEL_PATHS.test(text)) return ""
+  if (RUN_PATHS.test(text) && !/^\/run\/user\/[0-9]+\/./.test(text)) return ""
+  return text
 }

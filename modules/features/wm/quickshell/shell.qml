@@ -510,7 +510,11 @@ ShellRoot {
     function toggle(): void { NotificationHost.toggle() }
     function status(): string { return NotificationHost.doNotDisturb ? "on" : "off" }
     function dismissAll(): void { NotificationHost.dismissAll() }
+    function dismissOne(): string { return NotificationHost.dismissOne() }
+    function invokeLast(): string { return NotificationHost.invokeLast() }
+    function count(): string { return NotificationHost.count() }
     function replay(): void { NotificationHost.replay() }
+    function showHistory(): void { NotificationHost.replay() }
     function closeReplay(): void { NotificationHost.closeReplay() }
   }
 
@@ -658,11 +662,13 @@ ShellRoot {
   // Notification popups. Top right, over everything, and taking no keyboard:
   // a notification is there to be read, not typed into. Sized to its stack, so
   // an empty one leaves no window behind to swallow clicks. The output choice is
-  // build-time: a window that can follow focus can also be duplicated per output.
+  // read from NotificationHost, which the panel can change at runtime.
   Variants {
-    model: "@NOTIFICATIONS_DISPLAY@" === "all"
+    model: NotificationHost.displayMode === "all"
       ? Quickshell.screens
-      : (Screens.focused ? [Screens.focused] : [])
+      : (NotificationHost.displayMode === "specific" && Screens.byName(NotificationHost.displayName)
+        ? [Screens.byName(NotificationHost.displayName)]
+        : (Screens.focused ? [Screens.focused] : []))
 
     delegate: PanelWindow {
       id: notificationWindow
@@ -690,6 +696,7 @@ ShellRoot {
       // the fullscreen surface can be scanned out directly. A notification brings
       // the popup back over it, the way a toast should.
       readonly property bool fullscreenOnOutput: {
+        if (!NotificationHost.fullscreenStepAside) return false
         const name = String(modelData.name)
         const list = Hyprland.workspaces ? Hyprland.workspaces.values : []
         for (const workspace of list) {
@@ -703,11 +710,13 @@ ShellRoot {
       // than the screen with the last cards unreachable. The newest few are shown,
       // the rest are counted, and the history panel has them all.
       readonly property int maxCards: NotificationHost.replaying ? 10 : 4
-      readonly property var items: NotificationHost.replaying
-        ? NotificationHost.replayEntries
-        : NotificationHost.groupedItems
-      readonly property var shownItems: notificationWindow.items.slice(0, notificationWindow.maxCards)
-      readonly property int hiddenCount: Math.max(0, notificationWindow.items.length - notificationWindow.shownItems.length)
+      readonly property var decks: NotificationHost.replaying
+        ? NotificationHost.replayEntries.map(function (entry) {
+            return { items: [entry] }
+          })
+        : NotificationHost.groups
+      readonly property var shownDecks: notificationWindow.decks.slice(0, notificationWindow.maxCards)
+      readonly property int hiddenCount: Math.max(0, notificationWindow.decks.length - notificationWindow.shownDecks.length)
 
       WlrLayershell.layer: WlrLayer.Overlay
       WlrLayershell.namespace: "quickshell-notifications"
@@ -720,17 +729,14 @@ ShellRoot {
         spacing: Style.space(8)
 
         Repeater {
-          model: notificationWindow.shownItems
+          model: notificationWindow.shownDecks
 
-          delegate: NotificationCard {
+          delegate: NotificationDeck {
             required property var modelData
 
-            // Width comes from the card's own implicit width, which is what sizes
-            // the column and so the window. Binding it back to the column would be
-            // circular and collapse both.
-            notification: modelData
-            group: [modelData]
+            items: modelData.items
             replay: NotificationHost.replaying
+            forceExpanded: NotificationHost.replaying
           }
         }
 

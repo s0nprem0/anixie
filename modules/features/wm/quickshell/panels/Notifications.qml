@@ -18,15 +18,16 @@ Item {
   Component.onCompleted: NotificationStore.refresh()
 
   readonly property var entries: NotificationStore.entries
-  readonly property bool empty: root.entries.length === 0
+  // Quiet notifications are written straight to history. The panel lists those
+  // under their source instead of mixing them into the closed list.
+  readonly property var heldEntries: root.entries.filter(function (entry) { return entry.quiet === true })
+  readonly property var activeEntries: root.entries.filter(function (entry) { return entry.quiet !== true })
+  readonly property bool empty: root.activeEntries.length === 0 && root.heldEntries.length === 0
 
-  // History grouped by sender, groups ordered by their newest entry. A run of
-  // fifty chat messages used to bury every other source in one flat list; the
-  // source header is what makes the list scannable again.
-  readonly property var entryGroups: {
+  function groupBySource(list) {
     const byApp = ({})
     const order = []
-    for (const entry of root.entries) {
+    for (const entry of list) {
       const key = String(entry.sourceKey || entry.app || "unknown").toLowerCase()
       const label = String(entry.source || entry.app || "Unknown")
       if (!byApp[key]) {
@@ -38,10 +39,101 @@ Item {
     return order.map(function (app) { return byApp[app] })
   }
 
+  // History grouped by sender, groups ordered by their newest entry. A run of
+  // fifty chat messages used to bury every other source in one flat list; the
+  // source header is what makes the list scannable again.
+  readonly property var entryGroups: root.groupBySource(root.activeEntries)
+  readonly property var heldGroups: root.groupBySource(root.heldEntries)
+
+  function openSnoozeMenu(group, anchor) {
+    const entries = []
+    const options = NotificationHost.snoozeOptions()
+    for (let i = 0; i < options.length; i++) {
+      const option = options[i]
+      entries.push({
+        label: option.label,
+        glyph: Util.clock,
+        action: function () { NotificationHost.snooze(group.key, option.seconds) }
+      })
+    }
+    entries.push({ separator: true })
+    entries.push({
+      label: "Snooze everything",
+      glyph: Util.clock,
+      action: function () { NotificationHost.snooze("*", NotificationHost.untilTomorrow()) }
+    })
+    ContextMenuHost.openAt(entries, anchor, 0, anchor.height)
+  }
+
   readonly property var quietSources: {
     NotificationHost.snoozes
     NotificationHost.globalSnoozeUntil
     return NotificationHost.quietSources()
+  }
+
+  readonly property var displayOptions: [
+    { label: "Focused monitor", value: "focused" },
+    { label: "All monitors", value: "all" },
+    { label: "Specific output", value: "specific" }
+  ]
+
+  readonly property int displayIndex: {
+    for (let i = 0; i < root.displayOptions.length; i++) {
+      if (root.displayOptions[i].value === NotificationHost.displayMode) return i
+    }
+    return 0
+  }
+
+  readonly property var screenOptions: {
+    const out = []
+    for (let i = 0; i < Screens.all.length; i++) {
+      const name = String(Screens.all[i].name || "")
+      if (name !== "") out.push({ label: name, value: name })
+    }
+    if (NotificationHost.displayName !== ""
+        && !out.some(function (entry) { return entry.value === NotificationHost.displayName })) {
+      out.push({ label: NotificationHost.displayName + " (disconnected)", value: NotificationHost.displayName })
+    }
+    return out
+  }
+
+  readonly property int screenIndex: {
+    for (let i = 0; i < root.screenOptions.length; i++) {
+      if (root.screenOptions[i].value === NotificationHost.displayName) return i
+    }
+    return -1
+  }
+
+  readonly property var retentionOptions: [
+    { label: "24 hours", value: 24 },
+    { label: "3 days", value: 72 },
+    { label: "7 days", value: 168 }
+  ]
+
+  readonly property int retentionIndex: {
+    for (let i = 0; i < root.retentionOptions.length; i++) {
+      if (root.retentionOptions[i].value === NotificationHost.historyHours) return i
+    }
+    return 0
+  }
+
+  function chooseDisplay(index) {
+    if (index < 0 || index >= root.displayOptions.length) return
+    const value = root.displayOptions[index].value
+    NotificationHost.setDisplayMode(value)
+    if (value === "specific" && NotificationHost.displayName === "" && Screens.all.length > 0) {
+      NotificationHost.setDisplayName(String(Screens.all[0].name || ""))
+    }
+  }
+
+  function chooseScreen(index) {
+    if (index < 0 || index >= root.screenOptions.length) return
+    NotificationHost.setDisplayName(root.screenOptions[index].value)
+  }
+
+  function chooseRetention(index) {
+    if (index < 0 || index >= root.retentionOptions.length) return
+    NotificationHost.setHistoryHours(root.retentionOptions[index].value)
   }
 
   function quietUntil(stamp) {
@@ -103,10 +195,149 @@ Item {
       width: card.contentWidth
       glyph: Util.bell
       title: "Notifications"
-      subtitle: root.empty
-        ? (root.quietSources.length > 0 ? "quiet" : "")
-        : root.entries.length + (root.entries.length === 1 ? " entry" : " entries")
-          + (root.quietSources.length > 0 ? "  ·  " + root.quietSources.length + " quiet" : "")
+      subtitle: {
+        const parts = []
+        if (root.activeEntries.length > 0) parts.push(root.activeEntries.length + (root.activeEntries.length === 1 ? " entry" : " entries"))
+        if (root.heldEntries.length > 0) parts.push(root.heldEntries.length + " held")
+        if (root.quietSources.length > 0) parts.push(root.quietSources.length + " quiet")
+        return parts.join("  ·  ")
+      }
+    }
+
+    Column {
+      width: card.contentWidth
+      spacing: Style.space(4)
+
+      Text {
+        width: parent.width
+        height: implicitHeight
+        text: "Preferences"
+        color: Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        font.weight: Font.DemiBold
+        renderType: Text.NativeRendering
+      }
+
+      Text {
+        width: parent.width
+        height: implicitHeight
+        text: "Show notifications on"
+        color: Theme.fg
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        renderType: Text.NativeRendering
+      }
+
+      Dropdown {
+        width: card.contentWidth
+        model: root.displayOptions
+        currentIndex: root.displayIndex
+        onActivated: function (index) { root.chooseDisplay(index) }
+      }
+
+      Dropdown {
+        width: card.contentWidth
+        visible: NotificationHost.displayMode === "specific"
+        model: root.screenOptions
+        currentIndex: root.screenIndex
+        onActivated: function (index) { root.chooseScreen(index) }
+      }
+
+      Toggle {
+        width: card.contentWidth
+        label: "Step aside over fullscreen"
+        description: "Leave the popup surface unmapped when a fullscreen window has nothing to announce."
+        checked: NotificationHost.fullscreenStepAside
+        onToggled: NotificationHost.setFullscreenStepAside(!NotificationHost.fullscreenStepAside)
+      }
+
+      Toggle {
+        width: card.contentWidth
+        label: "Offer snooze while sharing"
+        description: "Suggest a timed snooze when a portal screen share starts."
+        checked: NotificationHost.offerSnoozeWhenSharing
+        onToggled: NotificationHost.setOfferSnoozeWhenSharing(!NotificationHost.offerSnoozeWhenSharing)
+      }
+
+      Text {
+        width: parent.width
+        height: implicitHeight
+        text: "Keep history for"
+        color: Theme.fg
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        renderType: Text.NativeRendering
+      }
+
+      Dropdown {
+        width: card.contentWidth
+        model: root.retentionOptions
+        currentIndex: root.retentionIndex
+        onActivated: function (index) { root.chooseRetention(index) }
+      }
+    }
+
+    // The offer appears only while a portal video stream is live and nothing is
+    // already quiet. It is a suggestion, not an automatic mute.
+    Column {
+      width: card.contentWidth
+      visible: NotificationHost.sharingOfferPending
+      spacing: Style.space(2)
+
+      Text {
+        width: parent.width
+        height: implicitHeight
+        text: "Screen sharing"
+        color: Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        font.weight: Font.DemiBold
+        renderType: Text.NativeRendering
+      }
+
+      Text {
+        width: parent.width
+        height: implicitHeight
+        text: "Snooze notifications while you share?"
+        color: Theme.fg
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        wrapMode: Text.WordWrap
+        renderType: Text.NativeRendering
+      }
+
+      PanelActionButton {
+        width: card.contentWidth
+        height: implicitHeight
+        label: "For 30 minutes"
+        navigational: false
+        onClicked: NotificationHost.snoozeSharingOffer(1800)
+      }
+
+      PanelActionButton {
+        width: card.contentWidth
+        height: implicitHeight
+        label: "For 1 hour"
+        navigational: false
+        onClicked: NotificationHost.snoozeSharingOffer(3600)
+      }
+
+      PanelActionButton {
+        width: card.contentWidth
+        height: implicitHeight
+        label: "For 4 hours"
+        navigational: false
+        onClicked: NotificationHost.snoozeSharingOffer(14400)
+      }
+
+      PanelActionButton {
+        width: card.contentWidth
+        height: implicitHeight
+        label: "Not now"
+        navigational: false
+        onClicked: NotificationHost.dismissSharingOffer()
+      }
     }
 
     // The sources currently held back, with the time they come back. A snooze is
@@ -143,6 +374,127 @@ Item {
       }
     }
 
+    // A source can be snoozed from its group header below, but this is the
+    // one-row way to quiet everything without waiting for a card.
+    PanelActionButton {
+      id: snoozeAll
+      width: card.contentWidth
+      visible: !root.empty
+      height: implicitHeight
+      label: "Snooze everything"
+      navigational: false
+      onClicked: root.openSnoozeMenu({ key: "*" }, snoozeAll)
+    }
+
+    Toggle {
+      width: card.contentWidth
+      label: "Let codes through"
+      description: "Verification codes still appear while notifications are quiet."
+      checked: NotificationHost.codesBypassQuiet
+      onToggled: NotificationHost.setCodesBypass(!NotificationHost.codesBypassQuiet)
+    }
+
+    // Held notifications are ones quiet kept off the screen. They are still
+    // grouped by source, so the panel says what was missed and who it was from.
+    Column {
+      width: card.contentWidth
+      visible: root.heldEntries.length > 0
+      spacing: 0
+
+      Text {
+        width: parent.width
+        height: root.groupHeaderHeight
+        text: "Held"
+        color: Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        font.weight: Font.DemiBold
+        verticalAlignment: Text.AlignVCenter
+        renderType: Text.NativeRendering
+      }
+
+      Repeater {
+        model: root.heldGroups
+
+        delegate: Column {
+          id: heldDelegate
+          required property var modelData
+
+          width: parent.width
+          spacing: 0
+
+          Item {
+            width: parent.width
+            height: root.groupHeaderHeight
+
+            Text {
+              anchors.left: parent.left
+              anchors.right: heldSnooze.left
+              anchors.rightMargin: Style.space(6)
+              anchors.verticalCenter: parent.verticalCenter
+              text: root.sourceLabel(modelData.app) + "  ·  " + modelData.entries.length
+              color: Theme.muted
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              font.weight: Font.DemiBold
+              elide: Text.ElideRight
+              renderType: Text.NativeRendering
+            }
+
+            Text {
+              id: heldSnooze
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              width: Style.space(20)
+              height: Style.space(20)
+              text: Util.clock
+              color: heldSnoozeArea.containsMouse ? Theme.fg : Theme.muted
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              horizontalAlignment: Text.AlignHCenter
+              verticalAlignment: Text.AlignVCenter
+              renderType: Text.NativeRendering
+
+              MouseArea {
+                id: heldSnoozeArea
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: root.openSnoozeMenu(heldDelegate.modelData, heldSnooze)
+              }
+            }
+          }
+
+          Repeater {
+            model: modelData.entries
+
+            delegate: PanelActionButton {
+              required property var modelData
+
+              width: parent.width
+              height: implicitHeight
+              label: NotificationText.preview(modelData.summary)
+              value: (modelData.closedReason ? root.sourceLabel(modelData.closedReason) : "held")
+                + "  ·  " + root.ago(modelData.timestamp)
+              navigational: false
+              onClicked: {
+                NotificationHost.replayEntry(modelData)
+                PanelHost.closeFocused()
+              }
+            }
+          }
+        }
+      }
+    }
+
+    PanelActionButton {
+      width: card.contentWidth
+      visible: root.heldEntries.length > 0
+      height: implicitHeight
+      label: "Clear held"
+      navigational: false
+      onClicked: NotificationStore.clearHeld()
+    }
+
     Text {
       width: card.contentWidth
       visible: root.empty
@@ -160,8 +512,8 @@ Item {
     // column reliably, so the list owns its height.
     Column {
       width: card.contentWidth
-      height: root.entryGroups.length * root.groupHeaderHeight + root.entries.length * root.rowHeight
-      visible: !root.empty
+      height: root.entryGroups.length * root.groupHeaderHeight + root.activeEntries.length * root.rowHeight
+      visible: root.activeEntries.length > 0
       spacing: 0
 
       Repeater {
@@ -174,17 +526,46 @@ Item {
           width: parent.width
           spacing: 0
 
-          Text {
+          Item {
             width: parent.width
             height: root.groupHeaderHeight
-            text: modelData.app + "  ·  " + modelData.entries.length
-            textFormat: Text.PlainText
-            color: Theme.muted
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            font.weight: Font.DemiBold
-            verticalAlignment: Text.AlignVCenter
-            elide: Text.ElideRight
+
+            Text {
+              anchors.left: parent.left
+              anchors.right: groupSnooze.left
+              anchors.rightMargin: Style.space(6)
+              anchors.verticalCenter: parent.verticalCenter
+              text: root.sourceLabel(modelData.app) + "  ·  " + modelData.entries.length
+              textFormat: Text.PlainText
+              color: Theme.muted
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              font.weight: Font.DemiBold
+              elide: Text.ElideRight
+              renderType: Text.NativeRendering
+            }
+
+            Text {
+              id: groupSnooze
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              width: Style.space(20)
+              height: Style.space(20)
+              text: Util.clock
+              color: groupSnoozeArea.containsMouse ? Theme.fg : Theme.muted
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              horizontalAlignment: Text.AlignHCenter
+              verticalAlignment: Text.AlignVCenter
+              renderType: Text.NativeRendering
+
+              MouseArea {
+                id: groupSnoozeArea
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: root.openSnoozeMenu(groupDelegate.modelData, groupSnooze)
+              }
+            }
           }
 
           Repeater {
@@ -230,6 +611,7 @@ Item {
 
                     height: implicitHeight
                     text: root.ago(row.modelData.timestamp)
+                      + (row.modelData.closedReason ? " · " + row.modelData.closedReason : "")
                     color: Theme.muted
                     font.family: Style.font.family
                     font.pixelSize: Style.font.caption

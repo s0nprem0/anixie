@@ -22,6 +22,7 @@ singleton PolkitHost 1.0 PolkitHost.qml
 Osd 1.0 Osd.qml
 CapturePreviewCard 1.0 CapturePreviewCard.qml
 NotificationCard 1.0 NotificationCard.qml
+NotificationDeck 1.0 NotificationDeck.qml
 PolkitPrompt 1.0 PolkitPrompt.qml
 singleton TooltipHost 1.0 TooltipHost.qml
 singleton PanelHost 1.0 PanelHost.qml

@@ -23,15 +23,15 @@ Item {
   property bool replay: false
 
   readonly property string appName: root.notification
-    ? String(root.notification.appName || root.notification.app || "")
+    ? String(root.notification.appName || root.notification.app || "").slice(0, 256)
     : ""
   readonly property string sourceLabel: NotificationText.source(root.notification) || root.appName
   readonly property string sourceKey: NotificationText.sourceKey(root.notification) || root.appName.toLowerCase()
   readonly property string appLabel: root.group.length > 1
     ? root.sourceLabel + "  ·  " + root.group.length
     : root.sourceLabel
-  readonly property string summary: root.notification ? String(root.notification.summary || "") : ""
-  readonly property string body: root.notification ? String(root.notification.body || "") : ""
+  readonly property string summary: root.notification ? String(root.notification.summary || "").slice(0, 2048) : ""
+  readonly property string body: root.notification ? String(root.notification.body || "").slice(0, 32768) : ""
   readonly property string image: root.notification ? String(root.notification.image || "") : ""
   readonly property string appIcon: root.notification ? String(root.notification.appIcon || "") : ""
   readonly property string initial: root.sourceLabel !== "" ? root.sourceLabel.substring(0, 1).toUpperCase() : ""
@@ -80,18 +80,51 @@ Item {
   readonly property var codes: NotificationText.codes(root.summary + "\n" + root.body)
   readonly property string displayBody: NotificationText.displayBody(root.notification)
 
-  readonly property string imageSource: {
-    if (root.image !== "") {
-      return root.image.indexOf("/") === 0 ? "file://" + root.image : root.image
+  // The icon theme is not guaranteed to be ready on the first frame. The
+  // binding reads this tick so a card that arrived early resolves its site icon
+  // once the theme is available instead of keeping the letter fallback forever.
+  property int iconTick: 0
+
+  function siteIcon() {
+    const tick = root.iconTick
+    if (!NotificationText.isBrowser(root.appName)) return ""
+    const names = [root.sourceLabel]
+    const brands = NotificationText.brands(root.sourceLabel)
+    for (let i = 0; i < brands.length; i++) names.push(brands[i])
+    for (let i = 0; i < names.length; i++) {
+      const found = Quickshell.iconPath(names[i], true)
+      if (found !== "") return found
     }
+    return ""
+  }
+
+  readonly property string imageSource: {
+    const tick = root.iconTick
+    if (root.image !== "") {
+      if (root.image.indexOf("image://qsimage/") === 0) return root.image
+      const local = NotificationText.localImagePath(root.image)
+      if (local !== "") return "file://" + local
+      // An image the policy rejected is not the end of the card's icon: fall
+      // through to the site or app icon rather than leaving a blank slot.
+    }
+
+    const site = root.siteIcon()
+    if (site !== "") return site
+
     if (root.appIcon === "") return ""
-    if (root.appIcon.indexOf("/") === 0) return "file://" + root.appIcon
-    if (root.appIcon.indexOf("file://") === 0) return root.appIcon
+    if (root.appIcon.indexOf("/") === 0) {
+      const path = NotificationText.localImagePath(root.appIcon)
+      return path === "" ? "" : "file://" + path
+    }
+    if (root.appIcon.indexOf("file://") === 0) {
+      const path = NotificationText.localImagePath(root.appIcon)
+      return path === "" ? "" : "file://" + path
+    }
     if (root.appIcon.indexOf("image://icon/") === 0) {
       const name = root.appIcon.slice("image://icon/".length).split("?")[0]
       return Quickshell.iconPath(name, true)
     }
-    if (root.appIcon.indexOf("image://") === 0) return root.appIcon
+    if (root.appIcon.indexOf("image://") === 0) return ""
     return Quickshell.iconPath(root.appIcon, true)
   }
 
@@ -110,15 +143,20 @@ Item {
     return null
   }
 
+  readonly property int maxActions: 16
+  readonly property int maxActionLabel: 256
+
   readonly property var actions: {
     const out = []
     if (!root.notification || !root.notification.actions) return out
     for (const action of root.notification.actions) {
+      if (out.length >= root.maxActions) break
       // "default" has no button: it is the body, and a sender that offers it
       // usually leaves its text empty, which drew an empty button.
       if (String(action.identifier) === "default") continue
-      if (String(action.text || "") === "") continue
-      out.push(action)
+      const label = String(action.text || "").slice(0, root.maxActionLabel)
+      if (label === "") continue
+      out.push({ text: label, invoke: function () { action.invoke() } })
     }
     return out
   }
@@ -532,5 +570,12 @@ Item {
     repeat: true
     running: true
     onTriggered: root.nowTick++
+  }
+
+  Timer {
+    interval: 1000
+    repeat: true
+    running: true
+    onTriggered: root.iconTick++
   }
 }
