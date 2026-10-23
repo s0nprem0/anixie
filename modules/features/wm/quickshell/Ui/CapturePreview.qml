@@ -16,6 +16,11 @@ QtObject {
   property bool shown: false
   property bool pinned: false
 
+  // Incremented whenever the same path is revealed again — after it was
+  // annotated in place, for instance. The card puts it in the image URL so Qt
+  // does not keep showing the old pixels for an unchanged file name.
+  property int revision: 0
+
   // Ten seconds, as the reference gives it.
   readonly property int previewMs: 10000
 
@@ -23,9 +28,15 @@ QtObject {
     if (!nextPath) return
 
     root.path = String(nextPath)
-    root.pinned = false
+    root.revision += 1
     root.shown = true
-    hideTimer.restart()
+
+    // Pinning means "this stays on screen", not "this exact file stays". A
+    // capture taken while one is pinned replaces it, and the new one inherits
+    // the pin rather than being dismissed ten seconds later — or the old one
+    // vanishing without the pin ever being released.
+    if (root.pinned) hideTimer.stop()
+    else hideTimer.restart()
   }
 
   // Pinning is what stops the timer. The window stays up until it is dismissed,

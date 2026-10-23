@@ -628,7 +628,13 @@ ShellRoot {
       id: previewCard
       anchors.fill: parent
       source: CapturePreview.path
+      revision: CapturePreview.revision
       pinned: CapturePreview.pinned
+      onOpened: Commands.app("xdg-open", [CapturePreview.path])
+      onAnnotated: {
+        Commands.run("wl-copy --type image/png < " + Util.shellQuote(CapturePreview.path))
+        CapturePreview.reveal(CapturePreview.path)
+      }
       onPinToggled: CapturePreview.togglePin()
       onDismissed: CapturePreview.hide()
     }

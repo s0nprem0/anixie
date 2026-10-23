@@ -291,12 +291,29 @@ scroll_capture() {
 
   release_freeze
 
+  # Page Down goes to whatever has focus, not to the window that was picked.
+  # Without a guard, switching windows mid-capture pages an unrelated app and
+  # stitches its frames into the result. The address is taken once, before the
+  # first key, and checked before every frame; a window that was closed or
+  # replaced stops the loop with the frames captured so far instead of
+  # scrolling something else.
+  scroll_focus=$(@HYPRCTL@ activewindow -j 2>/dev/null | @JQ@ -r '.address // empty' 2>/dev/null || true)
+
   @NOTIFY_SEND_RAW@ -a capture -u low -t 2500 \
     "Scrolling capture" "Leave the window focused. It stops when the page stops moving." >/dev/null 2>&1 || true
 
   i=0
   previous=""
   while [ "$i" -lt "$scroll_frames" ]; do
+    if [ -n "$scroll_focus" ]; then
+      focused=$(@HYPRCTL@ activewindow -j 2>/dev/null | @JQ@ -r '.address // empty' 2>/dev/null || true)
+      if [ "$focused" != "$scroll_focus" ]; then
+        @NOTIFY_SEND_RAW@ -a capture -u normal -t 4000 \
+          "Scrolling capture stopped" "Focus moved to another window. The part captured so far was kept." >/dev/null 2>&1 || true
+        break
+      fi
+    fi
+
     current="$scroll_tmp/frame-$i.png"
     @GRIM@ -g "$geometry" "$current" 2>/dev/null || break
     [ -s "$current" ] || break

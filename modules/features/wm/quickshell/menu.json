@@ -28,8 +28,12 @@
           "run": "shot region"
         },
         {
-          "label": "Screenshot \u2014 window",
+          "label": "Screenshot \u2014 pick window",
           "run": "shot windows"
+        },
+        {
+          "label": "Screenshot \u2014 focused window",
+          "run": "shot window"
         },
         {
           "label": "Screenshot \u2014 fullscreen",

@@ -62,6 +62,8 @@ QtObject {
   // The screenshot preview: keep it on screen, or dismiss it.
   readonly property string pin: glyph("f08d")
   readonly property string close: glyph("f00d")
+  readonly property string copy: glyph("f0c5")
+  readonly property string annotate: glyph("f304")
 
   // A secured network in the Wi-Fi list.
   readonly property string lock: glyph("f023")

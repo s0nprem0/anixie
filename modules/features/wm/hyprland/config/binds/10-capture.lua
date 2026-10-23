@@ -20,7 +20,7 @@ bind_handler("PRINT", "Screenshot", capture("shot smart"))
 -- followed by an argument, a shell syntax error, so the key did nothing.
 bind_handler(mod .. " + SHIFT + S", "Screenshot", capture("shot smart"))
 
-bind_handler(mod .. " + SHIFT + W", "Screenshot window", capture("shot windows"))
+bind_handler(mod .. " + SHIFT + W", "Screenshot pick window", capture("shot windows"))
 
 -- Fullscreen capture is SUPER+SHIFT+G, not SUPER+SHIFT+F: in the reference
 -- shell F is the file manager, and two binds on one key means one of them
