@@ -1,10 +1,10 @@
 { config, lib, ... }:
 
 let
-  cfg = config.my.security.luks;
+  cfg = config.anixie.security.luks;
 in
 {
-  options.my.security.luks = {
+  options.anixie.security.luks = {
     enable = lib.mkEnableOption "a declaratively declared LUKS root";
 
     name = lib.mkOption {
@@ -31,13 +31,13 @@ in
     assertions = [
       {
         assertion = cfg.device != "";
-        message = "my.security.luks.enable needs my.security.luks.device";
+        message = "anixie.security.luks.enable needs anixie.security.luks.device";
       }
     ];
 
     warnings = [
       ''
-        my.security.luks.enable is set. This only works on a system whose root is
+        anixie.security.luks.enable is set. This only works on a system whose root is
         already inside that LUKS container; adding it to an unencrypted install
         makes the machine unbootable. See the README's "Disk encryption" section.
       ''

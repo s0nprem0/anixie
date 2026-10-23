@@ -6,10 +6,10 @@
 }:
 
 let
-  cfg = config.my.wm.bluetooth;
+  cfg = config.anixie.wm.bluetooth;
 in
 {
-  options.my.wm.bluetooth.enable = lib.mkOption {
+  options.anixie.wm.bluetooth.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install blueman, the Bluetooth manager applet.";

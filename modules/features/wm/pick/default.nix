@@ -6,10 +6,10 @@
 }:
 
 let
-  cfg = config.my.wm.pick;
+  cfg = config.anixie.wm.pick;
 in
 {
-  options.my.wm.pick.enable = lib.mkOption {
+  options.anixie.wm.pick.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install the pick command, a question picker over Quickshell IPC (replaces fuzzel).";

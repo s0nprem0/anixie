@@ -9,7 +9,7 @@ let
   # Where the live choice and the files the apps read live. A state directory, not
   # ~/.config: Home Manager owns those paths as read-only store symlinks, and a
   # theme set at runtime has to be able to write.
-  stateDir = config.my.theme.stateDir;
+  stateDir = config.anixie.theme.stateDir;
 
   # The generated desktop wallpaper and its dimensions. A gradient rather than an
   # image file, so every palette carries its own without shipping pictures. The
@@ -37,7 +37,7 @@ let
         stateDir
         "${config.xdg.dataHome}/anixie"
         "${./themes.json}"
-        config.my.theme.theme
+        config.anixie.theme.theme
         "${pkgs.jq}/bin/jq"
         "${pkgs.imagemagick}/bin/magick"
         "${pkgs.awww}/bin/awww"
@@ -123,7 +123,7 @@ let
       [
         "${./themes.json}"
         stateDir
-        config.my.theme.theme
+        config.anixie.theme.theme
         "${pkgs.quickshell}/bin/quickshell"
         "${pkgs.hyprland}/bin/hyprctl"
         "${pkgs.glib}/bin/gsettings"
@@ -157,7 +157,7 @@ in
   # The palette file's own path, as a template placeholder, so a config that has
   # to read the palettes at runtime — the Hyprland borders do — can point at it
   # without a second copy of the path.
-  my.theme.template.placeholders."@PALETTES@" = "${./themes.json}";
+  anixie.theme.template.placeholders."@PALETTES@" = "${./themes.json}";
 
   home = {
     packages = [
@@ -194,7 +194,7 @@ in
         printf '100\n' >"$state/textscale"
       fi
       if [ ! -f "$state/mode" ]; then
-        printf '%s\n' ${lib.escapeShellArg config.my.theme.mode} >"$state/mode"
+        printf '%s\n' ${lib.escapeShellArg config.anixie.theme.mode} >"$state/mode"
       fi
     '';
   };

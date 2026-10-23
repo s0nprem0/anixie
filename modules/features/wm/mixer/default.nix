@@ -6,7 +6,7 @@
 }:
 
 let
-  cfg = config.my.wm.mixer;
+  cfg = config.anixie.wm.mixer;
 
   # Every external binary a script here calls, in one table, so a reader can see
   # the whole dependency set at a glance. They are substituted rather than left
@@ -16,7 +16,7 @@ let
     "@PACTL@" = "${pkgs.pulseaudio}/bin/pactl";
     "@JQ@" = "${pkgs.jq}/bin/jq";
     "@WPCTL@" = "${pkgs.wireplumber}/bin/wpctl";
-    "@NOTIFY_SEND@" = config.my.wm.notify.bin;
+    "@NOTIFY_SEND@" = config.anixie.wm.notify.bin;
   };
 
   render =
@@ -36,7 +36,7 @@ let
 in
 
 {
-  options.my.wm.mixer.enable = lib.mkOption {
+  options.anixie.wm.mixer.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install pavucontrol and the audio switching commands.";

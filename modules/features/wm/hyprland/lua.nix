@@ -1,7 +1,7 @@
 { config, ... }:
 
 let
-  render = config.my.theme.template.render;
+  render = config.anixie.theme.template.render;
 
   # The config is one Lua chunk, so these are concatenated rather than loaded
   # with `require`: the sections share locals — `mod`, the bind helpers and

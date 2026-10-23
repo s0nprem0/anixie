@@ -6,7 +6,7 @@
 }:
 
 let
-  cfg = config.my.wm.capture;
+  cfg = config.anixie.wm.capture;
 
   # Every external binary the capture scripts call, in one table. They are
   # substituted in rather than left to $PATH because these run from a Hyprland
@@ -25,7 +25,7 @@ let
     "@GSR@" = "${pkgs.gpu-screen-recorder}/bin/gpu-screen-recorder";
     "@FFMPEG@" = "${pkgs.ffmpeg}/bin/ffmpeg";
     "@FFPROBE@" = "${pkgs.ffmpeg}/bin/ffprobe";
-    "@NOTIFY_SEND@" = config.my.wm.notify.bin;
+    "@NOTIFY_SEND@" = config.anixie.wm.notify.bin;
     "@NOTIFY_SEND_RAW@" = "${pkgs.libnotify}/bin/notify-send";
     "@MPV@" = "${pkgs.mpv}/bin/mpv";
     "@SETSID@" = "${pkgs.util-linux}/bin/setsid";
@@ -88,7 +88,7 @@ let
 in
 
 {
-  options.my.wm.capture.enable = lib.mkOption {
+  options.anixie.wm.capture.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install the screenshot, recording, OCR and QR capture commands.";

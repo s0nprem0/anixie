@@ -1,7 +1,7 @@
 { config, lib, ... }:
 
 let
-  c = config.my.theme.colors;
+  c = config.anixie.theme.colors;
 
   # Token names used in templates, keyed by colour option.
   shortNames = {
@@ -45,7 +45,7 @@ let
   placeholders = lib.concatMapAttrs tokensFor c;
 in
 {
-  options.my.theme.template = {
+  options.anixie.theme.template = {
     placeholders = lib.mkOption {
       type = lib.types.attrsOf lib.types.str;
       default = { };
@@ -63,7 +63,7 @@ in
     };
   };
 
-  config.my.theme.template = {
+  config.anixie.theme.template = {
     # Seeded from the palette.
     inherit placeholders;
 
@@ -74,7 +74,7 @@ in
       # actually substituted here. Reading the local binding would only ever see
       # the palette, and silently drop every other module's tokens.
       let
-        tokens = config.my.theme.template.placeholders;
+        tokens = config.anixie.theme.template.placeholders;
       in
       builtins.replaceStrings (lib.attrNames tokens) (lib.attrValues tokens) (
         if lib.isString source then source else builtins.readFile source

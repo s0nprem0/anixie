@@ -6,10 +6,10 @@
 }:
 
 let
-  cfg = config.my.applications.documents;
+  cfg = config.anixie.applications.documents;
 in
 {
-  options.my.applications.documents.enable = lib.mkOption {
+  options.anixie.applications.documents.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install zathura (PDF reader, the default PDF handler) and xournalpp (PDF annotator).";

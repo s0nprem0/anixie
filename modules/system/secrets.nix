@@ -6,7 +6,7 @@
 }:
 
 let
-  cfg = config.my.secrets;
+  cfg = config.anixie.secrets;
 
   # The file is only a default when it exists. A repository without encrypted
   # secrets should evaluate without one, and `builtins.pathExists` is the
@@ -15,7 +15,7 @@ let
     if builtins.pathExists ../../secrets/secrets.yaml then ../../secrets/secrets.yaml else null;
 in
 {
-  options.my.secrets = {
+  options.anixie.secrets = {
     enable = lib.mkEnableOption "sops-nix managed secrets";
 
     defaultSopsFile = lib.mkOption {
@@ -67,7 +67,7 @@ in
     assertions = [
       {
         assertion = cfg.defaultSopsFile != null;
-        message = "my.secrets.enable is set but secrets/secrets.yaml does not exist";
+        message = "anixie.secrets.enable is set but secrets/secrets.yaml does not exist";
       }
     ];
 

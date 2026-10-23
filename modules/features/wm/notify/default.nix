@@ -6,7 +6,7 @@
 }:
 
 let
-  cfg = config.my.wm.notify;
+  cfg = config.anixie.wm.notify;
 
   # The sender contract for everything in the tree. notify-send is named by its
   # full path because the wrapper is also called from systemd timers and from
@@ -18,7 +18,7 @@ let
   );
 in
 {
-  options.my.wm.notify = {
+  options.anixie.wm.notify = {
     enable = lib.mkOption {
       type = lib.types.bool;
       default = true;

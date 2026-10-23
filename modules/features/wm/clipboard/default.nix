@@ -6,7 +6,7 @@
 }:
 
 let
-  cfg = config.my.wm.clipboard;
+  cfg = config.anixie.wm.clipboard;
 
   # cliphist keeps the history and is fed by the compositor's clipboard watchers
   # (see hyprland/config/70-startup.lua); this is only the picking of one entry
@@ -43,7 +43,7 @@ let
 in
 
 {
-  options.my.wm.clipboard.enable = lib.mkOption {
+  options.anixie.wm.clipboard.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install the clipboard picker over cliphist.";

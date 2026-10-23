@@ -6,9 +6,9 @@
 }:
 
 let
-  dark = config.my.theme.mode == "dark";
-  stateDir = config.my.theme.stateDir;
-  render = config.my.theme.template.render;
+  dark = config.anixie.theme.mode == "dark";
+  stateDir = config.anixie.theme.stateDir;
+  render = config.anixie.theme.template.render;
 
   iconTheme = if dark then "Papirus-Dark" else "Papirus-Light";
 

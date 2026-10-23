@@ -6,13 +6,13 @@
 }:
 
 let
-  dark = config.my.theme.mode == "dark";
-  stateDir = config.my.theme.stateDir;
-  render = config.my.theme.template.render;
+  dark = config.anixie.theme.mode == "dark";
+  stateDir = config.anixie.theme.stateDir;
+  render = config.anixie.theme.template.render;
   defaultSettings = pkgs.writeText "anixie-gtk-settings.ini" (render ./templates/gtk-settings.ini);
 in
 {
-  my.theme.template.placeholders = {
+  anixie.theme.template.placeholders = {
     "@GTK_THEME@" = if dark then "Adwaita-dark" else "Adwaita";
     "@GTK_ICON@" = if dark then "Papirus-Dark" else "Papirus-Light";
     "@GTK_DARK@" = if dark then "1" else "0";

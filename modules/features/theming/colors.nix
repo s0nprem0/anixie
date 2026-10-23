@@ -22,7 +22,7 @@ let
   tokenNames = builtins.attrNames colours.${builtins.head names};
 in
 {
-  options.my.theme = {
+  options.anixie.theme = {
     theme = lib.mkOption {
       type = lib.types.enum names;
       default = "tokyo-night";
@@ -40,7 +40,7 @@ in
         "light"
       ];
       readOnly = true;
-      default = modeOf config.my.theme.theme;
+      default = modeOf config.anixie.theme.theme;
       description = ''
         Whether the selected palette is light or dark. It drives the build-time
         app configs; a runtime switch reads the same value from the theme state
@@ -94,6 +94,6 @@ in
       }
     ];
 
-    my.theme.colors = colours.${config.my.theme.theme};
+    anixie.theme.colors = colours.${config.anixie.theme.theme};
   };
 }

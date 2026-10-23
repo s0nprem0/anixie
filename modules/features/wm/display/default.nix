@@ -6,7 +6,7 @@
 }:
 
 let
-  cfg = config.my.wm.display;
+  cfg = config.anixie.wm.display;
 
   # Monitor scaling, the internal panel, and mirroring — the things the brightness
   # and function keys do not reach. Built the same way as the capture commands:
@@ -27,7 +27,7 @@ let
   );
 in
 {
-  options.my.wm.display.enable = lib.mkOption {
+  options.anixie.wm.display.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install the monitors script and wlr-randr for display management.";

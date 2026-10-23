@@ -6,7 +6,7 @@
 }:
 
 let
-  cfg = config.my.wm.emoji;
+  cfg = config.anixie.wm.emoji;
 
   emoji = pkgs.writeShellScriptBin "emoji" (
     builtins.replaceStrings
@@ -23,7 +23,7 @@ let
 in
 
 {
-  options.my.wm.emoji.enable = lib.mkOption {
+  options.anixie.wm.emoji.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install the emoji picker that types via wtype.";

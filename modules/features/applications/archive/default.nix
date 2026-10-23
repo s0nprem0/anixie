@@ -6,10 +6,10 @@
 }:
 
 let
-  cfg = config.my.applications.archive;
+  cfg = config.anixie.applications.archive;
 in
 {
-  options.my.applications.archive.enable = lib.mkOption {
+  options.anixie.applications.archive.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install file-roller, the archive manager.";

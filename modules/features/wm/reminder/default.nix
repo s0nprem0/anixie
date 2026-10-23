@@ -6,10 +6,10 @@
 }:
 
 let
-  cfg = config.my.wm.reminder;
+  cfg = config.anixie.wm.reminder;
 in
 {
-  options.my.wm.reminder.enable = lib.mkOption {
+  options.anixie.wm.reminder.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install the reminder command, which uses systemd-run timers and notify-send.";
@@ -29,7 +29,7 @@ in
       (pkgs.writeShellScriptBin "reminder" (
         builtins.replaceStrings
           [ "@NOTIFY_SEND@" "@QUICKSHELL@" ]
-          [ config.my.wm.notify.bin "${pkgs.quickshell}/bin/quickshell" ]
+          [ config.anixie.wm.notify.bin "${pkgs.quickshell}/bin/quickshell" ]
           (builtins.readFile ./reminder.sh)
       ))
     ];

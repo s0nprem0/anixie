@@ -6,10 +6,10 @@
 }:
 
 let
-  cfg = config.my.applications.files;
+  cfg = config.anixie.applications.files;
 in
 {
-  options.my.applications.files.enable = lib.mkOption {
+  options.anixie.applications.files.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install Thunar as the file manager and default directory handler.";

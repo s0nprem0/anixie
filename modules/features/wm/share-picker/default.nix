@@ -7,9 +7,9 @@
 }:
 
 let
-  cfg = config.my.wm.sharePicker;
+  cfg = config.anixie.wm.sharePicker;
 
-  render = config.my.theme.template.render;
+  render = config.anixie.theme.template.render;
 
   picker = inputs.hyprland-preview-share-picker.packages.${pkgs.stdenv.hostPlatform.system}.default;
 
@@ -24,7 +24,7 @@ let
       (builtins.readFile ./config.yaml);
 in
 {
-  options.my.wm.sharePicker.enable = lib.mkOption {
+  options.anixie.wm.sharePicker.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to use the preview-share picker for portal screen sharing.";

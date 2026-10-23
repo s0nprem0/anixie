@@ -9,9 +9,9 @@ let
   # One palette, every app. Each of these is read when its program starts, so a
   # theme switched at runtime reaches the shell, Hyprland and kitty at once and
   # the rest at their next start — see theme.sh, which is honest about it.
-  render = config.my.theme.template.render;
-  light = config.my.theme.mode == "light";
-  stateDir = config.my.theme.stateDir;
+  render = config.anixie.theme.template.render;
+  light = config.anixie.theme.mode == "light";
+  stateDir = config.anixie.theme.stateDir;
 
   # The same templates the runtime renderer uses, already rendered with the
   # palette this machine is built from. Activation writes one to the state
@@ -21,7 +21,7 @@ let
   defaultHyprlock = pkgs.writeText "anixie-hyprlock.conf" (render ./templates/hyprlock.conf);
 in
 {
-  my.theme.template.placeholders."@HELIX_PARENT@" =
+  anixie.theme.template.placeholders."@HELIX_PARENT@" =
     if light then "base16_default_light" else "base16_default_dark";
 
   # Helix, Yazi and hyprlock read these files. They live in the state directory
@@ -80,7 +80,7 @@ in
       # The colours are not here: theme-apps rewrites them on every switch, and
       # this config only says where to find them. `-q` so a server that starts
       # before the first `theme apply` has no error to report.
-      extraConfig = "source-file -q ${config.my.theme.stateDir}/tmux.conf";
+      extraConfig = "source-file -q ${config.anixie.theme.stateDir}/tmux.conf";
     };
 
     # ---- the lock screen ----

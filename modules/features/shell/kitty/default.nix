@@ -1,7 +1,7 @@
 { config, ... }:
 
 let
-  render = config.my.theme.template.render;
+  render = config.anixie.theme.template.render;
 in
 {
   programs.kitty = {
@@ -16,8 +16,8 @@ in
     # `textsize` command. Both are defaulted by Home Manager so a fresh login
     # never includes a file that is not there yet.
     extraConfig = ''
-      include ${config.my.theme.stateDir}/kitty.conf
-      include ${config.my.theme.stateDir}/kitty-font.conf
+      include ${config.anixie.theme.stateDir}/kitty.conf
+      include ${config.anixie.theme.stateDir}/kitty-font.conf
     '';
 
     font = {

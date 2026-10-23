@@ -6,10 +6,10 @@
 }:
 
 let
-  cfg = config.my.applications.chat;
+  cfg = config.anixie.applications.chat;
 in
 {
-  options.my.applications.chat.enable = lib.mkOption {
+  options.anixie.applications.chat.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install Discord with the Equicord plugin set applied.";

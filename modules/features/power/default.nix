@@ -6,7 +6,7 @@
 }:
 
 let
-  cfg = config.my.power.batteryAutomation;
+  cfg = config.anixie.power.batteryAutomation;
   state = "${config.xdg.stateHome}/anixie/powerprofile";
 
   powerprofile = pkgs.writeShellScriptBin "powerprofile" (
@@ -32,7 +32,7 @@ let
         "${pkgs.power-profiles-daemon}/bin/powerprofilesctl"
         "${pkgs.systemd}/bin/udevadm"
         "${pkgs.brightnessctl}/bin/brightnessctl"
-        config.my.wm.notify.bin
+        config.anixie.wm.notify.bin
         (if cfg.enable then "1" else "0")
         (toString cfg.lowThreshold)
         (toString cfg.criticalThreshold)
@@ -47,7 +47,7 @@ let
   );
 in
 {
-  options.my.power.batteryAutomation = {
+  options.anixie.power.batteryAutomation = {
     enable = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -113,7 +113,7 @@ in
     assertions = [
       {
         assertion = cfg.lowThreshold > cfg.criticalThreshold;
-        message = "my.power.batteryAutomation.lowThreshold must be above criticalThreshold";
+        message = "anixie.power.batteryAutomation.lowThreshold must be above criticalThreshold";
       }
     ];
 

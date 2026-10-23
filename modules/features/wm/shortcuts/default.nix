@@ -6,10 +6,10 @@
 }:
 
 let
-  cfg = config.my.wm.shortcuts;
+  cfg = config.anixie.wm.shortcuts;
 in
 {
-  options.my.wm.shortcuts.enable = lib.mkOption {
+  options.anixie.wm.shortcuts.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install the shortcuts command, a searchable sheet built from Hyprland's bind descriptions.";

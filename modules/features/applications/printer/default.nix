@@ -6,10 +6,10 @@
 }:
 
 let
-  cfg = config.my.applications.printer;
+  cfg = config.anixie.applications.printer;
 in
 {
-  options.my.applications.printer.enable = lib.mkOption {
+  options.anixie.applications.printer.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install cups-filters and simple-scan for printing and scanning.";

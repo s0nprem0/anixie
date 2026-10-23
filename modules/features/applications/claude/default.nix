@@ -6,10 +6,10 @@
 }:
 
 let
-  cfg = config.my.applications.claude;
+  cfg = config.anixie.applications.claude;
 in
 {
-  options.my.applications.claude.enable = lib.mkOption {
+  options.anixie.applications.claude.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install Claude Code and register its URL handler.";

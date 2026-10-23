@@ -14,6 +14,6 @@
 
     [templates.anixie]
     input_path = '${./wallpaper-palette.json}'
-    output_path = '${config.my.theme.stateDir}/palette.json'
+    output_path = '${config.anixie.theme.stateDir}/palette.json'
   '';
 }

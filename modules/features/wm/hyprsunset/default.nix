@@ -6,10 +6,10 @@
 }:
 
 let
-  cfg = config.my.wm.hyprsunset;
+  cfg = config.anixie.wm.hyprsunset;
 in
 {
-  options.my.wm.hyprsunset.enable = lib.mkOption {
+  options.anixie.wm.hyprsunset.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to run hyprsunset, the blue light filter, as a user service.";

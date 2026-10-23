@@ -176,7 +176,7 @@ breakdown; `anixie screentime` prints it, and `screentime panel` opens the panel
 (adding the widget to a saved bar layout that predates it).
 
 `anixie focus start 25` closes the app classes listed in
-`my.wm.focus.blockedClasses`, silences notifications, and shows a
+`anixie.wm.focus.blockedClasses`, silences notifications, and shows a
 countdown indicator. The state survives a shell restart; `focus stop` puts the
 previous notification setting back. `Super+Ctrl+F` starts a 25-minute block and
 `Super+Ctrl+Shift+F` stops one.
@@ -184,18 +184,18 @@ previous notification setting back. `Super+Ctrl+F` starts a 25-minute block and
 While on battery, the power watcher dims the screen and steps down the profile
 at 20% and again at 8%, restoring the brightness you had when mains returns.
 The thresholds, profiles and brightness levels are
-`my.power.batteryAutomation` options.
+`anixie.power.batteryAutomation` options.
 
 ## Gaming
 
-`my.gaming` installs Steam and enables GameMode; `my.applications.gaming` adds
+`anixie.gaming` installs Steam and enables GameMode; `anixie.applications.gaming` adds
 gamescope, mangohud, protonup-qt, and (by default) Lutris, Heroic and RetroArch.
 Steam is a system package because Proton and older titles need 32-bit graphics,
 which `hardware.graphics.enable32Bit` turns on.
 
 Steam launch options: `mangohud %command%` for the overlay, `gamescope --
 %command%` for compositing. Remote Play and a gamescope session are off by
-default (`my.gaming.steam.remotePlay`, `my.gaming.steam.gamescopeSession`).
+default (`anixie.gaming.steam.remotePlay`, `anixie.gaming.steam.gamescopeSession`).
 
 ## Secrets and disk encryption
 
@@ -208,13 +208,13 @@ cp .sops.yaml.example .sops.yaml            # put the public key in it
 sops secrets/secrets.yaml                   # add the keys named in the module
 ```
 
-Then set `my.secrets.enable = true` and declare the files under
-`my.secrets.secrets`. The age key stays outside the store; only the encrypted
+Then set `anixie.secrets.enable = true` and declare the files under
+`anixie.secrets.secrets`. The age key stays outside the store; only the encrypted
 `secrets/secrets.yaml` is committed.
 
 The machine is **not encrypted**. LUKS cannot be added to a running root
 filesystem declaratively: back up, reinstall with LUKS, and then pin the device
-with `my.security.luks` (see `modules/system/encryption.nix`) or let
+with `anixie.security.luks` (see `modules/system/encryption.nix`) or let
 `nixos-generate-config` write the `boot.initrd.luks.devices` entry. Enabling that
 module on an unencrypted root makes the machine unbootable.
 

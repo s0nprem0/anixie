@@ -6,21 +6,21 @@
 }:
 
 let
-  render = config.my.theme.template.render;
+  render = config.anixie.theme.template.render;
 
   # Where the `theme` command records the live choice, and the resolved palette
   # a wallpaper-derived theme leaves beside it. A restarted shell reads both: the
   # name is not in the embedded list, so it needs the colours too.
-  themeState = "${config.my.theme.stateDir}/current";
-  themePalette = "${config.my.theme.stateDir}/palette.json";
+  themeState = "${config.anixie.theme.stateDir}/current";
+  themePalette = "${config.anixie.theme.stateDir}/palette.json";
 
   # Focus mode's blocked app ids, rendered where FocusHost can read them without
   # depending on the user's profile. The state (whether a block is running) lives
   # in the state directory, not here.
   focusConfig = pkgs.writeText "focus.json" (
     builtins.toJSON {
-      blocked = config.my.wm.focus.blockedClasses;
-      defaultMinutes = config.my.wm.focus.defaultMinutes;
+      blocked = config.anixie.wm.focus.blockedClasses;
+      defaultMinutes = config.anixie.wm.focus.defaultMinutes;
     }
   );
 
@@ -31,8 +31,8 @@ let
     builtins.replaceStrings
       [ "@PALETTES_JSON@" "@DEFAULT_THEME@" "@THEME_STATE@" "@THEME_PALETTE@" ]
       [
-        (builtins.toJSON config.my.theme.palettes)
-        config.my.theme.theme
+        (builtins.toJSON config.anixie.theme.palettes)
+        config.anixie.theme.theme
         themeState
         themePalette
       ]
@@ -79,7 +79,7 @@ let
   '';
 in
 {
-  options.my.wm.quickshell.position = lib.mkOption {
+  options.anixie.wm.quickshell.position = lib.mkOption {
     type = lib.types.enum [
       "top"
       "bottom"
@@ -100,15 +100,15 @@ in
   # Theme.qml is rendered through the shared palette renderer and carries the
   # bar's position the same way: a placeholder the theme module substitutes.
   config = {
-    my.theme.template.placeholders = {
-      "@POSITION@" = config.my.wm.quickshell.position;
+    anixie.theme.template.placeholders = {
+      "@POSITION@" = config.anixie.wm.quickshell.position;
 
       # The warning's sender and IPC entry point, by full path: the shell service
       # runs under the user manager, whose PATH is not guaranteed to carry the
       # profile. The sender is the same one the rest of the tree uses (see
       # features/wm/notify), so a battery toast can carry a glyph or a click
       # action.
-      "@NOTIFY_SEND@" = config.my.wm.notify.bin;
+      "@NOTIFY_SEND@" = config.anixie.wm.notify.bin;
       "@QUICKSHELL@" = "${pkgs.quickshell}/bin/quickshell";
       "@FPRINTD_LIST@" = "${pkgs.fprintd}/bin/fprintd-list";
       "@HYPRLOCK@" = "${pkgs.hyprlock}/bin/hyprlock";

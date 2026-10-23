@@ -12,7 +12,7 @@ let
   );
 in
 {
-  options.my.wm.focus = {
+  options.anixie.wm.focus = {
     defaultMinutes = lib.mkOption {
       type = lib.types.ints.between 1 480;
       default = 25;

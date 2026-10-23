@@ -6,10 +6,10 @@
 }:
 
 let
-  cfg = config.my.wm.menu;
+  cfg = config.anixie.wm.menu;
 in
 {
-  options.my.wm.menu.enable = lib.mkOption {
+  options.anixie.wm.menu.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install the menu command, which reads quickshell/menu.json.";

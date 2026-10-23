@@ -6,10 +6,10 @@
 }:
 
 let
-  cfg = config.my.applications.media;
+  cfg = config.anixie.applications.media;
 in
 {
-  options.my.applications.media.enable = lib.mkOption {
+  options.anixie.applications.media.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install mpv, the media player.";

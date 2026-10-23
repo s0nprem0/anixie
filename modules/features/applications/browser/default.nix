@@ -6,10 +6,10 @@
 }:
 
 let
-  cfg = config.my.applications.browser;
+  cfg = config.anixie.applications.browser;
 in
 {
-  options.my.applications.browser.enable = lib.mkOption {
+  options.anixie.applications.browser.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install Chromium and Firefox, with Firefox as the default browser.";

@@ -6,10 +6,10 @@
 }:
 
 let
-  cfg = config.my.wm.webapps;
+  cfg = config.anixie.wm.webapps;
 in
 {
-  options.my.wm.webapps.enable = lib.mkOption {
+  options.anixie.wm.webapps.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install the webapp command, which turns a website into a Chromium --app desktop entry.";

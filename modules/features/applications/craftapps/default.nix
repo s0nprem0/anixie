@@ -6,7 +6,7 @@
 }:
 
 let
-  cfg = config.my.applications.craftapps;
+  cfg = config.anixie.applications.craftapps;
 
   enabledApps = lib.filterAttrs (_: app: app.enable) config.programs.craftapps.apps;
 
@@ -20,7 +20,7 @@ let
     '';
 in
 {
-  options.my.applications.craftapps.enable = lib.mkOption {
+  options.anixie.applications.craftapps.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install the Craft Apps (PhotoCraft, VectorCraft, etc.) from the nix-craftapps flake.";

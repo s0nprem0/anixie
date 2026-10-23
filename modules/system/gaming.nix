@@ -1,10 +1,10 @@
 { config, lib, ... }:
 
 let
-  cfg = config.my.gaming;
+  cfg = config.anixie.gaming;
 in
 {
-  options.my.gaming = {
+  options.anixie.gaming = {
     enable = lib.mkOption {
       type = lib.types.bool;
       default = true;

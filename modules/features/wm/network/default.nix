@@ -6,7 +6,7 @@
 }:
 
 let
-  cfg = config.my.wm.network;
+  cfg = config.anixie.wm.network;
 
   # The QR for the current network, as a PNG in the state directory. Built as a
   # script with the two tool paths substituted, since the shell reads the network
@@ -22,7 +22,7 @@ let
   );
 in
 {
-  options.my.wm.network.enable = lib.mkOption {
+  options.anixie.wm.network.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install the wifi-qr script, which encodes the current network credentials as a QR code.";
