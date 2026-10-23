@@ -1,3 +1,4 @@
+//@ pragma UseQApplication
 // Blocky status bar in five sections. `center` is pinned to the exact middle of
 // the bar, and centerBegin/centerEnd hang off its edges so they grow outward
 // instead of shifting the clock off centre.
