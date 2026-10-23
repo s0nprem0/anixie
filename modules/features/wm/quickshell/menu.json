@@ -125,6 +125,86 @@
       ]
     },
     {
+      "group": "Setup",
+      "entries": [
+        {
+          "label": "Displays",
+          "run": "quickshell ipc call panel toggle displays"
+        },
+        {
+          "label": "Brightness & text size",
+          "run": "quickshell ipc call panel toggle display"
+        },
+        {
+          "label": "Network & DNS",
+          "run": "quickshell ipc call panel toggle network"
+        },
+        {
+          "label": "Bluetooth",
+          "run": "quickshell ipc call panel toggle bluetooth"
+        },
+        {
+          "label": "Power profile",
+          "run": "quickshell ipc call panel toggle power"
+        },
+        {
+          "label": "Keyboard shortcuts",
+          "run": "shortcuts"
+        },
+        {
+          "group": "Text size",
+          "entries": [
+            {
+              "label": "Smaller",
+              "run": "textsize down"
+            },
+            {
+              "label": "Larger",
+              "run": "textsize up"
+            },
+            {
+              "label": "Reset to 100%",
+              "run": "textsize reset"
+            }
+          ]
+        },
+        {
+          "group": "Bar",
+          "entries": [
+            {
+              "label": "Show or hide bar",
+              "run": "quickshell ipc call bar toggle"
+            },
+            {
+              "label": "Background \u2014 opaque",
+              "run": "quickshell ipc call bar background opaque"
+            },
+            {
+              "label": "Background \u2014 glassy",
+              "run": "quickshell ipc call bar background glassy"
+            },
+            {
+              "label": "Background \u2014 clear",
+              "run": "quickshell ipc call bar background clear"
+            },
+            {
+              "label": "Reset bar layout",
+              "run": "quickshell ipc call bar reset"
+            }
+          ]
+        },
+        {
+          "group": "Security",
+          "entries": [
+            {
+              "label": "Passwordless sudo",
+              "run": "passwordless-sudo edit"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "group": "Toggle",
       "entries": [
         {
