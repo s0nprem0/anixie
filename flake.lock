@@ -600,26 +600,6 @@
         "type": "github"
       }
     },
-    "nix-craftapps": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1792646982,
-        "narHash": "sha256-YrHrPxF7A+YiqYKyE7XvFhyK872iaIHn81qFYjE8klU=",
-        "owner": "olafkfreund",
-        "repo": "nix-craftapps",
-        "rev": "0f551668ca31fa7d0c0784831f7cfa202ce084c6",
-        "type": "github"
-      },
-      "original": {
-        "owner": "olafkfreund",
-        "repo": "nix-craftapps",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1777954456,
@@ -702,7 +682,6 @@
         "hyprland-plugins": "hyprland-plugins",
         "hyprland-preview-share-picker": "hyprland-preview-share-picker",
         "hyprland-scroll-overview": "hyprland-scroll-overview",
-        "nix-craftapps": "nix-craftapps",
         "nixpkgs": "nixpkgs_2",
         "sops-nix": "sops-nix"
       }

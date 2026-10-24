@@ -8,47 +8,39 @@
 let
   cfg = config.anixie.applications.craftapps;
 
-  enabledApps = lib.filterAttrs (_: app: app.enable) config.programs.craftapps.apps;
+  # The packages are built here from storytold's prebuilt release tarballs, so
+  # the modules and the versions live with the rest of the configuration
+  # instead of behind a separate flake input.
+  apps = lib.mapAttrs (name: info: pkgs.callPackage ./package.nix ({ inherit name; } // info)) (
+    import ./apps.nix
+  );
 
   # Rewrite the Exec line of the entry shipped in the package, leaving every other
   # key as upstream wrote it.
   xwaylandEntry =
-    name: app:
+    name: package:
     pkgs.runCommand "ai.storyteller.${name}.desktop" { } ''
       sed 's|^Exec=|Exec=env WAYLAND_DISPLAY= |' \
-        ${app.package}/share/applications/ai.storyteller.${name}.desktop > $out
+        ${package}/share/applications/ai.storyteller.${name}.desktop > $out
     '';
 in
 {
   options.anixie.applications.craftapps.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
-    description = "Whether to install the Craft Apps (PhotoCraft, VectorCraft, etc.) from the nix-craftapps flake.";
+    description = "Whether to install the Craft Apps (PhotoCraft, VectorCraft, etc.) from storytold's prebuilt releases.";
   };
 
   config = lib.mkIf cfg.enable {
-    # The Craft apps — clean-room takes on the creative suite — from the
-    # nix-craftapps flake (see flake.nix), which ships upstream's prebuilt binaries
-    # rather than building the Rust workspace from source. Enabled here, in a Home
-    # Manager module, so they land in the user profile: the NixOS side of the same
-    # module exists only to link /usr/share/fonts, and installs nothing.
+    # The Craft apps — clean-room takes on the creative suite — ship as
+    # prebuilt binaries rather than a Rust workspace to build from source. They
+    # land in the user profile, so this is a Home Manager module; the NixOS side
+    # (see modules/system/craftapps.nix) only links /usr/share/fonts.
     #
     # They share the toolkit, so they share the Wayland limitation: native file
-    # drag-and-drop does not exist in the protocol. Every enabled app gets the
-    # XWayland workaround below.
-    programs.craftapps = {
-      enable = true;
-      apps = {
-        photocraft.enable = true;
-        vectorcraft.enable = true;
-        effectcraft.enable = true;
-        filmcraft.enable = true;
-        soundcraft.enable = true;
-        wordcraft.enable = true;
-        deckcraft.enable = true;
-        gridcraft.enable = true;
-      };
-    };
+    # drag-and-drop does not exist in the protocol. Every app gets the XWayland
+    # workaround below.
+    home.packages = lib.attrValues apps;
 
     # The Office formats the three document apps declare in their own desktop
     # entries. Plain text, Markdown, TeX, HTML and CSV are deliberately absent:
@@ -105,10 +97,10 @@ in
     # `makeDesktopItem`, which no longer takes it, so merely defining an entry
     # errors the build.
     xdg.configFile = lib.mapAttrs' (
-      name: app:
+      name: package:
       lib.nameValuePair "applications/ai.storyteller.${name}.desktop" {
-        source = xwaylandEntry name app;
+        source = xwaylandEntry name package;
       }
-    ) enabledApps;
+    ) apps;
   };
 }
