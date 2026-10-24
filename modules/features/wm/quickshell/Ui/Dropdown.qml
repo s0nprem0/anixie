@@ -18,6 +18,12 @@ Item {
   property int currentIndex: -1
   property string placeholder: ""
 
+  // Whether the dropdown takes input at all. A screen that is mirroring has no
+  // geometry of its own to change, and a value the caller is still writing
+  // should not be changed under it; both use this rather than a live control
+  // that silently does nothing.
+  property bool available: true
+
   signal activated(int index)
 
   // ---- the keyboard ----
@@ -26,15 +32,17 @@ Item {
   // walk the entries, Return picks one, Escape puts it away — which is Qt's own
   // popup doing what it already knows how to do. The sideways keys step the
   // choice without opening anything, for when the answer is "the next one".
-  readonly property bool panelFocusable: root.model.length > 0
+  readonly property bool interactive: root.available
+  readonly property bool panelFocusable: root.available && root.model.length > 0
 
   function activate() {
+    if (!root.available) return
     if (list.opened) list.close()
     else list.open()
   }
 
   function keyStep(direction) {
-    if (root.model.length === 0) return false
+    if (!root.available || root.model.length === 0) return false
 
     const from = root.currentIndex < 0 ? 0 : root.currentIndex
     const next = Math.max(0, Math.min(root.model.length - 1, from + direction))
@@ -61,14 +69,15 @@ Item {
   implicitWidth: Style.space(160)
   implicitHeight: Style.space(26)
   height: implicitHeight
+  opacity: root.available ? 1 : 0.45
 
   Rectangle {
     anchors.fill: parent
     radius: Theme.cornerRadius
-    color: mouse.containsMouse
+    color: mouse.containsMouse && root.available
       ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha)
       : Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha * 0.5)
-    border.color: list.opened || mouse.containsMouse ? Theme.primary : Theme.muted
+    border.color: list.opened || (mouse.containsMouse && root.available) ? Theme.primary : Theme.muted
     border.width: 1
     Behavior on border.color { ColorAnimation { duration: Style.duration(120) } }
   }
@@ -92,7 +101,7 @@ Item {
     anchors.rightMargin: Style.space(10)
     anchors.verticalCenter: parent.verticalCenter
     text: "⌄"
-    color: mouse.containsMouse ? Theme.primary : Theme.muted
+    color: mouse.containsMouse && root.available ? Theme.primary : Theme.muted
     font.family: Style.font.family
     font.pixelSize: Style.font.body
     renderType: Text.NativeRendering
@@ -102,7 +111,8 @@ Item {
     id: mouse
     anchors.fill: parent
     hoverEnabled: true
-    cursorShape: Qt.PointingHandCursor
+    enabled: root.available
+    cursorShape: root.available ? Qt.PointingHandCursor : Qt.ArrowCursor
     onClicked: list.opened ? list.close() : list.open()
   }
 
@@ -114,6 +124,49 @@ Item {
     padding: 0
     modal: false
     focus: true
+
+    // Which row the keyboard is on while the popup is up. Kept separate from
+    // `root.currentIndex`: that one belongs to the caller's binding, and
+    // writing it from here would replace the binding and stop the control
+    // following the value it is meant to show.
+    property int highlighted: -1
+
+    function moveHighlight(delta) {
+      if (root.model.length === 0) return
+      const from = list.highlighted < 0 ? (delta > 0 ? -1 : 0) : list.highlighted
+      const next = Math.max(0, Math.min(root.model.length - 1, from + delta))
+      list.highlighted = next
+      listContent.positionViewAtIndex(next, ListView.Contain)
+    }
+
+    function choose() {
+      if (list.highlighted >= 0 && list.highlighted < root.model.length) {
+        root.activated(list.highlighted)
+      }
+      list.close()
+    }
+
+    // The list can be longer than the popup — nineteen modes on one monitor —
+    // and a ListView starts at the top. Opening at the current entry is what
+    // makes the control say what is selected without a scroll first.
+    onOpened: {
+      list.highlighted = root.model.length === 0
+        ? -1
+        : (root.currentIndex >= 0 ? root.currentIndex : 0)
+      listContent.forceActiveFocus()
+      Qt.callLater(function () {
+        if (list.highlighted >= 0) {
+          listContent.positionViewAtIndex(list.highlighted, ListView.Contain)
+        }
+      })
+    }
+
+    onClosed: {
+      list.highlighted = -1
+      // Hand the keyboard back to the panel rather than leaving it on a hidden
+      // list; the panel's own key handling then continues from the same stop.
+      root.forceActiveFocus()
+    }
 
     background: Rectangle {
       color: Theme.surface
@@ -134,8 +187,29 @@ Item {
       clip: true
       implicitHeight: contentHeight
       model: root.model
-      currentIndex: root.currentIndex
+      currentIndex: list.highlighted
       boundsBehavior: Flickable.StopAtBounds
+      focus: true
+
+      // The popup takes the keyboard so the panel cannot walk away from the
+      // list being chosen. These are the list's own keys; the panel sees none
+      // of them until the popup closes.
+      Keys.onPressed: function (event) {
+        if (event.key === Qt.Key_Down) {
+          list.moveHighlight(1)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Up) {
+          list.moveHighlight(-1)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+                   || event.key === Qt.Key_Space) {
+          list.choose()
+          event.accepted = true
+        } else if (event.key === Qt.Key_Escape) {
+          list.close()
+          event.accepted = true
+        }
+      }
 
       delegate: Rectangle {
         id: row
@@ -144,7 +218,7 @@ Item {
         required property int index
         required property var modelData
 
-        readonly property bool selected: row.index === root.currentIndex
+        readonly property bool selected: row.index === list.highlighted
 
         color: rowMouse.containsMouse
           ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.selectedFillAlpha)
