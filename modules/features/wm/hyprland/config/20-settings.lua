@@ -7,9 +7,11 @@
 -- build-time value cannot change without a rebuild.
 --
 -- The built-in colours below are the fallback, used when the file is not there
--- or does not name something usable.
+-- or does not name something usable. `alpha` is the two-digit alpha to append,
+-- so a caller that wants a faint variant of a token does not have to parse the
+-- live colour itself.
 -- ------------------------------------------------------------------
-local function theme_colour(token, fallback)
+local function theme_colour(token, fallback, alpha)
   local state_home = os.getenv("XDG_STATE_HOME")
     or ((os.getenv("HOME") or "") .. "/.local/state")
   local file = io.open(state_home .. "/anixie/theme/palette.json", "r")
@@ -24,7 +26,7 @@ local function theme_colour(token, fallback)
   if not hex then return fallback end
 
   local r, g, b = hex:match("#(%x%x)(%x%x)(%x%x)")
-  return "rgba(" .. r .. g .. b .. "ff)"
+  return "rgba(" .. r .. g .. b .. (alpha or "ff") .. ")"
 end
 
 -- Whether the live theme is light or dark. Written next to the palette by

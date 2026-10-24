@@ -71,19 +71,29 @@ hl.config({
     -- Title bars belong to floating windows only. The patch this build
     -- carries enforces that in the compositor; the setting here is what
     -- the plugin reads when it makes the decision.
+    --
+    -- The colours are read from the live palette, like the borders are, so a
+    -- `theme set` recolours the bars on the reload it triggers instead of
+    -- leaving them on the palette the flake was built with. The placeholders
+    -- remain the fallback for a session that has no palette file yet.
     hyprbars = {
       enabled = true,
       only_floating = true,
       hide_fullscreen = true,
-      bar_height = 26,
-      bar_color = "@SURFACE_RGBA_FF@",
+      bar_height = 25,
+      bar_color = theme_colour("surface", "@SURFACE_RGBA_FF@"),
       col = {
-        text = "@FG_RGBA_FF@",
+        text = theme_colour("foreground", "@FG_RGBA_FF@"),
       },
+      -- A fresh window is too bright a chip on an unfocused bar; a faint
+      -- muted tint keeps the button findable without competing with the text.
+      inactive_button_color = theme_colour("muted", "@MUTED_RGBA_AA@", "22"),
       bar_text_font = "FiraCode Nerd Font",
-      bar_text_size = 9,
+      bar_text_size = 10,
       bar_text_weight = 600,
       bar_text_align = "left",
+      bar_padding = 10,
+      bar_button_padding = 8,
       bar_title_enabled = true,
       bar_part_of_window = false,
       bar_blur = false,
@@ -94,7 +104,7 @@ hl.config({
 if hl.plugin.hyprbars then
   hl.plugin.hyprbars.add_button({
     bg_color = "rgba(00000000)",
-    fg_color = "@DANGER_RGBA_FF@",
+    fg_color = theme_colour("danger", "@DANGER_RGBA_FF@"),
     size = 14,
     icon = "X",
     action = "hyprctl dispatch 'hl.dsp.window.close()'",
