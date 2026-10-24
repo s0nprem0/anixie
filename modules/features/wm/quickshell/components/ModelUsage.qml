@@ -114,7 +114,6 @@ BarWidget {
 
     Panel {
       id: card
-      title: ""
 
       PanelHero {
         width: card.contentWidth

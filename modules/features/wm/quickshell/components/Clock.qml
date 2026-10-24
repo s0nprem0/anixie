@@ -246,8 +246,16 @@ BarWidget {
 
     Panel {
       id: zoneCard
-      title: "Clock timezone"
       maxWidth: Style.space(300)
+
+      PanelHero {
+        width: zoneCard.contentWidth
+        glyph: Util.clock
+        title: "Clock timezone"
+        subtitle: "the time zone shown in the bar"
+      }
+
+      PanelSeparator {}
 
       Repeater {
         model: root.zones
@@ -278,7 +286,6 @@ BarWidget {
       id: cal
 
       // No header of the Panel's own: the month and its steppers are the header.
-      title: ""
       maxWidth: Style.space(284)
 
       readonly property date today: new Date()

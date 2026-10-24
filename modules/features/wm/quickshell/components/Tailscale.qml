@@ -348,7 +348,6 @@ BarWidget {
 
     Panel {
       id: card
-      title: ""
 
       Component.onCompleted: {
         root.refreshDetails()

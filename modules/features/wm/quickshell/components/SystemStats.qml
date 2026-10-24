@@ -208,7 +208,15 @@ BarWidget {
 
     Panel {
       id: card
-      title: "System"
+
+      PanelHero {
+        width: card.contentWidth
+        glyph: Util.cpu
+        title: "System"
+        subtitle: "CPU, memory and load"
+      }
+
+      PanelSeparator {}
 
       PanelRow {
         width: card.contentWidth

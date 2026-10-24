@@ -1,8 +1,11 @@
 import QtQuick
 import ".."
 
-// The card a panel's contents sit in: a rounded surface with a title row, then
-// whatever rows and controls the panel puts below it.
+// The card a panel's contents sit in: a surface, a scroller, and the keyboard.
+//
+// The heading is the panel's own PanelHero, not a second title owned here. Two
+// header treatments meant the System and Clock panels looked like a different
+// kind of card from every other one; this type is now only the container.
 //
 // Children a panel declares land in the content column rather than on the card
 // itself, which is the whole point of the type.
@@ -18,8 +21,6 @@ FocusScope {
   // Children a panel declares land in the content column rather than on the
   // card itself, which is the whole point of the type.
   default property alias content: body.data
-
-  property string title: ""
 
   // Whether the card holds the keys. True by default, and the one thing a panel
   // that is not the only window on screen would set false — a future panel drawn
@@ -61,9 +62,7 @@ FocusScope {
   readonly property bool scrollable: body.implicitHeight > root.maxHeight
 
   implicitWidth: root.maxWidth
-  implicitHeight: padding * 2
-    + (header.visible ? header.implicitHeight + Style.space(10) : 0)
-    + Math.min(body.implicitHeight, root.maxHeight)
+  implicitHeight: padding * 2 + Math.min(body.implicitHeight, root.maxHeight)
 
   // Row width for panel contents. Exposed as a property because `body` is an id
   // local to this file and is not reachable from the panels that use it.
@@ -277,24 +276,8 @@ FocusScope {
     anchors.fill: parent
     radius: Theme.cornerRadius
     color: Theme.surface
-    border.color: Theme.muted
-    border.width: 1
-  }
-
-  Text {
-    id: header
-    anchors.top: parent.top
-    anchors.left: parent.left
-    anchors.right: parent.right
-    anchors.topMargin: root.padding
-    anchors.leftMargin: root.padding
-    anchors.rightMargin: root.padding
-    visible: root.title !== ""
-    text: root.title
-    color: Theme.fg
-    font.family: Style.font.family
-    font.pixelSize: Style.font.subtitle
-    font.weight: Font.DemiBold
+    border.color: Theme.border
+    border.width: Style.strokeWidth
   }
 
   // The scrolling. A panel that fits is not clipped and cannot be dragged; one
@@ -306,11 +289,11 @@ FocusScope {
   // as broken on the first try.
   Flickable {
     id: scroller
-    anchors.top: header.visible ? header.bottom : parent.top
+    anchors.top: parent.top
     anchors.left: parent.left
     anchors.right: parent.right
     anchors.bottom: parent.bottom
-    anchors.topMargin: header.visible ? Style.space(10) : root.padding
+    anchors.topMargin: root.padding
     anchors.leftMargin: root.padding
     // The scrollbar sits inside the flickable's right edge, so the gap it takes
     // is taken off the content rather than off the card: a panel that scrolls
@@ -357,7 +340,7 @@ FocusScope {
       radius: Theme.cornerRadius
       color: "transparent"
       border.color: Theme.primary
-      border.width: 1
+      border.width: Style.strokeWidth
     }
   }
 }
