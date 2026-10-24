@@ -32,6 +32,10 @@ in
   # `monitors brightness` needs when focus is on an HDMI/DP display.
   hardware.i2c.enable = true;
 
+  # The compositor and the shell both need OpenGL. Kept here rather than in
+  # gaming.nix so turning Steam off does not take the graphics stack with it.
+  hardware.graphics.enable = true;
+
   services = {
     # greetd owns PAM and the VT; tuigreet is just the terminal UI it starts.
     # GDM brought the GNOME session stack along to draw one login prompt.

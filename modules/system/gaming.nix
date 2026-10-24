@@ -39,9 +39,10 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # 32-bit graphics are what Steam's Proton and many older titles need. They
-    # are also the reason Steam is a system-level package rather than a user one.
-    hardware.graphics.enable = true;
+    # The base graphics stack is enabled by desktop.nix, because Hyprland needs
+    # it whether or not gaming is installed. 32-bit graphics are the gaming-only
+    # part: Steam's Proton and many older titles need them, and they are also
+    # why Steam is a system-level package rather than a user one.
     hardware.graphics.enable32Bit = true;
 
     programs.gamemode.enable = cfg.gamemode;
