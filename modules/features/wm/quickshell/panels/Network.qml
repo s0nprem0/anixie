@@ -592,6 +592,16 @@ Item {
     if (root.stateDir !== "") rmQr.running = true
   }
 
+  function bandLabel(item) {
+    if (!item) return ""
+
+    const bands = item.inUse && root.band !== ""
+      ? [root.band]
+      : (item.bands || [])
+
+    return bands.length > 0 ? bands.join("/") + " GHz" : ""
+  }
+
   // Signal bars: four steps, filled by where the percentage lands.
   function signalLevel(percent) {
     if (percent >= 70) return 4
@@ -914,24 +924,38 @@ Item {
           else root.connect(rowItem.modelData.ssid)
         }
 
-        // Four ascending bars, the filled count set by the signal percentage.
         Row {
-          spacing: 2
+          spacing: Style.space(6)
 
-          Repeater {
-            model: 4
-            delegate: Rectangle {
-              required property int index
-              width: 3
-              height: 4 + index * 3
-              radius: Theme.cornerRadius
-              // Standing on the same line, not floating around their own middles:
-              // centre-aligned bars of four different heights read as dashes, not
-              // as a staircase, which is the whole point of the glyph.
-              anchors.bottom: parent.bottom
-              color: index < root.signalLevel(rowItem.modelData.signal)
-                ? (rowItem.selected ? Theme.accent : Theme.muted)
-                : Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.12)
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: text !== ""
+            text: root.bandLabel(rowItem.modelData)
+            color: Theme.muted
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            renderType: Text.NativeRendering
+          }
+
+          // Four ascending bars, the filled count set by the signal percentage.
+          Row {
+            spacing: 2
+
+            Repeater {
+              model: 4
+              delegate: Rectangle {
+                required property int index
+                width: 3
+                height: 4 + index * 3
+                radius: Theme.cornerRadius
+                // Standing on the same line, not floating around their own middles:
+                // centre-aligned bars of four different heights read as dashes, not
+                // as a staircase, which is the whole point of the glyph.
+                anchors.bottom: parent.bottom
+                color: index < root.signalLevel(rowItem.modelData.signal)
+                  ? (rowItem.selected ? Theme.accent : Theme.muted)
+                  : Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.12)
+              }
             }
           }
         }

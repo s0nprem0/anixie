@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Networking
+import Quickshell.Io
 
 // NetworkManager through Quickshell's D-Bus service.
 //
@@ -50,6 +51,11 @@ QtObject {
     ? Math.round(Number(root.activeNetwork.signalStrength || 0) * 100)
     : 0
 
+  // SSID -> bands. Quickshell's WifiNetwork has no frequency, so the bands come
+  // from NetworkManager's access-point cache. The cache is kept warm by the
+  // scanner the panel enables.
+  property var bandMap: ({})
+
   // One row per name. A network broadcast by the 2.4 and 5 GHz radios is the
   // same choice twice; the connected one wins, otherwise the stronger one does,
   // and the pair counts as secured if either half is.
@@ -70,6 +76,7 @@ QtObject {
         signal: Math.round(Number(network.signalStrength || 0) * 100),
         secured: network.security !== WifiSecurityType.Open,
         inUse: network.connected,
+        bands: root.bandMap[ssid] || [],
         network: network
       }
 
@@ -155,6 +162,7 @@ QtObject {
     root.scannerUsers += 1
     root.updateScanner()
     root.scan()
+    root.refreshBands()
   }
 
   function deactivate() {
@@ -183,11 +191,80 @@ QtObject {
 
   property Timer scanTimeout: Timer {
     interval: 3000
-    onTriggered: root.scanning = false
+    onTriggered: {
+      root.scanning = false
+      root.refreshBands()
+    }
+  }
+
+  function bandForFreq(value) {
+    const mhz = parseInt(String(value), 10)
+    if (isNaN(mhz)) return ""
+    if (mhz >= 2400 && mhz < 2500) return "2.4"
+    if (mhz >= 4900 && mhz < 5925) return "5"
+    if (mhz >= 5925 && mhz < 7125) return "6"
+    return ""
+  }
+
+  function refreshBands() {
+    if (!root.wifiDevice) {
+      root.bandMap = ({})
+      return
+    }
+
+    bandsProcess.command = ["sh", "-c",
+      'nmcli -t -e no -g FREQ,SSID dev wifi list ifname "$1" --rescan no 2>/dev/null',
+      "_", root.wifiDevice.name]
+    bandsProcess.running = false
+    bandsProcess.running = true
+  }
+
+  property Process bandsProcess: Process {
+    id: bandsProcess
+    running: false
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const map = {}
+        const lines = String(this.text || "").split("\n")
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i]
+          if (line === "") continue
+
+          const split = line.indexOf(":")
+          if (split < 0) continue
+
+          const band = root.bandForFreq(line.slice(0, split))
+          if (band === "") continue
+
+          const ssid = line.slice(split + 1)
+          if (ssid === "") continue
+          if (!map[ssid]) map[ssid] = []
+          if (map[ssid].indexOf(band) < 0) map[ssid].push(band)
+        }
+
+        for (const ssid in map) {
+          map[ssid].sort(function (a, b) {
+            const order = { "2.4": 0, "5": 1, "6": 2 }
+            return order[a] - order[b]
+          })
+        }
+
+        root.bandMap = map
+      }
+    }
+  }
+
+  property Timer bandsTimer: Timer {
+    interval: 5000
+    repeat: true
+    running: root.scannerUsers > 0
+    onTriggered: root.refreshBands()
   }
 
   onWifiDeviceChanged: {
     if (root.scannerUsers > 0) root.updateScanner()
+    root.refreshBands()
   }
 
   // ---- actions ----
