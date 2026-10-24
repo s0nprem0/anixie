@@ -6,15 +6,15 @@
     },
     {
       "label": "Terminal",
-      "run": "kitty"
+      "run": "app-launch kitty"
     },
     {
       "label": "Files",
-      "run": "thunar"
+      "run": "app-launch thunar"
     },
     {
       "label": "Editor",
-      "run": "helix"
+      "run": "app-launch kitty -e ${EDITOR:-hx}"
     },
     {
       "label": "Browser",
@@ -111,12 +111,24 @@
           "run": "theme set {}"
         },
         {
+          "label": "Wallpaper",
+          "run": "wallpaper"
+        },
+        {
           "label": "Next theme",
           "run": "theme next"
         },
         {
           "label": "Previous theme",
           "run": "theme prev"
+        },
+        {
+          "label": "Dock",
+          "run": "quickshell ipc call dock toggle"
+        },
+        {
+          "label": "Glass effect",
+          "run": "glass-toggle"
         },
         {
           "label": "Bar on or off",
@@ -129,23 +141,43 @@
       "entries": [
         {
           "label": "Displays",
-          "run": "quickshell ipc call panel toggle displays"
+          "run": "quickshell ipc call panel toggle displays",
+          "when": "panel:displays"
         },
         {
           "label": "Brightness & text size",
-          "run": "quickshell ipc call panel toggle display"
+          "run": "quickshell ipc call panel toggle display",
+          "when": "panel:display"
+        },
+        {
+          "label": "Audio",
+          "run": "quickshell ipc call panel toggle audio",
+          "when": "panel:audio"
+        },
+        {
+          "label": "Notifications",
+          "run": "quickshell ipc call panel toggle notifications",
+          "when": "panel:notifications"
+        },
+        {
+          "label": "Calendar",
+          "run": "quickshell ipc call panel toggle calendar",
+          "when": "panel:calendar"
         },
         {
           "label": "Network & DNS",
-          "run": "quickshell ipc call panel toggle network"
+          "run": "quickshell ipc call panel toggle network",
+          "when": "panel:network"
         },
         {
           "label": "Bluetooth",
-          "run": "quickshell ipc call panel toggle bluetooth"
+          "run": "quickshell ipc call panel toggle bluetooth",
+          "when": "panel:bluetooth"
         },
         {
           "label": "Power profile",
-          "run": "quickshell ipc call panel toggle power"
+          "run": "quickshell ipc call panel toggle power",
+          "when": "panel:power"
         },
         {
           "label": "Keyboard shortcuts",
@@ -186,10 +218,6 @@
         {
           "group": "Bar",
           "entries": [
-            {
-              "label": "Show or hide bar",
-              "run": "quickshell ipc call bar toggle"
-            },
             {
               "group": "Position",
               "entries": [
@@ -324,12 +352,12 @@
       "group": "System",
       "entries": [
         {
-          "label": "Keyboard shortcuts",
-          "run": "shortcuts"
+          "label": "Rebuild system\u2026",
+          "run": "app-launch kitty --hold -e anixie update"
         },
         {
           "label": "Clean up generations\u2026",
-          "run": "kitty -e nh clean all --keep 5"
+          "run": "app-launch kitty -e nh clean all --keep 5"
         },
         {
           "label": "Screen time & focus\u2026",
@@ -337,7 +365,8 @@
         },
         {
           "label": "Power menu\u2026",
-          "run": "quickshell ipc call panel toggle session"
+          "run": "quickshell ipc call panel toggle session",
+          "when": "panel:session"
         },
         {
           "label": "Clipboard history",
@@ -354,10 +383,6 @@
         {
           "label": "Reload config",
           "run": "hyprctl reload"
-        },
-        {
-          "label": "Log out",
-          "run": "command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"
         }
       ]
     }

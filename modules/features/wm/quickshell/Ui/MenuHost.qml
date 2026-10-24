@@ -202,7 +202,12 @@ QtObject {
       })
     case "themes":
       return Theme.names().map(function (name) {
-        return { label: name, icon: "", app: null }
+        return {
+          label: name,
+          icon: "",
+          app: null,
+          state: name === Theme.name ? "current" : ""
+        }
       })
     case "bar-modules":
       return BarConfig.availableModules().map(function (id) {
@@ -247,6 +252,13 @@ QtObject {
   // Whether a `when` source holds. A row that only makes sense some of the time
   // — "Stop screen recording" — is left out the rest of it.
   function holds(source) {
+    // A panel entry only works while its widget is on the bar: the panel is
+    // anchored to that widget and PanelRegistry is what the toggle looks up.
+    // On a minimal bar the widget may not be there, so hide the row rather
+    // than leave one that logs a warning and does nothing.
+    if (String(source).indexOf("panel:") === 0)
+      return PanelRegistry.names().indexOf(String(source).slice(6)) >= 0
+
     switch (source) {
     case "recording": return RecorderHost.recording
     }
@@ -299,7 +311,7 @@ QtObject {
               label: child.label,
               group: childGroup,
               icon: child.icon,
-              state: "",
+              state: child.state !== undefined ? String(child.state) : "",
               app: child.app,
               run: template.split("{}").join(Util.shellQuote(child.label))
             })
