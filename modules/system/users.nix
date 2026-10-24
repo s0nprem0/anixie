@@ -11,9 +11,10 @@
   # end of a rebuild: `nh` elevates itself, so it asks once and keeps it for the
   # activation rather than asking for every step.
   #
-  # The bar's key says so when it is the other way round. It is not on here, and
-  # the module behind it (wm/toggles/passwordless-sudo.sh) stays for a machine
-  # that does have NOPASSWD.
+  # The bar's key says so when it is the other way round, and opens this file
+  # when clicked. It is not on here, and the module behind it
+  # (wm/toggles/passwordless-sudo.sh) stays for a machine that does have
+  # NOPASSWD. Rebuild after changing the line below; /etc/sudoers is generated.
   security.sudo.wheelNeedsPassword = true;
 
   users.users.${user} = {

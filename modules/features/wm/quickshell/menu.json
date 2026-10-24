@@ -288,7 +288,7 @@
           "group": "Security",
           "entries": [
             {
-              "label": "Passwordless sudo",
+              "label": "Edit sudo setting",
               "run": "passwordless-sudo edit"
             }
           ]
