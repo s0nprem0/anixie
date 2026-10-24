@@ -95,13 +95,14 @@ Item {
   // — the alternative is a panel that can only ever add a resolver, never go
   // back to the one DHCP gave you.
   readonly property var dnsProviders: [
-    { label: "Automatic", value: "" },
-    { label: "Cloudflare", value: "1.1.1.1 1.0.0.1" },
-    { label: "Quad9", value: "9.9.9.9 149.112.112.112" },
-    { label: "Google", value: "8.8.8.8 8.8.4.4" }
+    { label: "Automatic", value: "", value6: "" },
+    { label: "Cloudflare", value: "1.1.1.1 1.0.0.1", value6: "2606:4700:4700::1111 2606:4700:4700::1001" },
+    { label: "Quad9", value: "9.9.9.9 149.112.112.112", value6: "2620:fe::fe 2620:fe::9" },
+    { label: "Google", value: "8.8.8.8 8.8.4.4", value6: "2001:4860:4860::8888 2001:4860:4860::8844" }
   ]
 
   property string dns: ""
+  property string dns6: ""
   property bool dnsBusy: false
 
   // ---- band ----
@@ -327,42 +328,57 @@ Item {
 
   function dnsIndex() {
     const current = root.dnsKey(root.dns)
+    const current6 = root.dnsKey(root.dns6)
     for (let i = 0; i < root.dnsProviders.length; i++) {
-      if (root.dnsKey(root.dnsProviders[i].value) === current) return i
+      const provider = root.dnsProviders[i]
+      if (root.dnsKey(provider.value) === current && root.dnsKey(provider.value6) === current6) {
+        return i
+      }
     }
     return -1
   }
 
   function refreshDns() {
-    const connection = root.activeConnection
-    if (!root.connected || connection === "") {
+    if (!root.connected || root.activeConnection === "") {
       root.dns = ""
+      root.dns6 = ""
       return
     }
 
-    dnsGet.command = ["sh", "-c",
-      'nmcli -g ipv4.dns con show "$1" 2>/dev/null || true', "_", connection]
     dnsGet.running = false
     dnsGet.running = true
   }
 
-  function setDns(value) {
-    const connection = root.activeConnection
-    if (connection === "") return
+  function setDns(provider) {
+    if (!provider || root.activeConnection === "") return
 
     root.actionError = ""
     root.dnsBusy = true
-    dnsSet.command = ["sh", "-c",
-      'nmcli con mod "$1" ipv4.dns "$2" ipv4.ignore-auto-dns "$3" >/dev/null && nmcli con up "$1" >/dev/null',
-      "_", connection, value, value === "" ? "no" : "yes"]
+    dnsSet.command = ["wifi-dns", "set", provider.value || "", provider.value6 || ""]
+    dnsSet.running = false
     dnsSet.running = true
   }
 
   Process {
     id: dnsGet
     running: false
+    command: ["wifi-dns"]
     stdout: StdioCollector {
-      onStreamFinished: root.dns = String(this.text).trim().split("\n")[0].trim()
+      onStreamFinished: {
+        let v4 = ""
+        let v6 = ""
+        const lines = String(this.text || "").split("\n")
+
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i] === "") continue
+          const fields = lines[i].split("\t")
+          if (fields[0] === "ipv4") v4 = fields[1] || ""
+          else if (fields[0] === "ipv6") v6 = fields[1] || ""
+        }
+
+        root.dns = v4
+        root.dns6 = v6
+      }
     }
   }
 
@@ -717,7 +733,7 @@ Item {
         placeholder: "custom"
         enabled: !root.dnsBusy
         currentIndex: root.dnsIndex()
-        onActivated: function (index) { root.setDns(root.dnsProviders[index].value) }
+        onActivated: function (index) { root.setDns(root.dnsProviders[index]) }
       }
     }
 

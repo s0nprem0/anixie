@@ -47,12 +47,18 @@ let
       builtins.readFile ./wifi-band.sh
     )
   );
+
+  wifiDns = pkgs.writeShellScriptBin "wifi-dns" (
+    builtins.replaceStrings [ "@NMCLI@" ] [ "${pkgs.networkmanager}/bin/nmcli" ] (
+      builtins.readFile ./wifi-dns.sh
+    )
+  );
 in
 {
   options.anixie.wm.network.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
-    description = "Whether to install the network helpers: Wi-Fi QR/password/band commands and the Taildrop receiver.";
+    description = "Whether to install the network helpers: Wi-Fi QR/password/band/DNS commands and the Taildrop receiver.";
   };
 
   config = lib.mkIf cfg.enable {
@@ -60,6 +66,7 @@ in
       wifiQr
       wifiPassword
       wifiBand
+      wifiDns
       taildropReceive
     ];
 
