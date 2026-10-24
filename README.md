@@ -40,7 +40,7 @@ modules/features/         per-user side
   applications/           packaged apps, one directory each
   cli/                    the `anixie` front door
   power/                  power profiles per source, battery thresholds
-  shell/                  zsh, git, helix, kitty, yazi, tools
+  shell/                  zsh, git, helix, neovim, kitty, yazi, tools
   theming/                palettes, templates, and the commands that apply them
   wm/                     Hyprland, Quickshell, capture, clipboard, picker, toggles
     hyprland/config/      the compositor's Lua, one section per file (concatenated)
