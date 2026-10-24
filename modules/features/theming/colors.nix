@@ -11,6 +11,10 @@ let
   # rendered or written to the state directory.
   palettes = builtins.fromJSON (builtins.readFile ./themes.json);
 
+  # `muted` is the secondary text token — panel section headers, hints, empty
+  # states. It has to clear WCAG AA (4.5:1) against the panel surface, not only
+  # the background, or those labels become unreadable in a dark palette. Several
+  # of the upstream colours did not, so they carry a lightened `muted` here.
   names = builtins.attrNames palettes;
 
   colours = builtins.mapAttrs (_: palette: removeAttrs palette [ "_mode" ]) palettes;
