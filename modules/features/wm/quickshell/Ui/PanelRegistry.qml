@@ -149,6 +149,27 @@ QtObject {
     return previous[previous.length - 1]
   }
 
+  // The item a panel should hang off. Usually the widget's own button, but a
+  // widget parked in the tray lives in the drawer's window, which hides as soon
+  // as its panel opens. Use the tray handle on the bar instead: it is the part
+  // that stays put, and it keeps the panel on screen instead of anchoring it to
+  // a window that is no longer mapped.
+  function displayAnchor(entry) {
+    const anchor = entry ? entry.anchor : null
+    const screenName = root.screenOf(entry)
+    const host = PanelHost.barFor(screenName)
+    if (!anchor || !host) return anchor
+
+    if (anchor.Window.window === host.Window.window) return anchor
+
+    for (let i = 0; i < BarContext.trays.length; i++) {
+      const tray = BarContext.trays[i]
+      if (tray.screenName === screenName && tray.handle) return tray.handle
+    }
+
+    return anchor
+  }
+
   function toggle(name, anchor) {
     const entry = root.entryFor(name, anchor)
     if (!entry || !entry.anchor) {
@@ -156,7 +177,7 @@ QtObject {
       return
     }
 
-    PanelHost.toggle(name, entry.anchor, entry.builder)
+    PanelHost.toggle(name, root.displayAnchor(entry), entry.builder)
   }
 
   // Panels left to right (or top to bottom on a side bar), by where their
@@ -175,7 +196,7 @@ QtObject {
       const entryScreen = root.screenOf(entry) || Screens.focusedName
       const hostScreen = Screens.screenNameOf(host) || Screens.focusedName
       if (entryScreen !== hostScreen) continue
-      const point = entry.anchor.mapToItem(host, 0, 0)
+      const point = root.displayAnchor(entry).mapToItem(host, 0, 0)
       list.push({ name: name, x: point.x, y: point.y })
     }
 

@@ -27,6 +27,13 @@ FocusScope {
   // beside this one, or a popup of its own, takes focus away by having it.
   focus: true
 
+  // Whether PanelHost owns this card. The tray drawer is the exception: it keeps
+  // its window — and the parked widgets that anchor their own panels from inside
+  // it — alive while closed, so it is not one of the host's open panels and has
+  // to close itself on Escape and keep Tab inside itself.
+  property bool hosted: true
+  property var closeHandler: null
+
   // A `focus: true` scope alone does not hold the keyboard. The surface's own
   // exclusive focus routes the keys here, but an item still has to be the one
   // they land on, and a freshly mapped surface has none. The picker refocuses its
@@ -157,6 +164,16 @@ FocusScope {
     root.focusStop(list[index])
   }
 
+  function firstStop() {
+    const list = root.stops()
+    if (list.length > 0) root.focusStop(list[0])
+  }
+
+  function lastStop() {
+    const list = root.stops()
+    if (list.length > 0) root.focusStop(list[list.length - 1])
+  }
+
   function focusStop(item) {
     root.focusedItem = item
     root.keyboard = true
@@ -221,21 +238,21 @@ FocusScope {
     // screen it walks this panel's own controls, the way Tab does everywhere
     // else. The arrows do the same walk, so a panel never needs Tab to be usable.
     case Qt.Key_Tab:
-      if (PanelHost.openPanels.count < 2) root.moveCursor(1)
+      if (!root.hosted || PanelHost.openPanels.count < 2) root.moveCursor(1)
       else PanelHost.focusNext(event.modifiers & Qt.ShiftModifier ? -1 : 1)
       event.accepted = true
       break
     case Qt.Key_Backtab:
-      if (PanelHost.openPanels.count < 2) root.moveCursor(-1)
+      if (!root.hosted || PanelHost.openPanels.count < 2) root.moveCursor(-1)
       else PanelHost.focusNext(-1)
       event.accepted = true
       break
     case Qt.Key_Home:
-      root.moveCursor(root.stops().length)
+      root.firstStop()
       event.accepted = true
       break
     case Qt.Key_End:
-      root.moveCursor(-1)
+      root.lastStop()
       event.accepted = true
       break
     case Qt.Key_Return:
@@ -256,7 +273,8 @@ FocusScope {
     case Qt.Key_Escape:
       // The panel the keys are on, not all of them: with several open, one
       // Escape putting them all away would make the rest unreachable by keyboard.
-      PanelHost.closeFocused()
+      if (root.closeHandler) root.closeHandler()
+      else PanelHost.closeFocused()
       event.accepted = true
       break
     }

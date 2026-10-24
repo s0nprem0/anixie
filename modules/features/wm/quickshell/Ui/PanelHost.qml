@@ -297,6 +297,19 @@ QtObject {
     root.openPanels.clear()
     root.entries = ({})
     root.focused = ""
+    root.closeTrays()
+  }
+
+  // The tray drawer is not one of the panels above: it keeps its own window
+  // alive so parked widgets can open panels from inside it after the drawer
+  // hides. It is still one panel per screen, so opening another panel or
+  // closing everything closes it too.
+  function closeTrays(screenName) {
+    for (let i = 0; i < BarContext.trays.length; i++) {
+      const tray = BarContext.trays[i]
+      if (!tray || !tray.drawerOpen) continue
+      if (screenName === undefined || tray.screenName === screenName) tray.drawerOpen = false
+    }
   }
 
   // Dismissing by clicking a curtain only covers that output: the panels on
@@ -305,6 +318,7 @@ QtObject {
     for (let i = root.openPanels.count - 1; i >= 0; i--) {
       if (root.openPanels.get(i).screenName === screenName) root.closeIndex(i)
     }
+    root.closeTrays(screenName)
   }
 
   function focus(name, screenName) {

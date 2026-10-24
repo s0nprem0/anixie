@@ -562,8 +562,7 @@ ShellRoot {
     // The tray drawer, for a script or a key: what a click on the parked count
     // opens.
     function tray(): void {
-      if (!BarContext.trayItem) return
-      PanelHost.toggle("tray", BarContext.trayItem, BarContext.trayItem.drawer)
+      if (BarContext.trayItem) BarContext.trayItem.toggleDrawer()
     }
   }
 

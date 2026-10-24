@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Services.SystemTray
+import Quickshell.Wayland
 import ".."
 import "../Ui"
 
@@ -22,8 +23,6 @@ BarWidget {
   // drawer is where it comes back out.
   readonly property var parked: BarConfig.section("tray")
 
-  readonly property Component drawer: drawerComponent
-
   // The drawer opens by clicking the handle or with `bar tray`, never on hover.
   // A hover reveal made crossing the right end of the bar enough to open it,
   // and a tray icon appearing could shift the layout under a resting pointer
@@ -37,7 +36,41 @@ BarWidget {
   Component.onDestruction: BarContext.unregisterTray(root)
 
   readonly property string screenName: Screens.nameOf(root)
-  readonly property bool drawerOpen: PanelHost.isOpen("tray", root.screenName)
+
+  // The stable bar anchor for a parked widget's panel. The drawer is a separate
+  // window that hides as soon as that panel opens, so the widget's own button
+  // cannot be the anchor; the handle on the bar is.
+  readonly property Item handle: parkedButton
+
+  // The drawer is its own window, not a PanelHost panel. It has to stay mapped
+  // — hidden rather than destroyed — because the parked widgets inside it are
+  // the anchors for their own panels: a Tailscale panel opened from the tray
+  // would otherwise lose the widget (and its state) the moment the drawer
+  // closed to make room for it. PanelHost still closes it through closeTrays().
+  property bool drawerOpen: false
+  property var drawerScreen: null
+  readonly property string drawerScreenName: root.drawerScreen
+    ? String(root.drawerScreen.name)
+    : root.screenName
+
+  function openDrawer() {
+    if (root.drawerOpen) return
+    // Resolve the output now rather than in a binding: at Component.onCompleted
+    // the bar has no attached screen yet, and a screen set then would be the
+    // focused output for every bar.
+    root.drawerScreen = Screens.byName(root.screenName) || Screens.focused
+    PanelHost.closeForScreen(root.screenName)
+    root.drawerOpen = true
+  }
+
+  function closeDrawer() {
+    root.drawerOpen = false
+  }
+
+  function toggleDrawer() {
+    if (root.drawerOpen) root.closeDrawer()
+    else root.openDrawer()
+  }
 
   // The path for an item's icon, trying every name it might have gone by.
   //
@@ -144,7 +177,7 @@ BarWidget {
   // it rather than leaving an empty panel floating.
   function closeIfEmpty() {
     if (root.parked.length === 0 && root.items.length === 0 && root.drawerOpen) {
-      PanelHost.close("tray", root.screenName)
+      root.closeDrawer()
     }
   }
 
@@ -171,8 +204,38 @@ BarWidget {
         return parts.join(" · ") + " · click to open"
       }
       onPressed: function () {
-        PanelHost.toggle("tray", parkedButton, root.drawer)
+        root.toggleDrawer()
       }
+    }
+  }
+
+  // Clicking outside closes the drawer. The curtain stops short of the bar, so
+  // the tray handle itself stays live and toggles the drawer shut.
+  PanelWindow {
+    visible: root.drawerOpen
+    screen: root.drawerScreen
+
+    anchors.top: true
+    anchors.bottom: true
+    anchors.left: true
+    anchors.right: true
+
+    color: "transparent"
+    exclusionMode: ExclusionMode.Ignore
+
+    margins.top: BarContext.position === "top" ? PanelHost.barExtent : 0
+    margins.bottom: BarContext.position === "bottom" ? PanelHost.barExtent : 0
+    margins.left: BarContext.position === "left" ? PanelHost.barExtent : 0
+    margins.right: BarContext.position === "right" ? PanelHost.barExtent : 0
+
+    WlrLayershell.layer: WlrLayer.Top
+    WlrLayershell.namespace: "quickshell-tray-curtain"
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+
+    MouseArea {
+      anchors.fill: parent
+      acceptedButtons: Qt.LeftButton | Qt.RightButton
+      onPressed: root.closeDrawer()
     }
   }
 
@@ -180,11 +243,65 @@ BarWidget {
   // a click outside, takes the keyboard when opened by a click, and a widget
   // opened from it can have its own panel beside it, which a strip that has to
   // stay inside the bar's height could not.
-  Component {
-    id: drawerComponent
+  //
+  // The window lives as long as the bar does and is only hidden, never
+  // destroyed, so the parked widgets — and the panels anchored to them — stay
+  // alive when another panel takes the screen.
+  PanelWindow {
+    id: drawerWindow
+    visible: root.drawerOpen
+    screen: root.drawerScreen
+
+    readonly property bool onRight: BarContext.vertical && BarContext.position === "right"
+    readonly property bool onBottom: !BarContext.vertical && BarContext.position === "bottom"
+
+    anchors.top: !drawerWindow.onBottom
+    anchors.bottom: drawerWindow.onBottom
+    anchors.left: !drawerWindow.onRight
+    anchors.right: drawerWindow.onRight
+
+    // The window exists while the drawer is closed, so the position is computed
+    // on open rather than once at creation: the handle has no layout position
+    // yet when the bar is first built.
+    margins.top: drawerWindow.onBottom
+      ? 0
+      : (BarContext.vertical
+        ? (root.drawerOpen
+          ? PanelHost.panelY(parkedButton, drawerWindow.implicitHeight, root.drawerScreenName)
+          : 0)
+        : PanelHost.barExtent)
+    margins.bottom: drawerWindow.onBottom ? PanelHost.barExtent : 0
+    margins.left: drawerWindow.onRight
+      ? 0
+      : (BarContext.vertical
+        ? PanelHost.barExtent
+        : (root.drawerOpen
+          ? PanelHost.panelX(parkedButton, drawerWindow.implicitWidth, root.drawerScreenName)
+          : 0))
+    margins.right: drawerWindow.onRight ? PanelHost.barExtent : 0
+
+    implicitWidth: trayCard.implicitWidth
+    implicitHeight: trayCard.implicitHeight
+
+    color: "transparent"
+    exclusionMode: ExclusionMode.Ignore
+
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.namespace: "quickshell-tray"
+    WlrLayershell.keyboardFocus: root.drawerOpen
+      ? WlrKeyboardFocus.Exclusive
+      : WlrKeyboardFocus.None
+
+    // The window outlives the open state, so the card's creation-time focus is
+    // not enough: a window that had focus once does not take it back on its own.
+    onVisibleChanged: {
+      if (visible) Qt.callLater(function () { trayCard.forceActiveFocus() })
+    }
 
     Panel {
       id: trayCard
+      hosted: false
+      closeHandler: root.closeDrawer
 
       PanelHero {
         width: trayCard.contentWidth
