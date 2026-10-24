@@ -14,4 +14,6 @@ WORDCHARS=${WORDCHARS//\/}
 # newline (empty string used to hide it, merging output into the prompt)
 PROMPT_EOL_MARK='%{%F{yellow}%}⏎%{%f%}'
 
-export KEYTIMEOUT=1
+# 20 = 200ms. The default 40 is sluggish for Esc-prefixed bindings, while 1
+# (10ms) is too short for the Esc-Esc sudo binding in bindings.zsh.
+export KEYTIMEOUT=20

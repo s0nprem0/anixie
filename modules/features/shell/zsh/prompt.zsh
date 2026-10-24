@@ -81,10 +81,11 @@ toggle_oneline_prompt() {
     fi
 
     configure_prompt
+
     zle reset-prompt
 }
 
 zle -N toggle_oneline_prompt
-bindkey '^[p' toggle_oneline_prompt
+bindkey '^Xp' toggle_oneline_prompt
 
 configure_prompt

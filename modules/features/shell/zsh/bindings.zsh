@@ -22,3 +22,10 @@ sudo-command-line() {
 }
 zle -N sudo-command-line
 bindkey '\e\e' sudo-command-line                  # esc + esc
+
+# fzf's generated bindings claim Ctrl-R. Atuin owns interactive history (see
+# history.zsh), so put Ctrl-R back after fzf has been sourced.
+if (( $+commands[atuin] )); then
+  bindkey -M emacs '^R' atuin-search
+  bindkey -M viins '^R' atuin-search-viins
+fi
