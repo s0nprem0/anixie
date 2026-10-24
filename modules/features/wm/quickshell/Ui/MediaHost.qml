@@ -45,9 +45,13 @@ QtObject {
     return String(player.identity || player.desktopEntry || "Media player")
   }
 
-  function showOsd(icon, player) {
+  function showOsd(icon, player, prefix) {
     if (!player) return
-    OsdHost.show(icon, root.osdName(player), "", "100", "", 1600)
+    const name = root.osdName(player)
+    const message = prefix ? prefix + " · " + name : name
+    // No explicit duration: a title is read, not glanced at, so the OSD sizes
+    // its own time from the message.
+    OsdHost.show(icon, message, "", "100", "")
   }
 
   // The keys go through the shell instead of playerctl so the same action can
@@ -57,9 +61,12 @@ QtObject {
     const player = root.active
     if (!player || !player.canTogglePlaying) return
 
-    const icon = player.isPlaying ? "media-pause" : "media-play"
+    const wasPlaying = player.isPlaying
     player.togglePlaying()
-    root.showOsd(icon, player)
+    // The glyph matches the new state, and the prefix says it in words: a
+    // pause icon alone could be read as either "paused" or "press to pause".
+    root.showOsd(wasPlaying ? "media-pause" : "media-play", player,
+      wasPlaying ? "Paused" : "Playing")
   }
 
   property string pendingIcon: ""

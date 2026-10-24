@@ -19,7 +19,9 @@ Item {
     ? Math.max(0, Math.min(1, root.value / root.maxValue))
     : 0
 
-  implicitWidth: content.implicitWidth + Style.space(28)
+  // A notice with two words should still look like the OSD, not like a tiny
+  // label that happened to float in. Levels are already wider than this.
+  implicitWidth: Math.max(Style.space(180), content.implicitWidth + Style.space(28))
   implicitHeight: Style.space(36)
 
   Rectangle {
@@ -41,6 +43,7 @@ Item {
         color: Theme.fg
         font.family: Style.font.family
         font.pixelSize: Style.bar.iconFont
+        renderType: Text.NativeRendering
       }
 
       Rectangle {
@@ -48,7 +51,10 @@ Item {
         visible: root.hasProgress
         width: Style.space(120)
         height: Style.space(4)
-        color: Theme.bg
+        // A tint of the foreground rather than the background: on a palette
+        // where those two are close, the track disappeared and the level read
+        // as a floating fill with no extent.
+        color: Theme.separator
 
         Rectangle {
           width: parent.width * root.ratio
@@ -56,9 +62,18 @@ Item {
           color: Theme.primary
 
           Behavior on width {
-            NumberAnimation { duration: Style.duration(140); easing.type: Easing.OutCubic }
+            NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic }
           }
         }
+      }
+
+      // Measuring outside the Text avoids the width -> implicitWidth -> width
+      // loop an elided Text creates when it sizes itself to its own content.
+      TextMetrics {
+        id: messageMetrics
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        text: root.message
       }
 
       Text {
@@ -66,16 +81,17 @@ Item {
 
         // A fixed column keeps the progress card from resizing between "9%"
         // and "100%" or between a level and "Muted". A notice has no such
-        // number, so it takes its own width up to a readable cap.
+        // number, so it takes its measured width up to a readable cap.
         visible: root.message !== ""
         width: root.hasProgress
           ? Style.space(44)
-          : Math.min(implicitWidth, Style.space(root.mediaOsd ? 320 : 220))
+          : Math.min(messageMetrics.advanceWidth, Style.space(root.mediaOsd ? 320 : 220))
         horizontalAlignment: root.hasProgress ? Text.AlignRight : Text.AlignLeft
         text: root.message
         color: Theme.fg
         font.family: Style.font.family
         font.pixelSize: Style.font.body
+        renderType: Text.NativeRendering
         elide: Text.ElideRight
         maximumLineCount: 1
       }

@@ -427,7 +427,7 @@ ShellRoot {
 
       opacity: OsdHost.opened ? 1 : 0
       Behavior on opacity {
-        NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic }
+        NumberAnimation { duration: Style.duration(Style.motion.fast); easing.type: Easing.OutCubic }
       }
     }
   }

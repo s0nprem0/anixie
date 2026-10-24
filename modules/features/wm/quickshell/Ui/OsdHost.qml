@@ -71,6 +71,14 @@ QtObject {
     return Util.volumeHigh
   }
 
+  // A level is read at a glance; a message is read as a sentence. One and a
+  // half seconds could hold "42%" but not a track title, and a notice that
+  // leaves before it is finished is not a readout.
+  function readableDuration(message) {
+    const length = String(message || "").length
+    return Math.min(4000, Math.max(1400, 700 + length * 35))
+  }
+
   function show(iconName, rawMessage, rawValue, rawMax, rawProgressText, rawDuration) {
     const raw = String(rawValue === undefined ? "" : rawValue)
     const parsed = parseInt(raw, 10)
@@ -81,16 +89,23 @@ QtObject {
     const progress = raw !== "" && !isNaN(parsed) && String(rawMessage || "") === ""
     const value = progress ? Math.max(0, Math.min(max, parsed)) : 0
     const percent = progress ? Math.round(value * 100 / max) : -1
+    const message = String(rawMessage || (progress ? (rawProgressText || percent + "%") : ""))
 
-    const duration = parseInt(String(rawDuration === undefined ? "1200" : rawDuration), 10)
+    // An explicit duration — including zero, which means "until dismissed" —
+    // wins. Otherwise the readout stays long enough for its own text.
+    const requested = String(rawDuration === undefined ? "" : rawDuration).trim()
+    const explicit = parseInt(requested, 10)
+    const duration = requested !== "" && !isNaN(explicit)
+      ? Math.max(0, explicit)
+      : (progress ? 1200 : root.readableDuration(message))
 
     root.iconKey = String(iconName || "").toLowerCase()
     root.icon = root.glyphFor(iconName, percent)
     root.hasProgress = progress
     root.value = value
     root.maxValue = max
-    root.message = String(rawMessage || (progress ? (rawProgressText || percent + "%") : ""))
-    root.duration = isNaN(duration) ? 1200 : Math.max(0, duration)
+    root.message = message
+    root.duration = duration
     root.opened = true
 
     // A zero duration is a readout that stays until something closes it.
@@ -107,7 +122,7 @@ QtObject {
         payload.value === undefined ? "" : String(payload.value),
         payload.max === undefined ? "100" : String(payload.max),
         payload.progressText || "",
-        payload.duration === undefined ? "1200" : String(payload.duration)
+        payload.duration === undefined ? "" : String(payload.duration)
       )
     } catch (e) {
       console.warn("osd: could not parse payload: " + e)
