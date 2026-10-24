@@ -14,6 +14,7 @@
 #   monitors set OUTPUT disabled yes|no    turn one output off or on
 #   monitors set OUTPUT position VALUE     auto, auto-left/right/up/down, XxY
 #   monitors set OUTPUT mode VALUE         preferred, highres, highrr, WxH[@R]
+#   monitors set OUTPUT mirror VALUE       none, or the output to mirror
 #   monitors recover                       clear a stale internal-off state
 #   monitors wake                          cycle DPMS on every output
 #   monitors workspace N                   focus the Nth workspace of this monitor
@@ -120,8 +121,12 @@ field_of() {
 # several hyprctl calls that could straddle a change.
 monitor_state() {
   "$jq" -r --arg n "$1" '
-    .[] | select(.name == $n)
-    | [.scale, .transform, .disabled, (.mirrorOf // "none"),
+    . as $all
+    | ($all | map({ key: (.id | tostring), value: .name }) | from_entries) as $names
+    | $all[] | select(.name == $n)
+    | [.scale, .transform, .disabled,
+       (if (.mirrorOf // "none") == "none" or (.mirrorOf // "") == ""
+        then "none" else ($names[.mirrorOf] // .mirrorOf) end),
        "\(.x)x\(.y)"] | @tsv' <<<"$(all_monitors_json)"
 }
 
@@ -201,11 +206,19 @@ apply_change() {
 # is stripped of ddcutil/hyprctl's "Hz" suffix because hl.monitor wants the bare
 # rate when a mode is written back.
 list_action() {
-  "$jq" '[.[] | {
-    name, description, width, height, scale, transform, disabled, focused,
-    x, y, refreshRate, mirrorOf,
-    availableModes: [(.availableModes // [])[] | sub("Hz$"; "")] | unique
-  }]' <<<"$(all_monitors_json)"
+  # Hyprland names the mirror target by monitor id, so an unedited `mirrorOf`
+  # reaches the panel as "0" and reads as a bug on screen. Resolve it against
+  # the same snapshot; a value that is already a name is passed through.
+  "$jq" '
+    . as $all
+    | ($all | map({ key: (.id | tostring), value: .name }) | from_entries) as $names
+    | $all | map({
+        name, description, width, height, scale, transform, disabled, focused,
+        x, y, refreshRate,
+        mirrorOf: (if (.mirrorOf // "none") == "none" or (.mirrorOf // "") == ""
+          then "none" else ($names[.mirrorOf] // .mirrorOf) end),
+        availableModes: [(.availableModes // [])[] | sub("Hz$"; "")] | unique
+      })' <<<"$(all_monitors_json)"
 }
 
 # Read a transform's index out of the names list above.
@@ -381,7 +394,18 @@ mirror_action() {
 }
 
 status_action() {
-  "$jq" -r '.[] | "\(.name)\t\(.width)x\(.height)\tscale \(.scale)\t\(if .disabled then "off" elif (.mirrorOf // "none") == "none" then "extended" else "mirror of \(.mirrorOf)" end)\(if .focused then "\tfocused" else "" end)"' <<<"$(all_monitors_json)"
+  # Same id-to-name resolution as the panel: `mirror of 0` is Hyprland's
+  # internal target id, not something a person can act on.
+  "$jq" -r '
+    . as $all
+    | ($all | map({ key: (.id | tostring), value: .name }) | from_entries) as $names
+    | $all[]
+    | "\(.name)\t\(.width)x\(.height)\tscale \(.scale)\t"
+      + (if .disabled then "off"
+         elif (.mirrorOf // "none") == "none" or (.mirrorOf // "") == ""
+         then "extended"
+         else "mirror of \($names[.mirrorOf] // .mirrorOf)" end)
+      + (if .focused then "\tfocused" else "" end)' <<<"$(all_monitors_json)"
 }
 
 # How many outputs are currently in the layout. A saved state can leave an
@@ -849,8 +873,27 @@ set_action() {
       apply_change "$output" mode "$value"
       save_field "$output" mode "$value"
       ;;
+    mirror)
+      case "$value" in
+        none | off | "") value=none ;;
+        *)
+          [ "$value" = "$output" ] && die "an output cannot mirror itself"
+          [ -n "$(field_of "$value" name)" ] ||
+            die "no output called \"$value\" to mirror"
+          [ "$(field_of "$value" disabled)" = true ] &&
+            die "$value is off; turn it on before mirroring"
+          ;;
+      esac
+      [ "$(field_of "$output" disabled)" = true ] &&
+        die "$output is off; turn it on before mirroring"
+      apply_change "$output" mirror "$value"
+      save_field "$output" mirror "$value"
+      # Coming back to extended gives the output a workspace again, and no
+      # hotplug event arrives for a mirror being turned off.
+      [ "$value" = none ] && workspaces_sync_action >/dev/null
+      ;;
     *)
-      die "set takes scale, transform, disabled, position or mode"
+      die "set takes scale, transform, disabled, position, mode or mirror"
       ;;
   esac
 

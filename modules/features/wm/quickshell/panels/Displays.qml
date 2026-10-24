@@ -5,8 +5,8 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 
-// Displays: every output, and what can be changed about it — scale, rotation,
-// and whether it is on.
+// Displays: every output, and what can be changed about it — layout, scale,
+// rotation, and whether it is on.
 //
 // A second screen arrives after the session is built, so this cannot be a file of
 // rules written at build time. It asks `monitors list` for what is attached now,
@@ -254,6 +254,21 @@ Item {
         readonly property bool focused: block.modelData.focused === true
         readonly property bool mirroring: String(block.modelData.mirrorOf || "none") !== "none"
 
+        // A mirror is a layout choice, not a separate mode: the extended
+        // layout plus every other screen that could be copied. Built per
+        // block because the targets depend on which output this is.
+        readonly property var layoutOptions: {
+          const options = [{ label: "Extended", value: "none" }]
+          const outputs = Array.isArray(root.outputs) ? root.outputs : []
+          for (let i = 0; i < outputs.length; i++) {
+            const other = outputs[i]
+            if (other.name !== block.name && other.disabled !== true) {
+              options.push({ label: "Mirror of " + other.name, value: other.name })
+            }
+          }
+          return options
+        }
+
         // Between screens. The last one needs no gap under it, and a rule is
         // clearer than space for a list of separate objects.
         PanelSeparator {
@@ -303,6 +318,33 @@ Item {
           // No value beside these: the dropdown says what is chosen, and a
           // second copy of it on the other side of the row is the same fact
           // twice, with a gap between the two halves of it.
+
+          // A single screen has nothing to lay out against, so the row only
+          // appears once there is a second attached output to extend onto or
+          // mirror. A switched-off output cannot host a mirror either.
+          PanelRow {
+            id: layoutRow
+            width: parent.width
+            hasControl: true
+            label: "Layout"
+            visible: !block.off && block.layoutOptions.length > 1
+
+            Dropdown {
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              width: layoutRow.controlWidth
+              model: block.layoutOptions
+              placeholder: "extended"
+              // `monitors list` resolves the target id to its name and
+              // normalizes "not mirroring" to none, so an extended screen
+              // matches the first option instead of showing a raw id.
+              currentIndex: root.indexOf(block.layoutOptions, block.modelData.mirrorOf || "none")
+              onActivated: function (index) {
+                root.set(block.name, "mirror", block.layoutOptions[index].value)
+              }
+            }
+          }
+
           PanelRow {
             id: scaleRow
             width: parent.width
