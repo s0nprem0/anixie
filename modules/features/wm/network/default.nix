@@ -20,15 +20,43 @@ let
       ]
       (builtins.readFile ./wifi-qr.sh)
   );
+
+  taildropReceive = pkgs.writeShellScriptBin "taildrop-receive" (
+    builtins.replaceStrings
+      [ "@TAILSCALE@" "@NOTIFY@" "@XDG_OPEN@" ]
+      [
+        "${pkgs.tailscale}/bin/tailscale"
+        config.anixie.wm.notify.bin
+        "${pkgs.xdg-utils}/bin/xdg-open"
+      ]
+      (builtins.readFile ./taildrop-receive.sh)
+  );
 in
 {
   options.anixie.wm.network.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
-    description = "Whether to install the wifi-qr script, which encodes the current network credentials as a QR code.";
+    description = "Whether to install the network helpers: wifi-qr and the Taildrop receiver.";
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ wifiQr ];
+    home.packages = [
+      wifiQr
+      taildropReceive
+    ];
+
+    systemd.user.services.anixie-taildrop = {
+      Unit = {
+        Description = "Receive Taildrop files into Downloads";
+        StartLimitIntervalSec = 0;
+      };
+      Service = {
+        Type = "simple";
+        ExecStart = "${taildropReceive}/bin/taildrop-receive";
+        Restart = "always";
+        RestartSec = 10;
+      };
+      Install.WantedBy = [ "default.target" ];
+    };
   };
 }
