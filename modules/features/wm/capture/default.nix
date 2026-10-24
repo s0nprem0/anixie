@@ -8,6 +8,8 @@
 let
   cfg = config.anixie.wm.capture;
 
+  mkScript = import ../../cli/scripts.nix { inherit pkgs; };
+
   # Every external binary the capture scripts call, in one table. They are
   # substituted in rather than left to $PATH because these run from a Hyprland
   # bind, which does not necessarily carry the user's profile path.
@@ -40,51 +42,69 @@ let
     "@ANIXIE_LIB@" = "${../../cli/lib.sh}";
   };
 
-  # A script with its placeholders filled in. `extra` carries the placeholders
-  # that point at another of these scripts, so a script's name is written once and
-  # every reference to it resolves to the same store path.
-  #
-  # attrNames and attrValues are both ordered by name, so the patterns and their
-  # replacements line up.
-  render =
-    name: path: extra:
-    let
-      all = bins // extra;
-    in
-    pkgs.writeShellScriptBin name (
-      builtins.replaceStrings (builtins.attrNames all) (builtins.attrValues all) (builtins.readFile path)
-    );
+  shotPick = mkScript {
+    name = "shot-pick";
+    file = ./pick.sh;
+    inherit bins;
+  };
 
-  shotPick = render "shot-pick" ./pick.sh { };
-
-  shot = render "shot" ./shot.sh {
-    "@SHOT_PICK@" = "${shotPick}/bin/shot-pick";
+  shot = mkScript {
+    name = "shot";
+    file = ./shot.sh;
+    bins = bins // {
+      "@SHOT_PICK@" = shotPick.command;
+    };
   };
 
   # Check or signal the recorder, by pid. Split out from `record` because the bar
   # indicator asks it whether a recording is running on a poll, and that question
-  # should not have to load the whole recording script to be answered.
-  recordProcess = render "record-process" ./record-process.sh { };
+  # should not have to load the whole recording script to be answered. Used only
+  # through the path `record` carries, so it stays off PATH.
+  recordProcess = mkScript {
+    name = "record-process";
+    file = ./record-process.sh;
+    inherit bins;
+  };
 
-  webcamOverlay = render "webcam-overlay" ./webcam-overlay.sh { };
+  webcamOverlay = mkScript {
+    name = "webcam-overlay";
+    file = ./webcam-overlay.sh;
+    inherit bins;
+  };
 
-  record = render "record" ./record.sh {
-    "@SHOT_PICK@" = "${shotPick}/bin/shot-pick";
-    "@RECORD_PROCESS@" = "${recordProcess}/bin/record-process";
-    "@WEBCAM_OVERLAY@" = "${webcamOverlay}/bin/webcam-overlay";
+  record = mkScript {
+    name = "record";
+    file = ./record.sh;
+    bins = bins // {
+      "@SHOT_PICK@" = shotPick.command;
+      "@RECORD_PROCESS@" = recordProcess.command;
+      "@WEBCAM_OVERLAY@" = webcamOverlay.command;
+    };
   };
 
   # Read something off the screen that is not a picture: the text in a region, or
   # the value behind a QR code.
-  captureText = render "capture-text" ./text.sh {
-    "@SHOT_PICK@" = "${shotPick}/bin/shot-pick";
+  captureText = mkScript {
+    name = "capture-text";
+    file = ./text.sh;
+    bins = bins // {
+      "@SHOT_PICK@" = shotPick.command;
+    };
   };
 
-  captureQr = render "capture-qr" ./qr.sh {
-    "@SHOT_PICK@" = "${shotPick}/bin/shot-pick";
+  captureQr = mkScript {
+    name = "capture-qr";
+    file = ./qr.sh;
+    bins = bins // {
+      "@SHOT_PICK@" = shotPick.command;
+    };
   };
 
-  transcode = render "transcode" ./transcode.sh { };
+  transcode = mkScript {
+    name = "transcode";
+    file = ./transcode.sh;
+    inherit bins;
+  };
 in
 
 {
@@ -97,19 +117,18 @@ in
   config = lib.mkIf cfg.enable {
     home.packages = [
       # The picker, and the screenshot command that uses it.
-      shotPick
-      shot
+      shotPick.package
+      shot.package
 
       # Recording, and the webcam overlay a recording can carry.
-      recordProcess
-      webcamOverlay
-      record
+      webcamOverlay.package
+      record.package
 
       # Reading what is on the screen rather than picturing it, and shrinking what
       # comes off it before sending it somewhere.
-      captureText
-      captureQr
-      transcode
+      captureText.package
+      captureQr.package
+      transcode.package
 
       # Annotation is satty's job. It is written for Wayland and opens in crop mode,
       # so the annotate bind goes straight to cropping rather than making you pick the
