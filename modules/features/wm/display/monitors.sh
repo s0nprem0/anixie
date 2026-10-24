@@ -96,9 +96,13 @@ internal_name() {
   printf '%s' "$name"
 }
 
-# The first active monitor that is not the internal one.
+# The first attached monitor that is not the internal one. Read from the full
+# list: Hyprland drops a mirrored output from `monitors`, so looking only at the
+# active ones makes mirroring a one-way trip — the target is still a valid
+# screen to find, even while it is showing the laptop panel.
 external_name() {
-  "$jq" -r '[.[] | select((.name | test("^eDP")) | not)][0].name // empty' <<<"$(monitors_json)"
+  "$jq" -r '[.[] | select(.disabled == false)
+    | select(.name | test("^eDP|^LVDS|^DSI") | not)][0].name // empty' <<<"$(all_monitors_json)"
 }
 
 scale_of() {
