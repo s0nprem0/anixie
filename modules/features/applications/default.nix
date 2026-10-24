@@ -7,6 +7,7 @@
     ./documents
     ./files
     ./gaming
+    ./localsend
     ./media
     ./craftapps
     ./printer

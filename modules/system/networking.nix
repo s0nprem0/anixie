@@ -17,14 +17,21 @@
 
     hostName = host;
 
-    firewall.interfaces.tailscale0 = {
-      allowedTCPPorts = [ 2222 ];
-      allowedUDPPortRanges = [
-        {
-          from = 60000;
-          to = 61000;
-        }
-      ];
+    firewall = {
+      # LocalSend's discovery and transfer port. It is the only inbound
+      # service exposed to the local network.
+      allowedTCPPorts = [ 53317 ];
+      allowedUDPPorts = [ 53317 ];
+
+      interfaces.tailscale0 = {
+        allowedTCPPorts = [ 2222 ];
+        allowedUDPPortRanges = [
+          {
+            from = 60000;
+            to = 61000;
+          }
+        ];
+      };
     };
   };
 
