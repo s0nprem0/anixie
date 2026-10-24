@@ -21,45 +21,57 @@ QtObject {
   // from whichever bar registered last, because every screen has one.
   property Item barRoot: null
 
-  // Bars by screen name. shell.qml registers one per connected output, and a
-  // module's coordinates are measured against the bar on its own display.
-  property var roots: ({})
+  // Bars in load order. The display is resolved when one is looked up rather
+  // than when it registers: a bar has not been shown at Component.onCompleted,
+  // so its attached Screen is unset and every copy would key itself to the
+  // focused output.
+  property var roots: []
+
+  function rootOn(screenName) {
+    const wanted = String(screenName || "")
+    if (!wanted) return null
+
+    for (let i = root.roots.length - 1; i >= 0; i--) {
+      if (Screens.screenNameOf(root.roots[i]) === wanted) return root.roots[i]
+    }
+    return null
+  }
 
   function registerBar(item) {
     if (!item) return
 
-    const name = Screens.nameOf(item)
-    if (!name) return
-
-    const next = {}
-    for (const key in root.roots) next[key] = root.roots[key]
-    next[name] = item
+    const next = []
+    for (let i = 0; i < root.roots.length; i++) {
+      if (root.roots[i] !== item) next.push(root.roots[i])
+    }
+    next.push(item)
     root.roots = next
   }
 
   function unregisterBar(item) {
     if (!item) return
 
-    const name = Screens.nameOf(item)
-    let found = root.roots[name] === item ? name : ""
-    if (!found) {
-      for (const key in root.roots) {
-        if (root.roots[key] === item) {
-          found = key
-          break
-        }
+    const next = []
+    let removed = false
+    for (let i = 0; i < root.roots.length; i++) {
+      if (root.roots[i] === item) {
+        removed = true
+        continue
       }
+      next.push(root.roots[i])
     }
-    if (!found) return
-
-    const next = {}
-    for (const key in root.roots) if (key !== found) next[key] = root.roots[key]
-    root.roots = next
+    if (removed) root.roots = next
   }
 
   function rootFor(item) {
-    const name = Screens.nameOf(item)
-    return root.roots[name] || root.barRoot
+    const name = Screens.screenNameOf(item)
+    const exact = root.rootOn(name)
+    if (exact) return exact
+
+    const focused = root.rootOn(Screens.focusedName)
+    if (focused) return focused
+
+    return root.roots.length > 0 ? root.roots[root.roots.length - 1] : root.barRoot
   }
 
   property bool active: false
@@ -75,47 +87,55 @@ QtObject {
   // The bar's visual order. The drag walks this rather than the registration
   // order, so a section rebuilt at any time still lands in the right place.
   readonly property var order: ["left", "centerBegin", "center", "centerEnd", "right"]
-  property var sections: ({})
 
-  function sectionKey(name, item) {
-    return Screens.nameOf(item) + "|" + name
-  }
+  // Sections in load order, each with the name it draws. The display is resolved
+  // when a section is looked up, for the same reason as the bars: a section
+  // registers before its window is shown.
+  property var sections: []
 
   function sectionFor(screenName, name) {
-    return root.sections[screenName + "|" + name] || null
+    let fallback = null
+    for (let i = root.sections.length - 1; i >= 0; i--) {
+      const entry = root.sections[i]
+      if (entry.name !== name) continue
+
+      const entryScreen = Screens.screenNameOf(entry.item)
+      if (entryScreen === screenName) return entry.item
+      if (entryScreen === "" && !fallback) fallback = entry.item
+    }
+    return fallback
   }
 
   function registerSection(name, item) {
     if (!name || !item) return
 
-    const key = root.sectionKey(name, item)
-
-    const next = {}
-    for (const other in root.sections) next[other] = root.sections[other]
-    next[key] = item
+    const next = []
+    let replaced = false
+    for (let i = 0; i < root.sections.length; i++) {
+      if (root.sections[i].item !== item) {
+        next.push(root.sections[i])
+        continue
+      }
+      next.push({ name: name, item: item })
+      replaced = true
+    }
+    if (!replaced) next.push({ name: name, item: item })
     root.sections = next
   }
 
   function unregisterSection(name, item) {
     if (!item) return
 
-    const key = root.sectionKey(name, item)
-    let found = root.sections[key] === item ? key : ""
-    if (!found) {
-      for (const other in root.sections) {
-        if (root.sections[other] === item) {
-          found = other
-          break
-        }
+    const next = []
+    let removed = false
+    for (let i = 0; i < root.sections.length; i++) {
+      if (root.sections[i].item === item) {
+        removed = true
+        continue
       }
+      next.push(root.sections[i])
     }
-    if (!found) return
-
-    const next = {}
-    for (const other in root.sections) {
-      if (other !== found) next[other] = root.sections[other]
-    }
-    root.sections = next
+    if (removed) root.sections = next
   }
 
   function axisStart(item) {

@@ -135,7 +135,10 @@ ShellRoot {
     delegate: PanelWindow {
       id: bar
       required property var modelData
-      readonly property var targetScreen: modelData.screen
+      // A screen can disappear between a hotplug event and Variants rebuilding
+      // this delegate. Keep the window harmless for that frame rather than
+      // reading a width off a screen object that is already gone.
+      readonly property var targetScreen: modelData && modelData.screen ? modelData.screen : null
       screen: targetScreen
 
       // Edges are set from the position rather than by switching between four
@@ -158,9 +161,9 @@ ShellRoot {
       // the same width.
       implicitWidth: BarContext.vertical
         ? Style.bar.sizeVertical
-        : targetScreen.width
+        : (targetScreen ? targetScreen.width : 0)
       implicitHeight: BarContext.vertical
-        ? targetScreen.height
+        ? (targetScreen ? targetScreen.height : 0)
         : Style.bar.sizeHorizontal
 
       color: "transparent"
