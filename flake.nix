@@ -69,7 +69,7 @@
       # The identity of this machine and its user, stated once here and threaded
       # to every module through specialArgs. Nothing else in the tree hardcodes
       # a username, hostname or flake path.
-      host = "vivobook";
+      host = "2200h";
       user = "son";
       # Relative to the user's home directory, which is what every consumer
       # below prepends. Including the user here would make ~/son/nix-dots.
@@ -90,7 +90,7 @@
         };
 
         modules = [
-          ./hosts/${host}
+          ./hosts/vivobook
 
           inputs.home-manager.nixosModules.default
 

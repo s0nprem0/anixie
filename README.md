@@ -2,7 +2,7 @@
 
 A NixOS desktop: Hyprland as the compositor, Quickshell as the shell (bar,
 panels, launcher, notifications, OSD, dock), and one palette through all of it.
-Built for `vivobook`; the shape is reusable, the hardware bits are not.
+Built for `2200hr`; the shape is reusable, the hardware bits are not.
 
 ## Using it
 
