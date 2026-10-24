@@ -160,6 +160,10 @@
             lite = pkgs.mkShell shells.lite;
           };
 
+          # `nix fmt` uses the same formatter as the check below, so a reformat
+          # and a failed check cannot disagree about what "formatted" means.
+          formatter = pkgs.nixfmt;
+
           # The shell scripts, checked as written. The @PLACEHOLDER@ words are
           # arguments in command position, so the syntax shellcheck sees is what
           # the installed script runs — a syntax error is caught here instead of
