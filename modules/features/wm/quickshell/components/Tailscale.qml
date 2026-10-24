@@ -16,7 +16,7 @@ BarWidget {
   id: root
 
   Component.onCompleted: {
-    PanelRegistry.register("tailscale", readout, panel)
+    root.registerPanel("tailscale", readout, panel)
     which.running = true
   }
 

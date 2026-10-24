@@ -25,7 +25,7 @@ BarWidget {
 
   // Reachable by hotkey as well as by click.
   Component.onCompleted: {
-    PanelRegistry.register("weather", readout, forecastPanel)
+    root.registerPanel("weather", readout, forecastPanel)
     root.ready = true
   }
 

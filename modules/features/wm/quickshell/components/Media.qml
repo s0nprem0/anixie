@@ -17,7 +17,7 @@ BarWidget {
   id: root
 
   // Reachable by hotkey as well as by right-click, like the other panels.
-  Component.onCompleted: PanelRegistry.register("media", readout, popup)
+  Component.onCompleted: root.registerPanel("media", readout, popup)
 
   readonly property var players: Mpris.players ? Mpris.players.values : []
 

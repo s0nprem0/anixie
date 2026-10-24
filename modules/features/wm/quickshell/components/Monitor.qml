@@ -23,8 +23,8 @@ BarWidget {
   // a row for every attached output, and a second screen appearing is not a
   // brightness problem.
   Component.onCompleted: {
-    PanelRegistry.register("display", readout, controls)
-    PanelRegistry.register("displays", readout, screens)
+    root.registerPanel("display", readout, controls)
+    root.registerPanel("displays", readout, screens)
   }
 
   readonly property string displayDevice: String(root.setting("device", "amdgpu_bl1"))

@@ -14,7 +14,7 @@ BarWidget {
   id: root
 
   // Reachable by hotkey as well as by click, like every other panel.
-  Component.onCompleted: PanelRegistry.register("notifications", readout, historyPanel)
+  Component.onCompleted: root.registerPanel("notifications", readout, historyPanel)
 
   readonly property bool silenced: NotificationHost.doNotDisturb || NotificationHost.hasSnoozes
 

@@ -18,7 +18,7 @@ BarWidget {
   id: root
 
   // Reachable by hotkey as well as by click.
-  Component.onCompleted: PanelRegistry.register("network", readout, wifiPanel)
+  Component.onCompleted: root.registerPanel("network", readout, wifiPanel)
 
   // The wifi device that is connected, if there is one.
   readonly property var device: {

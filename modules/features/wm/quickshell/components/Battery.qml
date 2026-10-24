@@ -13,8 +13,8 @@ BarWidget {
 
   // Reachable by hotkey as well as by click.
   Component.onCompleted: {
-    PanelRegistry.register("power", readout, powerPanel)
-    PanelRegistry.register("session", readout, sessionPanel)
+    root.registerPanel("power", readout, powerPanel)
+    root.registerPanel("session", readout, sessionPanel)
   }
 
   readonly property var device: UPower.displayDevice

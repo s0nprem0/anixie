@@ -11,7 +11,7 @@ import "../panels"
 BarWidget {
   id: root
 
-  Component.onCompleted: PanelRegistry.register("screentime", readout, panel)
+  Component.onCompleted: root.registerPanel("screentime", readout, panel)
 
   readonly property int active: ScreentimeStore.activeSeconds
   readonly property string label: ScreentimeStore.formatDuration(root.active)

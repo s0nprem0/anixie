@@ -16,7 +16,7 @@ BarWidget {
   id: root
 
   Component.onCompleted: {
-    PanelRegistry.register("dropbox", readout, panel)
+    root.registerPanel("dropbox", readout, panel)
     which.running = true
   }
 

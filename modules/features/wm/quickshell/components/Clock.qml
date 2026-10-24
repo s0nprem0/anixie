@@ -17,8 +17,8 @@ BarWidget {
 
   // Reachable by hotkey as well as by click.
   Component.onCompleted: {
-    PanelRegistry.register("calendar", readout, calendar)
-    PanelRegistry.register("clock-zone", readout, zonePanel)
+    root.registerPanel("calendar", readout, calendar)
+    root.registerPanel("clock-zone", readout, zonePanel)
   }
 
   property string stamp: ""

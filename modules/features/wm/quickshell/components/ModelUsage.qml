@@ -13,7 +13,7 @@ import "../Ui"
 BarWidget {
   id: root
 
-  Component.onCompleted: PanelRegistry.register("model-usage", readout, panel)
+  Component.onCompleted: root.registerPanel("model-usage", readout, panel)
 
   readonly property int days: Math.max(1, Number(root.setting("days", 1)))
   readonly property int intervalMs: Math.max(30000, Number(root.setting("interval", 300)) * 1000)

@@ -30,6 +30,27 @@ Item {
   readonly property bool vertical: BarContext.vertical
   readonly property int barSize: Style.bar.sizeHorizontal
 
+  // Panels this module owns. Each bar is a separate instance on a separate
+  // output, so each copy registers under the same name. Keeping the list here
+  // means the copy goes when its bar does — on a hotplug or an edge change the
+  // old widgets are destroyed, and a registration left behind would point at a
+  // dead anchor.
+  property var registeredPanels: []
+
+  function registerPanel(name, anchor, builder) {
+    if (!name || !anchor || !builder) return
+
+    root.registeredPanels = root.registeredPanels.concat([{ name: name, anchor: anchor }])
+    PanelRegistry.register(name, anchor, builder)
+  }
+
+  Component.onDestruction: {
+    for (let i = 0; i < root.registeredPanels.length; i++) {
+      const panel = root.registeredPanels[i]
+      PanelRegistry.unregister(panel.name, panel.anchor)
+    }
+  }
+
   // Read one value out of this module's bar.json entry, with a fallback.
   function setting(name, fallback) {
     const value = root.entry ? root.entry[name] : undefined

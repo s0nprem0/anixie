@@ -14,7 +14,7 @@ import "../Ui"
 BarWidget {
   id: root
 
-  Component.onCompleted: PanelRegistry.register("system", readout, panel)
+  Component.onCompleted: root.registerPanel("system", readout, panel)
 
   readonly property int interval: Math.max(1000, Number(root.setting("interval", 2)) * 1000)
 

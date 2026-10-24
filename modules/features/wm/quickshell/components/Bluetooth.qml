@@ -10,7 +10,7 @@ BarWidget {
   id: root
 
   // Reachable by hotkey as well as by click.
-  Component.onCompleted: PanelRegistry.register("bluetooth", readout, popup)
+  Component.onCompleted: root.registerPanel("bluetooth", readout, popup)
 
   readonly property var adapter: Bluetooth.defaultAdapter
   readonly property bool available: root.adapter !== null
