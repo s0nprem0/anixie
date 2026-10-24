@@ -1,7 +1,8 @@
 #!/bin/sh
 # The Wi-Fi network you're on, as a QR code a phone can scan to join.
 #
-#   wifi-qr          write the code and print the file it was written to
+#   wifi-qr              write the code and print the file it was written to
+#   wifi-qr --password   print the active network's password
 #
 # The QR may carry the network's password in the clear, so the file is written
 # with the password in mind: a 0700 directory, a 0600 file, and the panel that
@@ -12,6 +13,16 @@
 # asking the network manager that owns the connection rather than parsing its
 # connection files by hand.
 set -eu
+
+mode=qr
+case "${1:-}" in
+  "") ;;
+  --password) mode=password ;;
+  *)
+    echo "usage: wifi-qr [--password]" >&2
+    exit 2
+    ;;
+esac
 
 # Everything below can contain the key; keep it out of reach of other users.
 umask 077
@@ -78,6 +89,12 @@ elif [ -z "$keymgmt" ] || [ "$keymgmt" = "none" ]; then
 else
   echo "wifi-qr: no shareable password for $ssid ($keymgmt)" >&2
   exit 1
+fi
+
+if [ "$mode" = password ]; then
+  [ -n "$secret" ] || { echo "wifi-qr: this network has no password" >&2; exit 1; }
+  printf '%s\n' "$secret"
+  exit 0
 fi
 
 # The WIFI: URI every phone's scanner understands, escaped so a password with a

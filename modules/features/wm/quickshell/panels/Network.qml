@@ -9,7 +9,8 @@ import Quickshell.Io
 //
 // Reads and actions come from Quickshell.Networking, which talks to
 // NetworkManager over D-Bus. nmcli is kept for the few facts the service does
-// not expose: the profile name for DNS, the gateway, VPN links, and the QR.
+// not expose: the profile name for DNS, the gateway, VPN links, the band, and
+// the QR.
 //
 // The shape follows the reference's panels: a hero row for the thing the panel is
 // *about* (the radio), then sections under a rule and a heading. The sections are
@@ -78,6 +79,14 @@ Item {
   property string qrError: ""
   readonly property bool qrReady: root.qrPath !== ""
 
+  // ---- password ----
+  //
+  // The QR is the shareable form; this is the plain password for the cases a
+  // phone cannot scan. It is copied rather than shown, so the secret does not
+  // stay on screen after the click.
+  property bool passwordBusy: false
+  property bool passwordCopied: false
+
   // ---- DNS ----
   //
   // Per connection, not global: nmcli keeps it on the connection profile, which
@@ -95,6 +104,66 @@ Item {
   property string dns: ""
   property bool dnsBusy: false
 
+  // ---- band ----
+  //
+  // NetworkManager keeps the preference on the connection profile. The current
+  // band comes from the access point, while the selection is what the profile
+  // will ask for on the next association.
+  property string band: ""
+  property var availableBands: []
+  property string bandSelection: "auto"
+  property bool bandBusy: false
+
+  readonly property var bandOptions: {
+    const labels = { "2.4": "2.4 GHz", "5": "5 GHz", "6": "6 GHz" }
+    const options = [{ label: "Automatic", value: "auto" }]
+    let listed = false
+
+    for (let i = 0; i < root.availableBands.length; i++) {
+      const value = root.availableBands[i]
+      if (labels[value]) options.push({ label: labels[value], value: value })
+      if (value === root.bandSelection) listed = true
+    }
+
+    if (root.bandSelection !== "auto" && !listed) {
+      options.push({
+        label: (labels[root.bandSelection] || root.bandSelection) + " (unavailable)",
+        value: root.bandSelection
+      })
+    }
+
+    return options
+  }
+
+  function bandIndex() {
+    for (let i = 0; i < root.bandOptions.length; i++) {
+      if (root.bandOptions[i].value === root.bandSelection) return i
+    }
+    return 0
+  }
+
+  function refreshBand() {
+    if (!root.connected) {
+      root.band = ""
+      root.availableBands = []
+      root.bandSelection = "auto"
+      return
+    }
+
+    bandGet.running = false
+    bandGet.running = true
+  }
+
+  function setBand(value) {
+    if (value === root.bandSelection) return
+
+    root.actionError = ""
+    root.bandBusy = true
+    bandSet.command = ["wifi-band", value]
+    bandSet.running = false
+    bandSet.running = true
+  }
+
   // What the connection actually is, rather than what it is called.
   property string address: ""
   property string gateway: ""
@@ -102,6 +171,8 @@ Item {
   property string vpn: ""
 
   function refreshDetails() {
+    root.refreshBand()
+
     // Read by device, not by connection: the device is what the panel has, and
     // the answer includes the profile name, which is what the con verbs take.
     // It runs while disconnected too, so an Ethernet cable or VPN still shows.
@@ -194,6 +265,56 @@ Item {
     }
   }
 
+  Process {
+    id: bandGet
+    running: false
+    command: ["wifi-band"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        let band = ""
+        let available = []
+        let selected = "auto"
+        const lines = String(this.text || "").split("\n")
+
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i] === "") continue
+          const fields = lines[i].split("\t")
+
+          if (fields[0] === "band") {
+            band = fields[1] || ""
+          } else if (fields[0] === "available") {
+            available = String(fields[1] || "")
+              .split(" ")
+              .filter(function (value) { return value !== "" })
+          } else if (fields[0] === "selected") {
+            selected = fields[1] || "auto"
+          }
+        }
+
+        root.band = band
+        root.availableBands = available
+        root.bandSelection = selected
+      }
+    }
+  }
+
+  Process {
+    id: bandSet
+    running: false
+    stderr: StdioCollector { id: bandSetErr }
+    onExited: function (exitCode) {
+      root.bandBusy = false
+
+      if (exitCode !== 0) {
+        const message = String(bandSetErr.text || "").trim().split("\n")[0]
+        root.actionError = message !== "" ? message : "Could not change the Wi-Fi band"
+      }
+
+      root.refreshBand()
+      root.refreshDetails()
+    }
+  }
+
   // Addresses as a set, so "1.1.1.1 1.0.0.1" and "1.0.0.1,1.1.1.1" are the same
   // answer rather than two different ones.
   function dnsKey(value) {
@@ -265,6 +386,7 @@ Item {
   // network is not a code for another, so a change takes it away.
   onActiveSsidChanged: {
     root.refreshDetails()
+    root.passwordCopied = false
     if (root.qrVisible) root.setQr(false)
   }
 
@@ -277,6 +399,14 @@ Item {
   readonly property string emptyMessage: !root.radioEnabled
     ? "Wireless is off"
     : (root.failed ? "" : (root.scanning ? "Scanning…" : "No networks found"))
+
+  function copyPassword() {
+    root.actionError = ""
+    root.passwordBusy = true
+    root.passwordCopied = false
+    passwordCopy.running = false
+    passwordCopy.running = true
+  }
 
   function setQr(on) {
     root.qrVisible = on
@@ -341,6 +471,31 @@ Item {
     command: root.stateDir !== ""
       ? ["sh", "-c", 'rm -f "$1"', "_", root.stateDir + "/wifi-qr.png"]
       : ["true"]
+  }
+
+  Process {
+    id: passwordCopy
+    running: false
+    command: ["wifi-password", "--copy"]
+    stderr: StdioCollector { id: passwordCopyErr }
+    onExited: function (exitCode) {
+      root.passwordBusy = false
+
+      if (exitCode !== 0) {
+        const message = String(passwordCopyErr.text || "").trim().split("\n")[0]
+        root.actionError = message !== "" ? message : "Could not copy the network password"
+        return
+      }
+
+      root.passwordCopied = true
+      passwordCopiedTimer.restart()
+    }
+  }
+
+  Timer {
+    id: passwordCopiedTimer
+    interval: 2000
+    onTriggered: root.passwordCopied = false
   }
 
   readonly property string stateDir: {
@@ -567,6 +722,24 @@ Item {
     }
 
     PanelRow {
+      id: bandRow
+      width: card.contentWidth
+      visible: root.connected && root.band !== ""
+      hasControl: true
+      label: "Band"
+
+      Dropdown {
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        width: bandRow.controlWidth
+        model: root.bandOptions
+        enabled: !root.bandBusy
+        currentIndex: root.bandIndex()
+        onActivated: function (index) { root.setBand(root.bandOptions[index].value) }
+      }
+    }
+
+    PanelRow {
       width: card.contentWidth
       visible: root.connected && root.address !== ""
       label: "Address"
@@ -779,6 +952,16 @@ Item {
       description: "a QR code another device can scan to join"
       checked: root.qrVisible
       onToggled: root.setQr(!root.qrVisible)
+    }
+
+    PanelActionButton {
+      width: card.contentWidth
+      visible: root.connected
+      label: root.passwordCopied ? "Password copied" : (root.passwordBusy ? "Copying…" : "Copy password")
+      outlined: true
+      navigational: false
+      available: !root.passwordBusy
+      onClicked: root.copyPassword()
     }
 
     // The box is the size the code is drawn at, not the size of the file behind

@@ -31,17 +31,35 @@ let
       ]
       (builtins.readFile ./taildrop-receive.sh)
   );
+
+  wifiPassword = pkgs.writeShellScriptBin "wifi-password" (
+    builtins.replaceStrings
+      [ "@WIFI_QR@" "@WL_COPY@" ]
+      [
+        "${wifiQr}/bin/wifi-qr"
+        "${pkgs.wl-clipboard}/bin/wl-copy"
+      ]
+      (builtins.readFile ./wifi-password.sh)
+  );
+
+  wifiBand = pkgs.writeShellScriptBin "wifi-band" (
+    builtins.replaceStrings [ "@NMCLI@" ] [ "${pkgs.networkmanager}/bin/nmcli" ] (
+      builtins.readFile ./wifi-band.sh
+    )
+  );
 in
 {
   options.anixie.wm.network.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
-    description = "Whether to install the network helpers: wifi-qr and the Taildrop receiver.";
+    description = "Whether to install the network helpers: Wi-Fi QR/password/band commands and the Taildrop receiver.";
   };
 
   config = lib.mkIf cfg.enable {
     home.packages = [
       wifiQr
+      wifiPassword
+      wifiBand
       taildropReceive
     ];
 
