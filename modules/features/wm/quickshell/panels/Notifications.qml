@@ -204,307 +204,48 @@ Item {
       }
     }
 
+    PanelSeparator {
+      visible: root.empty
+    }
+
     Column {
-      width: card.contentWidth
-      spacing: Style.space(4)
-
-      Text {
-        width: parent.width
-        height: implicitHeight
-        text: "Preferences"
-        color: Theme.muted
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.weight: Font.DemiBold
-        renderType: Text.NativeRendering
-      }
-
-      Text {
-        width: parent.width
-        height: implicitHeight
-        text: "Show notifications on"
-        color: Theme.fg
-        font.family: Style.font.family
-        font.pixelSize: Style.font.body
-        renderType: Text.NativeRendering
-      }
-
-      Dropdown {
-        width: card.contentWidth
-        model: root.displayOptions
-        currentIndex: root.displayIndex
-        onActivated: function (index) { root.chooseDisplay(index) }
-      }
-
-      Dropdown {
-        width: card.contentWidth
-        visible: NotificationHost.displayMode === "specific"
-        model: root.screenOptions
-        currentIndex: root.screenIndex
-        onActivated: function (index) { root.chooseScreen(index) }
-      }
-
-      Toggle {
-        width: card.contentWidth
-        label: "Step aside over fullscreen"
-        description: "Leave the popup surface unmapped when a fullscreen window has nothing to announce."
-        checked: NotificationHost.fullscreenStepAside
-        onToggled: NotificationHost.setFullscreenStepAside(!NotificationHost.fullscreenStepAside)
-      }
-
-      Toggle {
-        width: card.contentWidth
-        label: "Offer snooze while sharing"
-        description: "Suggest a timed snooze when a portal screen share starts."
-        checked: NotificationHost.offerSnoozeWhenSharing
-        onToggled: NotificationHost.setOfferSnoozeWhenSharing(!NotificationHost.offerSnoozeWhenSharing)
-      }
-
-      Text {
-        width: parent.width
-        height: implicitHeight
-        text: "Keep history for"
-        color: Theme.fg
-        font.family: Style.font.family
-        font.pixelSize: Style.font.body
-        renderType: Text.NativeRendering
-      }
-
-      Dropdown {
-        width: card.contentWidth
-        model: root.retentionOptions
-        currentIndex: root.retentionIndex
-        onActivated: function (index) { root.chooseRetention(index) }
-      }
-    }
-
-    // The offer appears only while a portal video stream is live and nothing is
-    // already quiet. It is a suggestion, not an automatic mute.
-    Column {
-      width: card.contentWidth
-      visible: NotificationHost.sharingOfferPending
-      spacing: Style.space(2)
-
-      Text {
-        width: parent.width
-        height: implicitHeight
-        text: "Screen sharing"
-        color: Theme.muted
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.weight: Font.DemiBold
-        renderType: Text.NativeRendering
-      }
-
-      Text {
-        width: parent.width
-        height: implicitHeight
-        text: "Snooze notifications while you share?"
-        color: Theme.fg
-        font.family: Style.font.family
-        font.pixelSize: Style.font.body
-        wrapMode: Text.WordWrap
-        renderType: Text.NativeRendering
-      }
-
-      PanelActionButton {
-        width: card.contentWidth
-        height: implicitHeight
-        label: "For 30 minutes"
-        navigational: false
-        onClicked: NotificationHost.snoozeSharingOffer(1800)
-      }
-
-      PanelActionButton {
-        width: card.contentWidth
-        height: implicitHeight
-        label: "For 1 hour"
-        navigational: false
-        onClicked: NotificationHost.snoozeSharingOffer(3600)
-      }
-
-      PanelActionButton {
-        width: card.contentWidth
-        height: implicitHeight
-        label: "For 4 hours"
-        navigational: false
-        onClicked: NotificationHost.snoozeSharingOffer(14400)
-      }
-
-      PanelActionButton {
-        width: card.contentWidth
-        height: implicitHeight
-        label: "Not now"
-        navigational: false
-        onClicked: NotificationHost.dismissSharingOffer()
-      }
-    }
-
-    // The sources currently held back, with the time they come back. A snooze is
-    // not DND: it has an end, and the panel is where that end is visible.
-    Column {
-      width: card.contentWidth
-      visible: root.quietSources.length > 0
-      spacing: Style.space(2)
-
-      Text {
-        width: parent.width
-        height: implicitHeight
-        text: "Quiet"
-        color: Theme.muted
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.weight: Font.DemiBold
-        renderType: Text.NativeRendering
-      }
-
-      Repeater {
-        model: root.quietSources
-
-        delegate: PanelActionButton {
-          required property var modelData
-
-          width: card.contentWidth
-          height: implicitHeight
-          label: "Resume " + root.sourceLabel(modelData.label)
-          value: root.quietUntil(modelData.until)
-          navigational: false
-          onClicked: NotificationHost.unsnooze(modelData.key)
-        }
-      }
-    }
-
-    // A source can be snoozed from its group header below, but this is the
-    // one-row way to quiet everything without waiting for a card.
-    PanelActionButton {
-      id: snoozeAll
-      width: card.contentWidth
-      visible: !root.empty
-      height: implicitHeight
-      label: "Snooze everything"
-      navigational: false
-      onClicked: root.openSnoozeMenu({ key: "*" }, snoozeAll)
-    }
-
-    Toggle {
-      width: card.contentWidth
-      label: "Let codes through"
-      description: "Verification codes still appear while notifications are quiet."
-      checked: NotificationHost.codesBypassQuiet
-      onToggled: NotificationHost.setCodesBypass(!NotificationHost.codesBypassQuiet)
-    }
-
-    // Held notifications are ones quiet kept off the screen. They are still
-    // grouped by source, so the panel says what was missed and who it was from.
-    Column {
-      width: card.contentWidth
-      visible: root.heldEntries.length > 0
-      spacing: 0
-
-      Text {
-        width: parent.width
-        height: root.groupHeaderHeight
-        text: "Held"
-        color: Theme.muted
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.weight: Font.DemiBold
-        verticalAlignment: Text.AlignVCenter
-        renderType: Text.NativeRendering
-      }
-
-      Repeater {
-        model: root.heldGroups
-
-        delegate: Column {
-          id: heldDelegate
-          required property var modelData
-
-          width: parent.width
-          spacing: 0
-
-          Item {
-            width: parent.width
-            height: root.groupHeaderHeight
-
-            Text {
-              anchors.left: parent.left
-              anchors.right: heldSnooze.left
-              anchors.rightMargin: Style.space(6)
-              anchors.verticalCenter: parent.verticalCenter
-              text: root.sourceLabel(modelData.app) + "  ·  " + modelData.entries.length
-              color: Theme.muted
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
-              font.weight: Font.DemiBold
-              elide: Text.ElideRight
-              renderType: Text.NativeRendering
-            }
-
-            Text {
-              id: heldSnooze
-              anchors.right: parent.right
-              anchors.verticalCenter: parent.verticalCenter
-              width: Style.space(20)
-              height: Style.space(20)
-              text: Util.clock
-              color: heldSnoozeArea.containsMouse ? Theme.fg : Theme.muted
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
-              horizontalAlignment: Text.AlignHCenter
-              verticalAlignment: Text.AlignVCenter
-              renderType: Text.NativeRendering
-
-              MouseArea {
-                id: heldSnoozeArea
-                anchors.fill: parent
-                hoverEnabled: true
-                onClicked: root.openSnoozeMenu(heldDelegate.modelData, heldSnooze)
-              }
-            }
-          }
-
-          Repeater {
-            model: modelData.entries
-
-            delegate: PanelActionButton {
-              required property var modelData
-
-              width: parent.width
-              height: implicitHeight
-              label: NotificationText.preview(modelData.summary)
-              value: (modelData.closedReason ? root.sourceLabel(modelData.closedReason) : "held")
-                + "  ·  " + root.ago(modelData.timestamp)
-              navigational: false
-              onClicked: {
-                NotificationHost.replayEntry(modelData)
-                PanelHost.closeFocused()
-              }
-            }
-          }
-        }
-      }
-    }
-
-    PanelActionButton {
-      width: card.contentWidth
-      visible: root.heldEntries.length > 0
-      height: implicitHeight
-      label: "Clear held"
-      navigational: false
-      onClicked: NotificationStore.clearHeld()
-    }
-
-    Text {
       width: card.contentWidth
       visible: root.empty
-      height: implicitHeight
-      text: "Nothing yet. Notifications show up here once they have been dismissed."
-      color: Theme.muted
-      font.family: Style.font.family
-      font.pixelSize: Style.font.body
-      wrapMode: Text.WordWrap
-      renderType: Text.NativeRendering
+      spacing: Style.space(4)
+      topPadding: Style.space(10)
+      bottomPadding: Style.space(10)
+
+      Text {
+        width: parent.width
+        text: "No notifications yet"
+        color: Theme.fg
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        font.weight: Font.DemiBold
+        horizontalAlignment: Text.AlignHCenter
+        renderType: Text.NativeRendering
+      }
+
+      Text {
+        width: parent.width
+        text: "Dismissed notifications will appear here."
+        color: Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
+        horizontalAlignment: Text.AlignHCenter
+        renderType: Text.NativeRendering
+      }
+    }
+
+    PanelSeparator {
+      visible: root.activeEntries.length > 0
+    }
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      visible: root.activeEntries.length > 0
+      label: "Recent"
     }
 
     // Newest first, grouped by sender. The row heights are stated explicitly for
@@ -522,6 +263,7 @@ Item {
         delegate: Column {
           id: groupDelegate
           required property var modelData
+          required property int index
 
           width: parent.width
           spacing: 0
@@ -529,6 +271,16 @@ Item {
           Item {
             width: parent.width
             height: root.groupHeaderHeight
+
+            Rectangle {
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.top: parent.top
+              height: 1
+              visible: groupDelegate.index > 0
+              color: Theme.muted
+              opacity: 0.3
+            }
 
             Text {
               anchors.left: parent.left
@@ -667,6 +419,232 @@ Item {
       }
     }
 
+    PanelSeparator {
+      visible: root.heldEntries.length > 0
+    }
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      visible: root.heldEntries.length > 0
+      label: "Held"
+    }
+
+    // Held notifications are ones quiet kept off the screen. They are still
+    // grouped by source, so the panel says what was missed and who it was from.
+    Column {
+      width: card.contentWidth
+      visible: root.heldEntries.length > 0
+      spacing: 0
+
+      Repeater {
+        model: root.heldGroups
+
+        delegate: Column {
+          id: heldDelegate
+          required property var modelData
+          required property int index
+
+          width: parent.width
+          spacing: 0
+
+          Item {
+            width: parent.width
+            height: root.groupHeaderHeight
+
+            Rectangle {
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.top: parent.top
+              height: 1
+              visible: heldDelegate.index > 0
+              color: Theme.muted
+              opacity: 0.3
+            }
+
+            Text {
+              anchors.left: parent.left
+              anchors.right: heldSnooze.left
+              anchors.rightMargin: Style.space(6)
+              anchors.verticalCenter: parent.verticalCenter
+              text: root.sourceLabel(modelData.app) + "  ·  " + modelData.entries.length
+              color: Theme.muted
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              font.weight: Font.DemiBold
+              elide: Text.ElideRight
+              renderType: Text.NativeRendering
+            }
+
+            Text {
+              id: heldSnooze
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              width: Style.space(20)
+              height: Style.space(20)
+              text: Util.clock
+              color: heldSnoozeArea.containsMouse ? Theme.fg : Theme.muted
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              horizontalAlignment: Text.AlignHCenter
+              verticalAlignment: Text.AlignVCenter
+              renderType: Text.NativeRendering
+
+              MouseArea {
+                id: heldSnoozeArea
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: root.openSnoozeMenu(heldDelegate.modelData, heldSnooze)
+              }
+            }
+          }
+
+          Repeater {
+            model: modelData.entries
+
+            delegate: PanelActionButton {
+              required property var modelData
+
+              width: parent.width
+              height: implicitHeight
+              label: NotificationText.preview(modelData.summary)
+              value: (modelData.closedReason ? root.sourceLabel(modelData.closedReason) : "held")
+                + "  ·  " + root.ago(modelData.timestamp)
+              navigational: false
+              onClicked: {
+                NotificationHost.replayEntry(modelData)
+                PanelHost.closeFocused()
+              }
+            }
+          }
+        }
+      }
+    }
+
+    PanelActionButton {
+      width: card.contentWidth
+      visible: root.heldEntries.length > 0
+      height: implicitHeight
+      label: "Clear held"
+      navigational: false
+      onClicked: NotificationStore.clearHeld()
+    }
+
+    PanelSeparator {
+      visible: root.quietSources.length > 0
+    }
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      visible: root.quietSources.length > 0
+      label: "Quiet"
+    }
+
+    // The sources currently held back, with the time they come back. A snooze is
+    // not DND: it has an end, and the panel is where that end is visible.
+    Column {
+      width: card.contentWidth
+      visible: root.quietSources.length > 0
+      spacing: Style.space(2)
+
+      Repeater {
+        model: root.quietSources
+
+        delegate: PanelActionButton {
+          required property var modelData
+
+          width: card.contentWidth
+          height: implicitHeight
+          label: "Resume " + root.sourceLabel(modelData.label)
+          value: root.quietUntil(modelData.until)
+          navigational: false
+          onClicked: NotificationHost.unsnooze(modelData.key)
+        }
+      }
+    }
+
+    PanelSeparator {
+      visible: NotificationHost.sharingOfferPending
+    }
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      visible: NotificationHost.sharingOfferPending
+      label: "Screen sharing"
+    }
+
+    // The offer appears only while a portal video stream is live and nothing is
+    // already quiet. It is a suggestion, not an automatic mute.
+    Column {
+      width: card.contentWidth
+      visible: NotificationHost.sharingOfferPending
+      spacing: Style.space(2)
+
+      Text {
+        width: parent.width
+        height: implicitHeight
+        text: "Snooze notifications while you share?"
+        color: Theme.fg
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        wrapMode: Text.WordWrap
+        renderType: Text.NativeRendering
+      }
+
+      PanelActionButton {
+        width: card.contentWidth
+        height: implicitHeight
+        label: "For 30 minutes"
+        navigational: false
+        onClicked: NotificationHost.snoozeSharingOffer(1800)
+      }
+
+      PanelActionButton {
+        width: card.contentWidth
+        height: implicitHeight
+        label: "For 1 hour"
+        navigational: false
+        onClicked: NotificationHost.snoozeSharingOffer(3600)
+      }
+
+      PanelActionButton {
+        width: card.contentWidth
+        height: implicitHeight
+        label: "For 4 hours"
+        navigational: false
+        onClicked: NotificationHost.snoozeSharingOffer(14400)
+      }
+
+      PanelActionButton {
+        width: card.contentWidth
+        height: implicitHeight
+        label: "Not now"
+        navigational: false
+        onClicked: NotificationHost.dismissSharingOffer()
+      }
+    }
+
+    PanelSeparator {
+      visible: !root.empty
+    }
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      visible: !root.empty
+      label: "Actions"
+    }
+
+    // A source can be snoozed from its group header below, but this is the
+    // one-row way to quiet everything without waiting for a card.
+    PanelActionButton {
+      id: snoozeAll
+      width: card.contentWidth
+      visible: !root.empty
+      height: implicitHeight
+      label: "Snooze everything"
+      navigational: false
+      onClicked: root.openSnoozeMenu({ key: "*" }, snoozeAll)
+    }
+
     // Replay the newest entries in the same cards used for live notifications.
     // The popup is a separate window, so close the panel first rather than
     // leaving it covering the desktop underneath the replay.
@@ -691,6 +669,86 @@ Item {
       navigational: false
       onClicked: confirmClear.open()
     }
+
+    PanelSeparator {}
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      label: "Preferences"
+    }
+
+    Column {
+      width: card.contentWidth
+      spacing: Style.space(4)
+
+      Text {
+        width: parent.width
+        height: implicitHeight
+        text: "Show notifications on"
+        color: Theme.fg
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        renderType: Text.NativeRendering
+      }
+
+      Dropdown {
+        width: card.contentWidth
+        model: root.displayOptions
+        currentIndex: root.displayIndex
+        onActivated: function (index) { root.chooseDisplay(index) }
+      }
+
+      Dropdown {
+        width: card.contentWidth
+        visible: NotificationHost.displayMode === "specific"
+        model: root.screenOptions
+        currentIndex: root.screenIndex
+        onActivated: function (index) { root.chooseScreen(index) }
+      }
+
+      Toggle {
+        width: card.contentWidth
+        label: "Step aside over fullscreen"
+        description: "Leave the popup surface unmapped when a fullscreen window has nothing to announce."
+        checked: NotificationHost.fullscreenStepAside
+        onToggled: NotificationHost.setFullscreenStepAside(!NotificationHost.fullscreenStepAside)
+      }
+
+      Toggle {
+        width: card.contentWidth
+        label: "Offer snooze while sharing"
+        description: "Suggest a timed snooze when a portal screen share starts."
+        checked: NotificationHost.offerSnoozeWhenSharing
+        onToggled: NotificationHost.setOfferSnoozeWhenSharing(!NotificationHost.offerSnoozeWhenSharing)
+      }
+
+      Text {
+        width: parent.width
+        height: implicitHeight
+        text: "Keep history for"
+        color: Theme.fg
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        renderType: Text.NativeRendering
+      }
+
+      Dropdown {
+        width: card.contentWidth
+        model: root.retentionOptions
+        currentIndex: root.retentionIndex
+        onActivated: function (index) { root.chooseRetention(index) }
+      }
+
+
+      Toggle {
+        width: card.contentWidth
+        label: "Let codes through"
+        description: "Verification codes still appear while notifications are quiet."
+        checked: NotificationHost.codesBypassQuiet
+        onToggled: NotificationHost.setCodesBypass(!NotificationHost.codesBypassQuiet)
+      }
+    }
+
   }
 
   ConfirmDialog {
