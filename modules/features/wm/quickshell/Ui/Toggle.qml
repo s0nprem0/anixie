@@ -93,6 +93,11 @@ Item {
       font.pixelSize: Style.font.caption
       renderType: Text.NativeRendering
       width: parent.width
+      // A panel is a fixed width, and the descriptions are written as sentences.
+      // One clipped line made a setting impossible to read; two wrapped lines are
+      // still compact, and the row grows with them.
+      wrapMode: Text.WordWrap
+      maximumLineCount: 2
       elide: Text.ElideRight
       topPadding: root.hasDescription ? Style.space(2) : 0
       anchors.top: labelText.bottom
