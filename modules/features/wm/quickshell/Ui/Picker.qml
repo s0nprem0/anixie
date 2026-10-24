@@ -194,6 +194,18 @@ Item {
               return
             }
 
+            if (key === Qt.Key_Home) {
+              PickHost.first()
+              event.accepted = true
+              return
+            }
+
+            if (key === Qt.Key_End) {
+              PickHost.last()
+              event.accepted = true
+              return
+            }
+
             // Tab walks the list rather than moving focus: there is nothing
             // else on this surface to focus, and a Tab that does nothing reads
             // as a broken one.
@@ -244,6 +256,12 @@ Item {
           model: PickHost.results
           currentIndex: PickHost.selected
           boundsBehavior: Flickable.StopAtBounds
+
+          // The field owns the keyboard, so the view never scrolls itself when
+          // the selection moves. Keep the chosen row on screen, otherwise a
+          // twelve-row card hides the highlight after the twelfth entry.
+          onCurrentIndexChanged: if (currentIndex >= 0 && currentIndex < count)
+            positionViewAtIndex(currentIndex, ListView.Contain)
 
           ScrollBar.vertical: ScrollBar {
             id: verticalBar
