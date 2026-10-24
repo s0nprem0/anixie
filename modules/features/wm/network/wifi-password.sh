@@ -5,7 +5,7 @@ wifi_qr="@WIFI_QR@"
 wl_copy="@WL_COPY@"
 
 if [[ ${1:-} == "--copy" ]]; then
-  "$wifi_qr" --password | "$wl_copy"
+  "$wifi_qr" --password | "$wl_copy" --sensitive
 else
   exec "$wifi_qr" --password
 fi
