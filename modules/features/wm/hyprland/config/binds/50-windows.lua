@@ -25,10 +25,10 @@ dispatch(mod .. " + SHIFT + L", "Nudge right", "window.move", { x = 10, y = 0, r
 dispatch(mod .. " + SHIFT + K", "Nudge up", "window.move", { x = 0, y = -10, relative = true })
 dispatch(mod .. " + SHIFT + J", "Nudge down", "window.move", { x = 0, y = 10, relative = true })
 
-dispatch(mod .. " + CTRL + H", "Resize left", "window.resize", { x = -10, y = 0 })
-dispatch(mod .. " + CTRL + L", "Resize right", "window.resize", { x = 10, y = 0 })
-dispatch(mod .. " + CTRL + K", "Resize up", "window.resize", { x = 0, y = -10 })
-dispatch(mod .. " + CTRL + J", "Resize down", "window.resize", { x = 0, y = 10 })
+dispatch(mod .. " + CTRL + H", "Resize left", "window.resize", { x = -10, y = 0, relative = true })
+dispatch(mod .. " + CTRL + L", "Resize right", "window.resize", { x = 10, y = 0, relative = true })
+dispatch(mod .. " + CTRL + K", "Resize up", "window.resize", { x = 0, y = -10, relative = true })
+dispatch(mod .. " + CTRL + J", "Resize down", "window.resize", { x = 0, y = 10, relative = true })
 
 -- ------------------------------------------------------------------
 -- Swapping the focused window with its neighbour
@@ -41,7 +41,7 @@ dispatch(mod .. " + SHIFT + DOWN", "Swap down", "window.swap", { direction = "do
 -- ------------------------------------------------------------------
 -- Window state
 -- ------------------------------------------------------------------
-dispatch(mod .. " + Q", "Close window", "window.kill")
+dispatch(mod .. " + Q", "Close window", "window.close")
 
 dispatch(mod .. " + F", "Fullscreen", "window.fullscreen", { action = "toggle" })
 dispatch(mod .. " + V", "Float", "window.float", { action = "toggle" })

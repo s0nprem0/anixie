@@ -47,7 +47,7 @@ bind_handler(mod .. " + ALT + A", "Screenshot annotation", capture("shot smart a
 
 -- The colour under the pointer, as a hex code. hyprpicker does this on its
 -- own; pkill first, because one left running would eat the next press.
-bind(mod .. " + PRINT", "Color picker", "pkill hyprpicker 2>/dev/null || hyprpicker -a")
+bind(mod .. " + PRINT", "Color picker", "pkill -x hyprpicker 2>/dev/null; hyprpicker -a")
 
 -- The text inside a region, OCR'd to the clipboard.
 bind_handler(mod .. " + CTRL + PRINT", "Extract text", capture("capture-text"))
