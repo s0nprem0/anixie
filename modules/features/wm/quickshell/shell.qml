@@ -533,6 +533,19 @@ ShellRoot {
     function close(): void { PanelHost.closeAll() }
   }
 
+  // Workspace layout, on the focused monitor.
+  //
+  // The state lives in the Workspaces widget, one per bar. Registering this
+  // handler there registered one per output and only one could win, so
+  // `Super+Alt+L` could cycle a workspace on the display that was not focused.
+  // There is one handler here; it asks that widget (see Ui/WorkspacesHost.qml).
+  IpcHandler {
+    target: "workspaces"
+
+    function cycle(): void { WorkspacesHost.cycle() }
+    function refresh(): void { WorkspacesHost.refresh() }
+  }
+
   // What the shell is actually drawing with. The theme follows a state file on
   // its own, so this is how you check that it did rather than taking a screenshot
   // and squinting at it.

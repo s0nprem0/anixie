@@ -154,7 +154,12 @@ BarWidget {
     layoutSet.running = true
   }
 
-  Component.onCompleted: root.refreshLayout()
+  // One copy per bar, looked up by display for the IPC handler in shell.qml.
+  Component.onCompleted: {
+    WorkspacesHost.register(root)
+    root.refreshLayout()
+  }
+  Component.onDestruction: WorkspacesHost.unregister(root)
   onFocusedIdChanged: if (layoutQuery) root.refreshLayout()
 
   function scroll(delta) {
@@ -200,13 +205,6 @@ BarWidget {
     // The write has landed when it stops running; read the layout back rather
     // than trusting the optimistic value if Hyprland rejected the name.
     onRunningChanged: if (!running) root.refreshLayout()
-  }
-
-  IpcHandler {
-    target: "workspaces"
-
-    function cycle(): void { root.cycleLayout() }
-    function refresh(): void { root.refreshLayout() }
   }
 
   implicitWidth: row.implicitWidth
