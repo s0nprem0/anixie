@@ -23,27 +23,48 @@ import ".."
 QtObject {
   id: root
 
-  // name -> screenName -> { anchor, builder }
+  // name -> [{ anchor, builder }], one copy per bar that carries the widget.
+  //
+  // The display is intentionally not part of the key. A widget registers from
+  // Component.onCompleted, before its bar has been shown, so its attached Screen
+  // is still unset. Resolving it then collapsed every copy onto the focused
+  // output: with an external monitor connected, both bars registered under it
+  // and every panel opened there — even one clicked on the laptop's own bar.
+  // The screen is resolved when the panel is opened instead.
   property var entries: ({})
+
+  function copies(name) {
+    return root.entries[name] || []
+  }
+
+  function screenOf(entry) {
+    return entry && entry.anchor ? Screens.screenNameOf(entry.anchor) : ""
+  }
 
   function register(name, anchor, builder) {
     if (!name || !anchor || !builder) return
 
-    const screenName = Screens.nameOf(anchor)
-
-    const byScreen = {}
-    const previous = root.entries[name] || ({})
-    for (const key in previous) byScreen[key] = previous[key]
-    byScreen[screenName] = { anchor: anchor, builder: builder }
+    const previous = root.copies(name)
+    const kept = []
+    let replaced = false
+    for (let i = 0; i < previous.length; i++) {
+      if (previous[i].anchor !== anchor) {
+        kept.push(previous[i])
+        continue
+      }
+      kept.push({ anchor: anchor, builder: builder })
+      replaced = true
+    }
+    if (!replaced) kept.push({ anchor: anchor, builder: builder })
 
     const next = {}
     for (const key in root.entries) next[key] = root.entries[key]
-    next[name] = byScreen
+    next[name] = kept
     root.entries = next
 
-    // Screens can be unplugged. A QML item cannot be observed from outside its
-    // component, so the entries for a display that has gone are pruned when the
-    // set of screens changes rather than when the bar is destroyed.
+    // Screens can be unplugged while the shell runs. A QML item cannot be
+    // observed from outside its component, so stale copies are pruned when the
+    // set of screens changes and whenever another copy registers.
     root.prune()
   }
 
@@ -60,44 +81,72 @@ QtObject {
     let changed = false
     const next = {}
     for (const name in root.entries) {
-      const byScreen = root.entries[name]
-      const kept = {}
-      for (const screenName in byScreen) {
-        if (connected[screenName]) kept[screenName] = byScreen[screenName]
-        else changed = true
+      const previous = root.entries[name]
+      const kept = []
+      for (let i = 0; i < previous.length; i++) {
+        const entry = previous[i]
+        const screenName = root.screenOf(entry)
+        // Keep a copy whose bar has not been shown yet: it is the one being
+        // built right now. Drop a destroyed anchor, or one whose output is no
+        // longer connected.
+        if (!entry.anchor || (screenName !== "" && !connected[screenName])) {
+          changed = true
+          continue
+        }
+        kept.push(entry)
       }
-      if (Object.keys(kept).length > 0) next[name] = kept
+      if (kept.length > 0) next[name] = kept
+      else if (previous.length > 0) changed = true
     }
 
     if (changed) root.entries = next
   }
 
-  function unregister(name, anchor, screenName) {
-    const byScreen = root.entries[name]
-    if (!byScreen) return
+  function unregister(name, anchor) {
+    const previous = root.copies(name)
+    if (previous.length === 0) return
 
-    const entry = byScreen[screenName]
-    if (!entry || entry.anchor !== anchor) return
-
-    const remaining = {}
-    for (const key in byScreen) if (key !== screenName) remaining[key] = byScreen[key]
+    const kept = []
+    let removed = false
+    for (let i = 0; i < previous.length; i++) {
+      if (previous[i].anchor === anchor) {
+        removed = true
+        continue
+      }
+      kept.push(previous[i])
+    }
+    if (!removed) return
 
     const next = {}
     for (const key in root.entries) next[key] = root.entries[key]
-    if (Object.keys(remaining).length > 0) next[name] = remaining
+    if (kept.length > 0) next[name] = kept
     else delete next[name]
     root.entries = next
   }
 
   function entryFor(name, anchor) {
-    const byScreen = root.entries[name]
-    if (!byScreen) return null
+    const previous = root.copies(name)
+    if (previous.length === 0) return null
 
-    const wanted = anchor ? Screens.nameOf(anchor) : Screens.focusedName
-    return byScreen[wanted]
-      || byScreen[Screens.focusedName]
-      || byScreen[Object.keys(byScreen)[0]]
-      || null
+    // A click names its own copy exactly, which is what keeps it on the bar it
+    // came from.
+    if (anchor) {
+      for (let i = previous.length - 1; i >= 0; i--) {
+        if (previous[i].anchor === anchor) return previous[i]
+      }
+    }
+
+    // A hotkey has no anchor, so it takes the focused display's copy. The
+    // newest match wins, so a bar rebuilt after a hotplug beats the stale copy
+    // it replaced.
+    const wanted = anchor ? Screens.screenNameOf(anchor) : Screens.focusedName
+    if (wanted) {
+      for (let i = previous.length - 1; i >= 0; i--) {
+        if (root.screenOf(previous[i]) === wanted) return previous[i]
+      }
+    }
+
+    return previous[previous.length - 1]
   }
 
   function toggle(name, anchor) {
@@ -123,7 +172,9 @@ QtObject {
     for (const name in root.entries) {
       const entry = root.entryFor(name, null)
       if (!entry || !entry.anchor) continue
-      if (Screens.nameOf(entry.anchor) !== Screens.nameOf(host)) continue
+      const entryScreen = root.screenOf(entry) || Screens.focusedName
+      const hostScreen = Screens.screenNameOf(host) || Screens.focusedName
+      if (entryScreen !== hostScreen) continue
       const point = entry.anchor.mapToItem(host, 0, 0)
       list.push({ name: name, x: point.x, y: point.y })
     }

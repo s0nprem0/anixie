@@ -24,53 +24,68 @@ import Quickshell.Wayland
 // keys.
 //
 // With more than one display there is more than one bar. A panel is placed on
-// the screen its anchor came from, and the curtain that dismisses it exists once
-// per screen with a panel on it. The bars register here by screen name; nothing
-// assumes a single "the bar" any more.
+// the screen its anchor came from, and a curtain that dismisses it exists on
+// every screen while it is up. The bars register here and the screen is
+// resolved when one is looked up, not when it registers; nothing assumes a
+// single "the bar" any more.
 QtObject {
   id: root
 
-  // The bars, by screen name. Each one is the invisible full-size item inside a
+  // The bars, in load order. Each one is the invisible full-size item inside a
   // bar window, which is the coordinate space panels and curtains are placed in.
-  property var bars: ({})
+  //
+  // The display is resolved when a bar is looked up, not when it registers. At
+  // Component.onCompleted a bar has not been shown yet, so its attached Screen
+  // is unset; keying it then put every bar on the focused output.
+  property var bars: []
 
   function registerBar(item) {
     if (!item) return
 
-    const name = Screens.nameOf(item)
-    if (!name) return
-
-    const next = {}
-    for (const key in root.bars) next[key] = root.bars[key]
-    next[name] = item
+    const next = []
+    for (let i = 0; i < root.bars.length; i++) {
+      if (root.bars[i] !== item) next.push(root.bars[i])
+    }
+    next.push(item)
     root.bars = next
   }
 
   function unregisterBar(item) {
     if (!item) return
 
-    // The screen may already be detached by the time a bar is destroyed, so the
-    // lookup prefers the recorded screen name and falls back to identity.
-    const name = Screens.nameOf(item)
-    let found = root.bars[name] === item ? name : ""
-    if (!found) {
-      for (const key in root.bars) {
-        if (root.bars[key] === item) {
-          found = key
-          break
-        }
+    const next = []
+    let removed = false
+    for (let i = 0; i < root.bars.length; i++) {
+      if (root.bars[i] === item) {
+        removed = true
+        continue
       }
+      next.push(root.bars[i])
     }
-    if (!found) return
+    if (removed) root.bars = next
+  }
 
-    const next = {}
-    for (const key in root.bars) if (key !== found) next[key] = root.bars[key]
-    root.bars = next
+  // The bar on one exact output, or null. Curtains need this rather than
+  // `barFor`, whose focused-output fallback would anchor a curtain to another
+  // display's bar while its screen is still coming up.
+  function barOn(screenName) {
+    const wanted = String(screenName || "")
+    if (!wanted) return null
+
+    for (let i = root.bars.length - 1; i >= 0; i--) {
+      if (Screens.screenNameOf(root.bars[i]) === wanted) return root.bars[i]
+    }
+    return null
   }
 
   function barFor(screenName) {
-    if (screenName && root.bars[screenName]) return root.bars[screenName]
-    return root.bars[Screens.focusedName] || null
+    const exact = root.barOn(screenName)
+    if (exact) return exact
+
+    const focused = root.barOn(Screens.focusedName)
+    if (focused) return focused
+
+    return root.bars.length > 0 ? root.bars[root.bars.length - 1] : null
   }
 
   readonly property Item focusedBar: root.barFor(Screens.focusedName)
@@ -92,9 +107,8 @@ QtObject {
 
   readonly property bool shown: root.openPanels.count > 0
 
-  // Which screens have at least one panel open. A curtain is only needed on
-  // those — a full-screen dismiss surface on a display with nothing to dismiss
-  // would swallow clicks meant for a window there.
+  // Which screens have at least one panel open. Used to decide whether a click
+  // on a curtain dismisses that screen's panel or every panel.
   readonly property var openScreens: {
     const out = {}
     const count = root.openPanels.count
@@ -104,14 +118,12 @@ QtObject {
     return out
   }
 
-  readonly property var curtainScreens: {
-    const out = []
-    const opened = root.openScreens
-    for (let i = 0; i < Screens.all.length; i++) {
-      if (opened[String(Screens.all[i].name)]) out.push(Screens.all[i])
-    }
-    return out
-  }
+  // A curtain goes on every output while any panel is open. A panel is a layer
+  // surface on one screen, so without this the first click on another monitor
+  // reaches the application there and leaves the panel stranded behind it.
+  // Panels on different screens can still coexist; the curtain just makes a
+  // click anywhere else dismiss what is open.
+  readonly property var curtainScreens: root.shown ? Screens.all : []
 
   // The bar's own edge, not always the top one. Panels hang off whichever side
   // it occupies, so a bottom or side bar opens them where the pointer is rather
@@ -354,8 +366,9 @@ QtObject {
   // short of the bar itself, so the bar stays live and clicking a module still
   // works — which is how a second panel is opened without closing the first.
   //
-  // One per screen with an open panel rather than one for the whole session: a
-  // single window cannot cover two outputs at once.
+  // One per screen while any panel is open, not just the screens carrying one:
+  // a panel is a layer surface, so a click on another output would otherwise
+  // pass straight through to the window there and leave the panel up.
   property Item windowHost: Item {
     visible: false
 
@@ -366,7 +379,7 @@ QtObject {
         required property var modelData
 
         readonly property string screenName: String(modelData.name)
-        readonly property var barItem: root.bars[screenName] || null
+        readonly property var barItem: root.barOn(screenName)
 
         // No `screen` here: a PopupWindow follows the window its anchor item is
         // in, and Quickshell refuses to set one directly. `modelData` is only
@@ -394,7 +407,13 @@ QtObject {
         MouseArea {
           anchors.fill: parent
           acceptedButtons: Qt.LeftButton | Qt.RightButton
-          onPressed: root.closeForScreen(screenName)
+          onPressed: {
+            // A click on a screen that has no panel is outside every panel, so
+            // it dismisses them all. On a screen with a panel it only closes
+            // that screen's panel, leaving an independent one elsewhere up.
+            if (root.openScreens[screenName]) root.closeForScreen(screenName)
+            else root.closeAll()
+          }
         }
       }
     }

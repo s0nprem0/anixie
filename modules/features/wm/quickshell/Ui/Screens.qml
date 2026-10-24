@@ -51,21 +51,35 @@ QtObject {
     return null
   }
 
+  // The screen an item is on, or "" when it is not attached to one yet. This is
+  // deliberately not a guess: a widget that registers itself from
+  // Component.onCompleted has not been shown, so its attached Screen is unset.
+  // Callers that key something by display must keep that "unknown" state rather
+  // than collapse every bar on the machine onto the focused output.
+  function screenNameOf(item) {
+    if (!item) return ""
+
+    try {
+      const screen = item.Screen
+      if (screen) return String(screen.name)
+
+      // An item that is still being built may not have the attached Screen yet,
+      // but its window already knows which output it belongs to.
+      const win = item.Window && item.Window.window ? item.Window.window : null
+      if (win && win.screen) return String(win.screen.name)
+    } catch (e) {
+      // A destroyed item is not on a screen any more.
+    }
+
+    return ""
+  }
+
   // The screen an item is on, for the bar root and the widgets registered
   // against it. An item that has not been shown yet has no screen, in which
   // case the focused one is the only useful guess.
   function nameOf(item) {
-    if (!item) return root.focusedName
-
-    const screen = item.Screen
-    if (screen) return String(screen.name)
-
-    // An item that is still being built may not have the attached Screen yet,
-    // but its window already knows which output it belongs to.
-    const win = item.Window && item.Window.window ? item.Window.window : null
-    if (win && win.screen) return String(win.screen.name)
-
-    return root.focusedName
+    const name = root.screenNameOf(item)
+    return name !== "" ? name : root.focusedName
   }
 
   function widthOf(name) {

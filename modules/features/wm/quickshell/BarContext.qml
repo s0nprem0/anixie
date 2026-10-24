@@ -38,48 +38,44 @@ QtObject {
   // How far a module may run before it stops being worth showing.
   readonly property int maxBarSize: vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal
 
-  // The tray widgets, by screen name, so the drawer can be opened by name as
-  // well as by click. One per bar: `bar tray` opens the one on the display the
-  // pointer is working on, not whichever happened to register last.
-  property var trays: ({})
+  // The tray widgets, in load order. The display is resolved when one is looked
+  // up rather than when it registers: at Component.onCompleted the tray is not
+  // on a screen yet, so every bar would key itself to the focused output.
+  // `bar tray` then opens the tray on the display the pointer is working on.
+  property var trays: []
 
   function registerTray(item) {
     if (!item) return
 
-    const name = Screens.nameOf(item)
-    if (!name) return
-
-    const next = {}
-    for (const key in root.trays) next[key] = root.trays[key]
-    next[name] = item
+    const next = []
+    for (let i = 0; i < root.trays.length; i++) {
+      if (root.trays[i] !== item) next.push(root.trays[i])
+    }
+    next.push(item)
     root.trays = next
   }
 
   function unregisterTray(item) {
     if (!item) return
 
-    const name = Screens.nameOf(item)
-    let found = root.trays[name] === item ? name : ""
-    if (!found) {
-      for (const key in root.trays) {
-        if (root.trays[key] === item) {
-          found = key
-          break
-        }
+    const next = []
+    let removed = false
+    for (let i = 0; i < root.trays.length; i++) {
+      if (root.trays[i] === item) {
+        removed = true
+        continue
       }
+      next.push(root.trays[i])
     }
-    if (!found) return
-
-    const next = {}
-    for (const key in root.trays) if (key !== found) next[key] = root.trays[key]
-    root.trays = next
+    if (removed) root.trays = next
   }
 
   readonly property Item trayItem: {
     const name = Screens.focusedName
-    if (root.trays[name]) return root.trays[name]
+    for (let i = root.trays.length - 1; i >= 0; i--) {
+      if (Screens.screenNameOf(root.trays[i]) === name) return root.trays[i]
+    }
 
-    const keys = Object.keys(root.trays)
-    return keys.length > 0 ? root.trays[keys[0]] : null
+    return root.trays.length > 0 ? root.trays[root.trays.length - 1] : null
   }
 }
