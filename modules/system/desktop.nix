@@ -27,6 +27,11 @@ let
   ];
 in
 {
+  # ddcutil talks to external monitors over /dev/i2c-*. The NixOS module loads
+  # i2c-dev and its udev rule grants the logged-in seat access, which is what
+  # `monitors brightness` needs when focus is on an HDMI/DP display.
+  hardware.i2c.enable = true;
+
   services = {
     # greetd owns PAM and the VT; tuigreet is just the terminal UI it starts.
     # GDM brought the GNOME session stack along to draw one login prompt.

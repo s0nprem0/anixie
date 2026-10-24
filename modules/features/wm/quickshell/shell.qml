@@ -607,6 +607,10 @@ ShellRoot {
     target: "osd"
 
     function show(payload: string): string { OsdHost.showPayload(payload); return "ok" }
+    // `show` collides with the ipc CLI's own `show` subcommand, which turns
+    // `ipc call osd show <payload>` into a target listing. Scripts use this
+    // alias; the direct function stays for anything that speaks the socket.
+    function payload(payload: string): string { OsdHost.showPayload(payload); return "ok" }
     function close(): string { OsdHost.hide(); return "ok" }
     function state(): string { return OsdHost.opened ? "open" : "closed" }
   }

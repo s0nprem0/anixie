@@ -1,7 +1,23 @@
 -- ------------------------------------------------------------------
 -- Startup
 -- ------------------------------------------------------------------
+local function sync_displays()
+  -- Give every connected output a block of ten workspaces and write the mapping
+  -- the bar reads. Re-running it after a hotplug keeps a returning dock on the
+  -- same numbers instead of renumbering the screens already attached.
+  hl.exec_cmd("monitors workspaces sync >/dev/null")
+  hl.exec_cmd("monitors lid reconcile >/dev/null")
+end
+
+-- Held so the one-shot timer survives until it fires.
+local display_timer = nil
+local function schedule_sync()
+  display_timer = hl.timer(sync_displays, { timeout = 500, type = "oneshot" })
+end
+
 hl.on("hyprland.start", function()
+  sync_displays()
+
   -- cliphist is fed both kinds of clipboard, so a screenshot copied with
   -- Super+Shift+C is in the history alongside any copied text. The wrapper
   -- drops selections that password managers mark as secrets.
@@ -20,3 +36,11 @@ hl.on("hyprland.start", function()
   -- would drag every variable Hyprland happens to be carrying along.
   hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_ID")
 end)
+
+-- A dock appearing or disappearing changes the set of active outputs. Sync the
+-- block mapping and re-assert the workspace rules; the bar picks up the written
+-- mapping on its own.
+-- Wait a moment before asking: the event can arrive before the new output is
+-- visible to hyprctl. The bar re-reads the mapping on its own shortly after.
+hl.on("monitor.added", schedule_sync)
+hl.on("monitor.removed", schedule_sync)

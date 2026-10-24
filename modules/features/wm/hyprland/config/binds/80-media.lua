@@ -43,13 +43,16 @@ bind("SHIFT + XF86AudioPlay", "Switch media source",
 bind("SHIFT + XF86AudioPause", "Switch media source",
   "quickshell ipc call media sourceSwitch", { locked = true })
 
-bind("XF86MonBrightnessUp", "Brighter", "brightnessctl set +5%", { locked = true, repeating = true })
-bind("XF86MonBrightnessDown", "Dimmer", "brightnessctl set 5%-", { locked = true, repeating = true })
+-- The focused display decides how brightness is applied: the internal panel
+-- through the kernel backlight, an external monitor through DDC/CI. The command
+-- keeps that split out of the binds.
+bind("XF86MonBrightnessUp", "Brighter", "monitors brightness up 5", { locked = true, repeating = true })
+bind("XF86MonBrightnessDown", "Dimmer", "monitors brightness down 5", { locked = true, repeating = true })
 -- ALT steps by one point, the same gesture the volume keys have, so a level can
 -- be set exactly without holding the key and overshooting.
-bind("ALT + XF86MonBrightnessUp", "Brighter precisely", "brightnessctl set +1%", { locked = true, repeating = true })
-bind("ALT + XF86MonBrightnessDown", "Dimmer precisely", "brightnessctl set 1%-", { locked = true, repeating = true })
+bind("ALT + XF86MonBrightnessUp", "Brighter precisely", "monitors brightness up 1", { locked = true, repeating = true })
+bind("ALT + XF86MonBrightnessDown", "Dimmer precisely", "monitors brightness down 1", { locked = true, repeating = true })
 -- SHIFT jumps to the ends, which is what the panel's slider cannot do in one
 -- press when the screen is too bright to find it.
-bind("SHIFT + XF86MonBrightnessUp", "Maximum brightness", "brightnessctl set 100%", { locked = true })
-bind("SHIFT + XF86MonBrightnessDown", "Minimum brightness", "brightnessctl set 1%", { locked = true })
+bind("SHIFT + XF86MonBrightnessUp", "Maximum brightness", "monitors brightness max", { locked = true })
+bind("SHIFT + XF86MonBrightnessDown", "Minimum brightness", "monitors brightness min", { locked = true })

@@ -16,6 +16,55 @@ BarWidget {
   // this one, with the highlight on a workspace that is not even here.
   readonly property string screenName: root.Screen ? String(root.Screen.name) : ""
 
+  // `monitors workspaces sync` assigns each output a block of ten global
+  // workspace ids: 1-10 on the first screen, 11-20 on the next, and so on. The
+  // bar shows the local number (1-10) while Hyprland keeps the global id.
+  readonly property string workspaceState: (Quickshell.env("XDG_STATE_HOME")
+    || Quickshell.env("HOME") + "/.local/state") + "/anixie/workspaces.json"
+  property var mapping: ({})
+  readonly property int base: {
+    const value = Number(root.mapping[root.screenName])
+    return isFinite(value) && value > 0 ? value : 1
+  }
+
+  property FileView mappingFile: FileView {
+    path: Qt.resolvedUrl(root.workspaceState)
+    printErrors: false
+    blockLoading: true
+    watchChanges: true
+
+    Component.onCompleted: root.parseMapping()
+    onTextChanged: root.parseMapping()
+  }
+
+  function parseMapping() {
+    try {
+      const data = JSON.parse(String(root.mappingFile.text() || "{}"))
+      root.mapping = data && typeof data === "object" && !Array.isArray(data) ? data : ({})
+    } catch (e) {
+      root.mapping = ({})
+    }
+  }
+
+  // A monitor event rewrites the mapping; reload rather than trusting a watch
+  // that does not fire on every file in this shell.
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (String(event.name).indexOf("monitor") === 0) root.mappingFile.reload()
+    }
+  }
+
+  // The first sync is started by Hyprland's own startup handler and can land
+  // just after the bar reads the file. One reload shortly after boot picks it up
+  // even when the file watch does not fire for a newly created path.
+  property Timer mappingStartup: Timer {
+    interval: 1500
+    running: true
+    repeat: false
+    onTriggered: root.mappingFile.reload()
+  }
+
   readonly property var workspaces: {
     const all = Hyprland.workspaces ? Hyprland.workspaces.values : []
     if (root.screenName === "") return all
@@ -43,7 +92,7 @@ BarWidget {
   // created yet, so the row does not reshuffle as windows come and go. Any
   // workspace beyond them is appended when it exists. Clicking the focused
   // number cycles its layout; the others focus their workspace.
-  readonly property int slots: Math.max(1, Number(root.setting("slots", 5)))
+  readonly property int slots: Math.max(1, Math.min(10, Number(root.setting("slots", 5))))
   readonly property var layouts: ["dwindle", "master", "scrolling"]
   property string layout: "dwindle"
 
@@ -53,7 +102,7 @@ BarWidget {
 
   function workspaceIds() {
     const ids = []
-    for (let i = 1; i <= root.slots; i++) ids.push(i)
+    for (let i = 0; i < root.slots; i++) ids.push(root.base + i)
 
     for (let i = 0; i < root.workspaces.length; i++) {
       const id = root.workspaces[i].id
@@ -175,8 +224,9 @@ BarWidget {
         required property int modelData
 
         readonly property bool focused: root.focusedId === modelData
+        readonly property int slot: button.modelData - root.base + 1
 
-        text: button.modelData === 10 ? "0" : String(button.modelData)
+        text: button.slot === 10 ? "0" : String(button.slot > 0 ? button.slot : button.modelData)
         active: button.focused
         // The active workspace is a brighter number, not a filled block: the
         // reference bar uses the block for hover and mode switches, not for the

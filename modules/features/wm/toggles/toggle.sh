@@ -92,9 +92,9 @@ dnd_toggle() {
 # ---- stay awake ----
 #
 # A logind inhibitor rather than another toggle of the same daemon. `idle` only
-# stops the shell's screensaver and lock timers; closing the lid still suspends,
-# and so does an empty battery on the desktop's own policy. This one takes the
-# sleep class outright, for as long as it is running.
+# stops the shell's screensaver and lock timers; the sleep class and logind's
+# lid action are separate, and an empty battery is the desktop's own policy.
+# This one blocks idle, sleep and handle-lid-switch while it runs.
 #
 # The inhibitor is a service rather than a backgrounded `sleep infinity`: an
 # inhibitor only exists while its process holds the lock, and one launched from

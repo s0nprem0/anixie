@@ -53,16 +53,18 @@ dispatch(mod .. " + SHIFT + P", "Pin window", "window.pin", { action = "toggle" 
 
 -- ------------------------------------------------------------------
 -- Workspaces
--- 1-5 jump, and SHIFT with the same sends the window along too.
+-- 1-5 jump, and SHIFT with the same sends the window along too. The number is
+-- per monitor: `monitors workspace 2` resolves the focused screen's block, so
+-- Super+2 is the second workspace on whichever display has focus.
 -- ------------------------------------------------------------------
 for i = 1, 5 do
-  dispatch(mod .. " + " .. i, "Workspace " .. i, "focus", { workspace = tostring(i) })
-  dispatch(mod .. " + SHIFT + " .. i, "Send to workspace " .. i, "window.move", { workspace = tostring(i) })
+  bind(mod .. " + " .. i, "Workspace " .. i, "monitors workspace " .. i)
+  bind(mod .. " + SHIFT + " .. i, "Send to workspace " .. i, "monitors move-window " .. i)
 end
 
--- Comma and shift+comma walk the existing workspaces, the same as the wheel
--- below: a gap of empty ones is crossed in one step. Numbered stepping would
--- stop on every empty workspace instead, which is a different gesture.
+-- Comma and shift+comma step within the focused monitor's block. `e-1` / `e+1`
+-- would walk the global workspace list and cross to another screen; the block
+-- is what makes each monitor's 1-10 independent.
 --
 -- Not period. Hyprland key names are case-insensitive, so PERIOD and period
 -- are the same keysym: binding workspace stepping to period unbinds and
@@ -70,8 +72,8 @@ end
 -- gone from hyprctl binds with no error anywhere. Which of the two you want
 -- on that key is a choice, and the reference shell's choice is the emoji
 -- picker, so step with comma instead.
-dispatch(mod .. " + comma", "Previous workspace", "focus", { workspace = "e-1" })
-dispatch(mod .. " + SHIFT + comma", "Next workspace", "focus", { workspace = "e+1" })
+bind(mod .. " + comma", "Previous workspace", "monitors workspace-step prev")
+bind(mod .. " + SHIFT + comma", "Next workspace", "monitors workspace-step next")
 
 -- Note what is *not* here: SUPER+SHIFT+arrow does not also move the window to
 -- the next workspace. It used to, alongside the swap above, and because a
@@ -80,12 +82,11 @@ dispatch(mod .. " + SHIFT + comma", "Next workspace", "focus", { workspace = "e+
 -- to another workspace is SHIFT with a number, above; the arrows are for
 -- swapping with the neighbour, which is the action you reach for more.
 
--- The wheel moves between existing workspaces, so a gap of several empty
--- ones is crossed in one notch. mouse_up and mouse_down, not a bare "wheel":
--- the key has to say which way the wheel turned, or the two binds are
--- identical apart from their argument and one shadows the other.
-dispatch(mod .. " + mouse_up", "Previous workspace", "focus", { workspace = "e-1" })
-dispatch(mod .. " + mouse_down", "Next workspace", "focus", { workspace = "e+1" })
+-- The wheel steps within the focused monitor's block. mouse_up and mouse_down,
+-- not a bare "wheel": the key has to say which way the wheel turned, or the two
+-- binds are identical apart from their argument and one shadows the other.
+bind(mod .. " + mouse_up", "Previous workspace", "monitors workspace-step prev")
+bind(mod .. " + mouse_down", "Next workspace", "monitors workspace-step next")
 
 -- The focused workspace can also cycle its layout from the keyboard; the
 -- bar's focused workspace button does the same thing on click.

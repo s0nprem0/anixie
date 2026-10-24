@@ -9,6 +9,12 @@
 bind(mod .. " + CTRL + DELETE", "Internal display", "monitors internal toggle")
 bind(mod .. " + CTRL + ALT + DELETE", "Mirror displays", "monitors mirror toggle")
 
+-- Hyprland reports a closed lid as switch:on (the switch is pressed) and an
+-- open lid as switch:off. The helper runs the clamshell path, which only takes
+-- the internal panel out when an external output is active.
+bind("switch:on:Lid Switch", "Lid closed", "monitors lid close", { locked = true })
+bind("switch:off:Lid Switch", "Lid opened", "monitors lid open", { locked = true })
+
 -- Moving between monitors, for layouts the arrow keys cannot reach: screens
 -- that only touch at a corner, or that have a gap between them, are not
 -- neighbours, so direction cannot find them. `+1` and `-1` walk the list

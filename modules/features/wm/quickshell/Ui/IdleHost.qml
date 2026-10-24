@@ -85,6 +85,7 @@ QtObject {
     blankTimer.stop()
     lockTimer.stop()
     suspendTimer.stop()
+    wakeDpms.stop()
   }
 
   function startCycle() {
@@ -102,8 +103,17 @@ QtObject {
 
     if (root.displayBlanked) {
       root.displayBlanked = false
-      root.dpms("on")
+      // A plain "on" can leave a panel that slept through the idle cycle dark.
+      // Cycling off and on forces the modeset that repaints it.
+      root.dpms("off")
+      wakeDpms.restart()
     }
+  }
+
+  property Timer wakeDpms: Timer {
+    interval: 200
+    repeat: false
+    onTriggered: root.dpms("on")
   }
 
   function dpms(action) {

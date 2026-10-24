@@ -151,7 +151,7 @@ by its position from the left.
 | `Super+Ctrl+W` | Network (scan, DNS, share by QR) |
 | `Super+Ctrl+B` | Bluetooth |
 | `Super+Ctrl+D` | Display (brightness, text size) |
-| `Super+Ctrl+Shift+D` | Displays (per-output scale, rotation, on/off) |
+| `Super+Ctrl+Shift+D` | Displays (per-output scale, rotation, mode, position, on/off) |
 | `Super+Ctrl+P` | Power (profile, brightness, battery, system) |
 | `Super+Ctrl+Alt+D` | Calendar |
 
@@ -161,6 +161,34 @@ key of their own.
 Right-click a bar widget for a small action menu; right-click the desktop for
 terminal, files, theme, screen-time and lock. Tray icons keep their own
 application menu (the app supplies it over DBusMenu).
+
+## Multiple displays
+
+Every output has its own bar, workspace row and panels. Scale, rotation, mode,
+position, on/off and mirroring are per output and written to
+`~/.local/state/anixie/display.conf`; the catch-all rule in
+`hyprland/config/20-settings.lua` only supplies defaults for a screen that has
+no saved line (`anixie.wm.display.defaultScale`, 1 by default).
+
+Workspaces are per monitor: each output gets a block of ten global workspace
+ids, so `Super+1` is the first workspace of whichever screen has focus, and
+`Super+Comma` / the wheel stay inside that block. The mapping lives in
+`~/.local/state/anixie/workspaces.json` and is re-synced on hotplug.
+
+```sh
+monitors set HDMI-A-1 mode 1920x1080@60.00
+monitors set HDMI-A-1 position auto-right   # or XxY
+monitors brightness up 5                    # DDC/CI when focus is external
+monitors lid close | open                   # clamshell path
+monitors workspaces sync | show | reset
+monitors recover                            # clear a stale internal-off state
+monitors wake                               # DPMS off/on after a dark resume
+```
+
+Closing the lid with an external screen attached takes the internal panel out
+of the layout and opening it puts it back at the saved scale. Booting undocked
+clears a saved internal-off state before Hyprland reads it, so the laptop screen
+cannot come up disabled as the only display.
 
 ## Themes
 
@@ -207,7 +235,8 @@ anixie toggle [dnd|idle|nightlight|stayawake]
 anixie focus start 25 | stop | extend 15 | status
 anixie screentime [show|json|reset|path|panel]
 notify -G f017 SUMMARY [BODY] --exec COMMAND [ARG...]   # a toast with a glyph and a click action
-anixie display …                    # monitors: scale, mirror, status
+monitors …                          # scale, rotation, mode, position, mirror,
+                                    # brightness, lid, workspaces, recover, wake
 anixie power …                      # profile for AC or battery
 anixie snapshot create|list|restore|prune
 anixie webapp add NAME URL          # a site as an application

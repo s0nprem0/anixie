@@ -54,13 +54,15 @@ in
   # is told to: a logind inhibitor only exists while the process holding it lives.
   #
   # `idle` covers the screen blanking and locking the shell does; this covers the
-  # sleep class on top of that — the lid, and the desktop's own suspend policy —
-  # which nothing else here turns off.
+  # sleep class on top of that — the desktop's own suspend policy and logind's
+  # lid action — which nothing else here turns off. The lid switch has to be
+  # named explicitly: a sleep inhibitor alone does not stop logind's
+  # handle-lid-switch path.
   systemd.user.services.anixie-stayawake = {
     Unit.Description = "Hold off blanking, sleeping and suspending";
     Service = {
       Type = "simple";
-      ExecStart = "${pkgs.systemd}/bin/systemd-inhibit --what=idle:sleep --mode=block sleep infinity";
+      ExecStart = "${pkgs.systemd}/bin/systemd-inhibit --what=idle:sleep:handle-lid-switch --mode=block sleep infinity";
       # Nothing to restore on the way out; the inhibitor is the whole job.
       RemainAfterExit = false;
     };

@@ -2,6 +2,7 @@ import QtQuick
 import ".."
 import "../Ui"
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 
 // Displays: every output, and what can be changed about it — scale, rotation,
@@ -19,6 +20,17 @@ Item {
   property var outputs: ""
 
   readonly property bool ready: root.outputs !== ""
+
+  // A failed read leaves the last good list in place, and a failed write is
+  // reported rather than swallowed; `error` is whichever happened most recently.
+  property string listError: ""
+  property string setError: ""
+  readonly property string error: root.setError !== "" ? root.setError : root.listError
+
+  // Changes are applied one at a time, in order. Starting a second `monitors
+  // set` while the first is still running would race the two writes; dropping
+  // it would silently ignore a click. A queue does neither.
+  property var pending: []
 
   readonly property var scales: [
     { label: "1x", value: "1" },
@@ -41,26 +53,58 @@ Item {
     { label: "Flipped 270°", value: "7" }
   ]
 
+  // Relative placement, the part of arrangement that does not need a drag
+  // canvas. Arbitrary XxY stays available through `monitors set position`.
+  readonly property var positions: [
+    { label: "Auto", value: "auto" },
+    { label: "Left of others", value: "auto-left" },
+    { label: "Right of others", value: "auto-right" },
+    { label: "Above others", value: "auto-up" },
+    { label: "Below others", value: "auto-down" }
+  ]
+
   function parse(raw) {
+    const text = String(raw || "").trim()
+    // An empty read is a failure, not an empty desktop: keep the last list
+    // rather than blanking the panel on a transient hyprctl error.
+    if (text === "") return
+
     try {
-      const list = JSON.parse(String(raw || ""))
-      root.outputs = Array.isArray(list) ? list : []
+      const list = JSON.parse(text)
+      if (!Array.isArray(list)) {
+        root.listError = "could not read the display list"
+        return
+      }
+      root.outputs = list
+      root.listError = ""
     } catch (e) {
-      root.outputs = []
+      root.listError = "could not read the display list"
     }
   }
 
+  property bool queryPending: false
+
   function query() {
-    listQuery.running = false
+    // A read already in flight will be followed by one more, rather than being
+    // killed and restarted: stopping it would surface as a spurious failure.
+    if (listQuery.running) {
+      root.queryPending = true
+      return
+    }
     listQuery.running = true
   }
 
-  // A change is optimistic where it can be: the control moves, then the truth is
-  // asked for again. Writing optimistically the other way round would leave the
-  // panel showing what was asked for if the change was refused.
   function set(output, key, value) {
-    Commands.runQuoted("monitors", ["set", output, key, String(value)])
-    root.query()
+    root.setError = ""
+    root.pending.push([output, key, String(value)])
+    root.startSet()
+  }
+
+  function startSet() {
+    if (setQuery.running || root.pending.length === 0) return
+    const args = root.pending.shift()
+    setQuery.command = ["monitors", "set"].concat(args)
+    setQuery.running = true
   }
 
   // -1 when the current value is not one of the offered ones, rather than 0 —
@@ -74,6 +118,20 @@ Item {
     return -1
   }
 
+  // Match the current pixel size and rounded refresh rate against Hyprland's
+  // mode strings, which carry more decimals than the panel needs to show.
+  function modeIndex(modes, block) {
+    const width = Number(block.width || 0)
+    const height = Number(block.height || 0)
+    const refresh = Math.round(Number(block.refreshRate || 0))
+    for (let i = 0; i < modes.length; i++) {
+      const match = /^(\d+)x(\d+)@([\d.]+)/.exec(String(modes[i]))
+      if (match && Number(match[1]) === width && Number(match[2]) === height
+          && Math.round(Number(match[3])) === refresh) return i
+    }
+    return -1
+  }
+
   Process {
     id: listQuery
     command: ["monitors", "list"]
@@ -81,11 +139,53 @@ Item {
     stdout: StdioCollector {
       onStreamFinished: root.parse(this.text)
     }
+    stderr: StdioCollector {
+      id: listErrorOutput
+    }
+    onExited: function (code) {
+      if (code !== 0) {
+        const message = String(listErrorOutput.text || "").trim()
+        root.listError = message !== "" ? message : "could not read the display list"
+      }
+      if (root.queryPending) {
+        root.queryPending = false
+        root.query()
+      }
+    }
   }
 
-  // Re-read on a timer, because a monitor being plugged in is the one thing here
-  // that happens without the panel asking. Slow: a screen arrives rarely, and
-  // this is a hyprctl call per tick whatever else it is doing.
+  Process {
+    id: setQuery
+    stderr: StdioCollector {
+      id: setErrorOutput
+    }
+    onExited: function (code) {
+      if (code !== 0) {
+        const message = String(setErrorOutput.text || "").trim()
+        root.setError = message !== "" ? message : "could not change the display"
+      }
+
+      // The next change starts only after this one has landed, and the panel
+      // re-reads only once the queue is empty, so what it shows is the truth
+      // rather than the value that was asked for.
+      if (root.pending.length > 0) Qt.callLater(function () { root.startSet() })
+      else root.query()
+    }
+  }
+
+  // The timer is a backstop for a screen arriving while the panel is open. The
+  // event makes the common case immediate; the timer covers anything Hyprland
+  // does not announce.
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (event.name === "monitoradded" || event.name === "monitoraddedv2"
+          || event.name === "monitorremoved" || event.name === "monitorremovedv2") {
+        root.query()
+      }
+    }
+  }
+
   readonly property Timer watch: Timer {
     interval: 8000
     running: true
@@ -109,6 +209,18 @@ Item {
         : (root.outputs.length > 0
           ? root.outputs.length + (root.outputs.length === 1 ? " screen" : " screens")
           : "none found")
+    }
+
+    Text {
+      width: card.contentWidth
+      visible: root.error !== ""
+      height: implicitHeight
+      text: root.error
+      color: Theme.danger
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      wrapMode: Text.Wrap
+      renderType: Text.NativeRendering
     }
 
     PanelSeparator {
@@ -140,6 +252,7 @@ Item {
         readonly property string name: block.modelData.name
         readonly property bool off: block.modelData.disabled === true
         readonly property bool focused: block.modelData.focused === true
+        readonly property bool mirroring: String(block.modelData.mirrorOf || "none") !== "none"
 
         // Between screens. The last one needs no gap under it, and a rule is
         // clearer than space for a list of separate objects.
@@ -160,6 +273,7 @@ Item {
           Text {
             width: parent.width
             text: block.name
+                  + (block.mirroring ? "  ·  mirrors " + block.modelData.mirrorOf : "")
                   + (block.focused ? "  ·  focused" : "")
                   + (block.off ? "  ·  off" : "")
             color: block.off ? Theme.muted : Theme.fg
@@ -172,9 +286,13 @@ Item {
 
           Text {
             width: parent.width
-            text: (block.modelData.width || 0) + "×" + (block.modelData.height || 0)
-                  + "  ·  " + Math.round(block.modelData.refreshRate || 0) + " Hz"
-                  + "  ·  " + (block.modelData.description || "")
+            // A disabled output can come back with no mode, which is not a
+            // useful thing to print as "0×0 · 0 Hz". The description still is.
+            text: ((block.modelData.width || 0) > 0
+              ? (block.modelData.width + "×" + block.modelData.height
+                + "  ·  " + Math.round(block.modelData.refreshRate || 0) + " Hz  ·  ")
+              : "")
+              + (block.modelData.description || "")
             color: Theme.muted
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
@@ -182,7 +300,7 @@ Item {
             elide: Text.ElideRight
           }
 
-          // No value beside these two: the dropdown says what is chosen, and a
+          // No value beside these: the dropdown says what is chosen, and a
           // second copy of it on the other side of the row is the same fact
           // twice, with a gap between the two halves of it.
           PanelRow {
@@ -216,6 +334,47 @@ Item {
               placeholder: "unknown"
               currentIndex: root.indexOf(root.transforms, block.modelData.transform)
               onActivated: function (index) { root.set(block.name, "transform", root.transforms[index].value) }
+            }
+          }
+
+          PanelRow {
+            id: modeRow
+            width: parent.width
+            hasControl: true
+            label: "Mode"
+
+            Dropdown {
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              width: modeRow.controlWidth
+              model: block.modelData.availableModes || []
+              placeholder: (block.modelData.width || 0) > 0
+                ? block.modelData.width + "×" + block.modelData.height
+                  + "@" + Math.round(block.modelData.refreshRate || 0)
+                : "unknown"
+              currentIndex: root.modeIndex(block.modelData.availableModes || [], block.modelData)
+              onActivated: function (index) {
+                root.set(block.name, "mode", String(block.modelData.availableModes[index]))
+              }
+            }
+          }
+
+          PanelRow {
+            id: positionRow
+            width: parent.width
+            hasControl: true
+            label: "Position"
+
+            Dropdown {
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              width: positionRow.controlWidth
+              model: root.positions
+              placeholder: block.modelData.x + "," + block.modelData.y
+              currentIndex: -1
+              onActivated: function (index) {
+                root.set(block.name, "position", root.positions[index].value)
+              }
             }
           }
 

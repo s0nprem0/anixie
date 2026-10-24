@@ -159,51 +159,111 @@ hl.config({
   };
 })
 
--- Native resolution, no HiDPI scaling: the panel is already 1920x1080, so
--- 1.0 gives a full 1920x1080 workspace rather than 1280x720. hl.monitor
--- wants the output named, and an empty string means the default one.
+-- The catch-all rule: native mode, automatic placement, and the scale set by
+-- `anixie.wm.display.defaultScale`. On this 1080p laptop that is 1, which gives
+-- a full 1920x1080 workspace rather than 1280x720; `auto` is there for a
+-- machine whose first panel is HiDPI.
 --
--- This is the fallback for every output, and it is what a monitor that has
--- never been scaled gets. The `monitors` command steps the scale of the one
--- you are on and writes the choice to a state file; the rules below read that
--- file back and re-assert the scale, which is the only way a choice made at
--- runtime can outlive a config reload. There is no runtime monitor dispatcher
--- to ask, and `hyprctl keyword` is refused outright by the Lua config manager.
-hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
+-- This is a fallback for every output, and it is what a monitor that has never
+-- been configured gets. The `monitors` command changes one output and writes
+-- the choice to a state file; the rules below read that file back and re-assert
+-- the settings, which is the only way a choice made at runtime can outlive a
+-- config reload. There is no runtime monitor dispatcher to ask, and
+-- `hyprctl keyword` is refused outright by the Lua config manager.
+--
+-- The catch-all stays static. Runtime changes never rewrite it, so changing one
+-- screen's scale cannot leak into another, and a saved per-output rule always
+-- wins because it is loaded after this one.
+hl.monitor({ output = "", mode = "preferred", position = "auto", scale = @MONITOR_DEFAULT_SCALE@ })
 
 -- The saved settings, one rule per output that has any. Read with io rather
 -- than through a helper because Hyprland exposes no config reader, and io is
 -- available to the config: it is the same Lua state `hyprctl eval` runs in.
 --
--- A line is `output scale transform disabled`. The last two were added after
--- the first, so a line written by the older format is still two fields: the
--- pattern's optional groups leave them nil, and the rule falls back to no
--- rotation and the output on. That way a machine updating from the earlier
--- version keeps its scales without the file having to be rewritten.
+-- A line is `output scale transform disabled mirror position mode`. Fields
+-- were added over time: a two-field line predates rotation and on/off, a
+-- four-field line predates mirroring, and a five-field line predates position
+-- and mode. Missing fields fall back to no rotation, the output on, not
+-- mirroring, auto placement, and preferred mode, so an older file keeps its
+-- scales without being rewritten.
 --
 -- Every field has to look right before it is used. A hand-edited or truncated
--- file should not be able to ask Hyprland for an output name or a scale that
--- nothing here knows about, so a malformed line is skipped rather than passed
--- on.
+-- file should not be able to ask Hyprland for an output name, a scale, a
+-- transform, a position or a mode that nothing here knows about, so a malformed
+-- line is skipped rather than passed on.
 do
   local state_home = os.getenv("XDG_STATE_HOME")
     or ((os.getenv("HOME") or "") .. "/.local/state")
   local file = io.open(state_home .. "/anixie/display.conf", "r")
 
+  local function output_name(value)
+    return value ~= nil and value:match("^[%w%-%._]+$") ~= nil
+  end
+
+  local function position_ok(value)
+    return value == "auto"
+      or value:match("^auto%-[%a]+$") ~= nil
+      or value:match("^%-?%d+x%-?%d+$") ~= nil
+  end
+
+  local function mode_ok(value)
+    return value == "preferred"
+      or value == "highres"
+      or value == "highrr"
+      or value == "maxwidth"
+      or value:match("^%d+x%d+$") ~= nil
+      or value:match("^%d+x%d+@[%d%.]+$") ~= nil
+  end
+
   if file then
     for line in file:lines() do
-      local output, scale, transform, disabled =
-        line:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)$")
-        or line:match("^(%S+)%s+(%S+)$")
+      local output, scale, transform, disabled, mirror, position, mode =
+        line:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)$")
+      if not output then
+        output, scale, transform, disabled, mirror, position =
+          line:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)$")
+      end
+      if not output then
+        output, scale, transform, disabled, mirror =
+          line:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)$")
+      end
+      if not output then
+        output, scale, transform, disabled =
+          line:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)$")
+      end
+      if not output then
+        output, scale = line:match("^(%S+)%s+(%S+)$")
+      end
 
-      if output and scale and scale:match("^%d+%.?%d*$") then
+      local scale_value = tonumber(scale)
+      local transform_value = tonumber(transform or "0")
+      local disabled_value = disabled or "0"
+      local mirror_value = mirror or "none"
+      local position_value = position or "auto"
+      local mode_value = mode or "preferred"
+
+      if
+        output_name(output)
+        and scale_value
+        and scale_value > 0
+        and scale:match("^%d+%.?%d*$")
+        and transform_value
+        and transform_value % 1 == 0
+        and transform_value >= 0
+        and transform_value <= 7
+        and (disabled_value == "0" or disabled_value == "1")
+        and (mirror_value == "none" or output_name(mirror_value))
+        and position_ok(position_value)
+        and mode_ok(mode_value)
+      then
         hl.monitor({
           output = output,
-          mode = "preferred",
-          position = "auto",
-          scale = tonumber(scale),
-          transform = tonumber(transform or "0"),
-          disabled = disabled == "1",
+          mode = mode_value,
+          position = position_value,
+          scale = scale_value,
+          transform = transform_value,
+          disabled = disabled_value == "1",
+          mirror = mirror_value == "none" and "" or mirror_value,
         })
       end
     end

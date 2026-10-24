@@ -39,9 +39,12 @@ lock() {
   "$quickshell" ipc call lock lock >/dev/null 2>&1 || true
 }
 
-# Hyprland does not always bring the panel back on its own after resume, which
-# is why the old hypridle config carried this as its after_sleep_cmd.
+# Hyprland does not always bring the panel back on its own after resume. A
+# plain "on" is not enough when the panel is stuck dark; cycling the DPMS state
+# forces the modeset that repaints it.
 resume() {
+  "$hyprctl" dispatch 'hl.dsp.dpms({action = "off"})' >/dev/null 2>&1 || true
+  sleep 0.2
   "$hyprctl" dispatch 'hl.dsp.dpms({action = "on"})' >/dev/null 2>&1 || true
 }
 

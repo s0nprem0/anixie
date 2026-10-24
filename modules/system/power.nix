@@ -9,6 +9,13 @@
     logind.settings.Login = {
       HandlePowerKey = "ignore";
       HandlePowerKeyLongPress = "poweroff";
+
+      # Docked or on mains, closing the lid should leave the external screen
+      # usable. On battery the default suspend still applies unless the
+      # stay-awake inhibitor is on; clamshell display handling itself lives in
+      # Hyprland's lid binds.
+      HandleLidSwitchDocked = "ignore";
+      HandleLidSwitchExternalPower = "ignore";
     };
 
     # The battery readout comes from here rather than from sysfs directly. UPower
