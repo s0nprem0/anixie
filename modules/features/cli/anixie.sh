@@ -37,6 +37,8 @@ textsize|textsize|text|up down set reset apply|global text size: up, down, set N
 wallpaper|wallpaper||list set add next prev generated apply current|desktop background: set FILE, theme, current
 display|monitors|monitors|scale internal mirror set list status|monitors: scale, internal, mirror, status
 power|powerprofile|powerprofile|set apply show|power profiles per source: set ac|battery PROFILE, show
+wifi|wifi||band dns password qr|Wi-Fi: band, DNS, password, QR
+audio|audio-output||set switch|audio output: set, switch
 shot|shot|screenshot|smart region windows fullscreen window copy save annotate preview|screenshots: smart, region, windows, fullscreen
 record|record||--status --stop --fullscreen|screen recording
 clipboard|clipboard|||clipboard history picker
