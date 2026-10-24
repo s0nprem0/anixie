@@ -32,6 +32,7 @@ let
         "@QUICKSHELL@"
         "@WIDTH@"
         "@HEIGHT@"
+        "@ANIXIE_LIB@"
       ]
       [
         stateDir
@@ -47,6 +48,7 @@ let
         "${pkgs.quickshell}/bin/quickshell"
         "1920"
         "1080"
+        "${../cli/lib.sh}"
       ]
       (builtins.readFile ./wallpaper.sh)
   );
@@ -55,12 +57,19 @@ let
   # file, and tells GTK and the running shell through their own controls.
   textsize = pkgs.writeShellScriptBin "textsize" (
     builtins.replaceStrings
-      [ "@STATE_DIR@" "@GSETTINGS@" "@GSETTINGS_SCHEMA_DIR@" "@QUICKSHELL@" ]
+      [
+        "@STATE_DIR@"
+        "@GSETTINGS@"
+        "@GSETTINGS_SCHEMA_DIR@"
+        "@QUICKSHELL@"
+        "@ANIXIE_LIB@"
+      ]
       [
         stateDir
         "${pkgs.glib}/bin/gsettings"
         "${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}/glib-2.0/schemas"
         "${pkgs.quickshell}/bin/quickshell"
+        "${../cli/lib.sh}"
       ]
       (builtins.readFile ./textsize.sh)
   );

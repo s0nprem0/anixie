@@ -27,13 +27,14 @@ zstyle ':completion:*' verbose true
 zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
 
 # anixie: group names first, then that group's own words, then files. Both lists
-# are read back from the command (`anixie commands` and `anixie subcommands`), so
-# completion cannot list something the dispatcher does not know.
+# are read back from the command (`anixie commands --aliases` and `anixie
+# subcommands`), so completion cannot list something the dispatcher does not know
+# — including the aliases, which are real groups but not primary names.
 _anixie() {
   case $CURRENT in
     2)
       local -a groups
-      groups=( ${(f)"$(command anixie commands 2>/dev/null)"} )
+      groups=( ${(f)"$(command anixie commands --aliases 2>/dev/null)"} )
       _describe -t groups 'anixie group' groups
       ;;
     3)

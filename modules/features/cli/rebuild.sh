@@ -1,9 +1,12 @@
 #!/bin/sh
 # Rebuild the system.
 #
-#   rebuild              build and activate now (os switch)
-#   rebuild boot         build for the next boot
-#   rebuild test         activate a throwaway generation
+#   update               build and activate now (os switch)
+#   update boot          build for the next boot
+#   update test          activate a throwaway generation
+#
+# The same command is installed as `rebuild`, which is what the nrs/nrb/nrt
+# aliases call; the usage above uses the name the `anixie` front door shows.
 #
 # Everything goes through `nh -e auto`. That is what makes it work from an
 # ordinary shell: activating writes /nix/var/nix/profiles/system, which is
@@ -21,14 +24,19 @@ set -eu
 # shellcheck source=/dev/null
 . "@ANIXIE_LIB@"
 
-case "${1:-}" in
+case "${1:-switch}" in
   -h | --help)
     usage
     exit 0
     ;;
+  switch | boot | test)
+    mode=${1:-switch}
+    ;;
+  *)
+    die "unknown mode \"${1:-}\" (try --help)"
+    ;;
 esac
 
-mode="${1:-switch}"
 if [ $# -gt 0 ]; then
   shift
 fi

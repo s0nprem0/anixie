@@ -20,6 +20,7 @@ let
       "@CLIPHIST@" = "${pkgs.cliphist}/bin/cliphist";
       "@WL_COPY@" = "${pkgs.wl-clipboard}/bin/wl-copy";
       "@FILE@" = "${pkgs.file}/bin/file";
+      "@ANIXIE_LIB@" = "${../../cli/lib.sh}";
     };
   };
 

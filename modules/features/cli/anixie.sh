@@ -8,16 +8,20 @@
 # same concern, which is what actually knows how to run.
 #
 #   anixie                 this help
-#   anixie commands        just the list of groups
-#   anixie resolve GROUP   the command a group runs
+#   anixie commands        just the list of groups (--aliases adds the rest)
+#   anixie help GROUP      a group's own help
 #   anixie <group> [args]  run a group
-#   anixie <group> --help  that command's own help
+#   anixie <group> --help  the same as `anixie help GROUP`
+#   anixie resolve GROUP   the command a group runs
+#   anixie subcommands GROUP  the words completion offers for it
 #
 # Every group below is another command on PATH. Adding one is a line in the table
-# and nothing else: the help, `commands`, `resolve` and the dispatcher all read
-# the same table, so they cannot disagree. The table is also what the shell's
+# and nothing else: the help, `help`, `commands`, `resolve` and the dispatcher all
+# read the same table, so they cannot disagree. The table is also what the shell's
 # completion reads, which is why it carries subcommands as data rather than
-# leaving them only in each command's prose.
+# leaving them only in each command's prose. The flake's `anixie-table` check
+# compares those subcommands with each command's dispatch case, so the table
+# cannot quietly drift from what the command accepts.
 set -eu
 
 # One group per line, five fields:
@@ -25,34 +29,33 @@ set -eu
 #   name|command|aliases|subcommands|description
 #
 # `name` is the name the help lists; `command` is the words to exec (it may be
-# more than one), `aliases` are other names (space-separated, may be empty),
-# `subcommands` are the group's own words (space-separated, may be empty) offered
-# by completion, and `description` is the help line — last, so it may contain `|`.
-#
-# The commands that do real work before handing off (`update`, `bar`) carry their
-# whole command line here rather than a case arm of their own.
+# more than one, and need not match the group's name), `aliases` are other names
+# (space-separated, may be empty), `subcommands` are the group's own words
+# (space-separated, may be empty) offered by completion and checked against the
+# command's dispatch case, and `description` is the help line — last, so it may
+# contain `|`.
 ANIXIE_GROUPS='
 theme|theme||list current set wallpaper wallpaper-mode next prev apply|palettes: list, set, wallpaper FILE, wallpaper-mode, next, prev, apply
-textsize|textsize|text|up down set reset apply|global text size: up, down, set N, reset
+textsize|textsize|text|up down show set reset apply|global text size: up, down, set N, reset
 wallpaper|wallpaper||list set add next prev generated apply current|desktop background: set FILE, theme, current
-display|monitors|monitors|scale internal mirror set list status|monitors: scale, internal, mirror, status
-power|powerprofile|powerprofile|set apply show|power profiles per source: set ac|battery PROFILE, show
+display|monitors|monitors|scale internal lid mirror brightness recover wake workspace workspace-step move-window workspaces list set try keep revert identify status|monitors: scale, internal, mirror, status
+power|powerprofile|powerprofile|set apply show status|power profiles per source: set ac|battery PROFILE, show
 wifi|wifi||band dns password qr|Wi-Fi: band, DNS, password, QR
-audio|audio-output||set switch|audio output: set, switch
-shot|shot|screenshot|smart region windows fullscreen window copy save annotate preview|screenshots: smart, region, windows, fullscreen
-record|record||--status --stop --fullscreen|screen recording
-clipboard|clipboard|||clipboard history picker
+audio|audio-output|audio-output|set switch|audio output: set, switch
+shot|shot|screenshot|smart region windows fullscreen window scroll copy save annotate preview redact text|screenshots: smart, region, windows, fullscreen
+record|record||--status --stop --fullscreen --audio --webcam-device --webcam-size|screen recording
+clipboard|clipboard||--copy|clipboard history picker
 emoji|emoji|||emoji picker
 menu|menu||apps --list --only|application and action menu
 webapp|webapp||add list remove|websites as applications: add, list, remove
-pick|pick||--title --input --on-select|the generic picker
+pick|pick||--title --placeholder --input --allow-empty --grouped --on-select --on-cancel|the generic picker
 reminder|reminder||show count clear -i|set and list reminders
 toggle|toggle||nightlight idle dnd stayawake status list|night light, idle, do-not-disturb
 snapshot|snapshot||create list restore prune|btrfs snapshots of /home: create, list, restore, prune
-update|rebuild||switch boot test|rebuild and switch the system
-bar|quickshell ipc call bar||toggle on off reset reload move enable disable background position get set modules tray|the status bar: toggle, position, layout, settings
+update|rebuild|rebuild|switch boot test|rebuild and switch the system
+bar|bar||toggle on off reset reload move enable disable background position get set modules tray|the status bar: toggle, position, layout, settings
 focus|focus||start stop extend status|focus mode: start, stop, extend, status
-screentime|screentime||show json reset path|screen time for today: show, json, reset
+screentime|screentime||show json reset path panel|screen time for today: show, json, reset
 '
 
 # The loops below read the table through a here-document rather than a pipe, so
@@ -63,21 +66,33 @@ usage() {
   printf 'anixie — desktop command center\n\n'
   printf 'Usage:\n'
   printf '  anixie <group> [args...]\n'
-  printf '  anixie commands\n'
-  printf '  anixie resolve <group>\n\n'
+  printf '  anixie help <group>\n'
+  printf '  anixie commands [--aliases]\n'
+  printf '  anixie resolve <group>\n'
+  printf '  anixie subcommands <group>\n\n'
   printf 'Groups:\n'
   while IFS='|' read -r name cmd aliases subs desc; do
     [ -n "$name" ] || continue
-    printf '  %-11s %s\n' "$name" "$desc"
+    if [ -n "$aliases" ]; then
+      printf '  %-11s %s (also: %s)\n' "$name" "$desc" \
+        "$(printf '%s' "$aliases" | sed 's/ /, /g')"
+    else
+      printf '  %-11s %s\n' "$name" "$desc"
+    fi
   done <<EOF
 $ANIXIE_GROUPS
 EOF
 }
 
+# Canonical group names, plus the aliases when asked. Completion uses the
+# aliases too, so `anixie screenshot` tab-completes like `anixie shot`.
 group_names() {
   while IFS='|' read -r name cmd aliases subs desc; do
     [ -n "$name" ] || continue
     printf '%s\n' "$name"
+    if [ "${1:-}" = "--aliases" ]; then
+      for alias in $aliases; do printf '%s\n' "$alias"; done
+    fi
   done <<EOF
 $ANIXIE_GROUPS
 EOF
@@ -111,12 +126,20 @@ EOF
 }
 
 case "${1:-}" in
-  "" | -h | --help | help)
+  "" | -h | --help)
     usage
     exit 0
     ;;
+  help)
+    if [ $# -ge 2 ]; then
+      set -- "$2" --help
+    else
+      usage
+      exit 0
+    fi
+    ;;
   commands)
-    group_names
+    group_names "${2:-}"
     exit 0
     ;;
   resolve)

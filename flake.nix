@@ -183,6 +183,28 @@
                   touch $out
                 '';
 
+            # The anixie group table advertises each command's subcommands for
+            # help and completion. The commands' own dispatch cases are what
+            # accept them, and a subcommand added to one without the other is
+            # invisible. This check compares the two so the table cannot drift.
+            anixie-table =
+              pkgs.runCommand "anixie-table"
+                {
+                  nativeBuildInputs = [
+                    pkgs.gawk
+                    pkgs.gnugrep
+                    pkgs.gnused
+                    pkgs.findutils
+                    pkgs.coreutils
+                    pkgs.diffutils
+                  ];
+                }
+                ''
+                  set -eu
+                  sh ${./modules/features/cli/check-table.sh} ${./.}
+                  touch $out
+                '';
+
             # QML has no compiler, so a typo in a binding is found when the shell
             # restarts and crash-loops — or here. The Qt and Quickshell import
             # paths let qmllint resolve every type the shell uses; warnings are

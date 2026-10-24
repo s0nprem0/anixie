@@ -13,10 +13,12 @@ let
       [
         "@EMOJI_TEST@"
         "@WTYPE@"
+        "@ANIXIE_LIB@"
       ]
       [
         "${pkgs.unicode-emoji}/share/unicode/emoji/emoji-test.txt"
         "${pkgs.wtype}/bin/wtype"
+        "${../../cli/lib.sh}"
       ]
       (builtins.readFile ./emoji.sh)
   );

@@ -17,6 +17,9 @@
 # in running applications.
 set -eu
 
+# shellcheck source=/dev/null
+. "@ANIXIE_LIB@"
+
 STATE="@STATE_DIR@"
 FILE="$STATE/textscale"
 KITTY="$STATE/kitty-font.conf"
@@ -68,6 +71,7 @@ apply_one() {
 }
 
 case "${1:-}" in
+  -h | --help) usage; exit 0 ;;
   "" | show) current ;;
   apply) apply_one "$(current)" ;;
   reset) apply_one 100 ;;

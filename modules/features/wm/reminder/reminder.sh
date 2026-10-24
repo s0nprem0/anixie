@@ -13,6 +13,9 @@
 
 set -eu
 
+# shellcheck source=/dev/null
+. "@ANIXIE_LIB@"
+
 prefix="reminder"
 
 # Tell the shell how many are queued, for the bar. Pushed after a change rather
@@ -33,19 +36,24 @@ push_count() {
 # The message is allowed to be blank, and blank means "Reminder" further down;
 # without --allow-empty the picker would refuse to accept the field and there
 # would be no way to take the default.
-if [ "${1:-}" = "-i" ] || [ "${1:-}" = "--interactive" ]; then
-  printf '5\n10\n15\n30\n45\n60\n' | pick --title 'remind in minutes' --on-select 'reminder --ask {}'
-  exit 0
-fi
-
-if [ "${1:-}" = "--ask" ]; then
-  [ $# -ge 2 ] || exit 1
-  pick --title 'message' --placeholder 'optional' --input --allow-empty \
-    --on-select "reminder $2 {}"
-  exit 0
-fi
-
 case "${1:-}" in
+  -h | --help)
+    usage
+    exit 0
+    ;;
+
+  -i | --interactive)
+    printf '5\n10\n15\n30\n45\n60\n' | pick --title 'remind in minutes' --on-select 'reminder --ask {}'
+    exit 0
+    ;;
+
+  --ask)
+    [ $# -ge 2 ] || exit 1
+    pick --title 'message' --placeholder 'optional' --input --allow-empty \
+      --on-select "reminder $2 {}"
+    exit 0
+    ;;
+
   show | list)
     timers=$(systemctl --user list-timers --all --no-legend --no-pager "$prefix-*.timer" 2>/dev/null || true)
 
@@ -74,7 +82,7 @@ case "${1:-}" in
     ;;
 
   "" | *[!0-9]*)
-    printf 'Usage: reminder <minutes> [message] | -i | show | count | clear\n' >&2
+    usage >&2
     exit 1
     ;;
 esac

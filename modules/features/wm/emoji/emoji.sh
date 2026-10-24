@@ -21,6 +21,13 @@
 
 set -eu
 
+# shellcheck source=/dev/null
+. "@ANIXIE_LIB@"
+
+case "${1:-}" in
+  -h | --help) usage; exit 0 ;;
+esac
+
 emoji_test="@EMOJI_TEST@"
 wtype="@WTYPE@"
 

@@ -28,8 +28,12 @@ in
       # carry the path of whatever set the reminder.
       (pkgs.writeShellScriptBin "reminder" (
         builtins.replaceStrings
-          [ "@NOTIFY_SEND@" "@QUICKSHELL@" ]
-          [ config.anixie.wm.notify.bin "${pkgs.quickshell}/bin/quickshell" ]
+          [ "@NOTIFY_SEND@" "@QUICKSHELL@" "@ANIXIE_LIB@" ]
+          [
+            config.anixie.wm.notify.bin
+            "${pkgs.quickshell}/bin/quickshell"
+            "${../../cli/lib.sh}"
+          ]
           (builtins.readFile ./reminder.sh)
       ))
     ];

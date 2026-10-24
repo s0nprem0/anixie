@@ -28,6 +28,9 @@
 # Manager owns read-only — the same reason the theme state does.
 set -eu
 
+# shellcheck source=/dev/null
+. "@ANIXIE_LIB@"
+
 STATE="@STATE_DIR@"
 BACKGROUNDS="@DATA_DIR@/backgrounds"
 PALETTES="@PALETTES@"
@@ -249,6 +252,7 @@ add_dir() {
 }
 
 case "${1:-}" in
+  -h | --help) usage; exit 0 ;;
   "" | pick) pick_one ;;
   apply) apply ;;
   list | ls)

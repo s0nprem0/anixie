@@ -23,6 +23,9 @@
 set -eu
 umask 077
 
+# shellcheck source=/dev/null
+. "@ANIXIE_LIB@"
+
 cliphist="@CLIPHIST@"
 wl_copy="@WL_COPY@"
 file="@FILE@"
@@ -48,7 +51,7 @@ case "${1:-}" in
     exit 0
     ;;
   -h | --help)
-    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+    usage
     exit 0
     ;;
   "")
