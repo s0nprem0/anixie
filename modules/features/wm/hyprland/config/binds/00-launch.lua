@@ -43,7 +43,8 @@ bind(mod .. " + SHIFT + D", "Dock", "quickshell ipc call dock toggle")
 bind(mod .. " + SHIFT + RETURN", "Browser",
   "menu \"$(basename \"$(xdg-settings get default-web-browser)\" .desktop)\"")
 
--- The editor command reads the user's EDITOR, falling back to nvim. This is a
--- raw Lua file, not a Nix string, so the dollar-brace needs no escaping to
--- reach the shell.
-bind(mod .. " + SHIFT + N", "Editor", app("${EDITOR:-nvim}"))
+-- The editor command reads the user's EDITOR, falling back to hx. It has to
+-- run in a terminal: EDITOR is hx here, and a TUI started through `uwsm app`
+-- alone has no TTY and exits immediately. This is a raw Lua file, not a Nix
+-- string, so the dollar-brace needs no escaping to reach the shell.
+bind(mod .. " + SHIFT + N", "Editor", app(terminal .. " -e ${EDITOR:-hx}"))
