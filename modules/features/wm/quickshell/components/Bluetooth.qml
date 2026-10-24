@@ -28,6 +28,11 @@ BarWidget {
   }
   readonly property int connectedCount: root.connected.length
 
+  // Discovery runs only while the panel is open: it is what turns an empty
+  // device list into something you can pair from, and leaving it on after the
+  // panel closes would keep the radio scanning for nobody.
+  readonly property bool discovering: root.adapter ? root.adapter.discovering : false
+
   wantsSlot: root.available
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
@@ -36,15 +41,42 @@ BarWidget {
     if (root.adapter) root.adapter.enabled = !root.adapter.enabled
   }
 
-function label(device) {
-  return device.name !== undefined && device.name !== "" ? device.name : device.address
-}
+  function syncDiscovery(on) {
+    if (!root.adapter) return
+    root.adapter.discovering = !!(on && root.powered)
+  }
 
-function detail(device) {
-  const state = device.connected ? "connected" : "paired"
-  const battery = device.battery !== undefined && device.battery > 0 ? " · " + device.battery + "%" : ""
-  return state + battery
-}
+  function toggleDiscovery() {
+    if (!root.powered) return
+    root.syncDiscovery(!root.discovering)
+  }
+
+  // Pairing is the action for a device the adapter has found but does not know
+  // yet. A paired one connects, a connected one disconnects, and a device that
+  // is mid-pair cancels on the second click.
+  function activate(device) {
+    if (!device || !root.powered) return
+    if (device.pairing) device.cancelPair()
+    else if (device.connected) device.disconnect()
+    else if (device.paired || device.bonded) device.connect()
+    else device.pair()
+  }
+
+  function label(device) {
+    const name = String(device.name || device.deviceName || "").trim()
+    return name !== "" ? name : String(device.address || "")
+  }
+
+  function detail(device) {
+    if (device.pairing) return "pairing…"
+    const state = device.connected ? "connected" : (device.paired ? "paired" : "not paired")
+    // Quickshell reports the battery as a fraction, like UPower does; scale it
+    // before the readout so a healthy device does not show "0.85%".
+    const battery = device.batteryAvailable && device.battery > 0
+      ? " · " + Math.round(device.battery * 100) + "%"
+      : ""
+    return state + battery
+  }
 
   BarIconButton {
     id: readout
@@ -80,6 +112,17 @@ function detail(device) {
     Panel {
       id: card
 
+      // Discovery starts with the panel and stops with it. Powering the radio
+      // on while the panel is open has to start it too, so the state follows
+      // both events rather than only the first.
+      Component.onCompleted: root.syncDiscovery(root.powered)
+      Component.onDestruction: root.syncDiscovery(false)
+
+      Connections {
+        target: root
+        function onPoweredChanged() { root.syncDiscovery(root.powered) }
+      }
+
       PanelHero {
         width: card.contentWidth
         glyph: Util.bluetooth
@@ -107,6 +150,9 @@ function detail(device) {
       PanelSectionHeader {
         width: card.contentWidth
         label: "Devices"
+        action: root.discovering ? "Scanning…" : "Scan"
+        actionEnabled: root.powered
+        onActionTriggered: root.toggleDiscovery()
       }
 
       Text {
@@ -125,12 +171,18 @@ function detail(device) {
         width: card.contentWidth
         visible: root.available && root.devices.length === 0
         height: implicitHeight
-        // Two different reasons to be empty, and each says which it is: a radio
-        // that is off finds nothing because nothing is looking.
-        text: root.powered ? "No devices paired" : "Bluetooth is off"
+        // Three reasons to be empty, and each says which it is: a radio that is
+        // off finds nothing because nothing is looking, a scan in progress has
+        // not found anything yet, and an idle scan has nothing to show.
+        text: !root.powered
+          ? "Bluetooth is off"
+          : (root.discovering
+            ? "Searching for devices…"
+            : "No devices found. Put yours in pairing mode, then scan.")
         color: Theme.muted
         font.family: Style.font.family
         font.pixelSize: Style.font.body
+        wrapMode: Text.WordWrap
         renderType: Text.NativeRendering
       }
 
@@ -148,13 +200,11 @@ function detail(device) {
           label: root.label(deviceRow.device)
           detail: root.detail(deviceRow.device)
           // Connected is a state, not a selection: the row is what you click to
-          // change it, so it is filled the way a chosen one is.
+          // change it, so it is filled the way a chosen one is. An unpaired
+          // device found by the scan is the row that starts pairing.
           selected: deviceRow.connected
           available: root.powered
-          onClicked: {
-            if (deviceRow.connected) deviceRow.device.disconnect()
-            else deviceRow.device.connect()
-          }
+          onClicked: root.activate(deviceRow.device)
         }
       }
     }
