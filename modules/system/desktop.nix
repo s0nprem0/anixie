@@ -57,6 +57,11 @@ in
     # path that does not exist yet.
     gvfs.enable = true;
 
+    # Thunar does not decode thumbnails itself: it asks this D-Bus service,
+    # which ships image, video, PDF and RAW thumbnailers. Without it every
+    # picture in the file manager is a generic icon.
+    tumbler.enable = true;
+
     # NixOS turns Speech Dispatcher on for every graphical desktop, on the
     # assumption that a screen reader may need it. There is none here, and it is
     # not free: the package drags in the Mbrola voice set (~645 MiB), the daemon
