@@ -259,9 +259,12 @@ function score(text, query) {
 //
 // Each row is an object with a `label` to match against — the picker shows more
 // than the label (a path, an icon, a state) but matches on what the user reads,
-// which is the label. Rows that do not match are dropped rather than ranked
-// last, so a search that matches nothing shows nothing instead of everything
-// greyed out.
+// which is the label. The menu additionally carries the group path it draws
+// above a run of rows, and that path is matched when the label is not: typing
+// "Setup" or "Capture" selects the group instead of matching nothing, without
+// trying to underline characters that are not in the label. Rows that do not
+// match either are dropped rather than ranked last, so a search that matches
+// nothing shows nothing instead of everything greyed out.
 //
 // Ties keep the order the tree was written in, and that is worth being explicit
 // about rather than leaving to the engine: this JavaScript engine's Array.sort is
@@ -287,6 +290,18 @@ function filter(rows, query) {
     var row = rows[i]
     var label = String(row.label !== undefined ? row.label : "")
     var result = score(label, q)
+
+    // A menu row whose label does not match may still belong to the group the
+    // query names. There is no label position to underline for that hit, so the
+    // positions are empty and the group heading above the run is the feedback.
+    if (result === null && row.group !== undefined && row.group !== null) {
+      var group = String(row.group)
+      if (group !== "") {
+        var groupResult = score(group, q)
+        if (groupResult !== null) result = { score: groupResult.score, positions: [] }
+      }
+    }
+
     if (result !== null) out.push({ row: row, score: result.score, positions: result.positions, index: i })
   }
 
