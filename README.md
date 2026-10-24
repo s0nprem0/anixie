@@ -106,6 +106,38 @@ postcode or `"lat,lon"` in `location` pins it instead, which is what a VPN needs
 { "id": "bar.weather", "interval": 1800, "location": "Malibu, CA" }
 ```
 
+## Menu
+
+`Super+Space` opens the shell's menu; `Super+Ctrl+C` opens it filtered to
+capture. The shipped tree is `modules/features/wm/quickshell/menu.json` and
+changes with a rebuild. `~/.config/anixie/menu.json` is a JSONC extension read on
+every open: entries merge by group name, and by label within a group. A matching
+entry replaces the shipped one, a new one is appended, and `"hidden": true`
+removes it.
+
+```json
+{
+  "entries": [
+    { "label": "Open dots", "run": "app-launch kitty -e hx ~/nix-dots" },
+    {
+      "group": "Style",
+      "entries": [
+        { "label": "Previous theme", "hidden": true }
+      ]
+    }
+  ]
+}
+```
+
+The same tree is scriptable:
+
+```sh
+menu --list                 # every row
+menu --list Setup           # one group
+menu --only Capture         # open only that group
+menu firefox                # launch an application by name
+```
+
 ## Panels
 
 One per widget, opening under it, several at once. Arrows walk the controls,
