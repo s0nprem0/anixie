@@ -193,12 +193,23 @@ QtObject {
     return root.apps.length
   }
 
-  // A `list` source's children, as { label, icon, app }.
+  // Words an application can be found by that are not in its name: "browser"
+  // for Firefox, "editor" for an app called Helix. Kept off the row itself —
+  // the label stays the name — but carried into the matcher as a fallback.
+  function appMatch(entry) {
+    const parts = []
+    if (entry.genericName) parts.push(String(entry.genericName))
+    const words = entry.keywords || []
+    for (let i = 0; i < words.length; i++) parts.push(String(words[i]))
+    return parts.join(" ")
+  }
+
+  // A `list` source's children, as { label, icon, app, match }.
   function listOf(source) {
     switch (source) {
     case "apps":
       return root.apps.map(function (entry) {
-        return { label: entry.name, icon: entry.icon, app: entry }
+        return { label: entry.name, icon: entry.icon, app: entry, match: root.appMatch(entry) }
       })
     case "themes":
       return Theme.names().map(function (name) {
@@ -312,6 +323,7 @@ QtObject {
               group: childGroup,
               icon: child.icon,
               state: child.state !== undefined ? String(child.state) : "",
+              match: child.match !== undefined ? String(child.match) : "",
               app: child.app,
               run: template.split("{}").join(Util.shellQuote(child.label))
             })
@@ -325,7 +337,15 @@ QtObject {
           // The entry's own icon rather than the blank the command rows carry:
           // this row is one application under a name of its own ("Browser"), and
           // without its icon it sits in a list of icons looking unfinished.
-          add({ label: node.label, group: group, icon: entry.icon, state: "", app: entry, run: "" })
+          add({
+            label: node.label,
+            group: group,
+            icon: entry.icon,
+            state: "",
+            match: root.appMatch(entry),
+            app: entry,
+            run: ""
+          })
           continue
         }
 
@@ -368,7 +388,11 @@ QtObject {
     }
 
     PickHost.present({
-      title: group !== "" ? group : "menu",
+      // The full menu opens on a search prompt rather than a redundant "menu"
+      // heading; a group's own name stays as the title because that is what the
+      // filtered list is.
+      title: group,
+      placeholder: group !== "" ? "Type to filter…" : "Search apps and commands…",
       grouped: true,
       entries: entries
     })

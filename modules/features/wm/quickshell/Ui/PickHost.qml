@@ -97,6 +97,7 @@ QtObject {
   property int selected: 0
   property string query: ""
 
+
   // Commands to run on a choice and on a dismissal. `{}` in onSelect is replaced
   // by the chosen value.
   property string onSelect: ""

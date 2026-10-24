@@ -28,7 +28,7 @@ Item {
   property real reveal: PickHost.shown ? 1 : 0
 
   Behavior on reveal {
-    NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic }
+    NumberAnimation { duration: Style.duration(Style.motion.fast); easing.type: Easing.OutCubic }
   }
 
   // The height of one row, in one place: the list's area and the rows themselves
@@ -100,9 +100,13 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
 
           text: PickHost.title
+          // The full menu has no title and opens on its search placeholder
+          // instead, so the prompt must not reserve an empty slot.
+          visible: PickHost.title !== ""
           color: Theme.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.subtitle
+          renderType: Text.NativeRendering
         }
 
         // The caller's placeholder, drawn behind the field so the caret sits
@@ -119,6 +123,7 @@ Item {
           color: Theme.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.subtitle
+          renderType: Text.NativeRendering
           elide: Text.ElideRight
           clip: true
         }
@@ -225,8 +230,8 @@ Item {
           anchors.leftMargin: Style.space(16)
           anchors.right: parent.right
           anchors.rightMargin: Style.space(16)
-          height: 1
-          color: Theme.muted
+          height: Style.strokeWidth
+          color: Theme.separator
         }
       }
 
@@ -260,8 +265,18 @@ Item {
           // The field owns the keyboard, so the view never scrolls itself when
           // the selection moves. Keep the chosen row on screen, otherwise a
           // twelve-row card hides the highlight after the twelfth entry.
-          onCurrentIndexChanged: if (currentIndex >= 0 && currentIndex < count)
-            positionViewAtIndex(currentIndex, ListView.Contain)
+          //
+          // Only when it is actually outside the view: scrolling for a row that
+          // is already visible moves the list under a hovering pointer, which
+          // then hovers a different row and scrolls again.
+          onCurrentIndexChanged: {
+            if (currentIndex < 0 || currentIndex >= count) return
+            const first = Math.floor(contentY / root.rowHeight)
+            const last = Math.floor((contentY + height - 1) / root.rowHeight)
+            if (currentIndex < first || currentIndex > last) {
+              positionViewAtIndex(currentIndex, ListView.Contain)
+            }
+          }
 
           ScrollBar.vertical: ScrollBar {
             id: verticalBar
@@ -286,15 +301,19 @@ Item {
               preview: rowHolder.modelData.row.preview !== undefined ? String(rowHolder.modelData.row.preview) : ""
               positions: rowHolder.modelData.positions
               selected: rowHolder.index === PickHost.selected
+            }
 
-              MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                onClicked: {
-                  PickHost.selected = rowHolder.index
-                  PickHost.accept()
-                }
-                onEntered: PickHost.selected = rowHolder.index
+            // Hover only lights the row; it does not move the selection. The
+            // list changes under a stationary pointer while typing, and hover
+            // selection would chase whichever row moved underneath instead of
+            // leaving the keyboard on the top result. A click still chooses.
+            MouseArea {
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: {
+                PickHost.selected = rowHolder.index
+                PickHost.accept()
               }
             }
           }
@@ -317,6 +336,7 @@ Item {
           font.pixelSize: Style.font.body
           horizontalAlignment: Text.AlignHCenter
           verticalAlignment: Text.AlignVCenter
+          renderType: Text.NativeRendering
           elide: Text.ElideRight
         }
       }
@@ -333,8 +353,8 @@ Item {
           anchors.leftMargin: Style.space(16)
           anchors.right: parent.right
           anchors.rightMargin: Style.space(16)
-          height: 1
-          color: Theme.muted
+          height: Style.strokeWidth
+          color: Theme.separator
         }
 
         Text {
@@ -343,6 +363,7 @@ Item {
           color: Theme.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
+          renderType: Text.NativeRendering
         }
 
         // How many of how many, once a query is narrowing the list and the
@@ -358,18 +379,36 @@ Item {
           color: Theme.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
+          renderType: Text.NativeRendering
         }
       }
     }
   }
+
+  // Back to the top whenever the list is replaced or the query changes. The
+  // selection returning to index zero is not enough on its own: if it was
+  // already zero while the view was scrolled, CurrentIndex did not change and
+  // the new list opened halfway down.
+  function resetScroll() {
+    list.positionViewAtBeginning()
+  }
+
 
   // Shown again on every open. A window that has had focus once does not take it
   // back on its own, so without this the second use of any picker would open
   // with the keyboard still going to whatever had it last.
   Connections {
     target: PickHost
+
     function onShownChanged() {
-      if (PickHost.shown) search.refocus()
+      if (PickHost.shown) {
+        search.refocus()
+        Qt.callLater(root.resetScroll)
+      }
+    }
+
+    function onQueryChanged() {
+      Qt.callLater(root.resetScroll)
     }
   }
 }

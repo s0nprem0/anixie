@@ -291,6 +291,17 @@ function filter(rows, query) {
     var label = String(row.label !== undefined ? row.label : "")
     var result = score(label, q)
 
+    // A row can carry words that are not drawn: an application's generic name
+    // and keywords. They are searched only when the label misses, so the name
+    // still ranks first, while "browser" can find Firefox.
+    if (result === null && row.match !== undefined && row.match !== null) {
+      var match = String(row.match)
+      if (match !== "") {
+        var matchResult = score(match, q)
+        if (matchResult !== null) result = { score: matchResult.score, positions: [] }
+      }
+    }
+
     // A menu row whose label does not match may still belong to the group the
     // query names. There is no label position to underline for that hit, so the
     // positions are empty and the group heading above the run is the feedback.

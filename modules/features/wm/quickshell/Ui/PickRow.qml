@@ -86,7 +86,7 @@ Item {
         : "transparent")
 
     Behavior on color {
-      ColorAnimation { duration: Style.duration(140); easing.type: Easing.OutCubic }
+      ColorAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic }
     }
   }
 
@@ -136,6 +136,7 @@ Item {
       color: Theme.muted
       font.family: Style.font.family
       font.pixelSize: Style.font.subtitle
+      renderType: Text.NativeRendering
       anchors.verticalCenter: textRow.verticalCenter
     }
 
@@ -159,6 +160,7 @@ Item {
           font.family: Style.font.family
           font.pixelSize: Style.font.subtitle
           font.weight: modelData.hit ? Font.DemiBold : Font.Normal
+          renderType: Text.NativeRendering
         }
       }
     }
@@ -176,5 +178,6 @@ Item {
     color: Theme.muted
     font.family: Style.font.family
     font.pixelSize: Style.font.body
+    renderType: Text.NativeRendering
   }
 }
