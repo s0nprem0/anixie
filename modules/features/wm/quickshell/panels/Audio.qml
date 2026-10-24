@@ -101,7 +101,7 @@ Item {
     if (!node) return
     Pipewire.preferredDefaultAudioSink = node
     if (node.id !== undefined && node.name) {
-      Quickshell.execDetached(["audio-output-set", String(node.id), String(node.name)])
+      Quickshell.execDetached(["audio-output", "set", String(node.id), String(node.name)])
     }
   }
 

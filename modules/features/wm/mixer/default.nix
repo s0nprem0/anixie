@@ -8,6 +8,8 @@
 let
   cfg = config.anixie.wm.mixer;
 
+  mkScript = import ../../cli/scripts.nix { inherit pkgs; };
+
   # Every external binary a script here calls, in one table, so a reader can see
   # the whole dependency set at a glance. They are substituted rather than left
   # to $PATH because these run from a Hyprland bind and from the shell, neither
@@ -19,19 +21,29 @@ let
     "@NOTIFY_SEND@" = config.anixie.wm.notify.bin;
   };
 
-  render =
-    name: path: extra:
-    let
-      all = bins // extra;
-    in
-    pkgs.writeShellScriptBin name (
-      builtins.replaceStrings (builtins.attrNames all) (builtins.attrValues all) (builtins.readFile path)
-    );
+  outputSet = mkScript {
+    name = "audio-output-set";
+    file = ./output-set.sh;
+    inherit bins;
+  };
 
-  outputSet = render "audio-output-set" ./output-set.sh { };
+  outputSwitch = mkScript {
+    name = "audio-output-switch";
+    file = ./output-switch.sh;
+    bins = bins // {
+      "@OUTPUT_SET@" = outputSet.command;
+    };
+  };
 
-  outputSwitch = render "audio-output-switch" ./output-switch.sh {
-    "@OUTPUT_SET@" = "${outputSet}/bin/audio-output-set";
+  # The only public command. The two operations stay separate scripts, but the
+  # panel, the bind and the menu all name this one.
+  audioOutput = mkScript {
+    name = "audio-output";
+    file = ./audio-output.sh;
+    bins = {
+      "@OUTPUT_SET@" = outputSet.command;
+      "@OUTPUT_SWITCH@" = outputSwitch.command;
+    };
   };
 in
 
@@ -39,7 +51,7 @@ in
   options.anixie.wm.mixer.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
-    description = "Whether to install pavucontrol and the audio switching commands.";
+    description = "Whether to install pavucontrol and the audio-output command.";
   };
 
   config = lib.mkIf cfg.enable {
@@ -52,8 +64,7 @@ in
       pkgs.pulseaudio
       pkgs.jq
 
-      outputSet
-      outputSwitch
+      audioOutput.package
     ];
   };
 }

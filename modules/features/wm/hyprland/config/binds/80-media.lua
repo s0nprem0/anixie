@@ -26,7 +26,7 @@ bind("XF86AudioMute", "Mute",
   "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle", { locked = true })
 -- SHIFT on the mute key cycles outputs, the reference's gesture, so moving
 -- between speakers, headphones and HDMI needs no panel and no pointer.
-bind("SHIFT + XF86AudioMute", "Switch audio output", "audio-output-switch", { locked = true })
+bind("SHIFT + XF86AudioMute", "Switch audio output", "audio-output switch", { locked = true })
 bind("XF86AudioMicMute", "Mute microphone",
   "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle", { locked = true })
 
