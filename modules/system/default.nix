@@ -13,6 +13,7 @@
     ./users.nix
     ./auth.nix
     ./snapshot.nix
+    ./storage.nix
     ./desktop.nix
     ./screenrecord.nix
     ./secrets.nix
