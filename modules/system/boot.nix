@@ -19,9 +19,9 @@
 
     kernelPackages = pkgs.linuxPackages_latest;
 
-    # Nothing expects a file in /tmp to survive a reboot, and tmpfs only frees
-    # the pages when the file is removed. Clearing it at boot keeps a build's
-    # leftovers from sitting in RAM for the life of the uptime.
+    # Nothing expects a file in /tmp to survive a reboot. /tmp is not a tmpfs
+    # here, so without this a build's leftovers stay on the root subvolume until
+    # something happens to remove them.
     tmp.cleanOnBoot = true;
 
     # Hibernation's resume partition. Taken from the swap device declared in
