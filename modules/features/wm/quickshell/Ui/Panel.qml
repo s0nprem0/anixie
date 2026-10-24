@@ -218,16 +218,17 @@ FocusScope {
       root.moveCursor(-1)
       event.accepted = true
       break
-    // Tab is the panel's neighbour, not the next control: with several panels
-    // open — which is the point of the host holding a list — the keyboard has to
-    // be able to cross between them. The arrows are what walk this panel's own
-    // controls, which is how Omarchy's panels divide the same two jobs.
+    // Tab crosses to a panel on another screen when there is one; on a single
+    // screen it walks this panel's own controls, the way Tab does everywhere
+    // else. The arrows do the same walk, so a panel never needs Tab to be usable.
     case Qt.Key_Tab:
-      PanelHost.focusNext(event.modifiers & Qt.ShiftModifier ? -1 : 1)
+      if (PanelHost.openPanels.count < 2) root.moveCursor(1)
+      else PanelHost.focusNext(event.modifiers & Qt.ShiftModifier ? -1 : 1)
       event.accepted = true
       break
     case Qt.Key_Backtab:
-      PanelHost.focusNext(-1)
+      if (PanelHost.openPanels.count < 2) root.moveCursor(-1)
+      else PanelHost.focusNext(-1)
       event.accepted = true
       break
     case Qt.Key_Home:

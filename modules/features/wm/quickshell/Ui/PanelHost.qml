@@ -6,22 +6,22 @@ import ".."
 import Quickshell
 import Quickshell.Wayland
 
-// The panels: several at once, each under the button it belongs to, with the
-// keyboard on one of them at a time.
+// The panels: one at a time per screen, each under the button it belongs to,
+// with the keyboard on the open one.
 //
-// This used to hold one panel, because one was all it could. Omarchy — which the
-// bar is modelled on, and which now runs on Quickshell too — lets you open one
-// per widget and puts them side by side: open the network panel, then the audio
-// one, and both stay up; Tab steps between them; Escape closes the one the keys
-// are on. That is a better answer to "what is this laptop doing" than a panel
-// that replaces the last one, and it costs a list instead of a single owner.
+// An earlier version kept several up at once, one per widget, the way Omarchy
+// does. The placement is the problem: every panel is centred on its own anchor
+// and every anchor sits on the same bar, so a second panel opens on top of the
+// first. With the two heights differing, the lower panel's content peeks out
+// below the upper one and the pair reads as a single broken panel. Opening a
+// panel therefore closes what is open on that screen first. Panels on different
+// screens still coexist, and Tab still steps between those.
 //
 // Each panel is a layer surface of its own rather than a popup. A popup has no
 // reliable keyboard under Hyprland — `grabFocus` only asks to be dismissed by an
 // outside click — so the keys are taken the way the picker takes them: an
 // exclusive keyboard focus on a surface, held only by the panel that has the
-// keys. That is also what makes several panels work: one surface each, and the
-// keyboard handed between them.
+// keys.
 //
 // With more than one display there is more than one bar. A panel is placed on
 // the screen its anchor came from, and the curtain that dismisses it exists once
@@ -219,6 +219,11 @@ QtObject {
       return
     }
 
+    // One panel per screen. A second one would be centred on the same bar and
+    // drawn on top of the first, leaving only the taller panel's tail visible.
+    // Closing before appending also keeps the curtains in step.
+    root.closeForScreen(screenName)
+
     const key = root.panelKey(name, screenName)
 
     const next = {}
@@ -310,9 +315,8 @@ QtObject {
   // ---- where they go ----
 
   // Centred on the owning button, then pulled back inside its screen so a
-  // button near either edge still opens a fully visible panel. With several
-  // panels up this is also what keeps them from overlapping the screen's edges
-  // while still sitting under their own icons.
+  // button near either edge still opens a fully visible panel rather than one
+  // clipped by the output.
   //
   // Two axes because the bar has two: a top or bottom bar spreads its modules
   // across x, a left or right bar spreads them down y. The anchor's own screen
@@ -443,9 +447,9 @@ QtObject {
             : root.panelX(panelWindow.entry.anchor, panelWindow.implicitWidth, panelWindow.screenName))
         margins.right: panelWindow.onRight ? root.barExtent : 0
 
-        // The focused panel is raised above the others: with panels anchored under
-        // neighbouring icons they overlap, and Tab has to visibly bring one to the
-        // front rather than only change where the keys go.
+        // The focused panel is raised above the others. Only one is open per
+        // screen, but a panel on another screen can still be up, and raising the
+        // one the keys are on keeps that state visible.
         WlrLayershell.layer: root.focused === panelWindow.key
           ? WlrLayer.Overlay
           : WlrLayer.Top
