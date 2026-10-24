@@ -6,7 +6,7 @@
 
     name = "macOS";
     package = pkgs.apple-cursor;
-    size = 20;
+    size = 24;
 
     gtk.enable = true;
     x11.enable = true;
