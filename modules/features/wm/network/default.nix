@@ -8,67 +8,78 @@
 let
   cfg = config.anixie.wm.network;
 
-  # The QR for the current network, as a PNG in the state directory. Built as a
-  # script with the two tool paths substituted, since the shell reads the network
-  # manager and the encoder rather than the panel doing either itself.
-  wifiQr = pkgs.writeShellScriptBin "wifi-qr" (
-    builtins.replaceStrings
-      [ "@NMCLI@" "@QRENCODE@" ]
-      [
-        "${pkgs.networkmanager}/bin/nmcli"
-        "${pkgs.qrencode}/bin/qrencode"
-      ]
-      (builtins.readFile ./wifi-qr.sh)
-  );
+  mkScript = import ../../cli/scripts.nix { inherit pkgs; };
 
-  taildropReceive = pkgs.writeShellScriptBin "taildrop-receive" (
-    builtins.replaceStrings
-      [ "@TAILSCALE@" "@NOTIFY@" "@XDG_OPEN@" ]
-      [
-        "${pkgs.tailscale}/bin/tailscale"
-        config.anixie.wm.notify.bin
-        "${pkgs.xdg-utils}/bin/xdg-open"
-      ]
-      (builtins.readFile ./taildrop-receive.sh)
-  );
+  # The four Wi-Fi operations are internal: the panel reaches them through the
+  # `wifi` dispatcher below, so none of them needs a name on PATH.
+  wifiQr = mkScript {
+    name = "wifi-qr";
+    file = ./wifi-qr.sh;
+    bins = {
+      "@NMCLI@" = "${pkgs.networkmanager}/bin/nmcli";
+      "@QRENCODE@" = "${pkgs.qrencode}/bin/qrencode";
+    };
+  };
 
-  wifiPassword = pkgs.writeShellScriptBin "wifi-password" (
-    builtins.replaceStrings
-      [ "@WIFI_QR@" "@WL_COPY@" ]
-      [
-        "${wifiQr}/bin/wifi-qr"
-        "${pkgs.wl-clipboard}/bin/wl-copy"
-      ]
-      (builtins.readFile ./wifi-password.sh)
-  );
+  wifiPassword = mkScript {
+    name = "wifi-password";
+    file = ./wifi-password.sh;
+    bins = {
+      "@WIFI_QR@" = wifiQr.command;
+      "@WL_COPY@" = "${pkgs.wl-clipboard}/bin/wl-copy";
+    };
+  };
 
-  wifiBand = pkgs.writeShellScriptBin "wifi-band" (
-    builtins.replaceStrings [ "@NMCLI@" ] [ "${pkgs.networkmanager}/bin/nmcli" ] (
-      builtins.readFile ./wifi-band.sh
-    )
-  );
+  wifiBand = mkScript {
+    name = "wifi-band";
+    file = ./wifi-band.sh;
+    bins = {
+      "@NMCLI@" = "${pkgs.networkmanager}/bin/nmcli";
+    };
+  };
 
-  wifiDns = pkgs.writeShellScriptBin "wifi-dns" (
-    builtins.replaceStrings [ "@NMCLI@" ] [ "${pkgs.networkmanager}/bin/nmcli" ] (
-      builtins.readFile ./wifi-dns.sh
-    )
-  );
+  wifiDns = mkScript {
+    name = "wifi-dns";
+    file = ./wifi-dns.sh;
+    bins = {
+      "@NMCLI@" = "${pkgs.networkmanager}/bin/nmcli";
+    };
+  };
+
+  # The one public command. A dispatcher rather than a merged script keeps each
+  # operation's usage and error messages intact while removing four entries from
+  # PATH.
+  wifi = mkScript {
+    name = "wifi";
+    file = ./wifi.sh;
+    bins = {
+      "@WIFI_BAND@" = wifiBand.command;
+      "@WIFI_DNS@" = wifiDns.command;
+      "@WIFI_PASSWORD@" = wifiPassword.command;
+      "@WIFI_QR@" = wifiQr.command;
+    };
+  };
+
+  # Only the user unit starts this; it is not something to run by hand.
+  taildropReceive = mkScript {
+    name = "taildrop-receive";
+    file = ./taildrop-receive.sh;
+    bins = {
+      "@TAILSCALE@" = "${pkgs.tailscale}/bin/tailscale";
+      "@NOTIFY@" = config.anixie.wm.notify.bin;
+      "@XDG_OPEN@" = "${pkgs.xdg-utils}/bin/xdg-open";
+    };
+  };
 in
 {
   options.anixie.wm.network.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
-    description = "Whether to install the network helpers: Wi-Fi QR/password/band/DNS commands and the Taildrop receiver.";
+    description = "Whether to install the Wi-Fi command and the Taildrop receiver.";
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [
-      wifiQr
-      wifiPassword
-      wifiBand
-      wifiDns
-      taildropReceive
-    ];
+    home.packages = [ wifi.package ];
 
     systemd.user.services.anixie-taildrop = {
       Unit = {
@@ -77,7 +88,7 @@ in
       };
       Service = {
         Type = "simple";
-        ExecStart = "${taildropReceive}/bin/taildrop-receive";
+        ExecStart = taildropReceive.command;
         Restart = "always";
         RestartSec = 10;
       };

@@ -160,7 +160,7 @@ Item {
 
     root.actionError = ""
     root.bandBusy = true
-    bandSet.command = ["wifi-band", value]
+    bandSet.command = ["wifi", "band", value]
     bandSet.running = false
     bandSet.running = true
   }
@@ -269,7 +269,7 @@ Item {
   Process {
     id: bandGet
     running: false
-    command: ["wifi-band"]
+    command: ["wifi", "band"]
     stdout: StdioCollector {
       onStreamFinished: {
         let band = ""
@@ -354,7 +354,7 @@ Item {
 
     root.actionError = ""
     root.dnsBusy = true
-    dnsSet.command = ["wifi-dns", "set", provider.value || "", provider.value6 || ""]
+    dnsSet.command = ["wifi", "dns", "set", provider.value || "", provider.value6 || ""]
     dnsSet.running = false
     dnsSet.running = true
   }
@@ -362,7 +362,7 @@ Item {
   Process {
     id: dnsGet
     running: false
-    command: ["wifi-dns"]
+    command: ["wifi", "dns"]
     stdout: StdioCollector {
       onStreamFinished: {
         let v4 = ""
@@ -448,7 +448,7 @@ Item {
 
   Process {
     id: qrQuery
-    command: ["wifi-qr"]
+    command: ["wifi", "qr"]
     stdout: StdioCollector {
       onStreamFinished: {
         const path = String(this.text || "").trim()
@@ -492,7 +492,7 @@ Item {
   Process {
     id: passwordCopy
     running: false
-    command: ["wifi-password", "--copy"]
+    command: ["wifi", "password", "--copy"]
     stderr: StdioCollector { id: passwordCopyErr }
     onExited: function (exitCode) {
       root.passwordBusy = false
