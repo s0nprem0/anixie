@@ -68,6 +68,7 @@ let
       "@TAILSCALE@" = "${pkgs.tailscale}/bin/tailscale";
       "@NOTIFY@" = config.anixie.wm.notify.bin;
       "@XDG_OPEN@" = "${pkgs.xdg-utils}/bin/xdg-open";
+      "@JQ@" = "${pkgs.jq}/bin/jq";
     };
   };
 in

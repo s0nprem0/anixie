@@ -4,6 +4,7 @@ set -euo pipefail
 tailscale="@TAILSCALE@"
 notify="@NOTIFY@"
 xdg_open="@XDG_OPEN@"
+jq="@JQ@"
 
 downloads="${XDG_DOWNLOAD_DIR:-$HOME/Downloads}"
 staging="$downloads/.taildrop"
@@ -67,12 +68,25 @@ deliver() {
   done < <(find "$staging" -mindepth 1 -maxdepth 1 -type f -print0)
 }
 
+state() {
+  "$tailscale" status --json 2>/dev/null |
+    "$jq" -r '.BackendState // "Unknown"' 2>/dev/null || echo "Unknown"
+}
+
 deliver
 
 while true; do
+  # Taildrop only has a queue once the node is logged in. Asking for it before
+  # that fails with "Taildrop disabled; no storage directory", which used to
+  # repeat in the journal every ten seconds.
+  if [ "$(state)" != "Running" ]; then
+    sleep 60
+    continue
+  fi
+
   if "$tailscale" file get --wait --conflict=rename "$staging"; then
     deliver
   else
-    sleep 10
+    sleep 60
   fi
 done
