@@ -37,8 +37,10 @@ with pkgs;
   python3
 
   # The other interpreter worth having without a project: php -S serves a
-  # directory, and the CLI covers one-off scripts.
+  # directory, and the CLI covers one-off scripts. Composer comes from the same
+  # PHP so its platform check matches the interpreter on PATH.
   php
+  php.packages.composer
 
   # GNUPGHOME is already set in the zsh session variables, so signing is
   # intended here; the binary was simply never pulled in.
