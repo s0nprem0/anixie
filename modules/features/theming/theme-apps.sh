@@ -19,6 +19,7 @@ qt6ct_colors_template="@QT6CT_COLORS_TEMPLATE@"
 gtk_template="@GTK_TEMPLATE@"
 gtk3_css_template="@GTK3_CSS_TEMPLATE@"
 gtk4_css_template="@GTK4_CSS_TEMPLATE@"
+share_picker_template="@SHARE_PICKER_TEMPLATE@"
 cursor_theme="@POINTER_CURSOR_THEME@"
 cursor_size="@POINTER_CURSOR_SIZE@"
 generated="@STATE_DIR@/palette.json"
@@ -133,6 +134,7 @@ render "$gtk_template" "$state_dir/gtk-3.0-settings.ini"
 render "$gtk_template" "$state_dir/gtk-4.0-settings.ini"
 render "$gtk3_css_template" "$state_dir/gtk-3.0.css"
 render "$gtk4_css_template" "$state_dir/gtk-4.0.css"
+render "$share_picker_template" "$state_dir/share-picker.css"
 
 # ---- tmux ----
 tmux_conf=$(mktemp "$state_dir/.tmux.XXXXXX") || exit 1

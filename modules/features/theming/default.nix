@@ -82,6 +82,7 @@ let
         "@GTK_TEMPLATE@"
         "@GTK3_CSS_TEMPLATE@"
         "@GTK4_CSS_TEMPLATE@"
+        "@SHARE_PICKER_TEMPLATE@"
         "@POINTER_CURSOR_THEME@"
         "@POINTER_CURSOR_SIZE@"
       ]
@@ -97,6 +98,7 @@ let
         "${./templates/gtk-settings.ini}"
         "${./templates/gtk-3.0.css}"
         "${./templates/gtk-4.0.css}"
+        "${../wm/share-picker/style.css}"
         config.home.pointerCursor.name
         (toString config.home.pointerCursor.size)
       ]

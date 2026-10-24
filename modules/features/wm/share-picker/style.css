@@ -1,6 +1,6 @@
 * {
   all: unset;
-  font-family: "FiraCode Nerd", monospace;
+  font-family: "JetBrains Mono", monospace;
   color: @FG@;
   font-weight: bold;
   font-size: 9pt;
