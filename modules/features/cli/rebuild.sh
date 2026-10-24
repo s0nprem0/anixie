@@ -32,4 +32,4 @@ mode="${1:-switch}"
 if [ $# -gt 0 ]; then
   shift
 fi
-exec nh -e auto os "$mode" "$@"
+exec nh -e auto os "$mode" "@FLAKE@#@HOST@" "$@"
