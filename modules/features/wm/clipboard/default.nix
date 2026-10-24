@@ -8,38 +8,32 @@
 let
   cfg = config.anixie.wm.clipboard;
 
+  mkScript = import ../../cli/scripts.nix { inherit pkgs; };
+
   # cliphist keeps the history and is fed by the compositor's clipboard watchers
   # (see hyprland/config/70-startup.lua); this is only the picking of one entry
   # back out.
-  clipboard = pkgs.writeShellScriptBin "clipboard" (
-    builtins.replaceStrings
-      [
-        "@CLIPHIST@"
-        "@WL_COPY@"
-        "@FILE@"
-      ]
-      [
-        "${pkgs.cliphist}/bin/cliphist"
-        "${pkgs.wl-clipboard}/bin/wl-copy"
-        "${pkgs.file}/bin/file"
-      ]
-      (builtins.readFile ./clipboard.sh)
-  );
+  clipboard = mkScript {
+    name = "clipboard";
+    file = ./clipboard.sh;
+    bins = {
+      "@CLIPHIST@" = "${pkgs.cliphist}/bin/cliphist";
+      "@WL_COPY@" = "${pkgs.wl-clipboard}/bin/wl-copy";
+      "@FILE@" = "${pkgs.file}/bin/file";
+    };
+  };
 
   # Kept separate from the picker because it is started once at session start
-  # and outlives every invocation of `clipboard`.
-  clipboardWatch = pkgs.writeShellScriptBin "clipboard-watch" (
-    builtins.replaceStrings
-      [
-        "@CLIPHIST@"
-        "@WL_PASTE@"
-      ]
-      [
-        "${pkgs.cliphist}/bin/cliphist"
-        "${pkgs.wl-clipboard}/bin/wl-paste"
-      ]
-      (builtins.readFile ./clipboard-watch.sh)
-  );
+  # and outlives every invocation of `clipboard`. The compositor starts it by
+  # absolute path, so it does not need a name on PATH.
+  clipboardWatch = mkScript {
+    name = "clipboard-watch";
+    file = ./clipboard-watch.sh;
+    bins = {
+      "@CLIPHIST@" = "${pkgs.cliphist}/bin/cliphist";
+      "@WL_PASTE@" = "${pkgs.wl-clipboard}/bin/wl-paste";
+    };
+  };
 in
 
 {
@@ -50,9 +44,10 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [
-      clipboard
-      clipboardWatch
-    ];
+    home.packages = [ clipboard.package ];
+
+    # The watcher is a long-running helper, not a command. Handing its path to
+    # the compositor keeps it out of the user's PATH.
+    anixie.theme.template.placeholders."@CLIPBOARD_WATCH@" = clipboardWatch.command;
   };
 }
