@@ -28,9 +28,10 @@ BarWidget {
   readonly property bool charging: root.present
     && root.device.state === UPowerDeviceState.Charging
 
-  // Off by default, like the reference: a percentage is a slot on a 26px bar and
-  // the panel carries the number when it is wanted. Right-click brings it back.
-  property bool showPercent: false
+  // On by default: the number is the part of the readout worth glancing at, and
+  // the panel carries the rest. Right-click hides it again on a bar where the
+  // extra slot is not wanted.
+  property bool showPercent: true
 
   // Hidden on a machine with no battery, rather than a permanently blank slot.
   wantsSlot: root.present
@@ -79,8 +80,8 @@ BarWidget {
     tooltipText: (root.present ? "Battery " + root.level + "%" : "Battery")
       + " · Super+Ctrl+P · right-click for menu"
 
-    // The percentage is a toggle rather than permanent chrome: it costs a slot
-    // on a 26px bar, and the panel carries the number when it is wanted.
+    // The percentage is a toggle rather than permanent chrome: some bars are too
+    // narrow for it, and the panel carries the number when it is wanted.
     onPressed: function (button) {
       if (button === Qt.LeftButton || button === Qt.MiddleButton) {
         PanelRegistry.toggle("power", readout)
