@@ -92,7 +92,7 @@ BarWidget {
   function refreshSoon(details) {
     root.busy = true
     if (details) root.detailsPending = true
-    root.refreshTimer.restart()
+    refreshTimer.restart()
   }
 
   function openLogin() {
