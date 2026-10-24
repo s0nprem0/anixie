@@ -151,7 +151,7 @@ by its position from the left.
 | `Super+Ctrl+W` | Network (scan, DNS, share by QR) |
 | `Super+Ctrl+B` | Bluetooth |
 | `Super+Ctrl+D` | Display (brightness, text size) |
-| `Super+Ctrl+Shift+D` | Displays (per-output scale, rotation, mode, position, on/off) |
+| `Super+Ctrl+Shift+D` | Displays (arrangement, layout/mirror, scale, rotation, mode, placement, on/off) |
 | `Super+Ctrl+P` | Power (profile, brightness, battery, system) |
 | `Super+Ctrl+Alt+D` | Calendar |
 
@@ -170,14 +170,29 @@ position, on/off and mirroring are per output and written to
 `hyprland/config/20-settings.lua` only supplies defaults for a screen that has
 no saved line (`anixie.wm.display.defaultScale`, 1 by default).
 
+The Displays panel (`Super+Ctrl+Shift+D`) draws the arrangement from the live
+coordinates and offers an Identify action that flashes each output's name on it.
+Mirroring is a Layout choice per screen; a mirrored screen has no geometry of
+its own, so those rows are disabled until it is extended again.
+
+A geometry change goes through `monitors try`: it applies immediately but
+automatically returns to the previous value after fifteen seconds unless it is
+kept. The panel shows that countdown as a Keep/Revert dialog, and the revert is
+owned by a systemd timer rather than the panel, so a mode that makes the screen
+unreadable still comes back after the panel is gone.
+
 Workspaces are per monitor: each output gets a block of ten global workspace
 ids, so `Super+1` is the first workspace of whichever screen has focus, and
 `Super+Comma` / the wheel stay inside that block. The mapping lives in
 `~/.local/state/anixie/workspaces.json` and is re-synced on hotplug.
 
 ```sh
-monitors set HDMI-A-1 mode 1920x1080@60.00
+monitors try HDMI-A-1 mode 1920x1080@60.00  # auto-reverts after 15s
+monitors keep                               # keep the try, write it to state
+monitors revert                             # undo a try now
 monitors set HDMI-A-1 position auto-right   # or XxY
+monitors set HDMI-A-1 mirror eDP-1          # none to extend again
+monitors identify                           # flash each output's name on it
 monitors brightness up 5                    # DDC/CI when focus is external
 monitors lid close | open                   # clamshell path
 monitors workspaces sync | show | reset
@@ -236,7 +251,8 @@ anixie focus start 25 | stop | extend 15 | status
 anixie screentime [show|json|reset|path|panel]
 notify -G f017 SUMMARY [BODY] --exec COMMAND [ARG...]   # a toast with a glyph and a click action
 monitors …                          # scale, rotation, mode, position, mirror,
-                                    # brightness, lid, workspaces, recover, wake
+                                    # try/keep/revert, identify, brightness, lid,
+                                    # workspaces, recover, wake
 anixie power …                      # profile for AC or battery
 anixie snapshot create|list|restore|prune
 anixie webapp add NAME URL          # a site as an application

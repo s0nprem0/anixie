@@ -19,6 +19,8 @@ let
         "@BRIGHTNESSCTL@"
         "@DDCUTIL@"
         "@QUICKSHELL@"
+        "@SYSTEMD_RUN@"
+        "@SYSTEMCTL@"
         "@ANIXIE_LIB@"
       ]
       [
@@ -27,6 +29,8 @@ let
         "${pkgs.brightnessctl}/bin/brightnessctl"
         "${pkgs.ddcutil}/bin/ddcutil"
         "${pkgs.quickshell}/bin/quickshell"
+        "${pkgs.systemd}/bin/systemd-run"
+        "${pkgs.systemd}/bin/systemctl"
         "${../../cli/lib.sh}"
       ]
       (builtins.readFile ./monitors.sh)

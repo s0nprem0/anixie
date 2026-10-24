@@ -15,6 +15,10 @@
 #   monitors set OUTPUT position VALUE     auto, auto-left/right/up/down, XxY
 #   monitors set OUTPUT mode VALUE         preferred, highres, highrr, WxH[@R]
 #   monitors set OUTPUT mirror VALUE       none, or the output to mirror
+#   monitors try OUTPUT SETTING VALUE      apply with an automatic revert
+#   monitors keep                          keep the pending try
+#   monitors revert                        undo the pending try now
+#   monitors identify                      flash each output's name on it
 #   monitors recover                       clear a stale internal-off state
 #   monitors wake                          cycle DPMS on every output
 #   monitors workspace N                   focus the Nth workspace of this monitor
@@ -23,7 +27,7 @@
 #   monitors workspaces sync|show|reset    per-monitor workspace blocks
 #   monitors status                        one line per monitor
 #
-# Scaling steps through 1x, 1.25x, 1.6x, 2x, 3x and 4x — the ratios worth having
+# Scaling steps through 1x, 1.25x, 1.5x, 1.6x, 2x, 3x and 4x — the ratios worth having
 # between "this is a 1080p panel" and "this is a 6K one". Only the focused monitor
 # is stepped, which is what makes the keys usable with a second screen attached.
 #
@@ -31,6 +35,12 @@
 # which is what the Displays panel needs: it lists every screen and changes this
 # one, and a panel that could only reach whichever was focused would be useless
 # with two.
+#
+# `try` is the same change with a guard: the previous value is kept in a pending
+# file and a transient systemd timer puts it back unless `keep` is run first. A
+# mode or a scale that the panel cannot display then costs fifteen seconds rather
+# than a trip to a TTY. `revert` does the same thing immediately, which is what
+# the panel's Revert button and the timer both call.
 #
 # The chosen values are written to a state file that
 # features/wm/hyprland/config/20-settings.lua reads when it loads, so they survive
@@ -55,15 +65,23 @@ jq="@JQ@"
 brightnessctl="@BRIGHTNESSCTL@"
 ddcutil="@DDCUTIL@"
 quickshell="@QUICKSHELL@"
+systemd_run="@SYSTEMD_RUN@"
+systemctl="@SYSTEMCTL@"
 
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/anixie"
 state_file="$state_dir/display.conf"
+pending_file="$state_dir/display-pending"
 lid_file="$state_dir/lid"
 workspace_file="$state_dir/workspaces.json"
 
+# The transient unit a `try` leaves behind. The timer is the authority on
+# reverting: it keeps working if the panel is closed or the shell restarts.
+revert_unit="anixie-display-revert"
+revert_seconds=15
+
 # The ladder, as words so membership can be tested with `case` rather than a float
 # comparison bash cannot do.
-ladder="1 1.25 1.6 2 3 4"
+ladder="1 1.25 1.5 1.6 2 3 4"
 
 # Rotation, as Hyprland numbers them. hl.monitor takes the index into this list,
 # not the degrees, and rejects a transform above its own maximum — so these are
@@ -209,14 +227,26 @@ list_action() {
   # Hyprland names the mirror target by monitor id, so an unedited `mirrorOf`
   # reaches the panel as "0" and reads as a bug on screen. Resolve it against
   # the same snapshot; a value that is already a name is passed through.
-  "$jq" '
-    . as $all
+  #
+  # The saved position and mode are not in Hyprland's answer — they exist only
+  # in the state file — but the panel needs them to show what was chosen
+  # ("Preferred", "Left of others") rather than only what it resolved to.
+  "$jq" --arg state "$(cat "$state_file" 2>/dev/null || true)" '
+    ($state | split("\n") | map(select(length > 0) | split(" "))
+      | map({ key: .[0], value: {
+          position: (.[5] // "auto"),
+          mode: (.[6] // "preferred")
+        } })
+      | from_entries) as $saved
+    | . as $all
     | ($all | map({ key: (.id | tostring), value: .name }) | from_entries) as $names
     | $all | map({
         name, description, width, height, scale, transform, disabled, focused,
         x, y, refreshRate,
         mirrorOf: (if (.mirrorOf // "none") == "none" or (.mirrorOf // "") == ""
           then "none" else ($names[.mirrorOf] // .mirrorOf) end),
+        savedPosition: ($saved[.name].position // "auto"),
+        savedMode: ($saved[.name].mode // "preferred"),
         availableModes: [(.availableModes // [])[] | sub("Hz$"; "")] | unique
       })' <<<"$(all_monitors_json)"
 }
@@ -882,6 +912,10 @@ set_action() {
             die "no output called \"$value\" to mirror"
           [ "$(field_of "$value" disabled)" = true ] &&
             die "$value is off; turn it on before mirroring"
+          # Hyprland has no meaning for a mirror of a mirror. Refusing here
+          # gives the panel a sentence instead of a compositor error.
+          [ "$(read_state "$value" | cut -f4)" = none ] ||
+            die "$value is mirroring another screen; extend it first"
           ;;
       esac
       [ "$(field_of "$output" disabled)" = true ] &&
@@ -898,6 +932,166 @@ set_action() {
   esac
 
   printf '%s %s %s\n' "$output" "$key" "$value"
+}
+
+# The timer that turns a try back into the previous value. It lives outside the
+# shell that started it on purpose: closing the panel, or the shell itself
+# crashing, must not leave the screen in a mode nobody can see well enough to
+# undo.
+stop_revert_timer() {
+  # Only the timer. Stopping the service as well could cut a revert off halfway
+  # when Keep and the countdown land on the same second.
+  "$systemctl" --user stop "$revert_unit.timer" >/dev/null 2>&1 || true
+}
+
+start_revert_timer() {
+  # The service does not inherit the compositor's environment, and hyprctl
+  # needs the instance signature and runtime directory to find the socket. Pass
+  # the state location too, so the revert reads the same pending file.
+  local env_args=()
+  [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] &&
+    env_args+=(--setenv=HYPRLAND_INSTANCE_SIGNATURE="$HYPRLAND_INSTANCE_SIGNATURE")
+  [ -n "${XDG_RUNTIME_DIR:-}" ] &&
+    env_args+=(--setenv=XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR")
+  [ -n "${XDG_STATE_HOME:-}" ] &&
+    env_args+=(--setenv=XDG_STATE_HOME="$XDG_STATE_HOME")
+  [ -n "${HOME:-}" ] &&
+    env_args+=(--setenv=HOME="$HOME")
+
+  # --collect removes the transient units when they finish, so the next try does
+  # not trip over the leftovers of this one.
+  "$systemd_run" --user --quiet --collect --unit="$revert_unit" \
+    --on-active="$revert_seconds" "${env_args[@]}" -- "$0" revert >/dev/null 2>&1
+}
+
+# Apply a change that can leave a screen unreadable, keeping the old value in a
+# pending file until `keep` says the new one is usable.
+try_action() {
+  local output="${1:-}" key="${2:-}" value="${3:-}" state old tmp
+
+  [ -n "$output" ] && [ -n "$key" ] && [ -n "$value" ] ||
+    die "try needs an output, a setting and a value"
+  [ -f "$pending_file" ] &&
+    die "a display change is already pending; run keep or revert first"
+  [ -n "$(field_of "$output" name)" ] || die "no output called \"$output\""
+  [ "$(field_of "$output" disabled)" = true ] &&
+    die "$output is off; turn it on first"
+
+  state=$(read_state "$output") || die "no output called \"$output\""
+
+  # Only the settings that can make the panel unusable. Mirror and on/off are
+  # visible immediately and undone from the same panel.
+  case "$key" in
+    scale)
+      case " $ladder " in
+        *" $value "*) ;;
+        *) die "scale must be one of: $ladder" ;;
+      esac
+      old=$(cut -f1 <<<"$state")
+      ;;
+    transform)
+      value=$(transform_index "$value") ||
+        die "transform must be one of: $transform_names"
+      old=$(cut -f2 <<<"$state")
+      ;;
+    mode)
+      value=${value%Hz}
+      case "$value" in
+        preferred | highres | highrr | maxwidth) ;;
+        *)
+          [[ "$value" =~ ^[0-9]+x[0-9]+(@[0-9.]+)?$ ]] ||
+            die "mode must be preferred, highres, highrr, or WxH[@R]"
+          ;;
+      esac
+      old=$(cut -f6 <<<"$state")
+      ;;
+    position)
+      case "$value" in
+        auto | auto-left | auto-right | auto-up | auto-down) ;;
+        *)
+          [[ "$value" =~ ^-?[0-9]+x-?[0-9]+$ ]] ||
+            die "position must be auto, auto-left/right/up/down, or XxY"
+          ;;
+      esac
+      old=$(cut -f5 <<<"$state")
+      ;;
+    *)
+      die "try takes scale, transform, mode or position"
+      ;;
+  esac
+
+  mkdir -p "$state_dir" || die "could not create $state_dir"
+  tmp=$(mktemp "${TMPDIR:-/tmp}/monitors.XXXXXX") || die "could not make a temporary file"
+  printf '%s\t%s\t%s\t%s\n' "$output" "$key" "$old" "$value" >"$tmp"
+  mv "$tmp" "$pending_file"
+
+  # Arm the timer before touching the screen. If this script is killed between
+  # the two steps — closing the panel destroys the process — the timer still
+  # removes the stale pending file and puts the old value back. Arming it after
+  # the change would leave a pending change with nothing left to undo it.
+  stop_revert_timer
+  if ! start_revert_timer; then
+    rm -f "$pending_file"
+    die "could not schedule the automatic revert; the display was not changed"
+  fi
+
+  apply_change "$output" "$key" "$value"
+
+  printf '%s %s %s (reverting in %ss unless kept)\n' \
+    "$output" "$key" "$value" "$revert_seconds"
+}
+
+# Persist the pending change and disarm the timer.
+keep_action() {
+  local output key _old new
+
+  [ -f "$pending_file" ] || {
+    printf 'no display change to keep\n'
+    return 0
+  }
+
+  IFS=$'\t' read -r output key _old new <"$pending_file" ||
+    die "could not read the pending display change"
+
+  stop_revert_timer
+  save_field "$output" "$key" "$new"
+  rm -f "$pending_file"
+  printf '%s %s %s kept\n' "$output" "$key" "$new"
+}
+
+# Put the pending change back. Also what the timer runs after its countdown.
+revert_action() {
+  local output key old _new
+
+  [ -f "$pending_file" ] || return 0
+  IFS=$'\t' read -r output key old _new <"$pending_file" || {
+    rm -f "$pending_file"
+    return 1
+  }
+
+  # The output can disappear during the countdown. There is nothing left to
+  # revert in that case, and the stale pending file would block the next try.
+  if [ -z "$(field_of "$output" name)" ]; then
+    rm -f "$pending_file"
+    return 0
+  fi
+
+  stop_revert_timer
+  apply_change "$output" "$key" "$old"
+  rm -f "$pending_file"
+  printf '%s %s reverted to %s\n' "$output" "$key" "$old"
+}
+
+# Ask the running shell to put each output's name on it for a moment.
+identify_action() {
+  local reply
+  # `ipc call` exits zero even when the target does not exist (it prints
+  # "Target not found."), so the answer is what says whether the shell is new
+  # enough to have the handler.
+  reply=$("$quickshell" ipc call identify flash 2>&1) || true
+  [ "$reply" = "ok" ] ||
+    die "could not ask the running shell to identify the displays (${reply:-no reply})"
+  printf 'display names flashed\n'
 }
 
 case "${1:-}" in
@@ -952,6 +1146,22 @@ case "${1:-}" in
   set)
     shift
     set_action "$@"
+    ;;
+  try)
+    shift
+    try_action "${1:-}" "${2:-}" "${3:-}"
+    ;;
+  keep)
+    shift
+    keep_action
+    ;;
+  revert)
+    shift
+    revert_action
+    ;;
+  identify)
+    shift
+    identify_action
     ;;
   status)
     status_action

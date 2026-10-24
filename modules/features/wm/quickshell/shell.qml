@@ -125,6 +125,60 @@ ShellRoot {
     }
   }
 
+  // The name of each output, on that output, for `monitors identify`. It draws
+  // above everything but takes neither the keyboard nor the pointer: this is a
+  // label on a screen, not a dialog, and needs no answer.
+  Variants {
+    model: Quickshell.screens
+
+    delegate: PanelWindow {
+      id: identifyWindow
+      required property var modelData
+      screen: modelData
+
+      implicitWidth: modelData.width
+      implicitHeight: modelData.height
+
+      anchors.top: true
+      anchors.bottom: true
+      anchors.left: true
+      anchors.right: true
+
+      color: "transparent"
+      exclusionMode: ExclusionMode.Ignore
+      visible: IdentifyHost.opened
+      mask: Region {}
+
+      WlrLayershell.layer: WlrLayer.Overlay
+      WlrLayershell.namespace: "quickshell-identify"
+      WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+
+      readonly property string label:
+        /^(eDP|LVDS|DSI)/.test(String(modelData.name)) ? "Laptop panel" : "External display"
+
+      Rectangle {
+        anchors.centerIn: parent
+        width: identifyLabel.implicitWidth + Style.space(40)
+        height: identifyLabel.implicitHeight + Style.space(28)
+        radius: Theme.cornerRadius
+        color: Theme.surface
+        border.color: Theme.muted
+        border.width: 1
+
+        Text {
+          id: identifyLabel
+          anchors.centerIn: parent
+          text: identifyWindow.label + "  ·  " + modelData.name
+          color: Theme.fg
+          font.family: Style.font.family
+          font.pixelSize: Style.font.subtitle * 2
+          font.weight: Font.DemiBold
+          renderType: Text.NativeRendering
+        }
+      }
+    }
+  }
+
   // One bar per connected screen. `Variants` builds and destroys them as
   // displays or the bar's edge change, and `screen: targetScreen` is what puts
   // each copy on its own output. Everything that hangs off a bar — panels, the
@@ -629,6 +683,15 @@ ShellRoot {
     function payload(payload: string): string { OsdHost.showPayload(payload); return "ok" }
     function close(): string { OsdHost.hide(); return "ok" }
     function state(): string { return OsdHost.opened ? "open" : "closed" }
+  }
+
+  // The display-name overlay, for the Displays panel and `monitors identify`.
+  // Not `show`: that is an `ipc` subcommand, and the OSD target already has a
+  // scar from it.
+  IpcHandler {
+    target: "identify"
+
+    function flash(): string { IdentifyHost.flash(); return "ok" }
   }
 
   // The wallpaper path, for the `wallpaper` command and for scripts. Setting it

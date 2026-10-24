@@ -26,8 +26,15 @@ Item {
   property string detail: ""
   property bool danger: false
 
+  // Seconds before the dialog gives up and reports `timedOut`. Zero is a plain
+  // yes/no that waits for an answer; the display panel uses this for a change
+  // that must be confirmed before it becomes permanent.
+  property int countdown: 0
+  property int remaining: 0
+
   signal confirmed()
   signal cancelled()
+  signal timedOut()
 
   visible: false
 
@@ -40,10 +47,13 @@ Item {
     const win = root.Window && root.Window.window ? root.Window.window : null
     root.previousFocus = win ? win.activeFocusItem : null
     root.visible = true
+    root.remaining = root.countdown
+    if (root.countdown > 0) countdownTimer.restart()
     card.forceActiveFocus()
   }
 
   function close() {
+    countdownTimer.stop()
     root.visible = false
     const target = root.previousFocus
     root.previousFocus = null
@@ -57,6 +67,20 @@ Item {
 
   implicitWidth: 0
   implicitHeight: 0
+
+  Timer {
+    id: countdownTimer
+    interval: 1000
+    repeat: true
+    running: root.visible && root.countdown > 0
+    onTriggered: {
+      root.remaining -= 1
+      if (root.remaining <= 0) {
+        root.timedOut()
+        root.close()
+      }
+    }
+  }
 
   Rectangle {
     id: scrim
@@ -129,6 +153,16 @@ Item {
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
         wrapMode: Text.WordWrap
+        renderType: Text.NativeRendering
+      }
+
+      Text {
+        width: parent.width
+        visible: root.countdown > 0
+        text: "Reverting in " + Math.max(0, root.remaining) + "s"
+        color: root.danger ? Theme.danger : Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
         renderType: Text.NativeRendering
       }
 

@@ -5,6 +5,7 @@ singleton Commands 1.0 Commands.qml
 singleton Bar 1.0 Bar.qml
 singleton BarDrag 1.0 BarDrag.qml
 singleton OsdHost 1.0 OsdHost.qml
+singleton IdentifyHost 1.0 IdentifyHost.qml
 singleton BackgroundHost 1.0 BackgroundHost.qml
 BackgroundSurface 1.0 BackgroundSurface.qml
 singleton LockHost 1.0 LockHost.qml
@@ -59,4 +60,5 @@ ContextMenuRow 1.0 ContextMenuRow.qml
 TextField 1.0 TextField.qml
 NumberField 1.0 NumberField.qml
 Dropdown 1.0 Dropdown.qml
+DisplayMap 1.0 DisplayMap.qml
 ConfirmDialog 1.0 ConfirmDialog.qml
