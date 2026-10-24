@@ -105,8 +105,10 @@ Item {
     height: cardColumn.implicitHeight + Style.space(20) * 2
     radius: Theme.cornerRadius
     color: Theme.surface
-    border.color: root.danger ? Theme.danger : Theme.muted
-    border.width: 1
+    // A dialog is a floating surface like the dropdown's list, so it keeps the
+    // stronger edge; danger still has the last word.
+    border.color: root.danger ? Theme.danger : Theme.borderStrong
+    border.width: Style.strokeWidth
     anchors.centerIn: parent
     focus: true
     Keys.onEscapePressed: {
@@ -210,15 +212,18 @@ Item {
     implicitWidth: labelText.implicitWidth + Style.space(24)
     implicitHeight: Style.space(28)
 
+    readonly property color foreground: button.danger ? Theme.danger : Theme.fg
+
     signal clicked()
 
     Rectangle {
       anchors.fill: parent
       radius: Theme.cornerRadius
-      color: button.danger
-        ? Qt.rgba(Theme.danger.r, Theme.danger.g, Theme.danger.b, mouse.containsMouse ? Style.control.selectedFillAlpha : Style.control.hoverFillAlpha)
-        : Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, mouse.containsMouse ? Style.control.selectedFillAlpha : Style.control.hoverFillAlpha)
-      Behavior on color { NumberAnimation { duration: Style.duration(120) } }
+      color: Qt.rgba(button.foreground.r, button.foreground.g, button.foreground.b,
+        mouse.pressed
+          ? Style.control.pressedFillAlpha
+          : (mouse.containsMouse ? Style.control.selectedFillAlpha : Style.control.hoverFillAlpha))
+      Behavior on color { ColorAnimation { duration: Style.duration(Style.motion.fast) } }
     }
 
     Text {

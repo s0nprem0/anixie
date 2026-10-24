@@ -52,8 +52,8 @@ Item {
       z: -1 - index
       radius: Theme.cornerRadius
       color: Theme.surface
-      border.width: 1
-      border.color: Theme.muted
+      border.width: Style.strokeWidth
+      border.color: Theme.border
       opacity: 1 - root.progress
     }
   }

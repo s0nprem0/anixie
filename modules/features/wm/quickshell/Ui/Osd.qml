@@ -25,8 +25,8 @@ Item {
   Rectangle {
     anchors.fill: parent
     color: Theme.surface
-    border.width: 1
-    border.color: Theme.muted
+    border.width: Style.strokeWidth
+    border.color: Theme.border
     radius: Theme.cornerRadius
 
     Row {

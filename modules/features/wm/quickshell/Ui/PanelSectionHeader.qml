@@ -80,7 +80,7 @@ Item {
     visible: root.hasAction
     width: actionLabel.implicitWidth + Style.space(8)
     height: labelText.implicitHeight
-    opacity: root.actionEnabled ? 1 : 0.45
+    opacity: root.actionEnabled ? 1 : Style.disabledOpacity
 
     implicitWidth: width
     implicitHeight: height
@@ -95,7 +95,7 @@ Item {
       font.pixelSize: Style.font.bodySmall
       font.weight: Font.DemiBold
       renderType: Text.NativeRendering
-      Behavior on color { ColorAnimation { duration: Style.duration(120) } }
+      Behavior on color { ColorAnimation { duration: Style.duration(Style.motion.fast) } }
     }
 
     MouseArea {

@@ -29,12 +29,12 @@ Item {
   // underneath it.
   default property alias trailing: trailingRow.data
 
-// Whether this is the entry currently in use. The shell's own rule for that:
-// the same soft fill over the foreground the bar uses for an active module, and
-// no outline. An accent-tinted block with a frame around it was the loudest
-// thing in the panel and the only outlined one anywhere in the shell, which
-// reads as a different control rather than as the chosen entry.
-property bool selected: false
+  // Whether this is the entry currently in use. The shell's own rule for that:
+  // the same soft fill over the foreground the bar uses for an active module, and
+  // no outline. An accent-tinted block with a frame around it was the loudest
+  // thing in the panel and the only outlined one anywhere in the shell, which
+  // reads as a different control rather than as the chosen entry.
+  property bool selected: false
 
   // Whether the row does anything. A list you cannot act on right now — the
   // radio is off — is dimmed rather than hidden: the entries are still what is
@@ -75,19 +75,21 @@ property bool selected: false
     // can see, animated or not. These are spaced far enough to read: a row under
     // the pointer is clearly lighter, and a selected row under it is lighter
     // again without losing its selection.
-    color: root.selected
-      ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b,
-          mouse.containsMouse && root.available
-            ? Style.control.rowSelectedHoverAlpha
-            : Style.control.selectedFillAlpha)
-      : (mouse.containsMouse && root.available
-        ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.rowHoverAlpha)
-        : "transparent")
+    color: mouse.pressed && root.available
+      ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.pressedFillAlpha)
+      : (root.selected
+        ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b,
+            mouse.containsMouse && root.available
+              ? Style.control.rowSelectedHoverAlpha
+              : Style.control.selectedFillAlpha)
+        : (mouse.containsMouse && root.available
+          ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.rowHoverAlpha)
+          : "transparent"))
 
     // Short but eased, so the fill arrives rather than snaps. Reduce-motion
     // collapses it to zero like every other duration in the shell.
     Behavior on color {
-      ColorAnimation { duration: Style.duration(140); easing.type: Easing.OutCubic }
+      ColorAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic }
     }
   }
 
@@ -103,7 +105,7 @@ property bool selected: false
     // it is shown, so a row without one was two pixels taller than its text and
     // pushed the label up out of the middle of its own row.
     height: labelText.height + (root.hasDetail ? Style.space(2) + detailText.height : 0)
-    opacity: root.available ? 1 : 0.45
+    opacity: root.available ? 1 : Style.disabledOpacity
 
     Text {
       id: labelText
@@ -152,7 +154,7 @@ property bool selected: false
     anchors.right: parent.right
     anchors.verticalCenter: parent.verticalCenter
     height: implicitHeight
-    opacity: root.available ? 1 : 0.45
+    opacity: root.available ? 1 : Style.disabledOpacity
   }
 
   MouseArea {

@@ -100,8 +100,8 @@ Item {
         color: modelData.focused
           ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, Style.control.hoverFillAlpha)
           : Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha * 0.4)
-        border.color: modelData.focused ? Theme.primary : Theme.muted
-        border.width: 1
+        border.color: modelData.focused ? Theme.primary : Theme.border
+        border.width: Style.strokeWidth
       }
 
       Text {

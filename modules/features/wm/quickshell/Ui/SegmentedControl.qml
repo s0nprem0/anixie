@@ -72,16 +72,18 @@ Item {
         width: chipLabel.implicitWidth + Style.space(16)
         radius: Theme.cornerRadius
 
-        color: chip.selected
-          ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, Style.control.selectedFillAlpha)
-          : (chipMouse.containsMouse && root.available
-            ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha)
-            : "transparent")
-        border.color: chip.selected ? Theme.primary : Theme.muted
-        border.width: 1
-        opacity: root.available ? 1 : 0.45
+        color: chipMouse.pressed && root.available && !chip.selected
+          ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.pressedFillAlpha)
+          : (chip.selected
+            ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, Style.control.selectedFillAlpha)
+            : (chipMouse.containsMouse && root.available
+              ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha)
+              : "transparent"))
+        border.color: chip.selected ? Theme.primary : Theme.border
+        border.width: Style.strokeWidth
+        opacity: root.available ? 1 : Style.disabledOpacity
 
-        Behavior on color { NumberAnimation { duration: Style.duration(120) } }
+        Behavior on color { ColorAnimation { duration: Style.duration(Style.motion.fast) } }
 
         Text {
           id: chipLabel

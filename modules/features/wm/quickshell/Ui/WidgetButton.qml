@@ -79,7 +79,7 @@ Item {
   }
 
   visible: hasVisualContent || keepSpace
-  opacity: !hasVisualContent || concealed ? 0 : (dimmed ? 0.45 : 1)
+  opacity: !hasVisualContent || concealed ? 0 : (dimmed ? Style.disabledOpacity : 1)
 
   implicitWidth: fixedWidth > 0
     ? fixedWidth
@@ -87,7 +87,7 @@ Item {
   implicitHeight: fixedHeight > 0 ? fixedHeight : (iconLabel ? Style.bar.iconSlot : barSize)
 
   Behavior on opacity {
-    NumberAnimation { duration: Style.duration(140); easing.type: Easing.OutCubic }
+    NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic }
   }
 
   // The block: nothing at rest, a faint fill while the pointer is on it, and a
@@ -99,9 +99,11 @@ Item {
     radius: Theme.cornerRadius
 
     color: {
-      const alpha = root.selected
-        ? Style.control.selectedFillAlpha
-        : (mouseArea.containsMouse ? Style.control.hoverFillAlpha : 0)
+      const alpha = mouseArea.pressed
+        ? Style.control.pressedFillAlpha
+        : (root.selected
+          ? Style.control.selectedFillAlpha
+          : (mouseArea.containsMouse ? Style.control.hoverFillAlpha : 0))
 
       return alpha <= 0
         ? "transparent"
@@ -109,7 +111,7 @@ Item {
     }
 
     Behavior on color {
-      ColorAnimation { duration: Style.duration(120) }
+      ColorAnimation { duration: Style.duration(Style.motion.fast) }
     }
   }
 

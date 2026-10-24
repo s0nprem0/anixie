@@ -82,8 +82,8 @@ Item {
       height: inner.implicitHeight + Style.space(20) * 2
       radius: Theme.cornerRadius
       color: Theme.surface
-      border.width: 1
-      border.color: Theme.muted
+      border.width: Style.strokeWidth
+      border.color: Theme.border
 
       Column {
         id: inner

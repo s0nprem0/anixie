@@ -76,8 +76,8 @@ Item {
     anchors.fill: parent
     radius: Theme.cornerRadius
     color: Theme.surface
-    border.color: Theme.muted
-    border.width: 1
+    border.color: Theme.border
+    border.width: Style.strokeWidth
   }
 
   Image {
@@ -171,8 +171,8 @@ Item {
     implicitHeight: tallLabel.implicitHeight + Style.space(6)
     radius: Theme.cornerRadius
     color: Theme.surface
-    border.color: Theme.muted
-    border.width: 1
+    border.color: Theme.border
+    border.width: Style.strokeWidth
 
     Text {
       id: tallLabel
@@ -196,8 +196,8 @@ Item {
     implicitHeight: copiedLabel.implicitHeight + Style.space(6)
     radius: Theme.cornerRadius
     color: Theme.surface
-    border.color: Theme.muted
-    border.width: 1
+    border.color: Theme.border
+    border.width: Style.strokeWidth
 
     Text {
       id: copiedLabel

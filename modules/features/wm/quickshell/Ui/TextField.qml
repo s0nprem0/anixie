@@ -29,8 +29,8 @@ TextField {
   background: Rectangle {
     radius: Theme.cornerRadius
     color: Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha)
-    border.color: control.activeFocus ? Theme.primary : Theme.muted
-    border.width: 1
-    Behavior on border.color { ColorAnimation { duration: Style.duration(120) } }
+    border.color: control.activeFocus ? Theme.primary : Theme.border
+    border.width: Style.strokeWidth
+    Behavior on border.color { ColorAnimation { duration: Style.duration(Style.motion.fast) } }
   }
 }

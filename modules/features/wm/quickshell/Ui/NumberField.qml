@@ -126,7 +126,7 @@ Item {
       color: step.enabled
         ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, step.live ? Style.control.selectedFillAlpha : Style.control.hoverFillAlpha)
         : "transparent"
-      Behavior on color { NumberAnimation { duration: Style.duration(120) } }
+      Behavior on color { ColorAnimation { duration: Style.duration(Style.motion.fast) } }
     }
 
     Text {

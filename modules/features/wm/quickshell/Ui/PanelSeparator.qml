@@ -12,5 +12,5 @@ Rectangle {
   implicitWidth: 100
   implicitHeight: 1
   height: 1
-  color: Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.12)
+  color: Theme.separator
 }

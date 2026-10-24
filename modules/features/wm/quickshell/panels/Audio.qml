@@ -135,7 +135,7 @@ Item {
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         enabled: root.outputReady
-        opacity: root.outputReady ? 1 : 0.45
+        opacity: root.outputReady ? 1 : Style.disabledOpacity
         checked: !root.outputMuted
         onToggled: root.setMuted(root.defaultSink, !root.outputMuted)
       }

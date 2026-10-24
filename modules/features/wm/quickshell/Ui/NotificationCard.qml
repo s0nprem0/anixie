@@ -308,8 +308,8 @@ Item {
 
     anchors.fill: parent
     color: Theme.surface
-    border.width: 1
-    border.color: root.critical ? Theme.danger : (root.replay ? Theme.accent : Theme.muted)
+    border.width: Style.strokeWidth
+    border.color: root.critical ? Theme.danger : (root.replay ? Theme.accent : Theme.border)
     radius: Theme.cornerRadius
 
     implicitHeight: content.implicitHeight + Style.space(20)

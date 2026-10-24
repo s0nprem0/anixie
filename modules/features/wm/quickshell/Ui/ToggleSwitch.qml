@@ -57,11 +57,11 @@ Item {
     color: root.checked
       ? Qt.rgba(root.accent.r, root.accent.g, root.accent.b, Style.control.selectedFillAlpha)
       : Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha)
-    border.color: root.checked ? root.accent : Theme.muted
-    border.width: 1
+    border.color: root.checked ? root.accent : Theme.border
+    border.width: Style.strokeWidth
 
     Behavior on color {
-      ColorAnimation { duration: Style.duration(120) }
+      ColorAnimation { duration: Style.duration(Style.motion.fast) }
     }
 
     Rectangle {
@@ -73,10 +73,10 @@ Item {
       color: root.checked ? root.accent : Theme.muted
 
       Behavior on x {
-        NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic }
+        NumberAnimation { duration: Style.duration(Style.motion.fast); easing.type: Easing.OutCubic }
       }
       Behavior on color {
-        ColorAnimation { duration: Style.duration(120) }
+        ColorAnimation { duration: Style.duration(Style.motion.fast) }
       }
     }
   }

@@ -72,8 +72,8 @@ Item {
       height: Style.space(20)
       radius: width / 3
       color: Theme.bg
-      border.color: Theme.muted
-      border.width: 1
+      border.color: Theme.border
+      border.width: Style.strokeWidth
       anchors.verticalCenter: parent.verticalCenter
 
       readonly property string iconSource: root.app ? Quickshell.iconPath(root.app.klass, "") : ""

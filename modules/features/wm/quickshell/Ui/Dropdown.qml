@@ -69,17 +69,20 @@ Item {
   implicitWidth: Style.space(160)
   implicitHeight: Style.space(26)
   height: implicitHeight
-  opacity: root.available ? 1 : 0.45
+  opacity: root.available ? 1 : Style.disabledOpacity
 
   Rectangle {
     anchors.fill: parent
     radius: Theme.cornerRadius
-    color: mouse.containsMouse && root.available
-      ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha)
-      : Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha * 0.5)
-    border.color: list.opened || (mouse.containsMouse && root.available) ? Theme.primary : Theme.muted
-    border.width: 1
-    Behavior on border.color { ColorAnimation { duration: Style.duration(120) } }
+    color: mouse.pressed && root.available
+      ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.pressedFillAlpha)
+      : (mouse.containsMouse && root.available
+        ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha)
+        : Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha * 0.5))
+    border.color: list.opened || (mouse.containsMouse && root.available) ? Theme.primary : Theme.border
+    border.width: Style.strokeWidth
+    Behavior on color { ColorAnimation { duration: Style.duration(Style.motion.fast) } }
+    Behavior on border.color { ColorAnimation { duration: Style.duration(Style.motion.fast) } }
   }
 
   Text {
@@ -171,8 +174,10 @@ Item {
     background: Rectangle {
       color: Theme.surface
       radius: Theme.cornerRadius
-      border.color: Theme.muted
-      border.width: 1
+      // A floating surface sits above the panel, so its edge is one step
+      // stronger than the card's.
+      border.color: Theme.borderStrong
+      border.width: Style.strokeWidth
     }
 
     enter: Transition {

@@ -179,8 +179,8 @@ QtObject {
       anchors.fill: parent
       radius: Theme.cornerRadius
       color: Theme.surface
-      border.color: Theme.muted
-      border.width: 1
+      border.color: Theme.border
+      border.width: Style.strokeWidth
     }
 
     Item {

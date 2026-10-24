@@ -83,6 +83,23 @@ QtObject {
     readonly property real rowSelectedHoverAlpha: 0.30
   }
 
+  // The one dimming for a control that is present but cannot be used. It was
+  // 0.45 in several files; one token keeps a disabled row and a disabled switch
+  // from meaning different things.
+  readonly property real disabledOpacity: 0.45
+
+  // Every outline in the shell is one pixel; naming it keeps a new component
+  // from drawing a two-pixel frame that reads as a different design.
+  readonly property int strokeWidth: 1
+
+  // The shell's motion vocabulary. `duration` still applies reduce-motion;
+  // these names are for the components that want to say "fast" rather than 120.
+  readonly property QtObject motion: QtObject {
+    readonly property int fast: 100
+    readonly property int base: 140
+    readonly property int slow: 220
+  }
+
   // Spacing scale. `space` rounds so callers can pass loose pixel values and
   // land on whole pixels; `spaceReal` keeps fractional geometry such as the
   // half-pixel offsets that centre odd-width slots.

@@ -59,7 +59,7 @@ Item {
     // the switch for a label alone, and one line taller for a label with a
     // description under it.
     anchors.top: parent.top
-    opacity: root.available ? 1 : 0.45
+    opacity: root.available ? 1 : Style.disabledOpacity
     checked: root.checked
     busy: root.busy
     accent: root.accent

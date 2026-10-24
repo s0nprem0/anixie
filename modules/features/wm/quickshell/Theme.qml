@@ -49,6 +49,15 @@ QtObject {
   readonly property color success: palette.success
   readonly property color danger: palette.danger
 
+  // Outlines and rules are not text, and should not borrow the muted text
+  // colour: at full strength that turned every card edge into a line as loud as
+  // the copy inside it. These are tints of the foreground, so they follow the
+  // palette in both modes. `border` is for card and control outlines,
+  // `separator` for the quieter rules between sections.
+  readonly property color border: Qt.rgba(fg.r, fg.g, fg.b, 0.18)
+  readonly property color borderStrong: Qt.rgba(fg.r, fg.g, fg.b, 0.30)
+  readonly property color separator: Qt.rgba(fg.r, fg.g, fg.b, 0.12)
+
   // Translucent fill for the "glassy" bar look. Hyprland's layer blur does the
   // frosting; this only has to tint what comes through it. Derived from the
   // background rather than a separate token, so every palette gets one.

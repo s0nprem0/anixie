@@ -12,7 +12,7 @@ ScrollBar {
     implicitWidth: control.width
     radius: width / 2
     color: control.pressed ? Theme.primary : Theme.muted
-    Behavior on opacity { NumberAnimation { duration: Style.duration(150) } }
+    Behavior on opacity { NumberAnimation { duration: Style.duration(Style.motion.base) } }
   }
 
   // Transparent, and the whole control's opacity follows the thumb's rather than
@@ -22,7 +22,7 @@ ScrollBar {
   // was invisible in the dock, where the trough matched the dock, and obvious on
   // the picker, where the trough sat on the card's surface instead.
   opacity: policy === ScrollBar.AlwaysOn || active ? 1 : 0
-  Behavior on opacity { NumberAnimation { duration: Style.duration(150) } }
+  Behavior on opacity { NumberAnimation { duration: Style.duration(Style.motion.base) } }
 
   background: Item {}
 }

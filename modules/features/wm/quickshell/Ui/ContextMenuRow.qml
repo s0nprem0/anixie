@@ -26,13 +26,17 @@ Item {
   Rectangle {
     anchors.fill: parent
     radius: Theme.cornerRadius
-    color: (root.selected || root.hovered) && root.available
-      ? Qt.rgba(
-        root.foreground.r,
-        root.foreground.g,
-        root.foreground.b,
-        root.selected ? Style.control.selectedFillAlpha : Style.control.hoverFillAlpha)
-      : "transparent"
+    color: mouse.pressed && root.available
+      ? Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b,
+          Style.control.pressedFillAlpha)
+      : ((root.selected || root.hovered) && root.available
+        ? Qt.rgba(
+          root.foreground.r,
+          root.foreground.g,
+          root.foreground.b,
+          root.selected ? Style.control.selectedFillAlpha : Style.control.hoverFillAlpha)
+        : "transparent")
+    Behavior on color { ColorAnimation { duration: Style.duration(Style.motion.fast) } }
   }
 
   Row {
@@ -51,7 +55,7 @@ Item {
       color: root.foreground
       font.family: Style.font.family
       font.pixelSize: Style.font.body
-      opacity: root.available ? 1 : 0.45
+      opacity: root.available ? 1 : Style.disabledOpacity
     }
 
     Text {
@@ -63,7 +67,7 @@ Item {
       font.pixelSize: Style.font.body
       elide: Text.ElideRight
       renderType: Text.NativeRendering
-      opacity: root.available ? 1 : 0.45
+      opacity: root.available ? 1 : Style.disabledOpacity
     }
   }
 
@@ -72,7 +76,7 @@ Item {
     anchors.fill: parent
     hoverEnabled: true
     enabled: root.available
-    cursorShape: Qt.PointingHandCursor
+    cursorShape: root.available ? Qt.PointingHandCursor : Qt.ArrowCursor
     onClicked: root.clicked()
   }
 }

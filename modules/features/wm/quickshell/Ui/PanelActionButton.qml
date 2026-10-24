@@ -60,14 +60,17 @@ Item {
   Rectangle {
     anchors.fill: parent
     radius: Theme.cornerRadius
-    color: mouse.containsMouse && root.available
+    color: mouse.pressed && root.available
       ? Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b,
-          root.outlined ? Style.control.selectedFillAlpha : Style.control.hoverFillAlpha)
-      : "transparent"
+          Style.control.pressedFillAlpha)
+      : (mouse.containsMouse && root.available
+        ? Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b,
+            root.outlined ? Style.control.selectedFillAlpha : Style.control.hoverFillAlpha)
+        : "transparent")
     border.color: root.outlined && root.available ? root.foreground : "transparent"
-    border.width: root.outlined ? 1 : 0
-    opacity: root.available ? 1 : 0.45
-    Behavior on color { NumberAnimation { duration: Style.duration(120) } }
+    border.width: root.outlined ? Style.strokeWidth : 0
+    opacity: root.available ? 1 : Style.disabledOpacity
+    Behavior on color { ColorAnimation { duration: Style.duration(Style.motion.fast) } }
   }
 
   Text {

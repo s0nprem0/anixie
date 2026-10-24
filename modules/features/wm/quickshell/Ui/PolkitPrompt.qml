@@ -49,8 +49,8 @@ Item {
     width: Math.min(Style.space(380), parent.width - Style.space(48))
     height: column.implicitHeight + Style.space(24) * 2
     color: Theme.surface
-    border.width: 1
-    border.color: root.detailIsError ? Theme.danger : Theme.muted
+    border.width: Style.strokeWidth
+    border.color: root.detailIsError ? Theme.danger : Theme.border
     radius: Theme.cornerRadius
 
     Column {
@@ -100,8 +100,8 @@ Item {
         width: parent.width
         height: Style.space(30)
         color: Theme.bg
-        border.width: 1
-        border.color: password.activeFocus ? Theme.primary : Theme.muted
+        border.width: Style.strokeWidth
+        border.color: password.activeFocus ? Theme.primary : Theme.border
         radius: Theme.cornerRadius
 
         TextInput {
