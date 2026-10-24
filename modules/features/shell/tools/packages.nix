@@ -36,6 +36,10 @@ with pkgs;
   # venvs the skills use, stays in the dev shell with the other toolchains.
   python3
 
+  # The other interpreter worth having without a project: php -S serves a
+  # directory, and the CLI covers one-off scripts.
+  php
+
   # GNUPGHOME is already set in the zsh session variables, so signing is
   # intended here; the binary was simply never pulled in.
   gnupg
