@@ -39,6 +39,8 @@ BarWidget {
   property var taildropTargets: []
   property bool busy: false
   property bool detailsPending: false
+  property bool loggingIn: false
+  property string authUrl: ""
   property string lastError: ""
 
   readonly property string stateLabel: root.needsLogin
@@ -93,8 +95,35 @@ BarWidget {
     root.refreshTimer.restart()
   }
 
+  function openLogin() {
+    if (root.authUrl !== "") Commands.runQuoted("xdg-open", [root.authUrl])
+  }
+
+  // `tailscale up --json` prints the auth URL and then waits for the browser.
+  // Run it under a timeout so a login that is never finished cannot leave the
+  // process behind, and open the URL as soon as the JSON is collected.
+  function startLogin() {
+    if (login.running) return
+    root.authUrl = ""
+    root.lastError = ""
+    root.loggingIn = true
+    root.busy = true
+    login.running = true
+  }
+
   function connect() {
-    Commands.runQuoted("tailscale", [root.running ? "down" : "up"])
+    if (root.running) {
+      Commands.runQuoted("tailscale", ["down"])
+      root.refreshSoon(true)
+      return
+    }
+
+    if (root.needsLogin) {
+      root.startLogin()
+      return
+    }
+
+    Commands.runQuoted("tailscale", ["up"])
     root.refreshSoon(true)
   }
 
@@ -208,6 +237,45 @@ BarWidget {
     }
   }
 
+  // The interactive half of `tailscale up`: the JSON is printed before the
+  // command blocks waiting for authentication, so `timeout` collects it and
+  // cancels the wait. Opening the URL is what makes "Log in" do something the
+  // person can actually finish.
+  Process {
+    id: login
+    running: false
+    command: ["sh", "-c", "timeout 4 tailscale up --json"]
+
+    stdout: StdioCollector {
+      onStreamFinished: {
+        root.loggingIn = false
+        root.busy = false
+
+        const raw = String(this.text || "")
+        try {
+          const data = JSON.parse(raw)
+          const url = String(data.AuthURL || "")
+          if (url !== "") {
+            root.authUrl = url
+            Commands.runQuoted("xdg-open", [url])
+          }
+        } catch (e) {
+          if (raw.trim() !== "") root.lastError = String(e)
+        }
+
+        root.refreshSoon(true)
+      }
+    }
+    stderr: StdioCollector {
+      onStreamFinished: {
+        const text = String(this.text || "").trim()
+        // `timeout` cancels the waiting `tailscale up`, which reports "context
+        // canceled". That is the expected path, not a login failure.
+        if (text !== "" && !/context canceled/i.test(text)) root.lastError = text
+      }
+    }
+  }
+
   // `switch --list --json` is the only machine-readable account listing. Its
   // shape has changed between Tailscale releases, so the parser accepts both an
   // array and an object with an accounts key, and several spellings of the id.
@@ -285,6 +353,15 @@ BarWidget {
         root.refreshDetails()
       }
     }
+  }
+
+  // While the browser is open, check more often than the normal status timer so
+  // the panel switches to Connected as soon as the sign-in finishes.
+  Timer {
+    interval: 5000
+    repeat: true
+    running: root.needsLogin && root.authUrl !== ""
+    onTriggered: root.refresh()
   }
 
   WidgetButton {
@@ -383,13 +460,26 @@ BarWidget {
 
       PanelActionButton {
         width: card.contentWidth
-        label: root.busy
-          ? "Working…"
-          : (root.running ? "Disconnect" : (root.needsLogin ? "Log in" : "Connect"))
+        label: root.loggingIn
+          ? "Waiting for browser…"
+          : (root.busy
+            ? "Working…"
+            : (root.running ? "Disconnect" : (root.needsLogin ? "Log in" : "Connect")))
         navigational: false
         outlined: root.running
         available: !root.busy
         onClicked: root.connect()
+      }
+
+      ChoiceRow {
+        width: card.contentWidth
+        visible: root.needsLogin && root.authUrl !== ""
+        label: "Open login page"
+        detail: root.authUrl
+        onClicked: {
+          root.copy(root.authUrl)
+          root.openLogin()
+        }
       }
 
       PanelSeparator {
@@ -504,7 +594,7 @@ BarWidget {
         width: card.contentWidth
         height: implicitHeight
         visible: root.needsLogin
-        text: "Log in above and finish signing in your browser; the widget will pick it up on the next refresh."
+        text: "The login page opens in your browser. If it does not, use Open login page above; the widget updates when the sign-in finishes."
         color: Theme.muted
         font.family: Style.font.family
         font.pixelSize: Style.font.body
