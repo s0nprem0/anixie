@@ -5,6 +5,13 @@
 # Writing them once is what keeps the header-as-manual trick and the error format
 # from drifting between a dozen scripts.
 #
+# It sets no shell options itself, because those are the caller's: every command
+# starts with at least `set -u`, and the long-running or best-effort ones stop at
+# `set -uo pipefail` on purpose. Those scripts probe optional hardware and
+# services where one failure is an answer, not a reason to abort, and they check
+# the exit codes that matter. New scripts should follow that split rather than
+# adding `-e` to a probe.
+#
 # The header comment is the manual, so it is printed rather than copied out a
 # second time, where it would drift. It runs from line 2 to the first line that
 # is not a comment — which is usually `set -eu` — and that line is dropped.

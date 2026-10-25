@@ -12,10 +12,13 @@ anixie update boot     # build for the next boot (also: test)
 anixie <group> --help  # every group documents itself
 ```
 
-**Commit before rebuilding.** The flake source is the git tree, so an uncommitted
+**Commit before rebuilding.** The flake source is the git tree, so an untracked
 file is invisible to the build — which is silent: the panels that reference it
-ship, the file they import does not, and the shell crash-loops. Staging is
-enough for `nix build`, but commit before `nh os switch`.
+ship, the file they import does not, and the shell crash-loops. `anixie update`
+refuses to run while there are untracked files and names them; `--allow-dirty`
+is the explicit override. A staged file is tracked, so `git add` is enough for
+the build, but commit before `nh os switch` so the generation matches the
+history.
 
 **Going back** is a generation away: pick the previous one in the systemd-boot
 menu, or `nixos-rebuild switch --rollback`.
@@ -28,7 +31,7 @@ journalctl --user -u quickshell -n 50
 ```
 
 QML errors go to the journal *and* to
-`/run/user/1000/quickshell/by-id/*/log.qslog`; QML `console.log` lands in the
+`$XDG_RUNTIME_DIR/quickshell/by-id/*/log.qslog`; QML `console.log` lands in the
 latter, interleaved with service noise.
 
 ## What is where
@@ -138,12 +141,19 @@ menu --only Capture         # open only that group
 menu firefox                # launch an application by name
 ```
 
+The full menu also answers a typed query that is not an app or command. In
+order, it offers arithmetic (`2+3*4` → a copyable `= 14`), a URL to open
+(`example.com`), then the matching installed entries, then file hits from `fd`
+under your home directory, and finally a web search. The extra rows are only
+in the full menu; a theme or audio picker stays a fixed list.
+
 ## Panels
 
-One per widget, opening under it, several at once. Arrows walk the controls,
-Return activates, ←/→ move a slider or a pick a chip, Tab moves to the next open
-panel, Escape closes the one the keys are on, and `Super+Ctrl+1-9` toggles a panel
-by its position from the left.
+One per widget, opening under it. A screen shows one panel at a time: opening
+another there replaces it, while panels on other outputs stay up. Arrows walk the
+controls, Return activates, ←/→ move a slider or pick a chip, Tab moves to the
+panel on the next screen, Escape closes the one the keys are on, and
+`Super+Ctrl+1-9` toggles a panel by its position from the left.
 
 | Hotkey | Panel |
 | --- | --- |
@@ -161,6 +171,29 @@ key of their own.
 Right-click a bar widget for a small action menu; right-click the desktop for
 terminal, files, theme, screen-time and lock. Tray icons keep their own
 application menu (the app supplies it over DBusMenu).
+
+## Calendar
+
+The clock's month view (`Super+Ctrl+Alt+D`) can show a read-only calendar
+subscription. Put the `.ics` URL in `~/.config/anixie/calendar.json`; this is the
+one calendar file meant to be edited, so it stays out of the store:
+
+```json
+{
+  "urls": [
+    "https://calendar.example.test/private/basic.ics",
+    { "name": "Work", "url": "https://example.test/work.ics" }
+  ],
+  "refreshMinutes": 30
+}
+```
+
+The panel fetches the feed into `~/.cache/anixie/calendar`, expands recurring
+events, and draws a dot on days with something on them and the selected day's
+list below the grid. A failed refresh keeps the cached copy and shows a warning
+instead of blanking the view. Nothing is written back to the calendar, and the
+secret URL never leaves the config file except to the subscription server.
+Disable the whole feature with `anixie.wm.calendar.enable = false`.
 
 ## Multiple displays
 

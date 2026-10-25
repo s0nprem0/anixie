@@ -44,11 +44,11 @@ in
       }
     '';
 
-    # Hypridle owns the display power management, so hyprsunset only has to
-    # attach itself to the graphical session. It is a long-running daemon rather
-    # than a one-shot, so the unit is `simple`, and it restarts itself because the
-    # first attempt at session start can abort while Hyprland's IPC socket is
-    # still coming up.
+    # The shell owns idle and locking (see Ui/IdleHost.qml), so hyprsunset only
+    # has to attach itself to the graphical session. It is a long-running daemon
+    # rather than a one-shot, so the unit is `simple`, and it restarts itself
+    # because the first attempt at session start can abort while Hyprland's IPC
+    # socket is still coming up.
     systemd.user.services.hyprsunset = {
       Unit = {
         Description = "hyprsunset blue light filter";
