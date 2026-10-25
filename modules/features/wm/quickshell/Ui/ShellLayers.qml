@@ -174,7 +174,7 @@ Item {
   // each copy on its own output. Everything that hangs off a bar — panels, the
   // curtain, drag and drop — looks the bar up by screen name (see Ui/Screens.qml).
   Variants {
-    model: shell.barSurfaces
+    model: layers.barSurfaces
 
     delegate: PanelWindow {
       id: bar

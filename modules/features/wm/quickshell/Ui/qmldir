@@ -19,6 +19,16 @@ LockSurface 1.0 LockSurface.qml
 singleton CapturePreview 1.0 CapturePreview.qml
 singleton NotificationHost 1.0 NotificationHost.qml
 singleton NotificationStore 1.0 NotificationStore.qml
+NotificationQuiet 1.0 NotificationQuiet.qml
+NotificationSharing 1.0 NotificationSharing.qml
+NotificationReplay 1.0 NotificationReplay.qml
+NotificationFocus 1.0 NotificationFocus.qml
+NotificationPopups 1.0 NotificationPopups.qml
+ShellLayers 1.0 ShellLayers.qml
+ShellOverlays 1.0 ShellOverlays.qml
+PickerLayer 1.0 PickerLayer.qml
+ShellIpc 1.0 ShellIpc.qml
+ShellShortcuts 1.0 ShellShortcuts.qml
 singleton PolkitHost 1.0 PolkitHost.qml
 Osd 1.0 Osd.qml
 CapturePreviewCard 1.0 CapturePreviewCard.qml

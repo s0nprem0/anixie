@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import ".."
 
 // Every IPC target the shell exposes. Keeping them in one object makes the

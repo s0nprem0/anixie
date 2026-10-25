@@ -1,5 +1,8 @@
 import QtQuick
 import Quickshell
+import Quickshell.Wayland
+import Quickshell.Io
+import Quickshell.Hyprland
 
 // Global shortcuts, as Wayland events the shell already listens for. The binds
 // are in hyprland/lua.nix as `hl.dsp.global("quickshell:<name>")`.

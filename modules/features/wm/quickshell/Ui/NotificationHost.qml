@@ -2,9 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Services.Notifications
-import Quickshell.Services.Pipewire
 import "NotificationText.js" as NotificationText
 
 // The notification daemon. The shell owns org.freedesktop.Notifications
@@ -20,439 +18,105 @@ import "NotificationText.js" as NotificationText
 // NotificationStore mirrors each notification to disk for as long as it is
 // here, and archives the file once it goes, which is what gives the shell a
 // history it did not have before.
+//
+// The state is split by concern: quiet/persistence, sharing detection, replay
+// and click routing each live in their own object, and this file keeps the
+// server, the live stack, and the public facade those objects and the rest of
+// the shell share.
 QtObject {
   id: root
 
-  property bool doNotDisturb: false
-
-  // Silencing survives a shell restart. A restart is invisible to the user —
-  // updates perform one — and coming back unsilenced turns the next batch of
-  // messages into popups the user had explicitly asked not to see.
-  readonly property string dndPath: NotificationStore.stateDir + "/dnd"
-
-  // Guards the write that hydrating the saved value would otherwise trigger.
-  property bool _hydrating: false
-  property string _pendingDnd: ""
-
-  function loadDnd() {
-    let text = ""
-    try {
-      text = String(root.dndFile.text()).trim()
-    } catch (e) {
-      // No file yet: the first run starts unsilenced.
-    }
-    if (text === "") return
-
-    root._hydrating = true
-    root.doNotDisturb = text === "on" || text === "true" || text === "1"
-    root._hydrating = false
+  // Created before anything that may call into them during startup. The quiet
+  // state loads a file in its own Component.onCompleted, which can arrive
+  // before this object finishes, so the forwards below are guarded.
+  property NotificationReplay history: NotificationReplay {
+    id: replayState
+    host: root
   }
 
-  // Written through a process and a file adapter, the same way the bar's layout
-  // is saved: the directory is made first, because a write into a directory that
-  // does not exist yet is a drop that silently does nothing.
-  function saveDnd() {
-    root._pendingDnd = root.doNotDisturb ? "on\n" : "off\n"
-    root.dndMkdir.running = false
-    root.dndMkdir.running = true
+  property NotificationFocus focus: NotificationFocus {}
+
+  property NotificationSharing sharing: NotificationSharing {
+    id: sharingState
+    host: root
   }
 
-  property FileView dndFile: FileView {
-    path: Qt.resolvedUrl(root.dndPath)
-    printErrors: false
-    blockLoading: true
-    atomicWrites: true
-
-    Component.onCompleted: root.loadDnd()
+  property NotificationQuiet quietState: NotificationQuiet {
+    id: quiet
+    host: root
   }
 
-  property Process dndMkdir: Process {
-    command: ["mkdir", "-p", NotificationStore.stateDir]
-    running: false
+  // ---- silence, snoozes and their preferences ----
 
-    onExited: {
-      if (root._pendingDnd === "") return
-      root.dndFile.setText(root._pendingDnd)
-      root._pendingDnd = ""
-    }
-  }
+  property alias doNotDisturb: quiet.doNotDisturb
+  property alias globalSnoozeUntil: quiet.globalSnoozeUntil
+  property alias snoozes: quiet.snoozes
+  property alias hasSnoozes: quiet.hasSnoozes
+  property alias displayMode: quiet.displayMode
+  property alias displayName: quiet.displayName
+  property alias fullscreenStepAside: quiet.fullscreenStepAside
+  property alias historyHours: quiet.historyHours
+  property alias codesBypassQuiet: quiet.codesBypassQuiet
+  property alias offerSnoozeWhenSharing: quiet.offerSnoozeWhenSharing
 
-  // ---- snoozes ----
-  //
-  // A snooze is a time-bounded silence per sender, plus one for everything. DND
-  // is the explicit switch; these are the "not now" choices a card's zzz opens.
-  // They live beside DND so a shell restart does not bring every notification
-  // back in the middle of the quiet the user asked for.
-  property double globalSnoozeUntil: 0
-  property var snoozes: ({})
+  function snoozeOptions() { return quietState.snoozeOptions() }
+  function untilTomorrow() { return quietState.untilTomorrow() }
+  function snooze(source, seconds) { quietState.snooze(source, seconds) }
+  function unsnooze(source) { quietState.unsnooze(source) }
+  function quietSources() { return quietState.quietSources() }
+  function quietReason(notification) { return quietState.quietReason(notification) }
+  function isQuiet(notification) { return quietState.isQuiet(notification) }
 
-  // Preferences live beside the quiet state: the panel can change them and the
-  // shell reads the same values for its window loop. The build-time value is
-  // only the initial default.
-  readonly property string defaultDisplayMode: "@NOTIFICATIONS_DISPLAY@"
-  property string displayMode: defaultDisplayMode
-  property string displayName: ""
-  property bool fullscreenStepAside: true
-  property int historyHours: 24
+  function setDnd(value) { quietState.setDnd(value) }
+  function toggle() { quietState.toggle() }
+  function setCodesBypass(value) { quietState.setCodesBypass(value) }
+  function setDisplayMode(value) { quietState.setDisplayMode(value) }
+  function setDisplayName(value) { quietState.setDisplayName(value) }
+  function setFullscreenStepAside(value) { quietState.setFullscreenStepAside(value) }
+  function setOfferSnoozeWhenSharing(value) { quietState.setOfferSnoozeWhenSharing(value) }
+  function setHistoryHours(value) { quietState.setHistoryHours(value) }
 
-  readonly property string snoozesPath: NotificationStore.stateDir + "/snoozes.json"
-  property bool _hydratingSnoozes: false
-  property string _pendingSnoozes: ""
-
-  function sourceOf(notification) {
-    return NotificationText.sourceKey(notification)
-  }
-
-  function loadSnoozes() {
-    let text = ""
-    try {
-      text = String(root.snoozesFile.text()).trim()
-    } catch (e) {
-    }
-    if (text === "") return
-
-    let parsed = null
-    try {
-      parsed = JSON.parse(text)
-    } catch (e) {
-      return
-    }
-    if (!parsed || typeof parsed !== "object") return
-
-    root._hydratingSnoozes = true
-    const now = Date.now() / 1000
-    const globalUntil = Number(parsed.globalUntil || 0)
-    root.globalSnoozeUntil = globalUntil > now ? globalUntil : 0
-    const sources = parsed.sources && typeof parsed.sources === "object" ? parsed.sources : {}
-    const next = {}
-    for (const key in sources) {
-      const until = Number(sources[key] || 0)
-      if (until > now) next[String(key)] = until
-    }
-    root.snoozes = next
-    root.codesBypassQuiet = parsed.codesBypassQuiet !== false
-    root.offerSnoozeWhenSharing = parsed.offerSnoozeWhenSharing !== false
-    root.displayMode = parsed.displayMode === "all" || parsed.displayMode === "specific"
-      ? parsed.displayMode : root.defaultDisplayMode
-    root.displayName = String(parsed.displayName || "")
-    root.fullscreenStepAside = parsed.fullscreenStepAside !== false
-    root.historyHours = Number(parsed.historyHours || 24)
-    NotificationStore.historyHours = root.historyHours
-    root._hydratingSnoozes = false
-  }
-
-  function saveSnoozes() {
-    root._pendingSnoozes = JSON.stringify({
-      globalUntil: root.globalSnoozeUntil,
-      sources: root.snoozes,
-      codesBypassQuiet: root.codesBypassQuiet,
-      offerSnoozeWhenSharing: root.offerSnoozeWhenSharing,
-      displayMode: root.displayMode,
-      displayName: root.displayName,
-      fullscreenStepAside: root.fullscreenStepAside,
-      historyHours: root.historyHours
-    }) + "\n"
-    root.snoozesMkdir.running = false
-    root.snoozesMkdir.running = true
-  }
-
-  property FileView snoozesFile: FileView {
-    path: Qt.resolvedUrl(root.snoozesPath)
-    printErrors: false
-    blockLoading: true
-    atomicWrites: true
-
-    Component.onCompleted: root.loadSnoozes()
-  }
-
-  property Process snoozesMkdir: Process {
-    command: ["mkdir", "-p", NotificationStore.stateDir]
-    running: false
-
-    onExited: {
-      if (root._pendingSnoozes === "") return
-      root.snoozesFile.setText(root._pendingSnoozes)
-      root._pendingSnoozes = ""
-    }
-  }
-
-  // Trims expired entries without asking the user to do anything. The file is
-  // rewritten only when something actually went away.
-  readonly property bool hasSnoozes: {
-    const now = Date.now() / 1000
-    if (root.globalSnoozeUntil > now) return true
-    for (const key in root.snoozes) if (Number(root.snoozes[key] || 0) > now) return true
-    return false
-  }
-
-  property Timer snoozeTicker: Timer {
-    interval: 30000
-    repeat: true
-    running: root.hasSnoozes
-    onTriggered: root.pruneSnoozes()
-  }
-
-  function pruneSnoozes() {
-    const now = Date.now() / 1000
-    const next = {}
-    let changed = root.globalSnoozeUntil > 0 && root.globalSnoozeUntil <= now
-    if (changed) root.globalSnoozeUntil = 0
-    for (const key in root.snoozes) {
-      if (Number(root.snoozes[key] || 0) > now) next[key] = root.snoozes[key]
-      else changed = true
-    }
-    if (!changed) return
-    root.snoozes = next
-    root.saveSnoozes()
-  }
-
-  function snoozeOptions() {
-    return [
-      { label: "For 15 minutes", seconds: 15 * 60 },
-      { label: "For 1 hour", seconds: 60 * 60 },
-      { label: "Until tomorrow 8am", seconds: root.untilTomorrow() }
-    ]
-  }
-
-  function untilTomorrow() {
-    const now = new Date()
-    const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 8, 0, 0, 0)
-    return Math.max(60, Math.round((next.getTime() - now.getTime()) / 1000))
-  }
-
-  function snooze(source, seconds) {
-    const value = Number(seconds)
-    if (!isFinite(value) || value <= 0) return
-
-    const now = Date.now() / 1000
-    const until = now + value
-    const next = {}
-    for (const key in root.snoozes) {
-      if (Number(root.snoozes[key] || 0) > now) next[key] = root.snoozes[key]
-    }
-
-    if (source === "*") root.globalSnoozeUntil = until
-    else if (source !== "") next[String(source).toLowerCase()] = until
-
-    root.snoozes = next
-    root.saveSnoozes()
-    root.dismissSource(source)
-    root.closeReplay()
-  }
-
-  function unsnooze(source) {
-    if (source === "*") {
-      root.globalSnoozeUntil = 0
-    } else {
-      const next = {}
-      for (const key in root.snoozes) if (key !== source) next[key] = root.snoozes[key]
-      root.snoozes = next
-    }
-    root.saveSnoozes()
-  }
-
-  function dismissSource(source) {
-    const wanted = String(source || "").toLowerCase()
-    for (let i = root.tracked.length - 1; i >= 0; i--) {
-      const item = root.tracked[i]
-      if (wanted === "*" || root.sourceOf(item) === wanted) item.dismiss()
-    }
-  }
-
-  function quietSources() {
-    const now = Date.now() / 1000
-    const out = []
-    if (root.globalSnoozeUntil > now) out.push({ key: "*", label: "Everything", until: root.globalSnoozeUntil })
-    for (const key in root.snoozes) {
-      const until = Number(root.snoozes[key] || 0)
-      if (until > now) out.push({ key: key, label: key, until: until })
-    }
-    return out
-  }
-
-  property bool codesBypassQuiet: true
-  property bool offerSnoozeWhenSharing: true
-
-  function setCodesBypass(value) {
-    root.codesBypassQuiet = !!value
-    root.saveSnoozes()
-  }
-
-  function setDisplayMode(value) {
-    const mode = String(value || "")
-    if (mode !== "focused" && mode !== "all" && mode !== "specific") return
-    root.displayMode = mode
-    root.saveSnoozes()
-  }
-
-  function setDisplayName(value) {
-    root.displayName = String(value || "")
-    root.saveSnoozes()
-  }
-
-  function setFullscreenStepAside(value) {
-    root.fullscreenStepAside = !!value
-    root.saveSnoozes()
-  }
-
-  function setOfferSnoozeWhenSharing(value) {
-    root.offerSnoozeWhenSharing = !!value
-    root.saveSnoozes()
-  }
-
-  function setHistoryHours(value) {
-    const hours = Number(value)
-    if (!isFinite(hours) || hours <= 0) return
-    root.historyHours = hours
-    NotificationStore.historyHours = hours
-    root.saveSnoozes()
-    NotificationStore.refresh()
-  }
-
-  function codeBypass(notification) {
-    if (!root.codesBypassQuiet || !notification) return false
-    const text = String(notification.summary || "").slice(0, 2048)
-      + "\n" + String(notification.body || "").slice(0, 32768)
-    return NotificationText.code(text) !== ""
-  }
-
-  function quietReason(notification) {
-    if (root.bypassesSilencing(notification)) return ""
-    if (root.codeBypass(notification)) return ""
-    const now = Date.now() / 1000
-    if (root.doNotDisturb) return "silenced"
-    if (root.globalSnoozeUntil > now) return "snoozed"
-    if (Number(root.snoozes[root.sourceOf(notification)] || 0) > now) return "snoozed"
-    return ""
-  }
-
-  function isQuiet(notification) {
-    return root.quietReason(notification) !== ""
+  // Called by the quiet state when DND changes while a share is running; kept
+  // here because the sharing object may not exist yet when the saved DND file
+  // is read during startup.
+  function noteSharingSnoozed() {
+    if (sharing) sharing.sharingOfferHandled = true
   }
 
   // ---- screen sharing ----
-  //
-  // A portal screen share is a PipeWire video source named xdph-streaming-*.
-  // Watching the node's lifetime, not frame activity, avoids treating a
-  // screenshot or a VNC session as sharing.
-  readonly property var sharingCandidates: {
-    const nodes = Pipewire.nodes ? Pipewire.nodes.values : []
-    const out = []
-    for (let i = 0; i < nodes.length && out.length < 64; i++) {
-      if (nodes[i].type === PwNodeType.VideoSource) out.push(nodes[i])
-    }
-    return out
-  }
 
-  property PwObjectTracker sharingTracker: PwObjectTracker {
-    objects: root.sharingCandidates
-  }
+  property alias sharingActive: sharingState.sharingActive
+  property alias sharingStreams: sharingState.sharingStreams
+  property alias sharingDetectionAvailable: sharingState.sharingDetectionAvailable
+  property alias sharingOfferHandled: sharingState.sharingOfferHandled
+  property alias sharingOfferPending: sharingState.sharingOfferPending
 
-  readonly property int sharingStreams: {
-    if (!Pipewire.ready) return 0
-    let count = 0
-    for (let i = 0; i < root.sharingCandidates.length; i++) {
-      const node = root.sharingCandidates[i]
-      if (!node.ready) continue
-      const props = node.properties
-      if (props["media.class"] === "Video/Source"
-          && String(props["media.name"] || "").indexOf("xdph-streaming-") === 0) count++
-    }
-    return count
-  }
+  function dismissSharingOffer() { sharing.dismissSharingOffer() }
+  function snoozeSharingOffer(seconds) { sharing.snoozeSharingOffer(seconds) }
 
-  readonly property bool sharingActive: root.sharingStreams > 0
-  readonly property bool sharingDetectionAvailable: Pipewire.ready
-  property bool sharingOfferHandled: false
-  readonly property bool sharingOfferPending: root.offerSnoozeWhenSharing
-    && root.sharingActive
-    && !root.sharingOfferHandled
-    && !root.doNotDisturb
-    && root.globalSnoozeUntil <= Date.now() / 1000
+  // ---- replay and restart grace ----
 
-  onSharingActiveChanged: {
-    root.sharingOfferHandled = root.sharingActive
-      && (root.doNotDisturb || root.globalSnoozeUntil > Date.now() / 1000)
-  }
-  onGlobalSnoozeUntilChanged: if (root.globalSnoozeUntil > Date.now() / 1000 && root.sharingActive) root.sharingOfferHandled = true
+  property alias replayEntries: replayState.replayEntries
+  property alias replaying: replayState.replaying
+  property alias restoredEntries: replayState.restoredEntries
+  property alias restoring: replayState.restoring
 
-  function dismissSharingOffer() {
-    if (root.sharingActive) root.sharingOfferHandled = true
-  }
-
-  function snoozeSharingOffer(seconds) {
-    const value = Number(seconds)
-    if (!root.sharingOfferPending || [1800, 3600, 14400].indexOf(value) === -1) return
-    root.sharingOfferHandled = true
-    root.snooze("*", value)
-  }
-
-  // Which senders are allowed through silencing. Critical urgency by itself is
-  // not a reason: chat applications mark everything critical to force their way
-  // in front of the user. Trusted are our own confirmations for something the
-  // user just did — reminders, a screenshot, a recording, an output switch — and
-  // bare-CLI emergencies, which are almost always a system script rather than a
-  // brand. `anixie-action` is the default `notify` sends for exactly those.
-  readonly property var ownApps: [
-    "anixie-action", "audio", "battery", "capture", "nixos", "record", "reminders", "sessions"
-  ]
-
-  function bypassesSilencing(notification) {
-    const app = String(notification.appName || "").toLowerCase()
-
-    if (root.ownApps.indexOf(app) !== -1) return true
-    return app === "notify-send" && notification.urgency === NotificationUrgency.Critical
-  }
-
-  // Replayed history is deliberately separate from `tracked`: those
-  // notifications are gone, their senders' actions are dead, and they must not
-  // be swept into history a second time. The popup window draws either the live
-  // stack or this replay, never both.
-  property var replayEntries: []
-  property bool replaying: false
-
-  // Notifications that were on screen when the previous shell stopped. They are
-  // history snapshots, but they get a short grace in the live deck so a restart
-  // — which an update performs — does not silently swallow them.
-  property var restoredEntries: []
-  property bool restoring: false
-
-  property Timer restoreTimer: Timer {
-    interval: 20000
-    onTriggered: root.closeRestored()
-  }
-
-  function restoreLive(entries) {
-    if (!entries || entries.length === 0) return
-    root.restoredEntries = entries.slice().sort(function (a, b) {
-      return Number(b.timestamp || 0) - Number(a.timestamp || 0)
-    }).slice(0, 10)
-    root.restoring = root.restoredEntries.length > 0
-    if (root.restoring) root.restoreTimer.restart()
-  }
-
-  function closeRestored() {
-    root.restoreTimer.stop()
-    root.restoredEntries = []
-    root.restoring = false
-  }
-
-  function restoreFromStore() {
-    if (!NotificationStore.ready) return
-
-    // A config reload re-emits the notifications the server still holds; those
-    // are already live and must not be duplicated from disk. A full restart has
-    // none tracked, so every live file is a card to put back for a moment.
-    const liveIds = {}
-    for (const notification of root.tracked) liveIds[String(notification.id)] = true
-    const restored = NotificationStore.takeLive().filter(function (entry) {
-      return liveIds[String(entry.id)] !== true
-    })
-    root.restoreLive(restored)
-    root.sweepNow()
-  }
+  function restoreLive(entries) { history.restoreLive(entries) }
+  function closeRestored() { if (history) history.closeRestored() }
+  function restoreFromStore() { if (history) history.restoreFromStore() }
+  function replay() { history.replay() }
+  function replayEntry(entry) { history.replayEntry(entry) }
+  function closeReplay() { if (history) history.closeReplay() }
+  function dismissReplay(entry) { history.dismissReplay(entry) }
 
   Component.onCompleted: root.restoreFromStore()
+
+  // ---- click routing ----
+
+  function activate(notification, link) { focus.activate(notification, link) }
+  function focusSource(app, link, source) { focus.focusSource(app, link, source) }
+
+  // ---- the live stack ----
 
   readonly property var tracked: server.trackedNotifications ? server.trackedNotifications.values : []
 
@@ -568,217 +232,16 @@ QtObject {
     return item ? root.invokeNotification(item) : "none"
   }
 
-  // What silencing may take with it: everything except the messages that are
-  // allowed through it. Turning DND on must not throw away the critical alert
-  // that was meant to survive it.
-  function dismissSilenced() {
-    for (let i = root.tracked.length - 1; i >= 0; i--) {
-      const item = root.tracked[i]
-      if (!root.bypassesSilencing(item) && !root.codeBypass(item)) item.dismiss()
-    }
-  }
-
   function sameNotification(a, b) {
     return String(a.appName || "").toLowerCase() === String(b.appName || "").toLowerCase()
       && String(a.summary || "") === String(b.summary || "")
       && String(a.body || "") === String(b.body || "")
   }
 
-  // Show the newest history entries for a few seconds. `NotificationStore` reads
-  // from disk asynchronously, so the popup is only made visible once there is
-  // something to draw.
-  function replay() {
-    root.closeRestored()
-    NotificationStore.refresh(function (entries) {
-      // Held notifications were never shown; replaying them as if they had been
-      // would be a different action from replaying closed history.
-      const shown = entries.filter(function (entry) { return entry.quiet !== true })
-      root.replayEntries = shown.slice(0, 10)
-      root.replaying = root.replayEntries.length > 0
-      if (root.replaying) root.replayTimer.restart()
-    })
-  }
-
-  // A held row in the panel. It is still a history snapshot, so it opens as a
-  // replay card rather than as a live notification with actions that no longer
-  // exist.
-  function replayEntry(entry) {
-    if (!entry) return
-    root.closeRestored()
-    root.replayEntries = [entry]
-    root.replaying = true
-    root.replayTimer.restart()
-  }
-
-  function closeReplay() {
-    root.replayTimer.stop()
-    root.replayEntries = []
-    root.replaying = false
-  }
-
-  function dismissReplay(entry) {
-    if (root.restoring) {
-      const restored = []
-      for (const item of root.restoredEntries) if (item !== entry) restored.push(item)
-      root.restoredEntries = restored
-      if (restored.length === 0) root.closeRestored()
-      return
-    }
-
-    const next = []
-    for (const item of root.replayEntries) if (item !== entry) next.push(item)
-    root.replayEntries = next
-    if (next.length === 0) root.closeReplay()
-  }
-
-  // ---- click routing ----
-  //
-  // A chat notification usually carries no action: clicking it should take you
-  // to the window that sent it, not just hide the card. `hyprctl clients` is
-  // needed because this build's toplevels do not expose a class; it runs only on
-  // a click, never while notifications are arriving.
-  property var pendingFocus: null
-
-  function activate(notification, link) {
-    const app = String(notification && (notification.appName || notification.app) ? (notification.appName || notification.app) : "")
-    const source = notification && (notification.source || notification.sourceKey)
-      ? String(notification.source || notification.sourceKey)
-      : NotificationText.source(notification)
-    root.focusSource(app, String(link || ""), source)
-  }
-
-  function focusSource(app, link, source) {
-    root.pendingFocus = {
-      app: String(app || "").toLowerCase(),
-      link: String(link || ""),
-      source: String(source || "").toLowerCase()
-    }
-    root.focusClients.running = false
-    root.focusClients.running = true
-  }
-
-  function focusFrom(text) {
-    const pending = root.pendingFocus
-    root.pendingFocus = null
-    if (!pending) return
-
-    let clients = []
-    try {
-      clients = JSON.parse(String(text || ""))
-    } catch (e) {
-      clients = []
-    }
-    if (!Array.isArray(clients)) clients = []
-
-    const wanted = String(pending.app || "")
-    const source = String(pending.source || "")
-    const browser = NotificationText.isBrowser(wanted)
-    const siteSource = source !== "" && source.indexOf(".") !== -1
-    const sourceBrands = NotificationText.brands(source)
-    let best = null
-
-    for (let i = 0; i < clients.length; i++) {
-      const client = clients[i]
-      if (!client || !client.address) continue
-      const klass = String(client.class || client.initialClass || "").toLowerCase()
-      const title = String(client.title || "").toLowerCase()
-
-      let score = 0
-      if (wanted !== "") {
-        if (klass === wanted) score = 3
-        else if (klass.indexOf(wanted) !== -1) score = 2
-        else if (title.indexOf(wanted) !== -1) score = 1
-      }
-
-      let sourceMatch = false
-      if (browser && source !== "") {
-        for (let b = 0; b < sourceBrands.length; b++) {
-          if (title.indexOf(sourceBrands[b]) !== -1) {
-            sourceMatch = true
-            score = Math.max(score, 4)
-            break
-          }
-        }
-        // Without a site match, any browser window is only a fallback; opening
-        // the site is more honest than focusing an unrelated tab.
-        if (!sourceMatch && score > 0) score = 1
-      }
-
-      if (score === 0) continue
-
-      const order = Number(client.focusHistoryID === undefined ? 9999 : client.focusHistoryID)
-      if (!best || score > best.score || (score === best.score && order < best.order)) {
-        best = { address: String(client.address), score: score, order: order, sourceMatch: sourceMatch }
-      }
-    }
-
-    if (best && (!browser || !siteSource || best.sourceMatch)) {
-      // Dispatched as Lua: the config manager rewrites the old
-      // `focuswindow address:0x..` form before evaluating, and that is not a Lua
-      // expression, so it fails. This is the form the dock uses.
-      Quickshell.execDetached(["hyprctl", "dispatch", 'hl.dsp.focus({window = "' + best.address + '"})'])
-      return
-    }
-
-    // A browser notification's site is a better target than a random browser
-    // window. A link in the body is the last resort.
-    if (browser && siteSource) {
-      Quickshell.execDetached(["xdg-open", "https://" + source + "/"])
-      return
-    }
-    if (pending.link !== "") Quickshell.execDetached(["xdg-open", pending.link])
-  }
-
-  property Process focusClients: Process {
-    command: ["hyprctl", "clients", "-j"]
-    running: false
-
-    stdout: StdioCollector {
-      onStreamFinished: root.focusFrom(this.text)
-    }
-
-    onExited: {
-      // A failed `hyprctl` still has to clear the pending click, or the next one
-      // would think it already has an answer. If it produced no output at all,
-      // the link is the only useful fallback left.
-      const pending = root.pendingFocus
-      root.pendingFocus = null
-      if (pending && pending.link !== "") Quickshell.execDetached(["xdg-open", pending.link])
-    }
-  }
-
-  property Timer replayTimer: Timer {
-    interval: 12000
-    onTriggered: root.closeReplay()
-  }
-
-  // A caller that needs a known state rather than the inverse. Focus mode uses
-  // this so it can silence everything while it runs and then put back whatever
-  // the user had chosen before.
-  function setDnd(value) {
-    const next = !!value
-    if (root.doNotDisturb === next) return
-    root.doNotDisturb = next
-  }
-
-  function toggle() {
-    root.doNotDisturb = !root.doNotDisturb
-  }
-
-  // Silencing takes the current batch with it, so the screen matches the state
-  // the indicator is showing — and a replay, being a temporary view of the past,
-  // should not linger over the desktop.
-  onDoNotDisturbChanged: {
-    if (root._hydrating) return
-
-    if (root.doNotDisturb && root.sharingActive) root.sharingOfferHandled = true
-    root.saveDnd()
-
-    if (root.doNotDisturb) {
-      root.closeReplay()
-      root.closeRestored()
-      root.dismissSilenced()
-    }
+  function sweepNow() {
+    const ids = []
+    for (const notification of root.tracked) ids.push(notification.id)
+    NotificationStore.sweep(ids)
   }
 
   property NotificationServer server: NotificationServer {
@@ -830,12 +293,6 @@ QtObject {
       })
       notification.tracked = true
     }
-  }
-
-  function sweepNow() {
-    const ids = []
-    for (const notification of root.tracked) ids.push(notification.id)
-    NotificationStore.sweep(ids)
   }
 
   // Nothing calls us when a notification ends: the card expires or dismisses it,
