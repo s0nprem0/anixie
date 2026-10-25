@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import ".."
 import "Jsonc.js" as Jsonc
+import "Suggest.js" as Suggest
 
 // The menu: every command this shell has, flattened and searchable, with the
 // applications alongside them — built here, in the shell, rather than by a
@@ -387,13 +388,16 @@ QtObject {
       return
     }
 
+    root.clearDynamic()
+
     PickHost.present({
       // The full menu opens on a search prompt rather than a redundant "menu"
       // heading; a group's own name stays as the title because that is what the
       // filtered list is.
       title: group,
-      placeholder: group !== "" ? "Type to filter…" : "Search apps and commands…",
+      placeholder: group !== "" ? "Type to filter…" : "Search apps, commands and files…",
       grouped: true,
+      dynamic: group === "",
       entries: entries
     })
   }
@@ -406,6 +410,166 @@ QtObject {
       if (row.state !== "") line += " (" + row.state + ")"
       return line
     }).join("\n")
+  }
+
+  // ---------------------------------------------------------------- dynamic
+  //
+  // A query can be more than a filter on the installed entries. Arithmetic,
+  // URLs, files and a web search are answered in that order: the first two sit
+  // above the entries because they are unambiguous, the file hits and the web
+  // search below them because the entries are still usually what was meant.
+  //
+  // The file search is asynchronous: fd walks the home directory, so the quick
+  // answers appear immediately and the paths join the list when fd exits. A
+  // query that changed in the meantime is ignored instead of overwriting the
+  // new query's results with the old ones.
+
+  property var dynamicLead: []
+  property var dynamicTail: []
+
+  readonly property string home: Quickshell.env("HOME") || ""
+
+  // The query the running fd process was started for. Different from
+  // dynamicQuery when the user has typed since; the result is then stale.
+  property string fileQuery: ""
+
+  function clearDynamic() {
+    root.dynamicLead = []
+    root.dynamicTail = []
+    root.fileQuery = ""
+    if (root.fileSearch.running) root.fileSearch.running = false
+  }
+
+  function quickRows(query) {
+    const q = String(query || "")
+    const lead = []
+    const tail = []
+
+    const calc = Suggest.calculator(q)
+    if (calc) {
+      lead.push({
+        label: "= " + calc.text,
+        group: "Calculator",
+        icon: "",
+        state: "copy",
+        match: q,
+        run: "printf '%s' " + Util.shellQuote(calc.text) + " | wl-copy"
+      })
+    }
+
+    const url = Suggest.urlFor(q)
+    if (url) {
+      lead.push({
+        label: "Open " + url,
+        group: "Web",
+        icon: Util.globe,
+        state: "",
+        match: q,
+        run: "xdg-open " + Util.shellQuote(url)
+      })
+    } else if (q.trim() !== "") {
+      // Last among the suggestions: an app called "notes" should come before a
+      // web search for "notes", but a query with no app match should still
+      // have somewhere to go.
+      tail.push({
+        label: "Search the web for “" + q.trim() + "”",
+        group: "Web",
+        icon: Util.globe,
+        state: "",
+        match: q,
+        run: "xdg-open " + Util.shellQuote(Suggest.webUrl(q))
+      })
+    }
+
+    return { lead: lead, tail: tail }
+  }
+
+  function refreshDynamic(query) {
+    const q = String(query || "")
+    const quick = root.quickRows(q)
+
+    root.dynamicLead = quick.lead
+    root.dynamicTail = quick.tail
+
+    if (q.trim() === "" || !Suggest.shouldSearchFiles(q)) {
+      if (root.fileSearch.running) root.fileSearch.running = false
+      root.fileQuery = ""
+      return
+    }
+
+    root.fileQuery = q
+    root.fileSearch.command = [
+      "sh",
+      "-c",
+      // fd is in the desktop's package set. The exclude list keeps the search
+      // out of the two places a launcher never wants: VCS metadata and caches.
+      // `--` stops a query beginning with `-` from reading as an option.
+      "[ -n \"$1\" ] || exit 0\n" +
+      "command -v fd >/dev/null 2>&1 || exit 0\n" +
+      // The query echoed as the first line, so a result from a search that was
+      // replaced while it ran cannot be mistaken for the current one.
+      "printf '%s\\n' \"$1\"\n" +
+      "exec fd --color never --hidden --max-results 20\n" +
+      "  --exclude .git --exclude node_modules --exclude .cache --exclude .direnv\n" +
+      "  --exclude .local/state --exclude .local/share/Trash\n" +
+      "  -- \"$1\" \"$2\"",
+      "file-search",
+      Suggest.fileTerm(q),
+      root.home
+    ]
+
+    // Restarted rather than merely started: after the first search `running`
+    // stays true for a moment while the process exits, and the next keystroke
+    // has to replace it, not be ignored.
+    root.fileSearch.running = false
+    root.fileSearch.running = true
+  }
+
+  function applyFiles(text) {
+    const lines = String(text || "").split("\n")
+    if (lines.length === 0) return
+
+    // The first line is the query the search ran for. The user has typed since
+    // if it is no longer the current one, and these paths answer a question
+    // that is no longer on screen.
+    const answered = lines.shift()
+    if (answered !== root.fileQuery) return
+
+    const files = []
+
+    for (let i = 0; i < lines.length; i++) {
+      const path = lines[i]
+      if (path === "") continue
+
+      const slash = path.lastIndexOf("/")
+      files.push({
+        label: slash >= 0 ? path.slice(slash + 1) : path,
+        group: "Files",
+        icon: "",
+        state: "",
+        match: path,
+        run: "xdg-open " + Util.shellQuote(path)
+      })
+    }
+
+    files.sort(function (a, b) {
+      return a.label.localeCompare(b.label, undefined, { sensitivity: "base" })
+    })
+
+    // The web search row keeps the last place it had in quickRows.
+    const quick = root.quickRows(root.fileQuery)
+    root.dynamicTail = files.concat(quick.tail)
+  }
+
+  // Held as a property: a QtObject has no default property, so a bare child
+  // declaration would never attach (the same reason BarConfig does this).
+  property Process fileSearch: Process {
+    command: ["true"]
+    running: false
+
+    stdout: StdioCollector {
+      onStreamFinished: root.applyFiles(this.text)
+    }
   }
 
   // Run a desktop entry. Detached, so an application outlives a shell restart

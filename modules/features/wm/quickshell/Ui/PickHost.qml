@@ -89,6 +89,17 @@ QtObject {
   // three entries do not need dividing.
   property bool grouped: false
 
+  // Whether the list also takes live suggestions from the menu: arithmetic,
+  // URLs, files and a web search. Only the full menu asks for this; a theme or
+  // audio picker is choosing from a fixed list and should not grow a calculator.
+  property bool dynamic: false
+
+  // The suggestions, kept apart from the filtered entries so the quick answers
+  // can sit above them and the file hits below, where the ranking of the
+  // installed entries is not disturbed.
+  property var dynamicLead: MenuHost.dynamicLead
+  property var dynamicTail: MenuHost.dynamicTail
+
   property string title: ""
   property string placeholder: ""
 
@@ -182,6 +193,7 @@ QtObject {
     root.mode = String(request.mode !== undefined ? request.mode : "list")
     root.allowEmpty = !!request.allowEmpty
     root.grouped = !!request.grouped
+    root.dynamic = !!request.dynamic
     root.onSelect = String(request.onSelect !== undefined ? request.onSelect : "")
     root.onCancel = String(request.onCancel !== undefined ? request.onCancel : "")
     root.entries = request.entries !== undefined ? request.entries : []
@@ -190,6 +202,9 @@ QtObject {
     // request can point into the middle of this one's list.
     root.selected = 0
     root.shown = true
+
+    root.dynamicTimer.stop()
+    if (!root.dynamic) MenuHost.clearDynamic()
 
     root.apply()
   }
@@ -200,7 +215,27 @@ QtObject {
       return
     }
 
-    root.results = Fuzzy.filter(root.entries, root.query)
+    const filtered = Fuzzy.filter(root.entries, root.query)
+    const results = []
+
+    // The quick answers are not ranked against the entries: a calculator row
+    // has no label matching "2+2", and a file hit should not displace the app
+    // whose name is an exact match.
+    if (root.dynamic && root.query.trim() !== "") {
+      for (let i = 0; i < root.dynamicLead.length; i++) {
+        results.push({ row: root.dynamicLead[i], score: 0, positions: [], index: -1 })
+      }
+    }
+
+    for (let j = 0; j < filtered.length; j++) results.push(filtered[j])
+
+    if (root.dynamic && root.query.trim() !== "") {
+      for (let k = 0; k < root.dynamicTail.length; k++) {
+        results.push({ row: root.dynamicTail[k], score: 0, positions: [], index: -1 })
+      }
+    }
+
+    root.results = results
 
     // The selection cannot point past the end of a list that just shrank under
     // it, which is what typing does to the last entry.
@@ -213,7 +248,37 @@ QtObject {
     // not the entry at index 0 of the new results, and staying put reads as the
     // list ignoring the search.
     root.selected = 0
+
+    if (!root.dynamic) {
+      root.apply()
+      return
+    }
+
+    if (root.query.trim() === "") {
+      root.dynamicTimer.stop()
+      MenuHost.clearDynamic()
+    } else {
+      // Debounced: fd should run once the typing has paused, not once per key.
+      root.dynamicTimer.restart()
+    }
+
     root.apply()
+  }
+
+  // Called when the asynchronous file search adds its rows. The selection is
+  // kept where it is: the user may already be moving through the entries while
+  // the paths arrive.
+  onDynamicLeadChanged: root.apply()
+  onDynamicTailChanged: root.apply()
+
+  property Timer dynamicTimer: Timer {
+    interval: 180
+    repeat: false
+
+    onTriggered: {
+      if (!root.dynamic || root.query.trim() === "") return
+      MenuHost.refreshDynamic(root.query)
+    }
   }
 
   function move(delta) {
@@ -284,6 +349,9 @@ QtObject {
 
   function dismiss() {
     const cancel = root.onCancel
+
+    root.dynamicTimer.stop()
+    if (root.dynamic) MenuHost.clearDynamic()
 
     // The entries and the query are deliberately left as they are. The surface
     // stays on screen for the length of its fade, and emptying the list out from
