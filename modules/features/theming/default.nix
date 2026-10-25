@@ -166,6 +166,7 @@ let
         "@PALETTE_JQ@"
         "@COLOR_LIB@"
         "@STATE_LIB@"
+        "@AUTO_LIB@"
         "@FLOCK@"
         "@ANIXIE_LIB@"
       ]
@@ -195,6 +196,7 @@ let
         "${./palette.jq}"
         "${./lib/color.sh}"
         "${./lib/state.sh}"
+        "${./lib/auto.sh}"
         "${pkgs.util-linux}/bin/flock"
         "${../cli/lib.sh}"
       ]

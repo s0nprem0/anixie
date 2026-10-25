@@ -242,33 +242,56 @@ palettes switch the same surfaces; GTK follows the mode through gsettings
 (adw-gtk3/adw-gtk3-dark and Papirus/Papirus-Light icons, with Papirus folder
 colours following the palette).
 
+### Appearance panel
+
+The palette glyph on the bar, `Super+Ctrl+T`, `Super+Ctrl+Space`, the menu, the
+desktop context menu, or `anixie appearance` all open the same panel. It carries
+the current wallpaper and thumbnail strip, the preset list with colour swatches,
+favorites and pinning, wallpaper generation/navigation, glass and bar-background
+controls, wallpaper palette mode, live-video pause, and a theme doctor shortcut.
+Right-click a preset to toggle its favorite; favorites sort first.
+
+### Commands
+
 ```sh
+anixie appearance               # open the appearance panel
 anixie theme list | set NAME | next | prev | current
 anixie theme state              # the saved appearance state as JSON
 anixie theme migrate            # import the old separate state files
 anixie theme favorite add|remove|toggle NAME
 anixie theme pin|unpin          # keep automatic switching from changing the theme
+anixie theme export             # print a Nix snippet for the current choice
 anixie theme doctor             # check the live state and generated files
 anixie theme cursor-size N      # set the cursor size at runtime
 anixie theme wallpaper [FILE] [auto|light|dark]  # palette from a picture
 anixie theme wallpaper-mode [auto|light|dark]    # remember the next mode
 anixie theme auto               # apply the scheduled light/dark variant
-anixie appearance               # open the appearance panel
 anixie textsize up|down|set N   # the whole shell, not just the bar
 anixie wallpaper library [--json]  # pictures found in the configured folders
-anixie wallpaper set FILE       # or `wallpaper theme` for the palette's gradient
+anixie wallpaper set FILE       # add a picture and use it
 anixie wallpaper use FILE [--output NAME]  # choose for one output or all
 anixie wallpaper next|prev [--random] | rotate
 anixie wallpaper pause|resume|status  # live video wallpapers
 ```
 
-A runtime switch reaches the **shell, Hyprland's borders, kitty, btop and tmux
-immediately**. GTK follows via settings.ini and gsettings, Qt via qt6ct and
-qt5ct palettes, and Helix, yazi and the lock screen via state configs at next
-start. No rebuild needed. The XDG settings portal receives the light/dark mode
-and the palette accent so Flatpak and libadwaita applications follow too.
-Kvantum is available opt-in with `anixie.theme.kvantum.enable`; it uses the
-built-in KvAdapta light/dark style.
+### What updates when
+
+- **Live:** the shell, Hyprland borders, kitty, tmux, the wallpaper, the XDG
+  settings portal (light/dark and accent), and the cursor size.
+- **Next start:** Qt applications, Helix, yazi, btop, hyprlock, and the share
+  picker. GTK settings and colour scheme update live; GTK CSS overrides are read
+  when the application starts.
+- **Hooks:** anything executable under `~/.config/anixie/theme-hooks/` runs after
+  every switch with `ANIXIE_THEME`, `ANIXIE_MODE`, `ANIXIE_BG`, `ANIXIE_FG`,
+  `ANIXIE_SURFACE`, `ANIXIE_MUTED`, `ANIXIE_PRIMARY`, `ANIXIE_ACCENT`,
+  `ANIXIE_ACCENT_ALT`, `ANIXIE_SECONDARY`, `ANIXIE_TERTIARY`, `ANIXIE_YELLOW`,
+  `ANIXIE_DANGER`, `ANIXIE_ERROR`, `ANIXIE_SUCCESS`, `ANIXIE_OUTLINE`,
+  `ANIXIE_SURFACE_CONTAINER`, `ANIXIE_SURFACE_VARIANT`, `ANIXIE_BG_DARK`,
+  `ANIXIE_BG_LIGHT`, and `ANIXIE_FG_LIGHT`.
+
+`theme doctor` reports missing generation files, an invalid palette, unresolved
+placeholders and malformed wallpaper state. `theme export` prints the current
+preset so a runtime choice can be made the build default.
 
 `theme wallpaper` uses matugen's smart mode unless `light` or `dark` is given,
 and falls back to the previous palette on an unreadable picture. Results are
@@ -279,22 +302,41 @@ theme, `anixie wallpaper` also regenerates the palette.
 
 The terminal gets the full 16-colour ANSI palette, so kitty, the zsh prompt, fzf,
 bat and eza follow the theme, not just the background. GTK also gets
-palette-derived `gtk.css`, beyond the Adwaita light/dark switch. The picker
-previews a palette's colours as a small swatch.
+palette-derived `gtk.css`, beyond the light/dark switch.
 
-The appearance panel — opened from the bar's palette glyph, `Super+Ctrl+T`, or
-`anixie appearance` — combines the wallpaper strip, preset swatches, favorites,
-pinning, glass and bar-background controls. Wallpapers are resolved per output
-and stored in `wallpapers.json`; the shell reads the resulting `background.json`. Stills are drawn by the shell, videos by
+Wallpapers are resolved per output and stored in `wallpapers.json`; the shell
+reads the resulting `background.json`. Stills are drawn by the shell, videos by
 `mpvpaper`, and generated gradients match each output's resolution. The library
-scans `~/Pictures/Wallpapers`, `~/Pictures` and the per-theme folder by default;
-change `anixie.theme.wallpaper.dirs` to point somewhere else. Scheduled
-light/dark switching and wallpaper rotation are opt-in via
-`anixie.theme.auto.schedule.enable` and `anixie.theme.auto.rotation.enable`.
+scans `~/Pictures/Wallpapers`, `~/Pictures` and the per-theme folder by default.
 
-Applications without a supported config format can be reached through
-`~/.config/anixie/theme-hooks/*.sh`. Each executable hook runs after a switch
-with `ANIXIE_THEME`, `ANIXIE_MODE`, and the palette colours in the environment.
+### Options
+
+- `anixie.theme.theme` — the build-time default preset.
+- `anixie.theme.wallpaper.dirs` and `.recursive` — where the library scans.
+- `anixie.theme.auto.schedule.enable`, `.light`, `.dark` — automatic day/night
+  switching; the timer is installed by Home Manager.
+- `anixie.theme.auto.rotation.enable`, `.interval`, `.shuffle` — wallpaper
+  rotation.
+- `anixie.theme.kvantum.enable` — opt-in Kvantum style using the built-in
+  KvAdapta light/dark theme; Qt6ct remains the default platform theme.
+
+Scheduled switching and rotation are off by default. Pinning a theme makes
+`theme auto` leave it alone.
+
+### Checking a change
+
+```sh
+nix flake check
+anixie theme doctor
+anixie theme set gruvbox-dark
+anixie theme set catppuccin-latte
+anixie wallpaper use ~/Pictures/example.jpg --output eDP-1
+anixie wallpaper pause && anixie wallpaper status && anixie wallpaper resume
+```
+
+Multi-monitor, video backends and portal consumers still need a live session;
+the generated files can be inspected with `anixie theme state` and
+`anixie wallpaper current --json`.
 
 ## Everything else
 

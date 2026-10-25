@@ -83,6 +83,8 @@ generations_dir="$state_dir/generations"
 . "@COLOR_LIB@"
 # shellcheck source=/dev/null
 . "@STATE_LIB@"
+# shellcheck source=/dev/null
+. "@AUTO_LIB@"
 
 # Write a file through a temporary in the same directory, so a failure never
 # leaves a half-written palette or config behind.
@@ -566,27 +568,7 @@ auto_theme() {
   light="$auto_light"
   dark="$auto_dark"
 
-  light_h=${light%%:*}
-  light_m=${light#*:}
-  dark_h=${dark%%:*}
-  dark_m=${dark#*:}
-  light_at=$((10#$light_h * 60 + 10#$light_m))
-  dark_at=$((10#$dark_h * 60 + 10#$dark_m))
-  now=$((10#$(date +%H) * 60 + 10#$(date +%M)))
-
-  if [ "$light_at" -le "$dark_at" ]; then
-    if [ "$now" -ge "$light_at" ] && [ "$now" -lt "$dark_at" ]; then
-      target=light
-    else
-      target=dark
-    fi
-  else
-    if [ "$now" -ge "$light_at" ] || [ "$now" -lt "$dark_at" ]; then
-      target=light
-    else
-      target=dark
-    fi
-  fi
+  target=$(auto_mode "$light" "$dark")
 
   [ "$(current_mode)" = "$target" ] && return 0
   name=$(current)
