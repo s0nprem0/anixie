@@ -69,11 +69,14 @@ Item {
   function hint(name, field) {
     if (!root.notification) return ""
 
-    const stored = root.notification[field]
-    if (stored !== undefined) return String(stored || "")
-
+    // Live notifications carry hints; history rows carry the resolved field.
+    // Hints win because a field name can collide with a protocol property
+    // (`actions` is the obvious one).
     const hints = root.notification.hints
-    return hints && hints[name] !== undefined ? String(hints[name]) : ""
+    if (hints && hints[name] !== undefined) return String(hints[name])
+
+    const stored = root.notification[field]
+    return stored !== undefined ? String(stored || "") : ""
   }
 
   readonly property string glyph: root.hint("anixie-glyph", "glyph")
@@ -164,6 +167,60 @@ Item {
       out.push({ text: label, invoke: function () { action.invoke() } })
     }
     return out
+  }
+
+  // Commands the sender asked the shell to keep. Unlike protocol actions these
+  // are argv arrays, so they can be stored with the history row and run after
+  // the sender is gone.
+  readonly property var execActions: NotificationText.execActions(
+    root.hint("anixie-actions", "execActions")) || []
+
+  // One bar for both kinds of action. The cap keeps a hostile or careless
+  // sender from pushing the card taller than the screen.
+  readonly property int maxDeeds: 9
+  readonly property var deeds: {
+    const out = []
+    for (let i = 0; i < root.execActions.length; i++) {
+      out.push({
+        kind: "exec",
+        label: String(root.execActions[i].label || ""),
+        argv: root.execActions[i].argv
+      })
+    }
+    for (let j = 0; j < root.actions.length; j++) {
+      out.push({
+        kind: "action",
+        label: String(root.actions[j].text || ""),
+        invoke: root.actions[j].invoke
+      })
+    }
+    return out.slice(0, root.maxDeeds)
+  }
+
+  readonly property int actionColumns: Math.max(1, Math.min(3, root.deeds.length))
+  readonly property int actionRows: root.deeds.length === 0
+    ? 0 : Math.ceil(root.deeds.length / root.actionColumns)
+  readonly property real actionRule: Style.strokeWidth
+  readonly property real actionSegmentHeight: Style.space(32)
+  readonly property real actionBarHeight: root.actionRows === 0 ? 0
+    : root.actionRule + root.actionRows * root.actionSegmentHeight
+      + (root.actionRows - 1) * root.actionRule
+
+  function runDeed(deed) {
+    if (!deed) return
+
+    if (deed.kind === "exec") {
+      Quickshell.execDetached(deed.argv)
+    } else if (deed.kind === "action") {
+      if (deed.invoke) deed.invoke()
+      // A resident notification outlives its actions by definition.
+      if (root.notification && root.notification.resident) return
+    } else {
+      return
+    }
+
+    if (root.replay) NotificationHost.dismissReplay(root.notification)
+    else if (root.notification) root.notification.dismiss()
   }
 
   // How long a toast stays, by urgency: a low notification is a glance, a
@@ -326,7 +383,7 @@ Item {
     border.color: root.critical ? Theme.danger : (root.replay ? Theme.accent : Theme.border)
     radius: Theme.cornerRadius
 
-    implicitHeight: content.implicitHeight + Style.space(20)
+    implicitHeight: content.implicitHeight + Style.space(20) + root.actionBarHeight
 
     Row {
       id: content
@@ -424,13 +481,11 @@ Item {
           }
         }
 
-        // Code detection and the sender's actions in one row: both are things
-        // the card can do, and both should be visible without hunting through a
-        // menu. The code is copied sensitive so it does not enter clipboard
-        // history.
+        // The code is copied sensitive so it does not enter clipboard history.
+        // Sender actions live in the bar below the card, not here.
         Row {
           width: parent.width
-          visible: root.actions.length > 0 || root.codes.length > 0
+          visible: root.codes.length > 0
           spacing: Style.space(6)
 
           WidgetButton {
@@ -444,27 +499,85 @@ Item {
               Quickshell.execDetached(["wl-copy", "--sensitive", "--", String(root.codes[0])])
             }
           }
+        }
+      }
+    }
 
-          Repeater {
-            model: root.actions
+    // Actions as a bar flush with the card's bottom edge: a hairline above,
+    // equal segments split by the same hairline colour, three to a line, with a
+    // short last line stretching across. Drawn always rather than only on hover:
+    // the card already reserves the height and a bar that appears under the
+    // pointer would shift the stack.
+    Item {
+      id: actionBar
 
-            delegate: WidgetButton {
-              id: actionButton
-              required property var modelData
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      height: root.actionBarHeight
+      visible: height > 0
+      clip: true
 
-              text: String(actionButton.modelData.text || "")
-              fontSize: Style.font.bodySmall
-              centerFigures: false
-              useActiveColor: false
+      // The dim fill shows through the one-pixel gaps between segments; each
+      // segment paints the card surface over it.
+      Rectangle {
+        anchors.fill: parent
+        color: Qt.rgba(Theme.border.r, Theme.border.g, Theme.border.b, 0.35)
+      }
 
-              onPressed: function () {
-                actionButton.modelData.invoke()
-                // A resident notification outlives its actions by definition:
-                // that is the whole point of the hint, and dismissing it here
-                // would make the sender's request pointless.
-                if (root.notification && !root.notification.resident) root.notification.dismiss()
-              }
-            }
+      Repeater {
+        model: root.deeds
+
+        delegate: Item {
+          id: deedSegment
+
+          required property var modelData
+          required property int index
+
+          readonly property int line: Math.floor(index / root.actionColumns)
+          readonly property int slot: index % root.actionColumns
+          readonly property int perLine: line < root.actionRows - 1
+            ? root.actionColumns : root.deeds.length - line * root.actionColumns
+          readonly property real step: (parent.width + root.actionRule) / perLine
+          readonly property real start: Math.round(slot * step)
+
+          x: Math.round(start)
+          y: root.actionRule + line * (root.actionSegmentHeight + root.actionRule)
+          width: Math.round((slot + 1) * step) - start - root.actionRule
+          height: root.actionSegmentHeight
+
+          Rectangle {
+            anchors.fill: parent
+            color: Theme.surface
+          }
+
+          Rectangle {
+            anchors.fill: parent
+            color: segmentArea.containsMouse
+              ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha)
+              : "transparent"
+            Behavior on color { ColorAnimation { duration: Style.duration(120) } }
+          }
+
+          Text {
+            anchors.centerIn: parent
+            width: Math.max(1, parent.width - Style.space(12))
+            text: String(deedSegment.modelData.label || "")
+            textFormat: Text.PlainText
+            elide: Text.ElideRight
+            horizontalAlignment: Text.AlignHCenter
+            color: segmentArea.containsMouse ? Theme.fg : Theme.muted
+            font.family: Style.font.family
+            font.pixelSize: Style.font.bodySmall
+            renderType: Text.NativeRendering
+          }
+
+          MouseArea {
+            id: segmentArea
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.runDeed(deedSegment.modelData)
           }
         }
       }

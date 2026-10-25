@@ -53,11 +53,12 @@ modules/features/         per-user side
 Quickshell's tree:
 
 ```
-shell.qml                 every surface: bar, OSD, dock, notifications, picker
+shell.qml                 assembly point for the shell's component groups
 components/               one widget per file (clock, weather, media, tray, …)
 panels/                   panel bodies (audio, network, power, displays, …)
-Ui/                       shared pieces: Panel, PanelHero, SliderField, ChoiceRow,
-                          Toggle, Dropdown, ScrollBar, Style, Theme, PanelHost
+Ui/                       shared pieces, hosts and the surface/IPC components:
+                          Panel, PanelHero, ShellLayers, ShellOverlays, ShellIpc,
+                          Style, Theme, PanelHost
 bar.json                  the shipped bar layout
 modules.json              where a widget goes when enabled from the menu/CLI
 ```
@@ -283,6 +284,7 @@ anixie toggle [dnd|idle|nightlight|stayawake]
 anixie focus start 25 | stop | extend 15 | status
 anixie screentime [show|json|reset|path|panel]
 notify -G f017 SUMMARY [BODY] --exec COMMAND [ARG...]   # a toast with a glyph and a click action
+notify SUMMARY [BODY] --action LABEL CMD [ARG...]... --with DATA...  # up to three persistent buttons
 monitors …                          # scale, rotation, mode, position, mirror,
                                     # try/keep/revert, identify, brightness, lid,
                                     # workspaces, recover, wake

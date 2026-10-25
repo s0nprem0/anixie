@@ -539,9 +539,10 @@ QtObject {
     root.enqueue(root.clearHeldCommand())
   }
 
-  // Actions are deliberately not carried over: they are closures into the
-  // sending client's process, which is gone by the time the notification reaches
-  // history. A row offering a button that cannot work would be worse than none.
+  // The protocol action list is deliberately not carried over: those are
+  // closures into the sending client's process, which is gone by the time the
+  // notification reaches history. The sender's argv actions are different — the
+  // shell runs them itself — so they are stored here and keep working on replay.
   //
   // `imagePath` is the copy the store made, not the sender's original; it is
   // passed separately because the copy's name depends on the entry's file name.
@@ -574,6 +575,7 @@ QtObject {
       // string: a notification must not be able to turn its text into syntax.
       glyph: root.hint(notification, "anixie-glyph"),
       execArgv: root.hint(notification, "anixie-exec"),
+      execActions: root.hint(notification, "anixie-actions"),
       urgency: notification.urgency,
       timestamp: stamp
     })

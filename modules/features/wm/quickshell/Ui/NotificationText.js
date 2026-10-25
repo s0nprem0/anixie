@@ -8,6 +8,9 @@
 
 var MAX_URL = 4096
 var MAX_ARGV = 32
+var MAX_ACTIONS = 3
+var MAX_ACTION_LABEL = 256
+var MAX_ACTION_HINT = 32768
 
 // A URL at the end of a sentence carries the punctuation, not the destination.
 function trimUrl(raw) {
@@ -128,6 +131,39 @@ function execArgv(value) {
   }
   if (value[0] === "" || value[0].charAt(0) === "-") return null
   return value
+}
+
+// Sender commands carried through history. The freedesktop action list is live
+// closures into the sending client and cannot be replayed; these are argv
+// arrays the shell runs itself, so a card restored from history keeps working.
+// The shape is [{"label": "...", "argv": ["program", "arg"]}], never a shell
+// string. At most three, because the card lays them out as one bar.
+function execActions(value) {
+  var parsed = value
+  if (typeof value === "string") {
+    if (value === "" || value.length > MAX_ACTION_HINT) return null
+    try {
+      parsed = JSON.parse(value)
+    } catch (e) {
+      return null
+    }
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0 || parsed.length > MAX_ACTIONS) return null
+
+  var out = []
+  for (var i = 0; i < parsed.length; i++) {
+    var entry = parsed[i]
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null
+    if (typeof entry.label !== "string") return null
+    var label = entry.label.slice(0, MAX_ACTION_LABEL)
+      .replace(/[\u0000-\u001f\u007f]+/g, " ")
+      .trim()
+    if (label === "") return null
+    var argv = execArgv(entry.argv)
+    if (!argv) return null
+    out.push({ label: label, argv: argv })
+  }
+  return out
 }
 
 // ---- body rendering ----
@@ -331,4 +367,13 @@ function localImagePath(value) {
   if (KERNEL_PATHS.test(text)) return ""
   if (RUN_PATHS.test(text) && !/^\/run\/user\/[0-9]+\/./.test(text)) return ""
   return text
+}
+
+if (typeof module !== "undefined") {
+  module.exports = {
+    MAX_ACTIONS: MAX_ACTIONS,
+    MAX_ACTION_LABEL: MAX_ACTION_LABEL,
+    execArgv: execArgv,
+    execActions: execActions
+  }
 }
