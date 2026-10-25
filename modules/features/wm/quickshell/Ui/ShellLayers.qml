@@ -26,9 +26,9 @@ Item {
   // Background layer so windows sit over it. It takes input only for the
   // desktop context menu: the surface claims the pointer, but windows are above
   // the background layer and keep theirs, and a left click still goes nowhere
-  // because the MouseArea accepts only the right button. The path comes from
-  // the `wallpaper` command and changes crossfade in place; video wallpapers
-  // still go to awww, so this surface steps aside for them.
+  // because the MouseArea accepts only the right button. Each output has its
+  // own path and video flag; video wallpapers are owned by mpvpaper, so the
+  // surface on that output steps aside.
   Variants {
     model: Quickshell.screens
 
@@ -49,7 +49,7 @@ Item {
       mask: Region {
         item: backgroundInput
       }
-      visible: !BackgroundHost.video
+      visible: !BackgroundHost.videoFor(String(modelData.name))
 
       WlrLayershell.layer: WlrLayer.Background
       WlrLayershell.namespace: "quickshell-background"
@@ -57,7 +57,9 @@ Item {
 
       BackgroundSurface {
         anchors.fill: parent
-        source: BackgroundHost.video ? "" : BackgroundHost.path
+        source: BackgroundHost.videoFor(String(modelData.name))
+          ? ""
+          : BackgroundHost.pathFor(String(modelData.name))
         revision: BackgroundHost.revision
       }
 

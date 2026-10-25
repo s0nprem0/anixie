@@ -2,30 +2,27 @@
 # Desktop wallpaper.
 #
 # The default is not a picture but a gradient generated from the live palette, so
-# every theme brings its own without shipping image files, and switching theme
-# repaints the wallpaper with it. On top of that each theme has a folder of your
-# own backgrounds, and this is the picker over them:
+# every theme brings its own without shipping image files. On top of that each
+# theme has a folder of your own backgrounds, and the library scans the folders
+# named in the theming options:
 #
-#   wallpaper            pick one (the generated default, or a file)
-#   wallpaper list       what the current theme offers
-#   wallpaper set FILE   add a picture and use it
-#   wallpaper add DIR    add every picture in a folder
-#   wallpaper next|prev  step through the collection
-#   wallpaper generated  go back to the palette gradient
-#   wallpaper apply      re-apply the saved choice (run at login)
-#   wallpaper current    which background is in use
+#   wallpaper                 pick one
+#   wallpaper list            names from the library, one per line
+#   wallpaper library [--json] the library, optionally as JSON
+#   wallpaper set FILE        add a picture and use it
+#   wallpaper add DIR         add every picture in a folder
+#   wallpaper use FILE [--output NAME]
+#                             use a picture, for one output or all of them
+#   wallpaper next|prev [--random]
+#   wallpaper rotate          rotate to a random wallpaper
+#   wallpaper generated       go back to the palette gradient
+#   wallpaper apply           re-apply the saved choice (run at login)
+#   wallpaper current [--json]
+#   wallpaper pause|resume|status
 #
-# The shell draws still wallpapers on its own background layer. Videos are the
-# one case it cannot render yet, so they go to awww; this command decides which
-# of the two owns the output, writes the resolved path for a shell that starts
-# later, and tells a running shell over IPC so a still change crossfades.
-#
-# The choice is remembered per theme, so switching away and back restores it.
-# While the current theme is `wallpaper`, picking a picture also regenerates the
-# palette from it, so the colours follow the background. A video contributes its
-# first frame.
-# Backgrounds live beside the other user data, not in ~/.config, which Home
-# Manager owns read-only — the same reason the theme state does.
+# Per-output selections are kept in wallpapers.json. Stills are drawn by the
+# shell; videos are handed to mpvpaper. The resolved map is written to
+# background.json, which the shell watches.
 set -eu
 
 # shellcheck source=/dev/null
@@ -33,19 +30,41 @@ set -eu
 
 STATE="@STATE_DIR@"
 BACKGROUNDS="@DATA_DIR@/backgrounds"
+WALLPAPER_DIRS=@WALLPAPER_DIRS@
+WALLPAPER_RECURSIVE="@WALLPAPER_RECURSIVE@"
 PALETTES="@PALETTES@"
 DEFAULT_THEME="@DEFAULT_THEME@"
 JQ="@JQ@"
 MAGICK="@MAGICK@"
-AWWW="@AWWW@"
-AWWW_DAEMON="@AWWW_DAEMON@"
+FFMPEG="@FFMPEG@"
+MPVPAPER="@MPVPAPER@"
+HYPRCTL="@HYPRCTL@"
 PGREP="@PGREP@"
 PKILL="@PKILL@"
 QUICKSHELL="@QUICKSHELL@"
+SHA256SUM="@SHA256SUM@"
+STAT="@STAT@"
 WIDTH="@WIDTH@"
 HEIGHT="@HEIGHT@"
 
 GENERATED="$STATE/wallpaper.png"
+WALLPAPERS="$STATE/wallpapers.json"
+BACKGROUND_JSON="$STATE/background.json"
+THUMBS="$STATE/thumbs"
+GENERATED_DIR="$STATE/wallpapers"
+
+mkdir -p "$STATE" "$THUMBS" "$GENERATED_DIR"
+
+write_atomic() {
+  file="$1"
+  tmp=$(mktemp "$file.XXXXXX") || return 1
+  if cat >"$tmp"; then
+    mv "$tmp" "$file"
+  else
+    rm -f "$tmp"
+    return 1
+  fi
+}
 
 current_theme() {
   if [ -f "$STATE/current" ]; then
@@ -59,25 +78,11 @@ theme_dir() {
   echo "$BACKGROUNDS/$(current_theme)"
 }
 
-# The saved choice for a theme: a path, or the word "generated".
-choice_file() {
-  echo "$STATE/wallpaper.$(current_theme)"
+wallpapers_ensure() {
+  [ -s "$WALLPAPERS" ] || printf '{"version":1,"themes":{}}\n' >"$WALLPAPERS"
 }
 
-chosen() {
-  f="$(choice_file)"
-  if [ -f "$f" ]; then
-    cat "$f"
-  else
-    echo generated
-  fi
-}
-
-# The resolved palette the `theme` command writes. It is there for curated and
-# wallpaper-derived themes alike, so the gradient follows either one. Before the
-# first `theme apply` it may not exist yet, so fall back to the palette this file
-# was built against.
-# shellcheck disable=SC2016  # the jq program is single-quoted on purpose
+# shellcheck disable=SC2016
 colour() {
   if [ -f "$STATE/live/palette.json" ]; then
     "$JQ" -r --arg k "$1" '.[$k]' "$STATE/live/palette.json"
@@ -90,139 +95,366 @@ colour() {
   fi
 }
 
-# A soft diagonal wash from the background to the surface, with the primary
-# colour as a faint vignette so the palette's accent is present without a picture
-# in the way of the windows.
-generate() {
-  mkdir -p "$STATE"
-  bg="$(colour background)"
-  surface="$(colour surface)"
-  primary="$(colour primary)"
-
-  "$MAGICK" -size "${WIDTH}x${HEIGHT}" \
-    gradient:"$bg"-"$surface" \
-    \( -size "${WIDTH}x${HEIGHT}" radial-gradient:none-"$primary" \
-    -alpha set -channel A -evaluate multiply 0.10 +channel \) \
-    -compose over -composite \
-    -depth 8 \
-    "$GENERATED"
-}
-
-apply() {
-  choice="$(chosen)"
-  if [ "$choice" = generated ] || [ ! -f "$choice" ]; then
-    generate
-    img="$GENERATED"
-  else
-    img="$choice"
-  fi
-
-  mkdir -p "$STATE"
-
-  case "$(printf '%s' "${img##*.}" | tr '[:upper:]' '[:lower:]')" in
-    mp4 | mkv | webm | mov | m4v | avi | ogv)
-      # awww still owns video playback; the shell hides its own background
-      # surface for this one instead of trying to decode a video as an image.
-      if ! "$PGREP" -x awww-daemon >/dev/null 2>&1; then
-        "$AWWW_DAEMON" >/dev/null 2>&1 &
-        sleep 1
-      fi
-      "$AWWW" img "$img" >/dev/null 2>&1 || true
-      printf 'video\n%s\n' "$img" >"$STATE/background"
-      "$QUICKSHELL" ipc call background video "$img" >/dev/null 2>&1 || true
-      ;;
-    *)
-      # Taking the output back from awww: kill it rather than leave two
-      # background surfaces arguing over the same layer.
-      "$PKILL" -x awww-daemon >/dev/null 2>&1 || true
-      printf '%s\n' "$img" >"$STATE/background"
-      "$QUICKSHELL" ipc call background set "$img" >/dev/null 2>&1 || true
-      ;;
+is_video() {
+  case "$(printf '%s' "${1##*.}" | tr '[:upper:]' '[:lower:]')" in
+    mp4 | mkv | webm | mov | m4v | avi | ogv) return 0 ;;
+    *) return 1 ;;
   esac
 }
 
-remember() {
-  mkdir -p "$STATE"
-  printf '%s\n' "$1" >"$(choice_file)"
+is_image() {
+  case "$(printf '%s' "${1##*.}" | tr '[:upper:]' '[:lower:]')" in
+    jpg | jpeg | png | gif | webp | bmp | tif | tiff | avif) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
-# The list the picker and `next` walk: the generated default first, then every
-# file in the theme's folder, alphabetically.
-entries() {
-  dir="$(theme_dir)"
-  echo generated
-  if [ -d "$dir" ]; then
-    for f in "$dir"/*; do
-      [ -f "$f" ] || continue
-      echo "$f"
-    done
+is_media() {
+  is_image "$1" || is_video "$1"
+}
+
+selection_json() {
+  theme="$1"
+  output="$2"
+  wallpapers_ensure
+  "$JQ" -c --arg t "$theme" --arg o "$output" '
+    .themes[$t] as $theme
+    | ($theme.outputs[$o] // $theme.fallback // null)
+  ' "$WALLPAPERS"
+}
+
+selection() {
+  theme="$1"
+  output="$2"
+  sel=$(selection_json "$theme" "$output")
+  if [ "$sel" != "null" ]; then
+    printf '%s' "$sel" | "$JQ" -r '[.mode, (.path // ""), (if .video then "1" else "0" end)] | @tsv'
+    return
+  fi
+
+  old=$(chosen)
+  if [ "$old" = generated ] || [ ! -f "$old" ]; then
+    printf 'generated\t\t0\n'
+  else
+    if is_video "$old"; then video=1; else video=0; fi
+    printf 'file\t%s\t%s\n' "$old" "$video"
   fi
 }
 
-pick_one() {
-  dir="$(theme_dir)"
-  mkdir -p "$dir"
-  {
-    # The fifth field is the picker's preview: the generated still when there is
-    # one, and the picture itself for everything else. A row without a preview
-    # still lists; the icon slot just stays empty.
-    if [ -f "$GENERATED" ]; then
-      printf 'Generated (from the %s palette)\tgenerated\t\t\t%s\n' "$(current_theme)" "$GENERATED"
+chosen() {
+  wallpapers_ensure
+  theme=$(current_theme)
+  value=$("$JQ" -r --arg t "$theme" '.themes[$t].fallback // empty | if .mode == "generated" then "generated" else (.path // empty) end' "$WALLPAPERS")
+  if [ -n "$value" ]; then
+    printf '%s' "$value"
+    return
+  fi
+
+  file="$STATE/wallpaper.$theme"
+  if [ -f "$file" ]; then
+    cat "$file"
+  else
+    echo generated
+  fi
+}
+
+remember() {
+  theme=$(current_theme)
+  printf '%s\n' "$1" >"$STATE/wallpaper.$theme"
+}
+
+save_selection() {
+  mode="$1"
+  output="$2"
+  path="$3"
+  video="$4"
+  theme=$(current_theme)
+  wallpapers_ensure
+
+  if [ -n "$output" ]; then
+    "$JQ" --arg theme "$theme" --arg output "$output" --arg mode "$mode" --arg path "$path" --arg video "$video" '
+      .themes[$theme].outputs[$output] = { mode: $mode, path: $path, video: ($video == "1") }
+    ' "$WALLPAPERS" | write_atomic "$WALLPAPERS"
+  else
+    "$JQ" --arg theme "$theme" --arg mode "$mode" --arg path "$path" --arg video "$video" '
+      .themes[$theme].fallback = { mode: $mode, path: $path, video: ($video == "1") }
+      | .themes[$theme].outputs = {}
+    ' "$WALLPAPERS" | write_atomic "$WALLPAPERS"
+  fi
+
+  if [ -z "$output" ]; then
+    if [ "$mode" = generated ]; then
+      remember generated
     else
-      printf 'Generated (from the %s palette)\tgenerated\n' "$(current_theme)"
+      remember "$path"
     fi
-    if [ -d "$dir" ]; then
-      for f in "$dir"/*; do
-        [ -f "$f" ] || continue
-        printf '%s\t%s\t\t\t%s\n' "$(basename "$f")" "$f" "$f"
-      done
+  fi
+}
+
+thumb_for() {
+  path="$1"
+  [ -f "$path" ] || return 0
+
+  mtime=$("$STAT" -Lc %Y "$path" 2>/dev/null || printf '0')
+  size=$("$STAT" -Lc %s "$path" 2>/dev/null || printf '0')
+  key=$(printf '%s\n%s\n%s\n' "$path" "$mtime" "$size" | "$SHA256SUM")
+  key=${key%% *}
+  thumb="$THUMBS/$key.jpg"
+
+  if [ ! -f "$thumb" ]; then
+    source="$path"
+    frame=""
+    if is_video "$path"; then
+      frame=$(mktemp "$THUMBS/frame.XXXXXX.jpg") || return 0
+      "$FFMPEG" -y -loglevel error -i "$path" -frames:v 1 -q:v 2 "$frame" >/dev/null 2>&1 || {
+        rm -f "$frame"
+        return 0
+      }
+      source="$frame"
     fi
+    if "$MAGICK" "$source" -thumbnail '320x180^' -gravity center -extent 320x180 \
+      -quality 85 "$thumb.tmp" >/dev/null 2>&1; then
+      mv "$thumb.tmp" "$thumb"
+    else
+      rm -f "$thumb.tmp"
+      [ -n "$frame" ] && rm -f "$frame"
+      return 0
+    fi
+    [ -n "$frame" ] && rm -f "$frame"
+  fi
+
+  printf '%s' "$thumb"
+}
+
+scan_dir() {
+  dir="$1"
+  [ -d "$dir" ] || return 0
+  if [ "$WALLPAPER_RECURSIVE" = "true" ]; then
+    find "$dir" -type f -print
+  else
+    find "$dir" -maxdepth 1 -type f -print
+  fi | while IFS= read -r file; do
+    is_media "$file" && printf '%s\n' "$file"
+  done
+}
+
+library_paths() {
+  {
+    echo generated
+    scan_dir "$BACKGROUNDS/$(current_theme)"
+    printf '%s\n' "$WALLPAPER_DIRS" | while IFS= read -r dir; do
+      [ -n "$dir" ] && scan_dir "$dir"
+    done
+  } | awk '!seen[$0]++'
+}
+
+library_json() {
+  {
+    printf 'Generated\tgenerated\t%s\t0\t1\n' "$(thumb_for "$GENERATED")"
+    library_paths | while IFS= read -r path; do
+      [ "$path" = generated ] && continue
+      if is_video "$path"; then video=1; else video=0; fi
+      printf '%s\t%s\t%s\t%s\t0\n' "$(basename "$path")" "$path" "$(thumb_for "$path")" "$video"
+    done
+  } | "$JQ" -R -s '
+    split("\n")
+    | map(select(length > 0) | split("\t") | {
+        name: .[0],
+        path: .[1],
+        thumb: .[2],
+        video: (.[3] == "1"),
+        generated: (.[4] == "1")
+      })
+  '
+}
+
+generated_file() {
+  output="$1"
+  theme=$(current_theme)
+  if [ -z "$output" ]; then
+    printf '%s' "$GENERATED"
+  else
+    safe=$(printf '%s' "$output" | tr -c 'A-Za-z0-9._-' '_')
+    printf '%s/%s-%s.png' "$GENERATED_DIR" "$theme" "$safe"
+  fi
+}
+
+output_size() {
+  output="$1"
+  if [ -n "$output" ]; then
+    size=$("$HYPRCTL" monitors -j 2>/dev/null | "$JQ" -r --arg output "$output" '
+      .[] | select(.name == $output) | "\(.width)x\(.height)"
+    ' | head -n 1)
+    if [ -n "$size" ]; then
+      printf '%s' "$size"
+      return
+    fi
+  fi
+  printf '%sx%s' "$WIDTH" "$HEIGHT"
+}
+
+generate() {
+  output="$1"
+  file=$(generated_file "$output")
+  size=$(output_size "$output")
+  bg=$(colour background)
+  surface=$(colour surface)
+  primary=$(colour primary)
+  mkdir -p "$(dirname "$file")"
+  "$MAGICK" -size "$size" \
+    gradient:"$bg"-"$surface" \
+    \( -size "$size" radial-gradient:none-"$primary" \
+    -alpha set -channel A -evaluate multiply 0.10 +channel \) \
+    -compose over -composite \
+    -depth 8 \
+    "$file" >/dev/null 2>&1
+}
+
+output_names() {
+  "$HYPRCTL" monitors -j 2>/dev/null | "$JQ" -r '.[].name' 2>/dev/null || true
+}
+
+apply() {
+  wallpapers_ensure
+  theme=$(current_theme)
+  "$PKILL" -x mpvpaper >/dev/null 2>&1 || true
+  rm -f "$STATE/video-paused"
+
+  outputs=$(output_names)
+  [ -n "$outputs" ] || outputs=""
+  rows=$(mktemp "$STATE/.background.XXXXXX") || exit 1
+
+  fallback_line=$(selection "$theme" "")
+  fallback_mode=$(printf '%s' "$fallback_line" | cut -f1)
+  fallback_path=$(printf '%s' "$fallback_line" | cut -f2)
+  fallback_video=$(printf '%s' "$fallback_line" | cut -f3)
+  if [ "$fallback_mode" = generated ] || [ ! -f "$fallback_path" ]; then
+    generate ""
+    fallback_path="$GENERATED"
+    fallback_video=0
+  fi
+
+  for output in $outputs; do
+    line=$(selection "$theme" "$output")
+    mode=$(printf '%s' "$line" | cut -f1)
+    path=$(printf '%s' "$line" | cut -f2)
+    video=$(printf '%s' "$line" | cut -f3)
+
+    if [ "$mode" = generated ] || [ ! -f "$path" ]; then
+      generate "$output"
+      path=$(generated_file "$output")
+      video=0
+    fi
+
+    if [ "$video" = 1 ]; then
+      if [ -n "$output" ]; then
+        "$MPVPAPER" -f -o "no-audio loop" "$output" "$path" >/dev/null 2>&1 || true
+      fi
+    fi
+    printf '%s\t%s\t%s\n' "$output" "$path" "$video" >>"$rows"
+  done
+
+  if [ -z "$outputs" ]; then
+    printf '\t%s\t%s\n' "$fallback_path" "$fallback_video" >>"$rows"
+  fi
+
+  "$JQ" -R -s --arg path "$fallback_path" --arg video "$fallback_video" '
+    {
+      outputs: (split("\n") | map(select(length > 0) | split("\t")
+        | { key: .[0], value: { path: .[1], video: (.[2] == "1") } }) | from_entries),
+      fallback: { path: $path, video: ($video == "1") }
+    }
+  ' "$rows" | write_atomic "$BACKGROUND_JSON"
+  rm -f "$rows"
+
+  if [ "$fallback_video" = 1 ]; then
+    printf 'video\n%s\n' "$fallback_path" >"$STATE/background"
+  else
+    printf '%s\n' "$fallback_path" >"$STATE/background"
+  fi
+  "$QUICKSHELL" ipc call background reload >/dev/null 2>&1 || true
+}
+
+pick_one() {
+  {
+    printf 'Generated (from the %s palette)\tgenerated\t\t\t%s\n' "$(current_theme)" "$(thumb_for "$GENERATED")"
+    library_paths | while IFS= read -r path; do
+      [ "$path" = generated ] && continue
+      printf '%s\t%s\t\t\t%s\n' "$(basename "$path")" "$path" "$(thumb_for "$path")"
+    done
   } | pick --title "wallpaper — $(current_theme)" --on-select 'wallpaper use {}'
 }
 
 step() {
   direction="$1"
+  random="${2:-}"
   here="$(chosen)"
-  # A single pass over the list, tracking where we are and wrapping at both ends.
-  target="$(
-    entries | awk -v here="$here" -v dir="$direction" '
-      { list[NR] = $0; if ($0 == here) at = NR }
-      END {
-        if (NR == 0) exit
-        if (at == 0) at = 1
-        if (dir == "next") at = (at % NR) + 1
-        else at = ((at - 2 + NR) % NR) + 1
-        print list[at]
-      }'
-  )"
+
+  if [ "$random" = "--random" ] || [ "$random" = random ]; then
+    target=$(
+      library_paths | awk -v here="$here" '
+        BEGIN { srand() }
+        $0 == here { next }
+        { list[NR] = $0 }
+        END {
+          if (NR == 0) exit
+          print list[1 + int(rand() * NR)]
+        }'
+    )
+  else
+    target=$(
+      library_paths | awk -v here="$here" -v dir="$direction" '
+        { list[NR] = $0; if ($0 == here) at = NR }
+        END {
+          if (NR == 0) exit
+          if (at == 0) at = 1
+          if (dir == "next") at = (at % NR) + 1
+          else at = ((at - 2 + NR) % NR) + 1
+          print list[at]
+        }'
+    )
+  fi
+
   [ -n "$target" ] || return 0
   use "$target"
 }
 
-# Remember a choice and put it up. "generated" is the one value that is not a
-# path.
 use() {
   [ $# -ge 1 ] || { echo "wallpaper: use needs a value" >&2; exit 1; }
-  previous=$(chosen)
-  target=""
-  if [ "$1" = generated ]; then
-    remember generated
+  target="$1"
+  shift
+  output=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --output)
+        [ $# -ge 2 ] || { echo "wallpaper: --output needs a name" >&2; exit 1; }
+        output="$2"
+        shift 2
+        ;;
+      *) break ;;
+    esac
+  done
+
+  wallpapers_ensure
+  cp "$WALLPAPERS" "$STATE/.wallpapers.previous" 2>/dev/null || true
+
+  if [ "$target" = generated ]; then
+    save_selection generated "$output" "" 0
   else
-    [ -f "$1" ] || { printf 'wallpaper: no such file: %s\n' "$1" >&2; exit 1; }
-    target=$(readlink -f "$1" 2>/dev/null || printf '%s' "$1")
-    remember "$target"
+    [ -f "$target" ] || { printf 'wallpaper: no such file: %s\n' "$target" >&2; exit 1; }
+    target=$(readlink -f "$target" 2>/dev/null || printf '%s' "$target")
+    if is_video "$target"; then video=1; else video=0; fi
+    save_selection file "$output" "$target" "$video"
   fi
 
-  # In wallpaper mode the picture is the palette source, so selecting one updates
-  # the colours as well as the background. Videos go through their first frame.
-  # If matugen cannot read it, put the previous choice back rather than leaving a
-  # wallpaper the palette does not match.
-  if [ "$1" != generated ] && [ "$(current_theme)" = wallpaper ]; then
+  if [ "$target" != generated ] && [ "$(current_theme)" = wallpaper ]; then
     if command -v theme >/dev/null 2>&1 && theme wallpaper "$target"; then
       return
     fi
     printf 'wallpaper: could not derive a palette; keeping the previous theme\n' >&2
-    remember "$previous"
+    if [ -f "$STATE/.wallpapers.previous" ]; then
+      cp "$STATE/.wallpapers.previous" "$WALLPAPERS"
+    fi
     apply
     return 1
   fi
@@ -248,9 +480,30 @@ add_dir() {
   n=0
   for f in "$1"/*; do
     [ -f "$f" ] || continue
+    is_media "$f" || continue
     cp -f "$f" "$dir/" && n=$((n + 1))
   done
   printf 'Added %s background(s) to %s\n' "$n" "$(current_theme)"
+}
+
+pause_video() {
+  "$PKILL" -STOP -x mpvpaper 2>/dev/null || true
+  printf '1\n' >"$STATE/video-paused"
+}
+
+resume_video() {
+  "$PKILL" -CONT -x mpvpaper 2>/dev/null || true
+  rm -f "$STATE/video-paused"
+}
+
+video_status() {
+  if ! "$PGREP" -x mpvpaper >/dev/null 2>&1; then
+    echo stopped
+  elif [ -f "$STATE/video-paused" ]; then
+    echo paused
+  else
+    echo running
+  fi
 }
 
 case "${1:-}" in
@@ -258,20 +511,39 @@ case "${1:-}" in
   "" | pick) pick_one ;;
   apply) apply ;;
   list | ls)
-    entries | while IFS= read -r e; do
-      if [ "$e" = generated ]; then
-        echo "generated"
-      else
-        basename "$e"
-      fi
+    if [ "${2:-}" = "--json" ]; then
+      library_json
+    else
+      library_paths | while IFS= read -r entry; do
+        [ "$entry" = generated ] && echo generated || basename "$entry"
+      done
+    fi
+    ;;
+  library)
+    [ "${2:-}" = "--json" ] && library_json || library_paths | while IFS= read -r entry; do
+      [ "$entry" = generated ] && echo generated || basename "$entry"
     done
     ;;
   set | add-file) shift; add_file "$@" ;;
   add) shift; add_dir "$@" ;;
   use) shift; use "$@" ;;
-  next) step next ;;
-  prev | previous) step prev ;;
+  next) shift; step next "${1:-}" ;;
+  prev | previous) shift; step prev "${1:-}" ;;
+  rotate) step next --random ;;
   generated | theme | default) use generated ;;
-  current) chosen ;;
+  current)
+    if [ "${2:-}" = "--json" ]; then
+      if [ -f "$BACKGROUND_JSON" ]; then
+        "$JQ" . "$BACKGROUND_JSON"
+      else
+        "$JQ" -n --arg path "$(chosen)" '{outputs:{},fallback:{path:$path,video:false}}'
+      fi
+    else
+      chosen
+    fi
+    ;;
+  pause) pause_video ;;
+  resume) resume_video ;;
+  status) video_status ;;
   *) printf 'wallpaper: unknown argument "%s"\n' "$1" >&2; exit 2 ;;
 esac

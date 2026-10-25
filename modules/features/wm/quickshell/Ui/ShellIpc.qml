@@ -239,6 +239,14 @@ Item {
 
     function set(path: string): string { BackgroundHost.set(path); return "ok" }
     function video(path: string): string { BackgroundHost.setVideo(path); return "ok" }
+    function output(output: string, path: string): string {
+      BackgroundHost.setOutput(output, path, false)
+      return "ok"
+    }
+    function videoOutput(output: string, path: string): string {
+      BackgroundHost.setOutput(output, path, true)
+      return "ok"
+    }
     function reload(): string { BackgroundHost.reload(); return "ok" }
     function current(): string { return BackgroundHost.path }
   }

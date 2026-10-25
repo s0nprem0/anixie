@@ -19,10 +19,9 @@ in
   home.packages = with pkgs; [
     appLaunch
 
-    # The shell draws still wallpapers on its background layer. awww is only
-    # started by the `wallpaper` command for videos, which the shell cannot
-    # render yet. It remains the manual fallback too.
-    awww
+    # The shell draws still wallpapers on its background layer. mpvpaper owns
+    # video wallpapers, which the shell cannot render yet.
+    mpvpaper
     brightnessctl
     cliphist
     grim

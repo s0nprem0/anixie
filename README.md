@@ -247,8 +247,13 @@ anixie theme state              # the saved appearance state as JSON
 anixie theme migrate            # import the old separate state files
 anixie theme wallpaper [FILE] [auto|light|dark]  # palette from a picture
 anixie theme wallpaper-mode [auto|light|dark]    # remember the next mode
+anixie theme auto               # apply the scheduled light/dark variant
 anixie textsize up|down|set N   # the whole shell, not just the bar
+anixie wallpaper library [--json]  # pictures found in the configured folders
 anixie wallpaper set FILE       # or `wallpaper theme` for the palette's gradient
+anixie wallpaper use FILE [--output NAME]  # choose for one output or all
+anixie wallpaper next|prev [--random] | rotate
+anixie wallpaper pause|resume|status  # live video wallpapers
 ```
 
 A runtime switch reaches the **shell, Hyprland's borders, kitty, btop and tmux
@@ -267,6 +272,14 @@ The terminal gets the full 16-colour ANSI palette, so kitty, the zsh prompt, fzf
 bat and eza follow the theme, not just the background. GTK also gets
 palette-derived `gtk.css`, beyond the Adwaita light/dark switch. The picker
 previews a palette's colours as a small swatch.
+
+Wallpapers are resolved per output and stored in `wallpapers.json`; the shell
+reads the resulting `background.json`. Stills are drawn by the shell, videos by
+`mpvpaper`, and generated gradients match each output's resolution. The library
+scans `~/Pictures/Wallpapers`, `~/Pictures` and the per-theme folder by default;
+change `anixie.theme.wallpaper.dirs` to point somewhere else. Scheduled
+light/dark switching and wallpaper rotation are opt-in via
+`anixie.theme.auto.schedule.enable` and `anixie.theme.auto.rotation.enable`.
 
 Applications without a supported config format can be reached through
 `~/.config/anixie/theme-hooks/*.sh`. Each executable hook runs after a switch

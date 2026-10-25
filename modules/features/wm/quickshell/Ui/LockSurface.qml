@@ -21,6 +21,8 @@ Item {
     return "Touch the fingerprint reader to unlock"
   }
 
+  readonly property string screenName: Screens.screenNameOf(root)
+
   function imageUrl(path) {
     if (!path) return ""
     return path.indexOf("/") === 0 ? "file://" + path : path
@@ -30,7 +32,9 @@ Item {
 
   AnimatedImage {
     anchors.fill: parent
-    source: BackgroundHost.video ? "" : root.imageUrl(BackgroundHost.path)
+    source: BackgroundHost.videoFor(root.screenName)
+      ? ""
+      : root.imageUrl(BackgroundHost.pathFor(root.screenName))
     sourceSize.width: width
     sourceSize.height: height
     fillMode: AnimatedImage.PreserveAspectCrop

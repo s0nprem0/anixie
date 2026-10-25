@@ -35,6 +35,8 @@ state_migrate() {
     --arg theme "$state_theme" \
     --arg source "$state_source" \
     --argjson follow "$state_follow" \
+    --arg light "${AUTO_LIGHT:-07:00}" \
+    --arg dark "${AUTO_DARK:-19:00}" \
     '{
       version: 1,
       source: $source,
@@ -43,7 +45,11 @@ state_migrate() {
       favorites: [],
       recent: [$theme],
       auto: {
-        schedule: { enabled: false, light: "07:00", dark: "19:00" },
+        schedule: {
+          enabled: false,
+          light: ($light // "07:00"),
+          dark: ($dark // "19:00")
+        },
         rotation: { enabled: false, interval: "30m", shuffle: true }
       },
       generation: ""

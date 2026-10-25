@@ -12,7 +12,8 @@
 #                        remember the mode for the next picture
 #   theme next | prev    step through the list
 #   theme state          the saved theme state as JSON
-#   theme migrate         import the old separate state files
+#   theme migrate        import the old separate state files
+#   theme auto           apply the scheduled light or dark variant
 #   theme apply          re-apply the current one (run at login)
 #
 # One palette drives the shell, the compositor's window borders, the terminal and
@@ -38,6 +39,9 @@ default_theme="@DEFAULT_THEME@"
 quickshell="@QUICKSHELL@"
 matugen="@MATUGEN@"
 tmux="@TMUX@"
+auto_light=@AUTO_LIGHT@
+auto_dark=@AUTO_DARK@
+auto_schedule="@AUTO_SCHEDULE@"
 generated="@GENERATED@"
 hyprctl="@HYPRCTL@"
 gsettings="@GSETTINGS@"
@@ -56,6 +60,9 @@ STATE_DIR="$state_dir"
 DEFAULT_THEME="$default_theme"
 JQ="$jq"
 FLOCK="@FLOCK@"
+AUTO_LIGHT="$auto_light"
+AUTO_DARK="$auto_dark"
+AUTO_SCHEDULE="$auto_schedule"
 
 current_file="$state_dir/current"
 wallpaper_mode_file="$state_dir/wallpaper-mode"
@@ -127,6 +134,14 @@ has() {
 
 mode_of() {
   "$jq" -r --arg n "$1" '.[$n]._mode // "dark"' "$palettes"
+}
+
+current_mode() {
+  if [ "$(current)" = "wallpaper" ] && [ -f "$generated" ]; then
+    "$jq" -r '._mode // "dark"' "$generated"
+  else
+    mode_of "$(current)"
+  fi
 }
 
 saved_wallpaper_mode() {
@@ -508,6 +523,61 @@ wallpaper_theme() {
   printf 'Theme: wallpaper\n'
 }
 
+auto_theme() {
+  state_ensure || die "could not read the theme state"
+  [ "$AUTO_SCHEDULE" = "true" ] || return 0
+
+  light="$auto_light"
+  dark="$auto_dark"
+
+  light_h=${light%%:*}
+  light_m=${light#*:}
+  dark_h=${dark%%:*}
+  dark_m=${dark#*:}
+  light_at=$((10#$light_h * 60 + 10#$light_m))
+  dark_at=$((10#$dark_h * 60 + 10#$dark_m))
+  now=$((10#$(date +%H) * 60 + 10#$(date +%M)))
+
+  if [ "$light_at" -le "$dark_at" ]; then
+    if [ "$now" -ge "$light_at" ] && [ "$now" -lt "$dark_at" ]; then
+      target=light
+    else
+      target=dark
+    fi
+  else
+    if [ "$now" -ge "$light_at" ] || [ "$now" -lt "$dark_at" ]; then
+      target=light
+    else
+      target=dark
+    fi
+  fi
+
+  [ "$(current_mode)" = "$target" ] && return 0
+  name=$(current)
+
+  if [ "$name" = "wallpaper" ]; then
+    source=$("$jq" -r --arg t wallpaper '.themes[$t].fallback.path // empty' "$state_dir/wallpapers.json" 2>/dev/null || true)
+    if [ -n "$source" ] && [ -f "$source" ]; then
+      wallpaper_theme "$source" "$target"
+    fi
+    return 0
+  fi
+
+  pair=$("$jq" -r --arg n "$name" '.[$n]._pair // empty' "$palettes")
+  if [ -z "$pair" ] || [ "$pair" = "null" ]; then
+    family=$("$jq" -r --arg n "$name" '.[$n]._family // empty' "$palettes")
+    pair=$("$jq" -r --arg family "$family" --arg mode "$target" --arg current "$name" '
+      to_entries[]
+      | select(.value._mode == $mode and (.value._family // "") == $family and .key != $current)
+      | .key
+    ' "$palettes" | head -n 1)
+  fi
+
+  if [ -n "$pair" ] && has "$pair"; then
+    set_theme "$pair"
+  fi
+}
+
 step() {
   local direction="$1" here target
   here=$(current)
@@ -547,6 +617,9 @@ case "${1:-}" in
   migrate)
     state_migrate || die "could not migrate the theme state"
     state_json
+    ;;
+  auto)
+    auto_theme
     ;;
   apply)
     # No change, just make sure the files match the saved choice — this is what

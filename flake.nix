@@ -221,6 +221,7 @@
                     pkgs.coreutils
                     pkgs.findutils
                     pkgs.gawk
+                    pkgs.gnugrep
                     pkgs.gnused
                     pkgs.jq
                     pkgs.util-linux
