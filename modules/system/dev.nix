@@ -6,22 +6,24 @@
 {
   # Loads .envrc so the flake devshell (nixfmt, statix, deadnix, nil)
   # is available while editing this repository.
-  programs.direnv.enable = true;
+  programs = {
+    direnv.enable = true;
 
-  # gnupg is in the user's CLI tools and GNUPGHOME is exported by zsh, but the
-  # agent and its pinentry wrapper are a system concern: without this, signing
-  # falls back to whatever gpg can find and usually fails on "No pinentry".
-  programs.gnupg.agent.enable = true;
+    # gnupg is in the user's CLI tools and GNUPGHOME is exported by zsh, but the
+    # agent and its pinentry wrapper are a system concern: without this, signing
+    # falls back to whatever gpg can find and usually fails on "No pinentry".
+    gnupg.agent.enable = true;
 
-  # nvm (see features/shell/zsh) downloads the official Node builds, which are
-  # linked against /lib64/ld-linux-x86-64.so.2 — a path NixOS does not have. The
-  # nix-ld shim provides it and points the loader at these libraries, so an
-  # `nvm install`ed `node` starts instead of failing on a missing interpreter.
-  programs.nix-ld = {
-    enable = true;
-    libraries = with pkgs; [
-      stdenv.cc.cc.lib
-    ];
+    # nvm (see features/shell/zsh) downloads the official Node builds, which are
+    # linked against /lib64/ld-linux-x86-64.so.2 — a path NixOS does not have. The
+    # nix-ld shim provides it and points the loader at these libraries, so an
+    # `nvm install`ed `node` starts instead of failing on a missing interpreter.
+    nix-ld = {
+      enable = true;
+      libraries = with pkgs; [
+        stdenv.cc.cc.lib
+      ];
+    };
   };
 
   # htop on the system rather than in a user profile: it is the tool you reach
