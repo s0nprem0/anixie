@@ -92,6 +92,10 @@ with pkgs;
   netcat-openbsd
   socat
 
+  # The TLS half of the same work: s_client for a handshake, and the cert,
+  # digest and key chores that keep coming up.
+  openssl
+
   # Archives the file manager cannot open on its own. p7zip provides 7z; the
   # package is old, so `_7zz` is the drop-in if it is ever marked insecure.
   p7zip
