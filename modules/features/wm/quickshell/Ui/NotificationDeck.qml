@@ -16,6 +16,11 @@ Item {
   property bool replay: false
   property bool forceExpanded: false
 
+  // The history panel shows the same live cards. While it is open the hidden
+  // toasts must stop their expiry clocks, or a card the user is reading in the
+  // panel would be dismissed from behind them.
+  property bool paused: false
+
   readonly property int count: root.items.length
   readonly property int peekCount: Math.min(2, Math.max(0, root.count - 1))
   readonly property bool expanded: root.forceExpanded || root.items.length <= 1 || hover.hovered
@@ -68,6 +73,7 @@ Item {
     notification: root.count > 0 ? root.items[0] : null
     group: root.items
     replay: root.replay
+    autoExpire: !root.paused
   }
 
   Column {
@@ -85,9 +91,13 @@ Item {
         required property var modelData
 
         width: parent.width
+        // Column positions children by their height, not their implicit height;
+        // without this the opened deck drew every card at zero height.
+        height: implicitHeight
         notification: modelData
         group: [modelData]
         replay: root.replay
+        autoExpire: !root.paused
       }
     }
   }

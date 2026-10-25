@@ -22,6 +22,11 @@ Item {
   // daemon no longer owns.
   property bool replay: false
 
+  // A card in the history panel is a persistent view: it stays until the user
+  // closes it, rather than vanishing while it is being read. Popup cards keep
+  // the normal sender timeout.
+  property bool autoExpire: true
+
   readonly property string appName: root.notification
     ? String(root.notification.appName || root.notification.app || "").slice(0, 256)
     : ""
@@ -201,7 +206,7 @@ Item {
     expiry.stop()
     root.remainingMs = Math.round(root.displaySeconds * 1000)
 
-    if (root.replay || root.displaySeconds <= 0 || hover.hovered) return
+    if (root.replay || !root.autoExpire || root.displaySeconds <= 0 || hover.hovered) return
 
     expiry.interval = root.remainingMs
     expiry.start()
@@ -230,6 +235,7 @@ Item {
   }
   onDisplaySecondsChanged: root.armExpiry()
   onReplayChanged: root.armExpiry()
+  onAutoExpireChanged: root.armExpiry()
 
   HoverHandler {
     id: hover
@@ -256,6 +262,46 @@ Item {
     }
   }
 
+  // The same action a left click on the card takes. Kept as a function so the
+  // panel's keyboard walk can run it with Return.
+  function activateCard() {
+    if (root.replay) {
+      if (root.execArgv) Quickshell.execDetached(root.execArgv)
+      else if (root.link !== "") Quickshell.execDetached(["xdg-open", root.link])
+      else NotificationHost.activate(root.notification, "")
+      NotificationHost.dismissReplay(root.notification)
+      return
+    }
+
+    const action = root.defaultAction
+    if (root.execArgv) {
+      Quickshell.execDetached(root.execArgv)
+    } else if (action) {
+      action.invoke()
+    } else {
+      NotificationHost.activate(root.notification, root.link)
+    }
+
+    // Resident means "do not remove me when an action is invoked"; it says
+    // nothing about a plain dismissal click. So a resident notification
+    // survives a protocol action — the action buttons below already honour
+    // that — but the same click with nothing to run still puts it away. An
+    // attached command is data, not a resident sender's action, so it does not
+    // keep the card around.
+    const keepResident = !root.execArgv && action !== null
+    if (root.group.length > 0) {
+      for (const item of root.group) if (!(keepResident && item.resident)) item.dismiss()
+    } else if (root.notification && !(keepResident && root.notification.resident)) {
+      root.notification.dismiss()
+    }
+  }
+
+  // Only the copies drawn inside the history panel are walked by Panel.qml;
+  // toasts live in their own window and take no keyboard.
+  readonly property bool panelFocusable: true
+  function activate() { root.activateCard() }
+  function keyStep(direction) { return false }
+
   // Declared first so it sits under everything: a click that no action button
   // claimed falls through to here and dismisses the notification.
   MouseArea {
@@ -266,40 +312,8 @@ Item {
     // together: one click on a stack of five puts five away. A right-click never
     // runs anything; it only dismisses.
     onClicked: function (mouse) {
-      if (mouse.button === Qt.RightButton) {
-        root.dismissCard()
-        return
-      }
-
-      if (root.replay) {
-        if (root.execArgv) Quickshell.execDetached(root.execArgv)
-        else if (root.link !== "") Quickshell.execDetached(["xdg-open", root.link])
-        else NotificationHost.activate(root.notification, "")
-        NotificationHost.dismissReplay(root.notification)
-        return
-      }
-
-      const action = root.defaultAction
-      if (root.execArgv) {
-        Quickshell.execDetached(root.execArgv)
-      } else if (action) {
-        action.invoke()
-      } else {
-        NotificationHost.activate(root.notification, root.link)
-      }
-
-      // Resident means "do not remove me when an action is invoked"; it says
-      // nothing about a plain dismissal click. So a resident notification
-      // survives a protocol action — the action buttons below already honour
-      // that — but the same click with nothing to run still puts it away. An
-      // attached command is data, not a resident sender's action, so it does not
-      // keep the card around.
-      const keepResident = !root.execArgv && action !== null
-      if (root.group.length > 0) {
-        for (const item of root.group) if (!(keepResident && item.resident)) item.dismiss()
-      } else if (root.notification && !(keepResident && root.notification.resident)) {
-        root.notification.dismiss()
-      }
+      if (mouse.button === Qt.RightButton) root.dismissCard()
+      else root.activateCard()
     }
   }
 
@@ -368,6 +382,20 @@ Item {
         width: content.width - Style.space(40) - Style.space(10)
         spacing: Style.space(3)
 
+        // Sender and age sit above the message, where the eye looks for
+        // provenance before reading a title. The width reserves the two hover
+        // buttons so they never sit on top of the text.
+        Text {
+          width: Math.max(0, parent.width - Style.space(44))
+          text: (root.appLabel !== "" ? root.appLabel : "Notification")
+            + (root.ago() !== "" ? "  ·  " + root.ago() : "")
+          textFormat: Text.PlainText
+          color: Theme.muted
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+          elide: Text.ElideRight
+        }
+
         Text {
           width: parent.width
           text: NotificationText.plain(root.summary)
@@ -394,17 +422,6 @@ Item {
             const safe = NotificationText.safeUrl(link)
             if (safe !== "") Quickshell.execDetached(["xdg-open", safe])
           }
-        }
-
-        Text {
-          width: parent.width
-          visible: root.appName !== ""
-          text: root.appLabel + (root.ago() !== "" ? "  ·  " + root.ago() : "")
-          textFormat: Text.PlainText
-          color: Theme.muted
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-          elide: Text.ElideRight
         }
 
         // Code detection and the sender's actions in one row: both are things
@@ -492,6 +509,7 @@ Item {
 
     opacity: hover.hovered || snoozeArea.containsMouse ? 1 : 0
     visible: opacity > 0
+    readonly property bool tooltipHovered: snoozeArea.containsMouse
 
     Behavior on opacity { NumberAnimation { duration: Style.duration(120) } }
 
@@ -515,7 +533,10 @@ Item {
       id: snoozeArea
       anchors.fill: parent
       hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
       onClicked: root.openSnoozeMenu(snoozeButton)
+      onEntered: TooltipHost.show("Snooze " + root.sourceLabel, snoozeButton)
+      onExited: TooltipHost.hide(snoozeButton)
     }
   }
 
@@ -530,6 +551,7 @@ Item {
 
     opacity: hover.hovered || closeArea.containsMouse ? 1 : 0
     visible: opacity > 0
+    readonly property bool tooltipHovered: closeArea.containsMouse
 
     Behavior on opacity {
       NumberAnimation { duration: Style.duration(120) }
@@ -555,7 +577,10 @@ Item {
       id: closeArea
       anchors.fill: parent
       hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
       onClicked: root.dismissCard()
+      onEntered: TooltipHost.show("Dismiss", closeButton)
+      onExited: TooltipHost.hide(closeButton)
     }
   }
 

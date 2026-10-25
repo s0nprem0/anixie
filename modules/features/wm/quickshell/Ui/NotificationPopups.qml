@@ -9,10 +9,19 @@ import ".."
 // empty one leaves no window behind to swallow clicks. The output choice is
 // read from NotificationHost, which the panel can change at runtime.
 Item {
-  // Notification popups. Top right, over everything, and taking no keyboard:
-  // a notification is there to be read, not typed into. Sized to its stack, so
-  // an empty one leaves no window behind to swallow clicks. The output choice is
-  // read from NotificationHost, which the panel can change at runtime.
+  id: root
+
+  // The history panel is narrower than a toast and sits over the same corner.
+  // Leaving the toasts mapped made them peek out from behind it as a sliver;
+  // hide the stack while the panel owns that corner, then let it return.
+  readonly property bool historyOpen: {
+    const panels = PanelHost.openPanels
+    for (let i = 0; i < panels.count; i++) {
+      if (String(panels.get(i).name) === "notifications") return true
+    }
+    return false
+  }
+
   Variants {
     model: NotificationHost.displayMode === "all"
       ? Quickshell.screens
@@ -54,8 +63,9 @@ Item {
         }
         return false
       }
-      visible: NotificationHost.tracked.length > 0 || NotificationHost.replaying
-        || NotificationHost.restoring || !notificationWindow.fullscreenOnOutput
+      visible: !root.historyOpen
+        && (NotificationHost.tracked.length > 0 || NotificationHost.replaying
+          || NotificationHost.restoring || !notificationWindow.fullscreenOnOutput)
 
       // A burst — a mailing list, a chat backlog — should not draw a column taller
       // than the screen with the last cards unreachable. The newest few are shown,
@@ -97,6 +107,7 @@ Item {
             items: modelData.items
             replay: NotificationHost.replaying || modelData.restored === true
             forceExpanded: NotificationHost.replaying || modelData.restored === true
+            paused: root.historyOpen
           }
         }
 

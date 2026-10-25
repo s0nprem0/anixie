@@ -18,11 +18,23 @@ Item {
   Component.onCompleted: NotificationStore.refresh()
 
   readonly property var entries: NotificationStore.entries
+  // What is still on screen. The panel shows these too: opening history hides
+  // the toasts (they overlap this corner), so leaving them out made the panel
+  // say "nothing yet" while three live notifications sat behind it.
+  readonly property var liveEntries: NotificationHost.stacked
+
+  // Dismissing a live card archives it asynchronously. The store's in-memory
+  // entries are a snapshot, so re-read them when the live set changes instead
+  // of leaving the panel blank until it is closed and reopened.
+  onLiveEntriesChanged: NotificationStore.refresh()
+
   // Quiet notifications are written straight to history. The panel lists those
   // under their source instead of mixing them into the closed list.
   readonly property var heldEntries: root.entries.filter(function (entry) { return entry.quiet === true })
   readonly property var activeEntries: root.entries.filter(function (entry) { return entry.quiet !== true })
-  readonly property bool empty: root.activeEntries.length === 0 && root.heldEntries.length === 0
+  readonly property bool empty: root.liveEntries.length === 0
+    && root.activeEntries.length === 0
+    && root.heldEntries.length === 0
 
   function groupBySource(list) {
     const byApp = ({})
@@ -156,7 +168,7 @@ Item {
   // enough for the title and nothing else. Stating the height here removes that
   // dependency. The floor is the card's own measurement, kept so an empty panel
   // still gets its title.
-  readonly property int rowHeight: 62
+  readonly property int rowHeight: Style.space(62)
   readonly property int groupHeaderHeight: Style.space(24)
 
   implicitWidth: Style.space(340)
@@ -197,10 +209,45 @@ Item {
       title: "Notifications"
       subtitle: {
         const parts = []
+        if (root.liveEntries.length > 0) parts.push(root.liveEntries.length + " live")
         if (root.activeEntries.length > 0) parts.push(root.activeEntries.length + (root.activeEntries.length === 1 ? " entry" : " entries"))
         if (root.heldEntries.length > 0) parts.push(root.heldEntries.length + " held")
         if (root.quietSources.length > 0) parts.push(root.quietSources.length + " quiet")
         return parts.join("  ·  ")
+      }
+    }
+
+    // The same cards the popup uses, so the panel is the whole notification
+    // surface: what is live, then what was missed. Closing a card here updates
+    // both views through NotificationHost.
+    PanelSeparator {
+      visible: root.liveEntries.length > 0
+    }
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      visible: root.liveEntries.length > 0
+      label: "Live"
+    }
+
+    Column {
+      width: card.contentWidth
+      visible: root.liveEntries.length > 0
+      spacing: Style.space(6)
+      bottomPadding: Style.space(4)
+
+      Repeater {
+        model: root.liveEntries
+
+        delegate: NotificationCard {
+          required property var modelData
+
+          width: parent.width
+          height: implicitHeight
+          notification: modelData
+          group: [modelData]
+          autoExpire: false
+        }
       }
     }
 
@@ -301,8 +348,9 @@ Item {
               id: groupSnooze
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
-              width: Style.space(20)
-              height: Style.space(20)
+              width: Style.space(24)
+              height: Style.space(24)
+              anchors.rightMargin: Style.space(2)
               text: Util.clock
               color: groupSnoozeArea.containsMouse ? Theme.fg : Theme.muted
               font.family: Style.font.family
@@ -311,11 +359,20 @@ Item {
               verticalAlignment: Text.AlignVCenter
               renderType: Text.NativeRendering
 
+              readonly property bool panelFocusable: true
+              readonly property bool tooltipHovered: groupSnoozeArea.containsMouse
+              function activate() { root.openSnoozeMenu(groupDelegate.modelData, groupSnooze) }
+              function keyStep(direction) { return false }
+
               MouseArea {
                 id: groupSnoozeArea
                 anchors.fill: parent
                 hoverEnabled: true
-                onClicked: root.openSnoozeMenu(groupDelegate.modelData, groupSnooze)
+                cursorShape: Qt.PointingHandCursor
+                onClicked: groupSnooze.activate()
+                onEntered: TooltipHost.show(
+                  "Snooze " + root.sourceLabel(groupDelegate.modelData.app), groupSnooze)
+                onExited: TooltipHost.hide(groupSnooze)
               }
             }
           }
@@ -330,6 +387,16 @@ Item {
 
               width: parent.width
               height: root.rowHeight
+
+              // History rows are the panel's main content, so they are a
+              // keyboard stop too: arrows reach them and Return opens the same
+              // replay the pointer does.
+              readonly property bool panelFocusable: true
+              function activate() {
+                NotificationHost.replayEntry(row.modelData)
+                PanelHost.closeFocused()
+              }
+              function keyStep(direction) { return false }
 
               Rectangle {
                 anchors.fill: parent
@@ -351,7 +418,7 @@ Item {
                   spacing: Style.space(6)
 
                   Text {
-                    width: Math.max(0, parent.width - timeText.implicitWidth - Style.space(6))
+                    width: Math.max(0, parent.width - timeText.width - Style.space(6))
                     // Explicit, like every other row in this repo: a Column positions
                     // its children by their height rather than their implicit height,
                     // and Text leaves `height` at 0 unless it is stated.
@@ -368,12 +435,17 @@ Item {
                   Text {
                     id: timeText
 
+                    // The row is fixed width, and "3m ago · expired" grew past
+                    // the panel's padding. Cap the age and elide it rather than
+                    // letting it be clipped by the card edge.
+                    width: Math.min(implicitWidth, parent.width * 0.45)
                     height: implicitHeight
+                    horizontalAlignment: Text.AlignRight
                     text: root.ago(row.modelData.timestamp)
-                      + (row.modelData.closedReason ? " · " + row.modelData.closedReason : "")
                     color: Theme.muted
                     font.family: Style.font.family
                     font.pixelSize: Style.font.caption
+                    elide: Text.ElideRight
                   }
                 }
 
@@ -408,10 +480,7 @@ Item {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                  NotificationHost.replayEntry(row.modelData)
-                  PanelHost.closeFocused()
-                }
+                onClicked: row.activate()
               }
             }
           }
@@ -479,8 +548,9 @@ Item {
               id: heldSnooze
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
-              width: Style.space(20)
-              height: Style.space(20)
+              width: Style.space(24)
+              height: Style.space(24)
+              anchors.rightMargin: Style.space(2)
               text: Util.clock
               color: heldSnoozeArea.containsMouse ? Theme.fg : Theme.muted
               font.family: Style.font.family
@@ -489,11 +559,20 @@ Item {
               verticalAlignment: Text.AlignVCenter
               renderType: Text.NativeRendering
 
+              readonly property bool panelFocusable: true
+              readonly property bool tooltipHovered: heldSnoozeArea.containsMouse
+              function activate() { root.openSnoozeMenu(heldDelegate.modelData, heldSnooze) }
+              function keyStep(direction) { return false }
+
               MouseArea {
                 id: heldSnoozeArea
                 anchors.fill: parent
                 hoverEnabled: true
-                onClicked: root.openSnoozeMenu(heldDelegate.modelData, heldSnooze)
+                cursorShape: Qt.PointingHandCursor
+                onClicked: heldSnooze.activate()
+                onEntered: TooltipHost.show(
+                  "Snooze " + root.sourceLabel(heldDelegate.modelData.app), heldSnooze)
+                onExited: TooltipHost.hide(heldSnooze)
               }
             }
           }
@@ -645,12 +724,23 @@ Item {
       onClicked: root.openSnoozeMenu({ key: "*" }, snoozeAll)
     }
 
+    // Live cards are already here, but this is the one action that clears a
+    // burst without closing each card.
+    PanelActionButton {
+      width: card.contentWidth
+      visible: root.liveEntries.length > 0
+      height: implicitHeight
+      label: "Dismiss live"
+      navigational: false
+      onClicked: NotificationHost.dismissAll()
+    }
+
     // Replay the newest entries in the same cards used for live notifications.
     // The popup is a separate window, so close the panel first rather than
     // leaving it covering the desktop underneath the replay.
     PanelActionButton {
       width: card.contentWidth
-      visible: !root.empty
+      visible: root.activeEntries.length > 0
       height: implicitHeight
       label: "Replay last 10"
       navigational: false
@@ -660,10 +750,11 @@ Item {
       }
     }
 
-    // Only offered when there is something to clear.
+    // Only offered when there is history to clear; live cards are not archived
+    // until they are dismissed.
     PanelActionButton {
       width: card.contentWidth
-      visible: !root.empty
+      visible: root.activeEntries.length > 0 || root.heldEntries.length > 0
       height: implicitHeight
       label: "Clear history"
       navigational: false
