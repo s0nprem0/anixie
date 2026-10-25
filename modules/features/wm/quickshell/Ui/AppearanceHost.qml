@@ -3,7 +3,6 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../panels"
 
 QtObject {
   id: root
@@ -69,15 +68,25 @@ QtObject {
     return rows
   }
 
-  readonly property Component panel: Component {
-    Appearance {}
+  property var panelComponent: null
+
+  function panelBuilder() {
+    if (root.panelComponent === null) {
+      root.panelComponent = Qt.createComponent(Qt.resolvedUrl("../panels/Appearance.qml"))
+    }
+    return root.panelComponent
   }
 
   function open() {
     const anchor = PanelHost.focusedBar
     if (!anchor) return
+    const component = root.panelBuilder()
+    if (!component || component.status !== Component.Ready) {
+      root.lastError = component && component.errorString ? component.errorString() : "The appearance panel could not load"
+      return
+    }
     root.refresh()
-    PanelHost.toggleNamed("appearance", anchor, root.panel)
+    PanelHost.toggleNamed("appearance", anchor, component)
   }
 
   function toggle() {
