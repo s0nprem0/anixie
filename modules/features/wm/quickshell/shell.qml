@@ -28,6 +28,7 @@ ShellRoot {
   ShellOverlays {}
   NotificationPopups {}
   PickerLayer {}
+  ClipboardLayer {}
   ShellIpc {}
   ShellShortcuts {}
 }

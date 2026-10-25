@@ -313,6 +313,19 @@ Item {
     function open(path: string): string { return PickHost.open(path) }
   }
 
+  // The clipboard window. The `clipboard` command opens this; keeping the entry
+  // point here means the window itself stays a view and does not need its own
+  // IPC object.
+  IpcHandler {
+    target: "clipboard"
+
+    function open(): string {
+      ClipboardHost.open()
+      return "ok"
+    }
+    function close(): void { ClipboardHost.dismiss() }
+  }
+
   // The menu, for scripts and for checking it without a picker on screen.
   // `open` and `only` rather than one function with an optional group, because
   // `ipc call` passes every argument a function declares.

@@ -27,6 +27,7 @@ NotificationPopups 1.0 NotificationPopups.qml
 ShellLayers 1.0 ShellLayers.qml
 ShellOverlays 1.0 ShellOverlays.qml
 PickerLayer 1.0 PickerLayer.qml
+ClipboardLayer 1.0 ClipboardLayer.qml
 ShellIpc 1.0 ShellIpc.qml
 ShellShortcuts 1.0 ShellShortcuts.qml
 singleton PolkitHost 1.0 PolkitHost.qml
@@ -41,10 +42,12 @@ singleton PanelRegistry 1.0 PanelRegistry.qml
 singleton WorkspacesHost 1.0 WorkspacesHost.qml
 singleton DockHost 1.0 DockHost.qml
 singleton PickHost 1.0 PickHost.qml
+singleton ClipboardHost 1.0 ClipboardHost.qml
 singleton MenuHost 1.0 MenuHost.qml
 singleton MediaHost 1.0 MediaHost.qml
 singleton RecorderHost 1.0 RecorderHost.qml
 Picker 1.0 Picker.qml
+Clipboard 1.0 Clipboard.qml
 PickRow 1.0 PickRow.qml
 BarWidget 1.0 BarWidget.qml
 WidgetButton 1.0 WidgetButton.qml

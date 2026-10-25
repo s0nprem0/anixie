@@ -11,8 +11,8 @@ let
   mkScript = import ../../cli/scripts.nix { inherit pkgs; };
 
   # cliphist keeps the history and is fed by the compositor's clipboard watchers
-  # (see hyprland/config/70-startup.lua); this is only the picking of one entry
-  # back out.
+  # (see hyprland/config/70-startup.lua); the command is both the shell's way in
+  # and the popup's decode/copy/delete helper.
   clipboard = mkScript {
     name = "clipboard";
     file = ./clipboard.sh;
@@ -20,6 +20,7 @@ let
       "@CLIPHIST@" = "${pkgs.cliphist}/bin/cliphist";
       "@WL_COPY@" = "${pkgs.wl-clipboard}/bin/wl-copy";
       "@FILE@" = "${pkgs.file}/bin/file";
+      "@QUICKSHELL@" = "${pkgs.quickshell}/bin/quickshell";
       "@ANIXIE_LIB@" = "${../../cli/lib.sh}";
     };
   };
@@ -41,7 +42,7 @@ in
   options.anixie.wm.clipboard.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
-    description = "Whether to install the clipboard picker over cliphist.";
+    description = "Whether to install the clipboard popup over cliphist.";
   };
 
   config = lib.mkIf cfg.enable {

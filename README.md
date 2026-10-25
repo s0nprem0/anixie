@@ -304,6 +304,11 @@ anixie webapp add NAME URL          # a site as an application
 OCR is `capture-text` (`Super+Ctrl+Print`): drag a region, the text is on the
 clipboard.
 
+`Super+Ctrl+V` opens the clipboard history as a list with a preview beside it:
+images as thumbnails, text with character/line/word counts, and file paths with
+`go to location`. `Delete` removes the selected entry, `clear all` wipes the
+history, and Return or a click copies. The history itself is cliphist's.
+
 `shot scroll` selects a region, pages down with Page Down, and stitches the
 frames, stopping when the view stops moving. `shot smart redact` opens satty
 with the blur tool, and `shot smart text` with the text tool.

@@ -44,7 +44,7 @@ wifi|wifi||band dns password qr|Wi-Fi: band, DNS, password, QR
 audio|audio-output|audio-output|set switch|audio output: set, switch
 shot|shot|screenshot|smart region windows fullscreen window scroll copy save annotate preview redact text|screenshots: smart, region, windows, fullscreen
 record|record||--status --stop --fullscreen --audio --webcam-device --webcam-size|screen recording
-clipboard|clipboard||--copy|clipboard history picker
+clipboard|clipboard||--copy|clipboard history popup
 emoji|emoji|||emoji picker
 menu|menu||apps --list --only|application and action menu
 webapp|webapp||add list remove|websites as applications: add, list, remove
