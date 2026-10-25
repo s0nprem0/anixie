@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import ".."
 import "Jsonc.js" as Jsonc
 import "Suggest.js" as Suggest
@@ -39,6 +40,13 @@ import "Suggest.js" as Suggest
 // An entry's `list`, `state` and `when` name one of the sources below rather
 // than a command, because the answer is here and asking a process for it is what
 // this replaced.
+//
+// The root of the menu is also the launcher, so it carries the reference's
+// shape: tabs for all/apps/web/files, a "most used" section built from launches
+// this shell counted, two columns for an application's name and command, and the
+// compositor's open windows above them as live thumbnails. The tabs are filters
+// on the same list — "all" is the menu that was here before — rather than four
+// separate surfaces to keep in step.
 QtObject {
   id: root
 
@@ -190,9 +198,174 @@ QtObject {
   // its first open would open with no applications in it.
   function warm() {
     root.reloadExtension()
+    root.reloadUsage()
     if (!root.tree) root.tree = root.parseTree()
     return root.apps.length
   }
+
+  // ---- the tab strip ----
+  //
+  // The menu's root is the launcher: all, apps, web, files. "all" is the menu
+  // that was here before the tabs, and stays the default so a command or a theme
+  // is still one query away rather than one tab away. "apps" is the reference's
+  // app launcher; web and files are the two dynamic searches the menu already
+  // knew how to do, now reachable without knowing the old punctuation.
+  readonly property var tabNames: ["all", "apps", "web", "files"]
+  property int tab: 0
+
+  // What each tab says while it is empty. The web and files tabs have no list
+  // until something is typed, so this is what the space is for.
+  readonly property var tabMeta: [
+    { placeholder: "Search apps, commands and files…", hint: "Type to search applications" },
+    { placeholder: "Search applications…", hint: "Type to search applications" },
+    { placeholder: "Search the web…", hint: "Type to search the web" },
+    { placeholder: "Search files…", hint: "Type to search files" }
+  ]
+
+  function selectTab(index) {
+    const tab = Math.max(0, Math.min(root.tabNames.length - 1, Number(index)))
+    const meta = root.tabMeta[tab]
+
+    root.tab = tab
+    root.clearDynamic()
+    PickHost.tabView(tab, root.tabEntries(tab), tab !== 1, meta.placeholder, meta.hint)
+  }
+
+  // ---- most used ----
+  //
+  // One entry per desktop id, counting launches rather than opens. The file is
+  // small and only this file writes it; the empty answer is a plain object so
+  // the sort below does not need a second path.
+  readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME")
+    || Quickshell.env("HOME") + "/.local/state") + "/anixie"
+  readonly property string usagePath: root.stateDir + "/app-usage.json"
+
+  property var usage: ({})
+  property bool usageDirty: false
+
+  // One write for a burst of launches rather than one process each: two
+  // commands racing to replace the same file would leave it holding whichever
+  // finished last, which is not necessarily the newest state.
+  property Timer usageWrite: Timer {
+    interval: 200
+    onTriggered: root.flushUsage()
+  }
+
+  function flushUsage() {
+    if (!root.usageDirty) return
+    root.usageDirty = false
+
+    // Written through the shell rather than a FileView: the directory may not
+    // exist on a fresh account, and one command can make it and write in the
+    // same breath. The contents are this shell's own ids and numbers, so the
+    // quoting is belt and braces rather than a need.
+    Commands.run("mkdir -p " + Util.shellQuote(root.stateDir)
+      + " && printf '%s' " + Util.shellQuote(JSON.stringify(root.usage))
+      + " > " + Util.shellQuote(root.usagePath))
+  }
+
+  property FileView usageFile: FileView {
+    path: Qt.resolvedUrl(root.usagePath)
+    printErrors: false
+    blockLoading: true
+    blockAllReads: true
+    onLoaded: root.usage = root.parseUsage(root.usageFile.text())
+  }
+
+  function parseUsage(text) {
+    const raw = String(text || "").trim()
+    if (raw === "") return {}
+
+    try {
+      const parsed = JSON.parse(raw)
+      return parsed && typeof parsed === "object" ? parsed : {}
+    } catch (error) {
+      console.warn("menu: could not read the usage file: " + error)
+      return {}
+    }
+  }
+
+  function reloadUsage() {
+    try {
+      root.usageFile.reload()
+      root.usage = root.parseUsage(root.usageFile.text())
+    } catch (error) {
+      root.usage = {}
+    }
+  }
+
+  function recordLaunch(entry) {
+    if (!entry || entry.id === "") return
+
+    const next = root.clone(root.usage)
+    const previous = next[entry.id] || { count: 0, last: 0 }
+    next[entry.id] = {
+      count: Number(previous.count || 0) + 1,
+      last: Date.now()
+    }
+    root.usage = next
+    root.usageDirty = true
+    root.usageWrite.restart()
+  }
+
+  // The most-launched applications that are still installed. Reading the ids
+  // back through DesktopEntries drops an entry that has been uninstalled rather
+  // than leaving a row that cannot launch anything.
+  function usageRows() {
+    const rows = []
+    for (const id in root.usage) {
+      const entry = DesktopEntries.byId(id)
+      const data = root.usage[id] || {}
+      if (!entry || entry.noDisplay || entry.name === "") continue
+      rows.push({ entry: entry, count: Number(data.count || 0), last: Number(data.last || 0) })
+    }
+
+    rows.sort(function (a, b) {
+      if (a.count !== b.count) return b.count - a.count
+      if (a.last !== b.last) return b.last - a.last
+      return a.entry.name.localeCompare(b.entry.name, undefined, { sensitivity: "base" })
+    })
+
+    return rows.slice(0, 5).map(function (item) {
+      return root.appRow(item.entry)
+    })
+  }
+
+  function appRow(entry) {
+    return {
+      label: entry.name,
+      group: "",
+      icon: entry.icon,
+      detail: String(entry.execString || ""),
+      match: root.appMatch(entry),
+      app: entry
+    }
+  }
+
+  function appRows() {
+    return root.apps.map(function (entry) { return root.appRow(entry) })
+  }
+
+  // The rows one tab shows. Web and files start empty because their rows are
+  // made from the query; the other two begin with the usage section, then the
+  // full list — the reference repeats the most-used entries below the heading
+  // rather than removing them from where they would be found anyway.
+  function tabEntries(tab) {
+    if (tab === 2 || tab === 3) return []
+
+    const body = tab === 1 ? root.appRows() : root.rows()
+    const used = root.usageRows()
+    if (used.length === 0) return body
+
+    return [{ label: "most used", header: true }]
+      .concat(used)
+      .concat(body)
+  }
+
+  // The live windows above the tabs, as the reference shows them when the query
+  // is empty. ToplevelManager is the compositor's own list, so a window that
+  // opened or closed while the menu was up is not a stale row.
+  readonly property var windows: ToplevelManager.toplevels.values || []
 
   // Words an application can be found by that are not in its name: "browser"
   // for Firefox, "editor" for an app called Helix. Kept off the row itself —
@@ -209,9 +382,7 @@ QtObject {
   function listOf(source) {
     switch (source) {
     case "apps":
-      return root.apps.map(function (entry) {
-        return { label: entry.name, icon: entry.icon, app: entry, match: root.appMatch(entry) }
-      })
+      return root.appRows()
     case "themes":
       return Theme.names().map(function (name) {
         return {
@@ -324,6 +495,7 @@ QtObject {
               group: childGroup,
               icon: child.icon,
               state: child.state !== undefined ? String(child.state) : "",
+              detail: child.detail !== undefined ? String(child.detail) : "",
               match: child.match !== undefined ? String(child.match) : "",
               app: child.app,
               run: template.split("{}").join(Util.shellQuote(child.label))
@@ -342,7 +514,7 @@ QtObject {
             label: node.label,
             group: group,
             icon: entry.icon,
-            state: "",
+            detail: String(entry.execString || ""),
             match: root.appMatch(entry),
             app: entry,
             run: ""
@@ -382,22 +554,26 @@ QtObject {
     root.reloadExtension()
 
     const group = String(only || "")
-    const entries = root.shown(group)
+    const entries = group === "" ? root.tabEntries(0) : root.shown(group)
     if (entries.length === 0) {
       console.warn("menu: nothing to show" + (group ? " under \"" + group + "\"" : ""))
       return
     }
 
     root.clearDynamic()
+    root.tab = 0
 
     PickHost.present({
       // The full menu opens on a search prompt rather than a redundant "menu"
       // heading; a group's own name stays as the title because that is what the
       // filtered list is.
       title: group,
-      placeholder: group !== "" ? "Type to filter…" : "Search apps, commands and files…",
+      placeholder: group !== "" ? "Type to filter…" : root.tabMeta[0].placeholder,
       grouped: true,
       dynamic: group === "",
+      tabs: group === "",
+      tab: 0,
+      tabHint: group === "" ? root.tabMeta[0].hint : "",
       entries: entries
     })
   }
@@ -445,7 +621,10 @@ QtObject {
     const lead = []
     const tail = []
 
-    const calc = Suggest.calculator(q)
+    // The tab is the filter: the calculator belongs to the full menu, the two
+    // web answers to the full menu and the web tab, and the files tab gets only
+    // files. A URL is not a file and a sum is not a web search.
+    const calc = root.tab === 0 ? Suggest.calculator(q) : null
     if (calc) {
       lead.push({
         label: "= " + calc.text,
@@ -457,7 +636,7 @@ QtObject {
       })
     }
 
-    const url = Suggest.urlFor(q)
+    const url = root.tab === 0 || root.tab === 2 ? Suggest.urlFor(q) : null
     if (url) {
       lead.push({
         label: "Open " + url,
@@ -467,7 +646,7 @@ QtObject {
         match: q,
         run: "xdg-open " + Util.shellQuote(url)
       })
-    } else if (q.trim() !== "") {
+    } else if (q.trim() !== "" && (root.tab === 0 || root.tab === 2)) {
       // Last among the suggestions: an app called "notes" should come before a
       // web search for "notes", but a query with no app match should still
       // have somewhere to go.
@@ -491,7 +670,8 @@ QtObject {
     root.dynamicLead = quick.lead
     root.dynamicTail = quick.tail
 
-    if (q.trim() === "" || !Suggest.shouldSearchFiles(q)) {
+    const wantsFiles = root.tab === 0 || root.tab === 3
+    if (!wantsFiles || q.trim() === "" || !Suggest.shouldSearchFiles(q)) {
       if (root.fileSearch.running) root.fileSearch.running = false
       root.fileQuery = ""
       return
@@ -579,6 +759,7 @@ QtObject {
   // compositor's cgroup.
   function launch(entry) {
     if (!entry) return
+    root.recordLaunch(entry)
     const command = entry.runInTerminal
       ? [root.terminal, "-e"].concat(entry.command)
       : entry.command

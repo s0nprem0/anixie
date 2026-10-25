@@ -148,6 +148,14 @@ order, it offers arithmetic (`2+3*4` → a copyable `= 14`), a URL to open
 under your home directory, and finally a web search. The extra rows are only
 in the full menu; a theme or audio picker stays a fixed list.
 
+`Tab` switches between `all`, `apps`, `web` and `files`; `all` is the menu
+described above, so a command or theme stays one query away. The app tabs show
+a `most used` section built from launches this shell has counted (kept in
+`$XDG_STATE_HOME/anixie/app-usage.json`), and the open windows as live
+thumbnails while the query is empty — `Shift+↑`/`Shift+↓` walks them and Return
+focuses one. A web or files query is the same suggestion machinery as the full
+menu, narrowed to that tab.
+
 ## Panels
 
 One per widget, opening under it. A screen shows one panel at a time: opening

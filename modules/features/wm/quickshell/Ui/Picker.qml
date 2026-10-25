@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Wayland
 import ".."
 
 // The picker's contents: a search field, the list, and a hint row.
@@ -10,7 +11,13 @@ import ".."
 //
 // Everything is drawn from PickHost, which is where the entries, the filter and
 // the selection live. This file is the view of that and holds no state of its
-// own beyond the field's text, which it pushes into the host on every keystroke.
+// own beyond the field's text, which it pushes into the host on every keystroke,
+// and the window the Shift+arrows are on, which is the one list PickHost does
+// not own.
+//
+// The launcher adds three things to the card: the open windows as live
+// thumbnails, a tab strip, and section rows that are drawn but cannot be chosen.
+// Every other picker is still the search field and one list.
 //
 // Two things about the shape are deliberate. The card is sized once per request
 // — from the entries the caller sent, not from what is left of them once the
@@ -34,6 +41,51 @@ Item {
   // The height of one row, in one place: the list's area and the rows themselves
   // both draw from it.
   readonly property int rowHeight: Style.space(32)
+
+  // The live windows above the tabs. Only the launcher has them, only while the
+  // query is empty — once something is typed the list is the answer and a strip
+  // of pictures above it is in the way — and only on the tabs whose content is
+  // applications.
+  readonly property bool windowsVisible: PickHost.tabs && PickHost.tab <= 1
+    && PickHost.query === "" && MenuHost.windows.length > 0
+
+  // Which window the Shift+arrows are on; -1 is the list. Kept apart from
+  // PickHost.selected because the two lists can both be on screen.
+  property int windowIndex: -1
+
+  function moveWindow(delta) {
+    const count = MenuHost.windows.length
+    if (!root.windowsVisible || count === 0) return
+
+    let next = root.windowIndex + delta
+    if (next >= count) next = -1
+    if (next < -1) next = count - 1
+    root.windowIndex = next
+  }
+
+  function activateWindow() {
+    if (root.windowIndex < 0) return false
+    const window = MenuHost.windows[root.windowIndex]
+    if (!window) return false
+
+    window.activate()
+    PickHost.dismiss()
+    return true
+  }
+
+  // What the footer counts. The launcher counts applications the way the
+  // reference does — a total while the list is whole, a slice while a query is
+  // narrowing it — while every other picker keeps the old chosen-of-sent form.
+  readonly property bool countVisible: PickHost.tabs
+    ? (PickHost.tab <= 1 || PickHost.query !== "")
+    : (!PickHost.isInput && PickHost.query !== "")
+
+  readonly property string countLabel: {
+    if (!PickHost.tabs) return PickHost.results.length + " / " + PickHost.entries.length
+    if (PickHost.query === "" && PickHost.tab <= 1) return MenuHost.apps.length + " applications found"
+    if (PickHost.tab === 1) return PickHost.results.length + " of " + MenuHost.apps.length
+    return PickHost.results.length + (PickHost.results.length === 1 ? " result" : " results")
+  }
 
   // The dim behind everything, then the curtain, and only then the card.
   //
@@ -146,7 +198,10 @@ Item {
           clip: true
 
           text: PickHost.query
-          onTextChanged: PickHost.setQuery(text)
+          onTextChanged: {
+            root.windowIndex = -1
+            PickHost.setQuery(text)
+          }
 
           // Returned to on every keystroke, so the selection is always visible
           // even after a long search moved it off the first row.
@@ -161,6 +216,10 @@ Item {
             const key = event.key
 
             if (key === Qt.Key_Return || key === Qt.Key_Enter) {
+              if (root.windowIndex >= 0 && root.activateWindow()) {
+                event.accepted = true
+                return
+              }
               PickHost.accept()
               event.accepted = true
               return
@@ -172,16 +231,27 @@ Item {
               return
             }
 
+            // Shift and the up/down keys walk the live windows; the plain keys
+            // walk the list. Two lists on one surface need two gestures, and
+            // Shift is what the reference uses for the window strip.
+            if ((key === Qt.Key_Down || key === Qt.Key_Up) && (event.modifiers & Qt.ShiftModifier)) {
+              root.moveWindow(key === Qt.Key_Down ? 1 : -1)
+              event.accepted = true
+              return
+            }
+
             // Up and down are the list's, not the field's: a picker is navigated
             // with the same keys whatever is in the field, so they must not move
             // a caret through the query.
             if (key === Qt.Key_Down || (key === Qt.Key_N && (event.modifiers & Qt.ControlModifier))) {
+              root.windowIndex = -1
               PickHost.move(1)
               event.accepted = true
               return
             }
 
             if (key === Qt.Key_Up || (key === Qt.Key_P && (event.modifiers & Qt.ControlModifier))) {
+              root.windowIndex = -1
               PickHost.move(-1)
               event.accepted = true
               return
@@ -211,11 +281,18 @@ Item {
               return
             }
 
-            // Tab walks the list rather than moving focus: there is nothing
-            // else on this surface to focus, and a Tab that does nothing reads
-            // as a broken one.
-            if (key === Qt.Key_Tab) {
-              PickHost.move(event.modifiers & Qt.ShiftModifier ? -1 : 1)
+            // Tab switches tabs in the menu, where the strip is the thing above
+            // the list and the arrows already move through the list. Everywhere
+            // else it walks the list: there is nothing else on the surface to
+            // focus, and a Tab that does nothing reads as a broken one.
+            if (key === Qt.Key_Tab || key === Qt.Key_Backtab) {
+              if (PickHost.tabs) {
+                const backward = key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier)
+                const next = (PickHost.tab + (backward ? -1 : 1) + PickHost.tabCount) % PickHost.tabCount
+                MenuHost.selectTab(next)
+              } else {
+                PickHost.move((key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier)) ? -1 : 1)
+              }
               event.accepted = true
               return
             }
@@ -235,6 +312,142 @@ Item {
         }
       }
 
+      // Live windows, as pictures rather than titles: what the reference puts
+      // above its tabs, and the only way to tell two terminals apart at a
+      // glance. Shift and the arrows choose one; a click does the same.
+      Item {
+        id: windowStrip
+
+        width: parent.width
+        height: root.windowsVisible ? Style.space(44) : 0
+        visible: root.windowsVisible
+        clip: true
+
+        ListView {
+          anchors.fill: parent
+          anchors.leftMargin: Style.space(16)
+          anchors.rightMargin: Style.space(16)
+          orientation: ListView.Horizontal
+          spacing: Style.space(6)
+          clip: true
+          boundsBehavior: Flickable.StopAtBounds
+          model: MenuHost.windows
+
+          delegate: Rectangle {
+            required property int index
+            required property var modelData
+
+            readonly property bool chosen: root.windowIndex === index
+            readonly property string iconSource:
+              Quickshell.iconPath(String(modelData.appId || ""), true)
+
+            width: Style.space(44)
+            height: Style.space(34)
+            y: (ListView.view.height - height) / 2
+            radius: Theme.cornerRadius
+            color: Theme.bg
+            clip: true
+            border.width: Style.strokeWidth
+            border.color: chosen
+              ? Theme.primary
+              : (windowMouse.containsMouse ? Theme.borderStrong : Theme.border)
+
+            ScreencopyView {
+              anchors.fill: parent
+              anchors.margins: Style.strokeWidth
+              captureSource: modelData
+              live: windowStrip.visible
+              paintCursor: false
+            }
+
+            // The application's own mark, in the corner, so two windows of the
+            // same shape are still distinguishable when the screenshots are.
+            Rectangle {
+              visible: iconSource !== ""
+              width: Style.space(12)
+              height: width
+              anchors.left: parent.left
+              anchors.bottom: parent.bottom
+              anchors.margins: Style.space(2)
+              color: Theme.surface
+              opacity: 0.9
+
+              Image {
+                anchors.fill: parent
+                anchors.margins: 1
+                source: iconSource
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+              }
+            }
+
+            MouseArea {
+              id: windowMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: {
+                modelData.activate()
+                PickHost.dismiss()
+              }
+            }
+          }
+        }
+      }
+
+      // The tabs: the reference's apps/web/files, plus "all" so the commands
+      // and themes this menu existed for are still one click away.
+      Item {
+        id: tabStrip
+
+        width: parent.width
+        height: PickHost.tabs ? Style.space(28) : 0
+        visible: PickHost.tabs
+
+        Row {
+          anchors.centerIn: parent
+          spacing: 0
+
+          Repeater {
+            model: MenuHost.tabNames
+
+            delegate: Row {
+              required property int index
+              required property string modelData
+
+              spacing: Style.space(8)
+
+              Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: parent.modelData
+                color: PickHost.tab === index ? Theme.accent : Theme.muted
+                font.family: Style.font.family
+                font.pixelSize: Style.font.body
+                font.weight: PickHost.tab === index ? Font.DemiBold : Font.Normal
+                renderType: Text.NativeRendering
+
+                MouseArea {
+                  anchors.fill: parent
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: MenuHost.selectTab(index)
+                }
+              }
+
+              Text {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: index < MenuHost.tabNames.length - 1
+                text: "|"
+                color: Theme.muted
+                opacity: 0.4
+                font.family: Style.font.family
+                font.pixelSize: Style.font.body
+                renderType: Text.NativeRendering
+              }
+            }
+          }
+        }
+      }
+
       // The list's area, held open at a height of its own — taken from the
       // entries the caller sent rather than from the results — so that typing
       // narrows what is listed inside a card that keeps its size. Sized to the
@@ -249,8 +462,13 @@ Item {
         height: PickHost.isInput
           ? 0
           // At least one row even for an empty request, so that the note saying
-          // so has somewhere to be drawn.
-          : Math.max(1, Math.min(PickHost.entries.length, PickHost.maxVisible)) * root.rowHeight
+          // so has somewhere to be drawn. The entries set the size where there
+          // are any — typing narrows the list inside a card that keeps its
+          // shape — while a tab whose rows come from the query (web, files) is
+          // as tall as what that query returned.
+          : Math.max(1, Math.min(
+              Math.max(PickHost.entries.length, PickHost.results.length),
+              PickHost.maxVisible)) * root.rowHeight
 
         ListView {
           id: list
@@ -289,16 +507,41 @@ Item {
             required property int index
             required property var modelData
 
+            readonly property var row: rowHolder.modelData.row
+            readonly property bool isHeader: row && row.header === true
+
             width: list.width
             height: root.rowHeight
 
+            // Section labels are rows like any other here, so the list's height
+            // and its scrolling stay a single row grid. They are not choices —
+            // PickHost walks past them — but they are what separates "most
+            // used" from the rest without a second list.
+            Text {
+              visible: rowHolder.isHeader
+              anchors.fill: parent
+              anchors.leftMargin: Style.space(12)
+              text: rowHolder.row && rowHolder.row.label !== undefined
+                ? String(rowHolder.row.label)
+                : ""
+              color: Theme.muted
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              font.weight: Font.DemiBold
+              verticalAlignment: Text.AlignVCenter
+              renderType: Text.NativeRendering
+              elide: Text.ElideRight
+            }
+
             PickRow {
               anchors.fill: parent
-              label: rowHolder.modelData.row.label !== undefined ? String(rowHolder.modelData.row.label) : ""
+              visible: !rowHolder.isHeader
+              label: rowHolder.row && rowHolder.row.label !== undefined ? String(rowHolder.row.label) : ""
               group: PickHost.groupOf(rowHolder.index)
-              state: rowHolder.modelData.row.state !== undefined ? String(rowHolder.modelData.row.state) : ""
-              icon: rowHolder.modelData.row.icon !== undefined ? String(rowHolder.modelData.row.icon) : ""
-              preview: rowHolder.modelData.row.preview !== undefined ? String(rowHolder.modelData.row.preview) : ""
+              state: rowHolder.row && rowHolder.row.state !== undefined ? String(rowHolder.row.state) : ""
+              detail: rowHolder.row && rowHolder.row.detail !== undefined ? String(rowHolder.row.detail) : ""
+              icon: rowHolder.row && rowHolder.row.icon !== undefined ? String(rowHolder.row.icon) : ""
+              preview: rowHolder.row && rowHolder.row.preview !== undefined ? String(rowHolder.row.preview) : ""
               positions: rowHolder.modelData.positions
               selected: rowHolder.index === PickHost.selected
             }
@@ -309,8 +552,9 @@ Item {
             // leaving the keyboard on the top result. A click still chooses.
             MouseArea {
               anchors.fill: parent
+              enabled: !rowHolder.isHeader
               hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
+              cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
               onClicked: {
                 PickHost.selected = rowHolder.index
                 PickHost.accept()
@@ -330,7 +574,7 @@ Item {
           anchors.fill: parent
           text: PickHost.query !== ""
             ? "Nothing matches \u201c" + PickHost.query + "\u201d"
-            : "Nothing to show"
+            : (PickHost.tabs && PickHost.tabHint !== "" ? PickHost.tabHint : "Nothing to show")
           color: Theme.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.body
@@ -359,7 +603,11 @@ Item {
 
         Text {
           anchors.centerIn: parent
-          text: PickHost.isInput ? "↵ to accept · esc to dismiss" : "↑↓ to choose · ↵ to run · esc to dismiss"
+          text: PickHost.isInput
+            ? "↵ to accept · esc to dismiss"
+            : (PickHost.tabs
+              ? "tab switches · ↑↓ to choose · ↵ to run · esc to dismiss"
+              : "↑↓ to choose · ↵ to run · esc to dismiss")
           color: Theme.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
@@ -367,18 +615,19 @@ Item {
         }
 
         // How many of how many, once a query is narrowing the list and the
-        // number is the thing being watched. Absent on an unfiltered menu, where
-        // it would only count the list you can already see.
+        // number is the thing being watched. The launcher instead names the
+        // size of the application set, which is the reference's footer.
         Text {
           anchors.right: parent.right
           anchors.rightMargin: Style.space(16)
           anchors.verticalCenter: parent.verticalCenter
 
-          visible: !PickHost.isInput && PickHost.query !== ""
-          text: PickHost.results.length + " / " + PickHost.entries.length
+          visible: root.countVisible
+          text: root.countLabel
           color: Theme.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
+          font.italic: PickHost.tabs
           renderType: Text.NativeRendering
         }
       }
@@ -402,9 +651,18 @@ Item {
 
     function onShownChanged() {
       if (PickHost.shown) {
+        root.windowIndex = -1
+        search.text = PickHost.query
         search.refocus()
         Qt.callLater(root.resetScroll)
       }
+    }
+
+    function onTabChanged() {
+      root.windowIndex = -1
+      search.text = PickHost.query
+      search.refocus()
+      Qt.callLater(root.resetScroll)
     }
 
     function onQueryChanged() {

@@ -94,6 +94,15 @@ QtObject {
   // audio picker is choosing from a fixed list and should not grow a calculator.
   property bool dynamic: false
 
+  // The menu's tab strip: all, apps, web, files. Tabs are a view of the menu
+  // rather than a picker feature — no other caller gets one — so they are off
+  // unless the request asks. `tabHint` is what the empty list says on a tab
+  // whose results are made by typing.
+  property bool tabs: false
+  property int tab: 0
+  property string tabHint: ""
+  readonly property int tabCount: 4
+
   // The suggestions, kept apart from the filtered entries so the quick answers
   // can sit above them and the file hits below, where the ranking of the
   // installed entries is not disturbed.
@@ -194,6 +203,9 @@ QtObject {
     root.allowEmpty = !!request.allowEmpty
     root.grouped = !!request.grouped
     root.dynamic = !!request.dynamic
+    root.tabs = !!request.tabs
+    root.tab = Number(request.tab !== undefined ? request.tab : 0)
+    root.tabHint = String(request.tabHint !== undefined ? request.tabHint : "")
     root.onSelect = String(request.onSelect !== undefined ? request.onSelect : "")
     root.onCancel = String(request.onCancel !== undefined ? request.onCancel : "")
     root.entries = request.entries !== undefined ? request.entries : []
@@ -207,6 +219,50 @@ QtObject {
     if (!root.dynamic) MenuHost.clearDynamic()
 
     root.apply()
+  }
+
+  // Replace the list when the menu changes tab. The query goes with it: a
+  // search for an application is not a search for a file, and carrying it into
+  // the next tab would show "nothing matches" for something that was never
+  // being searched for there.
+  function tabView(index, entries, dynamic, placeholder, hint) {
+    root.tab = index
+    root.entries = entries
+    root.dynamic = dynamic
+    root.placeholder = placeholder
+    root.tabHint = hint
+    root.query = ""
+    root.selected = 0
+    root.apply()
+  }
+
+  // Headers and separators are drawn rows rather than choices. They carry no
+  // command, so the keys must walk past them and Return over one must do
+  // nothing instead of dismissing the picker.
+  function selectable(row) {
+    return !(row && (row.header === true || row.separator === true))
+  }
+
+  function findSelectable(from, direction) {
+    let index = from
+    while (index >= 0 && index < root.results.length) {
+      if (root.selectable(root.results[index].row)) return index
+      index += direction
+    }
+    return -1
+  }
+
+  function ensureSelection() {
+    if (root.results.length === 0) {
+      root.selected = 0
+      return
+    }
+
+    if (root.selectable(root.results[root.selected].row)) return
+
+    let next = root.findSelectable(root.selected + 1, 1)
+    if (next < 0) next = root.findSelectable(root.selected - 1, -1)
+    root.selected = next < 0 ? 0 : next
   }
 
   function apply() {
@@ -238,8 +294,10 @@ QtObject {
     root.results = results
 
     // The selection cannot point past the end of a list that just shrank under
-    // it, which is what typing does to the last entry.
+    // it, which is what typing does to the last entry. It also must not land on
+    // a header or a separator, which are drawn but cannot be chosen.
     if (root.selected >= root.results.length) root.selected = Math.max(0, root.results.length - 1)
+    root.ensureSelection()
   }
 
   function setQuery(text) {
@@ -284,10 +342,15 @@ QtObject {
   function move(delta) {
     if (root.results.length === 0) return
 
-    let next = root.selected + delta
-    if (next < 0) next = 0
-    if (next > root.results.length - 1) next = root.results.length - 1
-    root.selected = next
+    // Past the end of a page is the end of the list, not a dead key: the jump
+    // lands on the last choice in that direction.
+    let next = root.findSelectable(root.selected + delta, delta > 0 ? 1 : -1)
+    if (next < 0) {
+      next = delta > 0
+        ? root.findSelectable(root.results.length - 1, -1)
+        : root.findSelectable(0, 1)
+    }
+    if (next >= 0) root.selected = next
   }
 
   // A page is a visible screen of rows rather than a tenth of the list, so a
@@ -297,11 +360,13 @@ QtObject {
   }
 
   function first() {
-    root.selected = 0
+    const next = root.findSelectable(0, 1)
+    if (next >= 0) root.selected = next
   }
 
   function last() {
-    root.selected = Math.max(0, root.results.length - 1)
+    const next = root.findSelectable(root.results.length - 1, -1)
+    if (next >= 0) root.selected = next
   }
 
   function accept() {
@@ -329,6 +394,8 @@ QtObject {
       root.dismiss()
       return
     }
+
+    if (!root.selectable(entry)) return
 
     const value = String(entry.value !== undefined && entry.value !== null ? entry.value : entry.label)
 

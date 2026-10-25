@@ -23,7 +23,10 @@ Item {
   property string label: ""
   property string group: ""
   property string state: ""
-  property string description: ""
+  // A second line of the row's own on the right, for the thing that is not the
+  // label and not a state: an application's command. `state` wins when both are
+  // set, because a state is the more specific fact.
+  property string detail: ""
   property string icon: ""
   property string preview: ""
   property var positions: []
@@ -136,6 +139,7 @@ Item {
     anchors.rightMargin: Style.space(12)
     anchors.verticalCenter: parent.verticalCenter
     spacing: Style.space(8)
+    clip: true
 
     Text {
       visible: root.group !== ""
@@ -180,11 +184,18 @@ Item {
     anchors.rightMargin: Style.space(12)
     anchors.verticalCenter: parent.verticalCenter
 
-    visible: root.state !== ""
-    text: root.state
+    // Capped so a long command cannot take the label's half of the row with it.
+    // The reference's two columns are the point; a detail that elides is still
+    // more use than a label that does.
+    width: Math.min(implicitWidth, root.width * 0.5)
+    horizontalAlignment: Text.AlignRight
+
+    visible: root.state !== "" || root.detail !== ""
+    text: root.state !== "" ? root.state : root.detail
     color: Theme.muted
     font.family: Style.font.family
     font.pixelSize: Style.font.body
+    elide: Text.ElideMiddle
     renderType: Text.NativeRendering
   }
 }
