@@ -18,6 +18,7 @@
 #   theme pin | unpin    keep auto from changing the current theme
 #   theme export         print a Nix snippet for the current choice
 #   theme doctor         check the live state and generated files
+#   theme cursor-size N  set the cursor size and apply it now
 #   theme apply          re-apply the current one (run at login)
 #
 # One palette drives the shell, the compositor's window borders, the terminal and
@@ -46,6 +47,8 @@ tmux="@TMUX@"
 auto_light=@AUTO_LIGHT@
 auto_dark=@AUTO_DARK@
 auto_schedule="@AUTO_SCHEDULE@"
+cursor_theme="@CURSOR_THEME@"
+cursor_size_default="@CURSOR_SIZE@"
 generated="@GENERATED@"
 hyprctl="@HYPRCTL@"
 gsettings="@GSETTINGS@"
@@ -70,6 +73,7 @@ AUTO_SCHEDULE="$auto_schedule"
 
 current_file="$state_dir/current"
 wallpaper_mode_file="$state_dir/wallpaper-mode"
+cursor_file="$state_dir/cursor-size"
 live_link="$state_dir/live"
 generations_dir="$state_dir/generations"
 
@@ -298,7 +302,7 @@ materialise() {
   fi
 
   for source in palette.json mode kitty.conf helix.toml yazi.toml hyprlock.conf \
-    qt6ct-colors.conf qt6ct.conf gtk-3.0-settings.ini gtk-4.0-settings.ini \
+    qt6ct-colors.conf qt6ct.conf qt5ct.conf kvantum.kvconfig gtk-3.0-settings.ini gtk-4.0-settings.ini \
     gtk-3.0.css gtk-4.0.css share-picker.css tmux.conf btop.theme terminal.zsh; do
     [ -s "$gen/$source" ] || {
       rm -rf "$gen"
@@ -327,6 +331,17 @@ materialise() {
   prune_generations "$gen"
 }
 
+apply_cursor() {
+  local size=""
+  if [ -f "$cursor_file" ]; then
+    size=$(tr -dc '0-9' <"$cursor_file" 2>/dev/null || true)
+  fi
+  [ -n "$size" ] || size="$cursor_size_default"
+  GSETTINGS_SCHEMA_DIR="$gsettings_schema_dir" "$gsettings" set \
+    org.gnome.desktop.interface cursor-size "$size" >/dev/null 2>&1 || true
+  "$hyprctl" setcursor "$cursor_theme" "$size" >/dev/null 2>&1 || true
+}
+
 tell_apps() {
   local name="$1" mode gtk_theme icon_theme color_scheme palette
   palette="$live_link/palette.json"
@@ -341,11 +356,11 @@ tell_apps() {
 
   mode=$(tr -d '[:space:]' <"$live_link/mode" 2>/dev/null || tr -d '[:space:]' <"$state_dir/mode" 2>/dev/null || true)
   if [ "$mode" = "light" ]; then
-    gtk_theme=Adwaita
+    gtk_theme=adw-gtk3
     icon_theme=Papirus-Light
     color_scheme=prefer-light
   else
-    gtk_theme=Adwaita-dark
+    gtk_theme=adw-gtk3-dark
     icon_theme=Papirus-Dark
     color_scheme=prefer-dark
   fi
@@ -356,7 +371,11 @@ tell_apps() {
     org.gnome.desktop.interface gtk-theme "$gtk_theme" >/dev/null 2>&1 || true
   GSETTINGS_SCHEMA_DIR="$gsettings_schema_dir" "$gsettings" set \
     org.gnome.desktop.interface icon-theme "$icon_theme" >/dev/null 2>&1 || true
+  accent=$(color_accent_name "$(colour primary)")
+  GSETTINGS_SCHEMA_DIR="$gsettings_schema_dir" "$gsettings" set \
+    org.gnome.desktop.interface accent-color "$accent" >/dev/null 2>&1 || true
 
+  apply_cursor
   "$tmux" source-file "$live_link/tmux.conf" >/dev/null 2>&1 || true
   "$wallpaper" apply >/dev/null 2>&1 || true
 }
@@ -527,6 +546,18 @@ wallpaper_theme() {
   printf 'Theme: wallpaper\n'
 }
 
+set_cursor_size() {
+  value="$1"
+  case "$value" in
+    "" | *[!0-9]*) die "cursor-size needs a number" ;;
+  esac
+  [ "$value" -ge 8 ] && [ "$value" -le 128 ] \
+    || die "cursor-size must be between 8 and 128"
+  mkdir -p "$state_dir" || die "could not create $state_dir"
+  printf '%s\n' "$value" >"$cursor_file" || die "could not write $cursor_file"
+  apply_cursor
+}
+
 auto_theme() {
   state_ensure || die "could not read the theme state"
   [ "$AUTO_SCHEDULE" = "true" ] || return 0
@@ -646,7 +677,7 @@ doctor_theme() {
     else
       printf 'ok       palette\n'
     fi
-    for file in kitty.conf helix.toml yazi.toml hyprlock.conf qt6ct.conf \
+    for file in kitty.conf helix.toml yazi.toml hyprlock.conf qt6ct.conf qt5ct.conf kvantum.kvconfig \
       gtk-3.0.css gtk-4.0.css share-picker.css tmux.conf btop.theme terminal.zsh; do
       if [ ! -s "$live_link/$file" ]; then
         printf 'missing  %s\n' "$file"
@@ -733,6 +764,10 @@ case "${1:-}" in
     ;;
   doctor)
     doctor_theme
+    ;;
+  cursor-size)
+    [ $# -ge 2 ] || die "cursor-size needs a number"
+    set_cursor_size "$2"
     ;;
   apply)
     # No change, just make sure the files match the saved choice — this is what

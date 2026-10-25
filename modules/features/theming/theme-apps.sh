@@ -18,14 +18,22 @@ gtk_template="@GTK_TEMPLATE@"
 gtk3_css_template="@GTK3_CSS_TEMPLATE@"
 gtk4_css_template="@GTK4_CSS_TEMPLATE@"
 share_picker_template="@SHARE_PICKER_TEMPLATE@"
+papirus_folders="@PAPIRUS_FOLDERS@"
 tokens="@TOKENS@"
 render_lib="@RENDER_LIB@"
+color_lib="@COLOR_LIB@"
 sed="@SED@"
 cursor_theme="@POINTER_CURSOR_THEME@"
 cursor_size="@POINTER_CURSOR_SIZE@"
+if [ -f "$state_dir/cursor-size" ]; then
+  runtime_cursor=$(tr -dc '0-9' <"$state_dir/cursor-size" 2>/dev/null || true)
+  [ -n "$runtime_cursor" ] && cursor_size="$runtime_cursor"
+fi
 
 # shellcheck source=/dev/null
 . "$render_lib"
+# shellcheck source=/dev/null
+. "$color_lib"
 
 JQ="$jq"
 SED="$sed"
@@ -84,12 +92,12 @@ done
 mode=$(tr -d '[:space:]' <"$outdir/mode" 2>/dev/null || printf 'dark')
 if [ "$mode" = "light" ]; then
   helix_parent=base16_default_light
-  gtk_theme=Adwaita
+  gtk_theme=adw-gtk3
   gtk_icon=Papirus-Light
   gtk_dark=0
 else
   helix_parent=base16_default_dark
-  gtk_theme=Adwaita-dark
+  gtk_theme=adw-gtk3-dark
   gtk_icon=Papirus-Dark
   gtk_dark=1
 fi
@@ -139,6 +147,24 @@ color_scheme_path=$state_dir/live/qt6ct-colors.conf
 custom_palette=true
 icon_theme=$gtk_icon
 style=Fusion
+EOF
+
+cat >"$outdir/qt5ct.conf" <<EOF
+[Appearance]
+color_scheme_path=$state_dir/live/qt6ct-colors.conf
+custom_palette=true
+icon_theme=$gtk_icon
+style=Fusion
+EOF
+
+if [ "$mode" = "light" ]; then
+  kvantum_theme=KvAdapta
+else
+  kvantum_theme=KvAdaptaDark
+fi
+cat >"$outdir/kvantum.kvconfig" <<EOF
+[General]
+theme=$kvantum_theme
 EOF
 
 tmux_conf=$(mktemp "$outdir/.tmux.XXXXXX") || exit 1
@@ -214,3 +240,15 @@ export EZA_COLORS='di=34:ln=36:ex=32:or=31:mi=31:*.tar=31:*.zip=31:*.gz=31:*.7z=
 export FZF_DEFAULT_OPTS="\${FZF_DEFAULT_OPTS:-} --color=fg:$fg,bg:$bg,hl:$primary,fg+:$fg,bg+:$surface,hl+:$primary,info:$accent,prompt:$primary,pointer:$accent,marker:$success,spinner:$accent,header:$muted,border:$surface"
 EOF
 mv "$terminal_tmp" "$terminal_env"
+
+# ---- icons ----
+# Folder icons are writable copies under ~/.local/share/icons, seeded from the
+# Papirus package at activation, so papirus-folders can tint them per palette.
+folder_color=$(color_accent_name "$primary")
+case "$folder_color" in
+  purple) folder_color=violet ;;
+  slate) folder_color=grey ;;
+esac
+if [ -x "$papirus_folders" ]; then
+  "$papirus_folders" -t "$gtk_icon" -C "$folder_color" >/dev/null 2>&1 || true
+fi

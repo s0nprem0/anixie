@@ -108,8 +108,10 @@ let
         "@GTK3_CSS_TEMPLATE@"
         "@GTK4_CSS_TEMPLATE@"
         "@SHARE_PICKER_TEMPLATE@"
+        "@PAPIRUS_FOLDERS@"
         "@TOKENS@"
         "@RENDER_LIB@"
+        "@COLOR_LIB@"
         "@SED@"
         "@POINTER_CURSOR_THEME@"
         "@POINTER_CURSOR_SIZE@"
@@ -125,8 +127,10 @@ let
         "${./templates/gtk-3.0.css}"
         "${./templates/gtk-4.0.css}"
         "${../wm/share-picker/style.css}"
+        "${pkgs.papirus-folders}/bin/papirus-folders"
         "${./tokens.json}"
         "${./lib/render.sh}"
+        "${./lib/color.sh}"
         "${pkgs.gnused}/bin/sed"
         config.home.pointerCursor.name
         (toString config.home.pointerCursor.size)
@@ -150,6 +154,8 @@ let
         "@AUTO_LIGHT@"
         "@AUTO_DARK@"
         "@AUTO_SCHEDULE@"
+        "@CURSOR_THEME@"
+        "@CURSOR_SIZE@"
         "@MATUGEN@"
         "@TMUX@"
         "@MAGICK@"
@@ -177,6 +183,8 @@ let
         (lib.escapeShellArg config.anixie.theme.auto.schedule.light)
         (lib.escapeShellArg config.anixie.theme.auto.schedule.dark)
         (if config.anixie.theme.auto.schedule.enable then "true" else "false")
+        config.home.pointerCursor.name
+        (toString config.home.pointerCursor.size)
         "${pkgs.matugen}/bin/matugen"
         "${pkgs.tmux}/bin/tmux"
         "${pkgs.imagemagick}/bin/magick"

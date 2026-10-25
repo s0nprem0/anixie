@@ -239,7 +239,8 @@ disabled as the only display.
 outline, semantic accents, ANSI derivation — plus metadata such as the mode,
 family and paired light/dark variant; everything else is derived. Light and dark
 palettes switch the same surfaces; GTK follows the mode through gsettings
-(Adwaita/Adwaita-dark and Papirus/Papirus-Light icons).
+(adw-gtk3/adw-gtk3-dark and Papirus/Papirus-Light icons, with Papirus folder
+colours following the palette).
 
 ```sh
 anixie theme list | set NAME | next | prev | current
@@ -248,6 +249,7 @@ anixie theme migrate            # import the old separate state files
 anixie theme favorite add|remove|toggle NAME
 anixie theme pin|unpin          # keep automatic switching from changing the theme
 anixie theme doctor             # check the live state and generated files
+anixie theme cursor-size N      # set the cursor size at runtime
 anixie theme wallpaper [FILE] [auto|light|dark]  # palette from a picture
 anixie theme wallpaper-mode [auto|light|dark]    # remember the next mode
 anixie theme auto               # apply the scheduled light/dark variant
@@ -261,9 +263,12 @@ anixie wallpaper pause|resume|status  # live video wallpapers
 ```
 
 A runtime switch reaches the **shell, Hyprland's borders, kitty, btop and tmux
-immediately**. GTK follows via settings.ini and gsettings, Qt via a qt6ct
-palette, and Helix, yazi and the lock screen via state configs at next start. No
-rebuild needed.
+immediately**. GTK follows via settings.ini and gsettings, Qt via qt6ct and
+qt5ct palettes, and Helix, yazi and the lock screen via state configs at next
+start. No rebuild needed. The XDG settings portal receives the light/dark mode
+and the palette accent so Flatpak and libadwaita applications follow too.
+Kvantum is available opt-in with `anixie.theme.kvantum.enable`; it uses the
+built-in KvAdapta light/dark style.
 
 `theme wallpaper` uses matugen's smart mode unless `light` or `dark` is given,
 and falls back to the previous palette on an unreadable picture. Results are

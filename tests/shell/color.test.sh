@@ -33,3 +33,11 @@ color_palette_fix "$tmp/bad.json"
 fg=$("$JQ" -r '.foreground' "$tmp/bad.json")
 atleast "$(color_contrast "$fg" '#0f111a')" 4.5
 atleast "$(color_contrast "$fg" '#1a1c2b')" 4.5
+
+[ "$(color_accent_name '#82aaff')" = blue ]
+[ "$(color_accent_name '#86e1fc')" = teal ]
+[ "$(color_accent_name '#c3e88d')" = green ]
+[ "$(color_accent_name '#e0af68')" = orange ]
+[ "$(color_accent_name '#ff757f')" = red ]
+[ "$(color_accent_name '#c099ff')" = purple ]
+[ "$(color_accent_name '#888888')" = slate ]

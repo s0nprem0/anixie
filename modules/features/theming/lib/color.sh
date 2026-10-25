@@ -147,3 +147,39 @@ color_palette_fix() {
     done
   done
 }
+
+color_accent_name() {
+  awk -v c="$1" '
+    function hx(x) { return index("0123456789abcdef", tolower(x)) - 1 }
+    function byte(h, p) { return hx(substr(h, p, 1)) * 16 + hx(substr(h, p + 1, 1)) }
+    BEGIN {
+      sub(/^#/, "", c)
+      r = byte(c, 1) / 255
+      g = byte(c, 3) / 255
+      b = byte(c, 5) / 255
+      max = r
+      min = r
+      if (g > max) max = g
+      if (b > max) max = b
+      if (g < min) min = g
+      if (b < min) min = b
+      d = max - min
+      if (d < 0.08) {
+        print "slate"
+        exit
+      }
+      if (max == r) h = 60 * (((g - b) / d) % 6)
+      else if (max == g) h = 60 * (((b - r) / d) + 2)
+      else h = 60 * (((r - g) / d) + 4)
+      if (h < 0) h += 360
+      if (h < 15 || h >= 345) print "red"
+      else if (h < 45) print "orange"
+      else if (h < 70) print "yellow"
+      else if (h < 160) print "green"
+      else if (h < 200) print "teal"
+      else if (h < 260) print "blue"
+      else if (h < 320) print "purple"
+      else print "pink"
+    }
+  ' </dev/null
+}

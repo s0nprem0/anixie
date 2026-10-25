@@ -11,7 +11,7 @@ let
 in
 {
   anixie.theme.template.placeholders = {
-    "@GTK_THEME@" = if dark then "Adwaita-dark" else "Adwaita";
+    "@GTK_THEME@" = if dark then "adw-gtk3-dark" else "adw-gtk3";
     "@GTK_ICON@" = if dark then "Papirus-Dark" else "Papirus-Light";
     "@GTK_DARK@" = if dark then "1" else "0";
     "@CURSOR_THEME@" = config.home.pointerCursor.name;
@@ -22,8 +22,8 @@ in
     enable = true;
 
     theme = {
-      name = if dark then "Adwaita-dark" else "Adwaita";
-      package = pkgs.gnome-themes-extra;
+      name = if dark then "adw-gtk3-dark" else "adw-gtk3";
+      package = pkgs.adw-gtk3;
     };
 
     iconTheme = {
@@ -36,6 +36,8 @@ in
       size = 10;
     };
   };
+
+  home.packages = [ pkgs.papirus-folders ];
 
   # GTK3 reads settings.ini directly on Wayland, and GTK4/libadwaita uses the
   # same values plus the gsettings colour scheme. Keeping the files in the state
@@ -54,4 +56,15 @@ in
       source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/gtk-4.0.css";
     };
   };
+
+  home.activation.anixiePapirusFolders = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    icons=${lib.escapeShellArg "${config.xdg.dataHome}/icons"}
+    mkdir -p "$icons"
+    for theme in Papirus Papirus-Dark Papirus-Light; do
+      if [ ! -d "$icons/$theme" ]; then
+        cp -rL ${pkgs.papirus-icon-theme}/share/icons/$theme "$icons/$theme"
+      fi
+      chmod -R u+w "$icons/$theme"
+    done
+  '';
 }
