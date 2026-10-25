@@ -44,6 +44,13 @@ let
   # PATH (see Ui/PowerAlert.qml and the two placeholders below).
   powerAlert = pkgs.writeText "PowerAlert.qml" (render ./Ui/PowerAlert.qml);
 
+  # The panel and the bar readout need the thresholds and the powerprofile path
+  # for the same reason: the values live in Nix and the shell service's PATH is
+  # not the user's. Rendering the two files keeps them from carrying a second
+  # copy of the defaults.
+  power = pkgs.writeText "Power.qml" (render ./panels/Power.qml);
+  battery = pkgs.writeText "Battery.qml" (render ./components/Battery.qml);
+
   # The lock screen needs fprintd-list and the hyprlock fallback by full path:
   # the shell service's PATH is the user manager's, not the profile's.
   lockHost = pkgs.writeText "LockHost.qml" (render ./Ui/LockHost.qml);
@@ -93,6 +100,8 @@ let
     cp ${notificationHost} $out/Ui/NotificationHost.qml
     cp ${clock} $out/components/Clock.qml
     cp ${powerAlert} $out/Ui/PowerAlert.qml
+    cp ${power} $out/panels/Power.qml
+    cp ${battery} $out/components/Battery.qml
     cp ${lockHost} $out/Ui/LockHost.qml
     cp ${focusConfig} $out/focus.json
     rm -f $out/default.nix
@@ -145,6 +154,15 @@ in
       "@QUICKSHELL@" = "${pkgs.quickshell}/bin/quickshell";
       "@FPRINTD_LIST@" = "${pkgs.fprintd}/bin/fprintd-list";
       "@HYPRLOCK@" = "${pkgs.hyprlock}/bin/hyprlock";
+
+      # One set of battery thresholds for the bar's colour, the warning and the
+      # automation, so the three cannot drift apart again.
+      "@POWERPROFILE@" = config.anixie.power.bin;
+      "@AUTOMATION_DEFAULT@" = if config.anixie.power.batteryAutomation.enable then "true" else "false";
+      "@LOW_THRESHOLD@" = toString config.anixie.power.batteryAutomation.lowThreshold;
+      "@CRITICAL_THRESHOLD@" = toString config.anixie.power.batteryAutomation.criticalThreshold;
+      "@LOW_PROFILE@" = config.anixie.power.batteryAutomation.lowProfile;
+      "@CRITICAL_PROFILE@" = config.anixie.power.batteryAutomation.criticalProfile;
     };
 
     home.packages = [ pkgs.quickshell ];

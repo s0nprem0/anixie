@@ -76,7 +76,7 @@ BarWidget {
     text: root.charging ? Util.charging : root.glyph
     labelText: !root.vertical && root.showPercent ? root.level + "%" : ""
     active: root.charging
-    foreground: root.level >= 0 && root.level <= 15 && !root.charging ? Theme.danger : Theme.fg
+    foreground: root.level >= 0 && root.level <= @LOW_THRESHOLD@ && !root.charging ? Theme.danger : Theme.fg
     tooltipText: (root.present ? "Battery " + root.level + "%" : "Battery")
       + " · Super+Ctrl+P · right-click for menu"
 

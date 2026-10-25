@@ -4,11 +4,13 @@ import Quickshell.Services.UPower
 
 // The low-battery warning.
 //
-// The bar's readout turns red under 15% and the power panel carries the numbers,
-// but nothing ever speaks up: on bare Hyprland there is no desktop layer to put a
-// warning on screen, and UPower's own policy actions are silent. So this watches
-// the same UPower device the readout does and asks for a notification through the
-// shell's own daemon, the way `reminder` does.
+// The bar's readout turns red at the low threshold and the power panel carries
+// the numbers, but a glance is not always there: on bare Hyprland there is no
+// desktop layer to put a warning on screen, and UPower's own policy actions are
+// silent. So this watches the same UPower device the readout does and asks for a
+// notification through the shell's own daemon, the way `reminder` does. It is
+// also the only notifier now — the powerprofile watcher just acts — so the
+// thresholds below are the same ones the bar and the automation use.
 //
 // Event-driven rather than polled. UPower reports the percentage and charge state
 // over D-Bus, so a level crossing is already a signal and a timer would only be
@@ -16,10 +18,10 @@ import Quickshell.Services.UPower
 QtObject {
   id: root
 
-  // Two levels, chosen to match how the bar reads: a warning while there is still
-  // time to reach a charger, and a critical one once there is not.
-  readonly property int warnAt: 15
-  readonly property int criticalAt: 5
+  // The same two levels as anixie.power.batteryAutomation, rendered in so the
+  // bar, the warning and the dimming cannot drift apart.
+  readonly property int warnAt: @LOW_THRESHOLD@
+  readonly property int criticalAt: @CRITICAL_THRESHOLD@
 
   readonly property var device: UPower.displayDevice
   readonly property bool present: root.device !== null && root.device.ready && root.device.isPresent

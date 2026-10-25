@@ -14,9 +14,8 @@ let
       [
         "@STATE@"
         "@PPD@"
-        "@UDEV@"
+        "@UDEVADM@"
         "@BRIGHTNESSCTL@"
-        "@NOTIFY@"
         "@AUTO@"
         "@LOW@"
         "@CRITICAL@"
@@ -24,7 +23,6 @@ let
         "@CRITICAL_PROFILE@"
         "@LOW_BRIGHTNESS@"
         "@CRITICAL_BRIGHTNESS@"
-        "@NOTIFY_LEVEL@"
         "@ANIXIE_LIB@"
       ]
       [
@@ -32,7 +30,6 @@ let
         "${pkgs.power-profiles-daemon}/bin/powerprofilesctl"
         "${pkgs.systemd}/bin/udevadm"
         "${pkgs.brightnessctl}/bin/brightnessctl"
-        config.anixie.wm.notify.bin
         (if cfg.enable then "1" else "0")
         (toString cfg.lowThreshold)
         (toString cfg.criticalThreshold)
@@ -40,72 +37,81 @@ let
         cfg.criticalProfile
         (toString cfg.lowBrightness)
         (toString cfg.criticalBrightness)
-        (if cfg.notify then "1" else "0")
         "${../cli/lib.sh}"
       ]
       (builtins.readFile ./powerprofile.sh)
   );
 in
 {
-  options.anixie.power.batteryAutomation = {
-    enable = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
+  options.anixie.power = {
+    batteryAutomation = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Whether the power-profile watcher reacts to the battery's charge by
+          default: dim the screen and step down the profile at the two
+          thresholds, then restore both on mains or when the charge recovers.
+          The power panel toggles this at runtime, and its choice overrides this
+          default until the state file is removed.
+        '';
+      };
+
+      lowThreshold = lib.mkOption {
+        type = lib.types.ints.between 1 99;
+        default = 20;
+        description = "Battery percentage at which the low state begins.";
+      };
+
+      criticalThreshold = lib.mkOption {
+        type = lib.types.ints.between 1 99;
+        default = 8;
+        description = "Battery percentage at which the critical state begins.";
+      };
+
+      lowProfile = lib.mkOption {
+        type = lib.types.enum [
+          "power-saver"
+          "balanced"
+          "performance"
+        ];
+        default = "power-saver";
+        description = "Power profile applied at the low threshold.";
+      };
+
+      criticalProfile = lib.mkOption {
+        type = lib.types.enum [
+          "power-saver"
+          "balanced"
+          "performance"
+        ];
+        default = "power-saver";
+        description = "Power profile applied at the critical threshold.";
+      };
+
+      lowBrightness = lib.mkOption {
+        type = lib.types.ints.between 1 100;
+        default = 30;
+        description = "Screen brightness percentage applied at the low threshold.";
+      };
+
+      criticalBrightness = lib.mkOption {
+        type = lib.types.ints.between 1 100;
+        default = 15;
+        description = "Screen brightness percentage applied at the critical threshold.";
+      };
+
+    };
+
+    bin = lib.mkOption {
+      type = lib.types.str;
+      internal = true;
+      readOnly = true;
+      default = "${powerprofile}/bin/powerprofile";
       description = ''
-        Whether the power-profile watcher also reacts to the battery's charge:
-        dim the screen and step down the profile at the two thresholds, then
-        restore both on mains or when the charge recovers.
+        The powerprofile command, for callers that need its absolute path. The
+        shell service does not inherit the user's profile path.
       '';
-    };
-
-    lowThreshold = lib.mkOption {
-      type = lib.types.ints.between 1 99;
-      default = 20;
-      description = "Battery percentage at which the low state begins.";
-    };
-
-    criticalThreshold = lib.mkOption {
-      type = lib.types.ints.between 1 99;
-      default = 8;
-      description = "Battery percentage at which the critical state begins.";
-    };
-
-    lowProfile = lib.mkOption {
-      type = lib.types.enum [
-        "power-saver"
-        "balanced"
-        "performance"
-      ];
-      default = "power-saver";
-      description = "Power profile applied at the low threshold.";
-    };
-
-    criticalProfile = lib.mkOption {
-      type = lib.types.enum [
-        "power-saver"
-        "balanced"
-        "performance"
-      ];
-      default = "power-saver";
-      description = "Power profile applied at the critical threshold.";
-    };
-
-    lowBrightness = lib.mkOption {
-      type = lib.types.ints.between 1 100;
-      default = 30;
-      description = "Screen brightness percentage applied at the low threshold.";
-    };
-
-    criticalBrightness = lib.mkOption {
-      type = lib.types.ints.between 1 100;
-      default = 15;
-      description = "Screen brightness percentage applied at the critical threshold.";
-    };
-
-    notify = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Whether crossing a threshold sends one notification.";
     };
   };
 

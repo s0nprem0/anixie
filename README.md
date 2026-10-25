@@ -330,7 +330,10 @@ previous notification setting back. `Super+Ctrl+F` starts a 25-minute block and
 While on battery, the power watcher dims the screen and steps down the profile
 at 20% and again at 8%, restoring the brightness you had when mains returns.
 The thresholds, profiles and brightness levels are
-`anixie.power.batteryAutomation` options.
+`anixie.power.batteryAutomation` options, and the same thresholds drive the
+bar's warning colour and the low-battery notification. The power panel toggles
+the automation at runtime; that choice lives in
+`~/.local/state/anixie/powerprofile/automation` and overrides the build default.
 
 ## Gaming
 

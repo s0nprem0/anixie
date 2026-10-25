@@ -19,6 +19,30 @@ Item {
 
   readonly property string backlight: "/sys/class/backlight/amdgpu_bl1"
 
+  // One set of numbers for the bar's colour, the warning and the automation.
+  readonly property int lowThreshold: @LOW_THRESHOLD@
+  readonly property int criticalThreshold: @CRITICAL_THRESHOLD@
+
+  // Friendly names for the daemon's profile identifiers.
+  readonly property var profiles: ["power-saver", "balanced", "performance"]
+  readonly property var profileChoices: [
+    { label: "Quiet", value: "power-saver" },
+    { label: "Balanced", value: "balanced" },
+    { label: "Performance", value: "performance" }
+  ]
+
+  function profileLabel(value) {
+    for (let i = 0; i < root.profileChoices.length; i++) {
+      if (root.profileChoices[i].value === value) return root.profileChoices[i].label
+    }
+    return value
+  }
+
+  // The build option is the default; toggling writes the state file the watcher
+  // reads, so the choice survives a rebuild.
+  property bool automation: @AUTOMATION_DEFAULT@
+  property bool automationBusy: false
+
   // sysfs reads go through FileView, whose text() throws until the first read
   // lands, so every access is funnelled through here. Only the battery's cycle
   // count is still read this way; the rest comes from UPower.
@@ -33,7 +57,6 @@ Item {
 
   // ---- performance profile ----
 
-  readonly property var profiles: ["power-saver", "balanced", "performance"]
   property string profile: ""
 
   // power-profiles-daemon may simply not be running, in which case no profile
@@ -85,6 +108,38 @@ Item {
     profileSet.running = true
   }
 
+  Process {
+    id: automationGet
+    running: true
+    command: ["@POWERPROFILE@", "automation"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const value = String(this.text).trim()
+        if (value === "on" || value === "off") root.automation = value === "on"
+      }
+    }
+  }
+
+  Process {
+    id: automationSet
+    running: false
+    onExited: function (exitCode) {
+      root.automationBusy = false
+      // The write also re-applies the profile for the current source, so ask
+      // both readers again instead of guessing what the daemon ended up with.
+      automationGet.running = false
+      automationGet.running = true
+      profileGet.running = false
+      profileGet.running = true
+    }
+  }
+
+  function setAutomation(enabled) {
+    root.automationBusy = true
+    automationSet.command = ["@POWERPROFILE@", "set-automation", enabled ? "on" : "off"]
+    automationSet.running = true
+  }
+
   // ---- brightness ----
 
   readonly property int brightnessValue: root.readNum(brightnessView, 0)
@@ -129,6 +184,24 @@ Item {
     || root.battery.state === UPowerDeviceState.FullyCharged
     || root.battery.state === UPowerDeviceState.PendingCharge)
 
+  // The watcher applies the low/critical profile while discharging. The note
+  // under the chips says which one it is holding the machine on.
+  readonly property string automatedProfile: root.capacity <= root.criticalThreshold
+    ? "@CRITICAL_PROFILE@"
+    : "@LOW_PROFILE@"
+
+  readonly property bool automated: root.automation && root.present && !root.onMains
+    && root.capacity >= 0 && root.capacity <= root.lowThreshold
+
+  readonly property string levelGlyph: {
+    if (!root.present) return Util.bolt
+    if (root.capacity <= 10) return Util.batteryEmpty
+    if (root.capacity <= 30) return Util.batteryQuarter
+    if (root.capacity <= 55) return Util.batteryHalf
+    if (root.capacity <= 80) return Util.batteryThreeQuarters
+    return Util.batteryFull
+  }
+
   readonly property string stateLabel: {
     if (!root.present) return "No battery"
     if (root.charging) return "Charging"
@@ -144,11 +217,9 @@ Item {
     return root.charging ? root.battery.timeToFull : root.battery.timeToEmpty
   }
 
-  readonly property string timeLabel: {
-    if (root.charging) return "Time to full"
-    if (root.full) return "Fully charged"
-    return "Time remaining"
-  }
+  readonly property bool hasTime: root.present && root.secondsRemaining > 0
+
+  readonly property string timeLabel: root.charging ? "Time to full" : "Time remaining"
 
   readonly property string timeValue: {
     if (root.secondsRemaining <= 0) return "—"
@@ -161,7 +232,9 @@ Item {
 
   function watts(value) {
     const magnitude = Math.abs(value)
-    return magnitude > 0 ? magnitude.toFixed(1).replace(/\.0$/, "") + "W" : "—"
+    // "—" is for a missing battery, not for a full one: 0 W on mains is the
+    // answer, and hiding it made the row look broken.
+    return magnitude >= 0.05 ? magnitude.toFixed(1).replace(/\.0$/, "") + "W" : "0W"
   }
 
   readonly property string draw: root.present ? root.watts(root.battery.changeRate) : "—"
@@ -170,17 +243,32 @@ Item {
     ? root.battery.energyCapacity.toFixed(1).replace(/\.0$/, "") + "Wh"
     : "—"
 
-  readonly property int health: root.present && root.battery.healthSupported
-    ? Math.round(root.battery.healthPercentage * 100)
-    : -1
+  // UPower reports health as a fraction and not every battery supports it, so
+  // fall back to the two sysfs capacities. One decimal, because health moves by
+  // tenths and the rounded integer hid that.
+  readonly property real healthPercent: {
+    if (!root.present) return -1
+    if (root.battery.healthSupported) return root.battery.healthPercentage * 100
+    if (root.energyFull > 0 && root.energyFullDesign > 0)
+      return root.energyFull * 100 / root.energyFullDesign
+    return -1
+  }
+
+  readonly property string health: root.healthPercent > 0
+    ? root.healthPercent.toFixed(1).replace(/\.0$/, "")
+    : "—"
 
   // Cycle count is the one reading UPower does not carry, so it comes from the
   // battery's own directory — named by UPower rather than assumed to be BAT0.
-  readonly property string cyclePath: root.battery !== null && root.battery.nativePath !== ""
-    ? "/sys/class/power_supply/" + root.battery.nativePath + "/cycle_count"
+  readonly property string batteryDir: root.battery !== null && root.battery.nativePath !== ""
+    ? "/sys/class/power_supply/" + root.battery.nativePath
     : ""
 
+  readonly property string cyclePath: root.batteryDir + "/cycle_count"
+
   property int cycles: -1
+  property int energyFull: -1
+  property int energyFullDesign: -1
 
   // The one battery reading UPower does not carry. Static, so it is read once
   // when the file loads rather than watched, and assigned from the load signal
@@ -192,6 +280,24 @@ Item {
     blockLoading: true
 
     onLoaded: root.cycles = root.readNum(cycleView, -1)
+  }
+
+  FileView {
+    id: energyFullView
+    path: root.batteryDir + "/energy_full"
+    printErrors: false
+    blockLoading: true
+
+    onLoaded: root.energyFull = root.readNum(energyFullView, -1)
+  }
+
+  FileView {
+    id: energyFullDesignView
+    path: root.batteryDir + "/energy_full_design"
+    printErrors: false
+    blockLoading: true
+
+    onLoaded: root.energyFullDesign = root.readNum(energyFullDesignView, -1)
   }
 
   FileView {
@@ -249,13 +355,27 @@ Item {
     // read the whole thing to find the number you came for.
     PanelHero {
       width: card.contentWidth
-      glyph: root.charging ? Util.charging
-        : (root.present ? Util.batteryFull : Util.bolt)
+      glyph: root.charging ? Util.charging : root.levelGlyph
       title: "Power"
       subtitle: root.present ? root.stateLabel : ""
     }
 
     PanelSeparator {}
+
+    Toggle {
+      width: card.contentWidth
+      visible: root.present
+      label: "Battery automation"
+      description: "Dim and step the profile down at "
+        + root.lowThreshold + "% and " + root.criticalThreshold + "%"
+      checked: root.automation
+      busy: root.automationBusy
+      onToggled: root.setAutomation(!root.automation)
+    }
+
+    PanelSeparator {
+      visible: root.present
+    }
 
     // ---- profile ----
     // The profile query starts itself: `profileGet` is declared with
@@ -286,10 +406,23 @@ Item {
 
     SegmentedControl {
       width: card.contentWidth
-      model: root.profiles
+      model: root.profileChoices
       currentIndex: root.profiles.indexOf(root.profile)
       available: !root.profileFailed
       onActivated: function (index) { root.setProfile(root.profiles[index]) }
+    }
+
+    Text {
+      width: card.contentWidth
+      height: implicitHeight
+      visible: root.automated
+      text: "Battery automation is active: "
+        + root.profileLabel(root.automatedProfile) + " at " + root.capacity + "%"
+      color: Theme.muted
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      wrapMode: Text.WordWrap
+      renderType: Text.NativeRendering
     }
 
     // ---- brightness ----
@@ -329,7 +462,7 @@ Item {
     PanelRow {
       id: timeRow
       width: card.contentWidth
-      visible: root.present
+      visible: root.hasTime
       label: root.timeLabel
       value: root.timeValue
     }
@@ -353,7 +486,7 @@ Item {
     PanelRow {
       id: healthRow
       width: card.contentWidth
-      visible: root.present && root.health > 0
+      visible: root.present && root.health !== "—"
       label: "Full charge health"
       value: root.health + "%"
     }

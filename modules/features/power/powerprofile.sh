@@ -10,11 +10,17 @@
 #   powerprofile set ac P     what to use while plugged in
 #   powerprofile set battery P
 #   powerprofile apply        set the profile for the source we are on now
+#   powerprofile automation   print whether the charge automation is on
+#   powerprofile set-automation on|off
+#                             toggle it at runtime; the choice is remembered in
+#                             the state directory and overrides the build default
 #
 # While on battery, two thresholds also dim the screen and step down the profile:
 # low at @LOW@%, critical at @CRITICAL@%. The brightness before the first dim is
 # saved and restored when the machine is plugged back in or the charge recovers.
-# `powerprofile show` prints the thresholds and the current reading.
+# `powerprofile show` prints the thresholds and the current reading. The
+# thresholds are not notifications anymore: the shell's PowerAlert sends the
+# low-battery warning, so this watcher only acts.
 #
 # The watcher (systemd user service anixie-powerprofile) runs `powerprofile watch`:
 # it applies once at login, again on every udev power-supply event, and on a
@@ -27,18 +33,30 @@ STATE="@STATE@"
 PPD="@PPD@"
 UDEV="@UDEVADM@"
 BRIGHTNESSCTL="@BRIGHTNESSCTL@"
-NOTIFY="@NOTIFY@"
-AUTO="@AUTO@"
+AUTO_DEFAULT="@AUTO@"
 LOW="@LOW@"
 CRITICAL="@CRITICAL@"
 LOW_PROFILE="@LOW_PROFILE@"
 CRITICAL_PROFILE="@CRITICAL_PROFILE@"
 LOW_BRIGHTNESS="@LOW_BRIGHTNESS@"
 CRITICAL_BRIGHTNESS="@CRITICAL_BRIGHTNESS@"
-NOTIFY_LEVEL="@NOTIFY_LEVEL@"
 
 # shellcheck source=/dev/null
 . "@ANIXIE_LIB@"
+
+# The build option is the default for a fresh state; once the toggle has been
+# used the file wins, so turning automation off survives a rebuild.
+automation_file="$STATE/automation"
+
+automation_enabled() {
+  if [ -f "$automation_file" ]; then
+    case "$(cat "$automation_file" 2>/dev/null || true)" in
+      on) return 0 ;;
+      off) return 1 ;;
+    esac
+  fi
+  [ "$AUTO_DEFAULT" = "1" ]
+}
 
 # Mains adapters expose an `online` file; the battery does not. Any adapter
 # reading 1 means the machine is plugged in.
@@ -118,16 +136,6 @@ enter_dim() {
   printf '%s\n' "$level" >"$dim_level"
 }
 
-notify_once() {
-  flag=$1
-  title=$2
-  body=$3
-  [ "$NOTIFY_LEVEL" = "0" ] && return 0
-  [ -f "$flag" ] && return 0
-  "$NOTIFY" -a battery -u normal -G f071 "$title" "$body" >/dev/null 2>&1 || true
-  : >"$flag"
-}
-
 # The stored choice for a source, or the default.
 preferred() {
   case "$1" in
@@ -149,24 +157,16 @@ apply() {
 
   if [ "$src" = "ac" ]; then
     restore_brightness
-    rm -f "$STATE/low-notified" "$STATE/critical-notified"
-  elif [ "$AUTO" = "1" ]; then
+  elif automation_enabled; then
     percent=$(battery_percent 2>/dev/null || true)
     if [ -n "$percent" ] && [ "$percent" -le "$CRITICAL" ]; then
       profile="$CRITICAL_PROFILE"
       enter_dim critical "$CRITICAL_BRIGHTNESS"
-      notify_once "$STATE/critical-notified" "Battery critical" \
-        "${percent}% left. Plug in now; the screen has been dimmed and the profile set to ${CRITICAL_PROFILE}."
-      rm -f "$STATE/low-notified"
     elif [ -n "$percent" ] && [ "$percent" -le "$LOW" ]; then
       profile="$LOW_PROFILE"
       enter_dim low "$LOW_BRIGHTNESS"
-      notify_once "$STATE/low-notified" "Battery low" \
-        "${percent}% left. The screen has been dimmed and the profile set to ${LOW_PROFILE}."
-      rm -f "$STATE/critical-notified"
     else
       restore_brightness
-      rm -f "$STATE/low-notified" "$STATE/critical-notified"
     fi
   fi
 
@@ -186,7 +186,7 @@ apply() {
 # prevent. Following a source change does not stomp on a hand-picked profile:
 # `apply` still uses the stored choice for the new source.
 check_battery() {
-  [ "$AUTO" = "1" ] || return 0
+  automation_enabled || return 0
 
   mkdir -p "$STATE"
   src="$(source_name)"
@@ -197,7 +197,6 @@ check_battery() {
 
   if [ "$src" = "ac" ]; then
     restore_brightness
-    rm -f "$STATE/low-notified" "$STATE/critical-notified"
     return 0
   fi
 
@@ -207,18 +206,11 @@ check_battery() {
   if [ "$percent" -le "$CRITICAL" ]; then
     "$PPD" set "$CRITICAL_PROFILE" 2>/dev/null || true
     enter_dim critical "$CRITICAL_BRIGHTNESS"
-    notify_once "$STATE/critical-notified" "Battery critical" \
-      "${percent}% left. Plug in now; the screen has been dimmed and the profile set to ${CRITICAL_PROFILE}."
-    rm -f "$STATE/low-notified"
   elif [ "$percent" -le "$LOW" ]; then
     "$PPD" set "$LOW_PROFILE" 2>/dev/null || true
     enter_dim low "$LOW_BRIGHTNESS"
-    notify_once "$STATE/low-notified" "Battery low" \
-      "${percent}% left. The screen has been dimmed and the profile set to ${LOW_PROFILE}."
-    rm -f "$STATE/critical-notified"
   else
     restore_brightness
-    rm -f "$STATE/low-notified" "$STATE/critical-notified"
   fi
 }
 
@@ -226,6 +218,22 @@ set_pref() {
   [ $# -eq 2 ] || die "set needs a source and a profile"
   mkdir -p "$STATE"
   printf '%s\n' "$2" >"$STATE/$1"
+  apply
+}
+
+set_automation() {
+  [ $# -eq 1 ] || die "set-automation needs on or off"
+  case "$1" in
+    on | off) ;;
+    *) die "unknown automation state \"$1\" (want on or off)" ;;
+  esac
+  mkdir -p "$STATE"
+  printf '%s\n' "$1" >"$automation_file"
+  # Turning it off while dimmed has to put the brightness back now, not on the
+  # next udev event: the watcher will not restore it once automation is off.
+  if [ "$1" = "off" ]; then
+    restore_brightness
+  fi
   apply
 }
 
@@ -239,9 +247,9 @@ show() {
   else
     printf 'tuning:    default\n'
   fi
-  if [ "$AUTO" = "1" ]; then
+  if automation_enabled; then
     printf 'battery:   %s%%\n' "$(battery_percent 2>/dev/null || echo n/a)"
-    printf 'automation: low %s%% -> %s at %s%%, critical %s%% -> %s at %s%%\n' \
+    printf 'automation: on (low %s%% -> %s at %s%%, critical %s%% -> %s at %s%%)\n' \
       "$LOW" "$LOW_PROFILE" "$LOW_BRIGHTNESS" \
       "$CRITICAL" "$CRITICAL_PROFILE" "$CRITICAL_BRIGHTNESS"
   else
@@ -254,6 +262,8 @@ case "${1:-}" in
   -h | --help) usage ;;
   apply) apply ;;
   set) shift; set_pref "$@" ;;
+  automation) if automation_enabled; then echo on; else echo off; fi ;;
+  set-automation) shift; set_automation "$@" ;;
   watch)
     mkdir -p "$STATE"
     apply

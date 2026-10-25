@@ -39,7 +39,7 @@ theme|theme||list current set wallpaper wallpaper-mode next prev apply|palettes:
 textsize|textsize|text|up down show set reset apply|global text size: up, down, set N, reset
 wallpaper|wallpaper||list set add next prev generated apply current|desktop background: set FILE, theme, current
 display|monitors|monitors|scale internal lid mirror brightness recover wake workspace workspace-step move-window workspaces list set try keep revert identify status|monitors: scale, internal, mirror, status
-power|powerprofile|powerprofile|set apply show status|power profiles per source: set ac|battery PROFILE, show
+power|powerprofile|powerprofile|set apply show status automation set-automation|power profiles per source: set ac|battery PROFILE, show, automation on|off
 wifi|wifi||band dns password qr|Wi-Fi: band, DNS, password, QR
 audio|audio-output|audio-output|set switch|audio output: set, switch
 shot|shot|screenshot|smart region windows fullscreen window scroll copy save annotate preview redact text|screenshots: smart, region, windows, fullscreen
