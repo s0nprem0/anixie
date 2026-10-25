@@ -3,6 +3,7 @@ import QtQuick.Controls
 import ".."
 import "../Ui"
 import Quickshell
+import Quickshell.Bluetooth
 import Quickshell.Io
 
 // Wi-Fi panel: the radio, what is in use, what is nearby, and a way to switch.
@@ -12,11 +13,13 @@ import Quickshell.Io
 // not expose: the profile name for DNS, the gateway, VPN links, the band, and
 // the QR.
 //
-// The shape follows the reference's panels: a hero row for the thing the panel is
-// *about* (the radio), then sections under a rule and a heading. The sections are
-// what make a panel of this size readable — a flat run of rows leaves you
-// counting rather than scanning — and the hero is the one control worth reaching
-// for without aiming.
+// The shape follows the reference's network popup: a status header, the two
+// radios side by side, then sections under a rule — Details, VPNs, Wi-Fi
+// Networks and More. The details are folded away because they are what you read
+// once, while the networks are what the panel is opened for; a network row
+// opens its own actions in place rather than sending you to another surface.
+// The hero still names the panel, because that is how every other panel in the
+// shell begins.
 Item {
   id: root
 
@@ -61,6 +64,35 @@ Item {
   // One action at a time. Two connects racing each other is not a faster connect,
   // it is two requests fighting over the device and neither result trustworthy.
   readonly property bool busy: NetworkHost.busy
+
+  // ---- what the panel is showing ----
+  //
+  // The reference folds the connection facts and its less-used actions away, and
+  // opens a network's actions where the network is. These three follow that:
+  // details and More are closed until asked for, and one network at a time is
+  // open because opening two turns the list into a wall of buttons.
+  property bool detailsExpanded: false
+  property bool moreExpanded: false
+  property string expandedSsid: ""
+
+  // ---- airplane ----
+  //
+  // Airplane is both radios off, not a separate rfkill switch: that is what the
+  // two controls below can actually do without root, and a toggle that claimed
+  // to block a radio it could not touch would be a lie. Bluetooth comes from the
+  // same service the bar's Bluetooth widget uses, so the two never disagree.
+  readonly property var bluetoothAdapter: Bluetooth.defaultAdapter
+  readonly property bool bluetoothEnabled: root.bluetoothAdapter ? root.bluetoothAdapter.enabled : false
+  readonly property bool airplaneMode: !root.radioEnabled && !root.bluetoothEnabled
+
+  // ---- VPNs ----
+  //
+  // NetworkManager's own VPN, WireGuard and tun connections. Tailscale shows up
+  // here as its tun link; the widget on the bar still owns the tailnet itself,
+  // and this is the same connection seen from the network layer.
+  property var vpns: []
+  property bool vpnBusy: false
+  property bool restarting: false
 
   Connections {
     target: NetworkHost
@@ -169,20 +201,19 @@ Item {
   property string address: ""
   property string gateway: ""
   property string wired: ""
-  property string vpn: ""
 
   function refreshDetails() {
     root.refreshBand()
+    root.refreshVpns()
 
     // Read by device, not by connection: the device is what the panel has, and
     // the answer includes the profile name, which is what the con verbs take.
-    // It runs while disconnected too, so an Ethernet cable or VPN still shows.
+    // It runs while disconnected too, so an Ethernet cable still shows.
     if (!root.wifiDevice) {
       root.activeConnection = ""
       root.address = ""
       root.gateway = ""
       root.wired = ""
-      root.vpn = ""
       root.refreshDns()
       return
     }
@@ -229,7 +260,7 @@ Item {
       'nmcli -g GENERAL.CONNECTION device show "$1" 2>/dev/null; echo ---; '
       + 'nmcli -g IP4.ADDRESS device show "$1" 2>/dev/null | head -1; echo ---; '
       + 'nmcli -g IP4.GATEWAY device show "$1" 2>/dev/null | head -1; echo ---; '
-      + 'nmcli -t -f TYPE,STATE,CONNECTION device status 2>/dev/null | grep -E "^(ethernet|wireguard|tun|vpn):" || true',
+      + 'nmcli -t -f TYPE,STATE,CONNECTION device status 2>/dev/null | grep -E "^ethernet:" || true',
       "_", root.wifiDevice ? root.wifiDevice.name : ""]
     stdout: StdioCollector {
       onStreamFinished: {
@@ -243,19 +274,13 @@ Item {
         root.gateway = String(parts[2] || "").trim()
 
         let wired = ""
-        let vpn = ""
         const links = String(parts[3] || "").trim().split("\n")
         for (let i = 0; i < links.length; i++) {
           const fields = links[i].split(":")
-          if (fields[1] !== "connected") continue
-          if (fields[0] === "ethernet") wired = root.decodeSsid(fields[2] || "connected")
-          if (fields[0] === "wireguard" || fields[0] === "tun" || fields[0] === "vpn") {
-            vpn = root.decodeSsid(fields[2] || fields[0])
-          }
+          if (fields[1] === "connected") wired = root.decodeSsid(fields[2] || "connected")
         }
 
         root.wired = wired
-        root.vpn = vpn
 
         // DNS is a property of the profile, so it can only be read once the
         // profile name is known. Always, not only on a change: a details read
@@ -263,6 +288,74 @@ Item {
         // would otherwise leave DNS empty until the next change.
         root.refreshDns()
       }
+    }
+  }
+
+  // ---- VPNs ----
+  //
+  // One read for the list, then one action at a time. `-t` escapes separators in
+  // a profile name, so the type and the active flag are taken from the two ends
+  // of the line rather than by splitting the name on a colon it may contain.
+  function refreshVpns() {
+    vpnList.running = false
+    vpnList.running = true
+  }
+
+  function toggleVpn(vpn) {
+    if (!vpn || root.vpnBusy) return
+
+    root.actionError = ""
+    root.vpnBusy = true
+    vpnAction.command = ["nmcli", "connection", vpn.active ? "down" : "up", vpn.name]
+    vpnAction.running = false
+    vpnAction.running = true
+  }
+
+  Process {
+    id: vpnList
+    running: false
+    command: ["sh", "-c", "nmcli -t -f NAME,TYPE,ACTIVE connection show 2>/dev/null || true"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const out = []
+        const lines = String(this.text || "").split("\n")
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i]
+          if (line === "") continue
+
+          const activeAt = line.lastIndexOf(":")
+          if (activeAt < 0) continue
+          const typeAt = line.lastIndexOf(":", activeAt - 1)
+          if (typeAt < 0) continue
+
+          const name = root.decodeSsid(line.slice(0, typeAt))
+          const type = line.slice(typeAt + 1, activeAt)
+          if (name === "" || name === "lo") continue
+          if (type !== "vpn" && type !== "wireguard" && type !== "tun") continue
+
+          out.push({ name: name, type: type, active: line.slice(activeAt + 1) === "yes" })
+        }
+
+        root.vpns = out
+      }
+    }
+  }
+
+  Process {
+    id: vpnAction
+    running: false
+    stderr: StdioCollector { id: vpnError }
+    onExited: function (exitCode) {
+      root.vpnBusy = false
+
+      if (exitCode !== 0) {
+        const message = String(vpnError.text || "").trim().split("\n")[0]
+        root.actionError = message !== "" ? message : "Could not change the VPN"
+      }
+
+      root.refreshVpns()
+      root.refreshDetails()
     }
   }
 
@@ -577,6 +670,34 @@ Item {
     if (!on && root.qrVisible) root.setQr(false)
   }
 
+  function setAirplane(on) {
+    root.actionError = ""
+    root.setRadio(!on)
+    if (root.bluetoothAdapter) root.bluetoothAdapter.enabled = !on
+  }
+
+  // Cycling the radio is the fix for the state a network manager occasionally
+  // gets stuck in, and doing it from here saves opening a terminal for one
+  // command. The delay is the same half second the CLI's own helper uses: long
+  // enough for the device to go down, short enough not to feel like a hang.
+  function restartWifi() {
+    if (root.restarting || !root.radioEnabled) return
+
+    root.actionError = ""
+    root.restarting = true
+    NetworkHost.setWifiEnabled(false)
+    restartOn.restart()
+  }
+
+  Timer {
+    id: restartOn
+    interval: 500
+    onTriggered: {
+      NetworkHost.setWifiEnabled(true)
+      root.restarting = false
+    }
+  }
+
   Component.onCompleted: {
     // A code from a previous run is a password left behind; the toggle that
     // made it is off in this fresh panel.
@@ -610,24 +731,6 @@ Item {
     return 1
   }
 
-  // A cap on the list's height, so a crowded street does not push the rest of the
-  // panel off the screen. The panel itself scrolls; this is what keeps the list
-  // from swallowing the whole of it, and the two scroll together rather than one
-  // inside the other.
-  readonly property int maxListHeight: Style.space(220)
-
-  // Tall enough to say something in when there is nothing to list.
-  readonly property int emptyListHeight: Style.space(32)
-
-  // A row and the gap after it. The list's height is built from these rather than
-  // from the cap, so it ends on a whole row: a 220px cap used to cut the eighth
-  // network in half, which reads as a rendering fault rather than as "there is
-  // more below".
-  readonly property int rowHeight: Style.space(26)
-  readonly property int rowGap: Style.space(2)
-  readonly property int rowStep: root.rowHeight + root.rowGap
-  readonly property int visibleRows: Math.max(1, Math.floor((root.maxListHeight + root.rowGap) / root.rowStep))
-
   implicitWidth: Style.space(320)
   implicitHeight: card.implicitHeight
 
@@ -635,30 +738,23 @@ Item {
     id: card
     anchors.fill: parent
 
-    // ---- the radio ----
+    // ---- status ----
     //
-    // The one control worth reaching for without aiming, so it is in the hero
-    // where the glyph you clicked this panel by leads the eye.
+    // The reference leads with the state rather than with a switch: whether this
+    // machine is on the network is what the panel is about, and the radios are
+    // the controls underneath that.
     PanelHero {
       width: card.contentWidth
       glyph: Util.wifi
-      title: "Wi-Fi"
-      subtitle: root.connected ? root.activeSsid : (root.radioEnabled ? "not connected" : "wireless off")
-      controlWidth: radioSwitch.implicitWidth
-
-      ToggleSwitch {
-        id: radioSwitch
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        checked: root.radioEnabled
-        busy: root.radioBusy
-        onToggled: root.setRadio(!root.radioEnabled)
-      }
+      title: root.connected ? "Wi-Fi Connected" : "Wi-Fi"
+      subtitle: root.connected
+        ? root.activeSsid + " · Signal " + NetworkHost.signal + "%"
+        : (root.radioEnabled ? "Not connected" : "Wireless off")
     }
 
     // The last action's own failure — a connect, a DNS change, a forgotten
-    // profile — next to the thing it happened to. The list's "Unavailable"
-    // below is for the read, not for these.
+    // profile — next to the thing it happened to. The "Unavailable" below is for
+    // the read, not for these.
     Text {
       width: card.contentWidth
       height: implicitHeight
@@ -671,17 +767,6 @@ Item {
       maximumLineCount: 2
       elide: Text.ElideRight
       renderType: Text.NativeRendering
-    }
-
-    PanelSeparator {
-      visible: root.connected
-    }
-
-    // ---- what is in use ----
-    PanelSectionHeader {
-      width: card.contentWidth
-      visible: root.connected
-      label: "Connection"
     }
 
     // The status line doubles as the error surface: when nmcli is broken it is
@@ -716,95 +801,6 @@ Item {
       renderType: Text.NativeRendering
     }
 
-    PanelActionButton {
-      id: disconnectButton
-      width: card.contentWidth
-      visible: root.connected && !root.failed
-      label: root.busy && root.actionKind === "disconnect" ? "Disconnecting…" : "Disconnect"
-      danger: true
-      outlined: true
-      navigational: false
-      available: !root.busy
-      onClicked: root.disconnect(root.activeSsid)
-    }
-
-    PanelRow {
-      id: dnsRow
-      width: card.contentWidth
-      visible: root.connected
-      hasControl: true
-      label: "DNS"
-
-      Dropdown {
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        width: dnsRow.controlWidth
-        model: root.dnsProviders
-        placeholder: "custom"
-        enabled: !root.dnsBusy
-        currentIndex: root.dnsIndex()
-        onActivated: function (index) { root.setDns(root.dnsProviders[index]) }
-      }
-    }
-
-    PanelRow {
-      id: bandRow
-      width: card.contentWidth
-      visible: root.connected && root.band !== ""
-      hasControl: true
-      label: "Band"
-
-      Dropdown {
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        width: bandRow.controlWidth
-        model: root.bandOptions
-        enabled: !root.bandBusy
-        currentIndex: root.bandIndex()
-        onActivated: function (index) { root.setBand(root.bandOptions[index].value) }
-      }
-    }
-
-    PanelRow {
-      width: card.contentWidth
-      visible: root.connected && root.address !== ""
-      label: "Address"
-      value: root.address
-    }
-
-    PanelRow {
-      width: card.contentWidth
-      visible: root.connected && root.gateway !== ""
-      label: "Gateway"
-      value: root.gateway
-    }
-
-    // The links the Wi-Fi panel is not about, but is the only network surface the
-    // shell has: an Ethernet cable on a dock and a VPN that is up both change the
-    // answer to "is this machine online".
-    PanelRow {
-      width: card.contentWidth
-      visible: root.wired !== ""
-      label: "Wired"
-      value: root.wired
-    }
-
-    PanelRow {
-      width: card.contentWidth
-      visible: root.vpn !== ""
-      label: "VPN"
-      value: root.vpn
-    }
-
-    PanelActionButton {
-      width: card.contentWidth
-      visible: root.connected
-      label: "Forget this network"
-      danger: true
-      navigational: false
-      onClicked: root.forget()
-    }
-
     // A failure with no way out of it is a dead end. nmcli exits non-zero for a
     // transient reason often enough — NetworkManager restarting, the device still
     // coming up — and the one thing that always helps is asking again.
@@ -818,6 +814,224 @@ Item {
 
     PanelSeparator {}
 
+    // ---- the radios ----
+    //
+    // Side by side, like the reference's "Wi-Fi: On  Airplane: Off" line: they
+    // are two halves of the same decision, and putting them in one run keeps the
+    // panel from spending a full row on each.
+    Row {
+      width: card.contentWidth
+      spacing: Style.space(8)
+
+      PanelActionButton {
+        width: (card.contentWidth - Style.space(8)) / 2
+        label: "Wi-Fi"
+        value: root.radioEnabled ? "On" : "Off"
+        navigational: false
+        available: !root.radioBusy
+        onClicked: root.setRadio(!root.radioEnabled)
+      }
+
+      PanelActionButton {
+        width: (card.contentWidth - Style.space(8)) / 2
+        label: "Airplane"
+        value: root.airplaneMode ? "On" : "Off"
+        navigational: false
+        onClicked: root.setAirplane(!root.airplaneMode)
+      }
+    }
+
+    PanelSeparator {
+      visible: root.connected
+    }
+
+    // ---- details ----
+    //
+    // Folded away because the facts under it are what you read once, while the
+    // networks below are what the panel is opened for. It also keeps the panel
+    // short enough that the list is still on screen when it opens.
+    PanelActionButton {
+      width: card.contentWidth
+      visible: root.connected
+      label: "Details"
+      value: root.detailsExpanded ? "hide" : "show"
+      navigational: false
+      onClicked: root.detailsExpanded = !root.detailsExpanded
+    }
+
+    Column {
+      width: card.contentWidth
+      spacing: Style.space(8)
+      visible: root.connected && root.detailsExpanded
+
+      PanelRow {
+        width: parent.width
+        visible: root.address !== ""
+        label: "IP"
+        value: root.address
+      }
+
+      PanelRow {
+        width: parent.width
+        visible: root.gateway !== ""
+        label: "Gateway"
+        value: root.gateway
+      }
+
+      PanelRow {
+        width: parent.width
+        visible: NetworkHost.security !== ""
+        label: "Security"
+        value: NetworkHost.security
+      }
+
+      // The links the Wi-Fi panel is not about, but is the only network surface
+      // the shell has: an Ethernet cable on a dock changes the answer to "is
+      // this machine online".
+      PanelRow {
+        width: parent.width
+        visible: root.wired !== ""
+        label: "Wired"
+        value: root.wired
+      }
+
+      PanelRow {
+        id: dnsRow
+        width: parent.width
+        hasControl: true
+        label: "DNS"
+
+        Dropdown {
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          width: dnsRow.controlWidth
+          model: root.dnsProviders
+          placeholder: "custom"
+          enabled: !root.dnsBusy
+          currentIndex: root.dnsIndex()
+          onActivated: function (index) { root.setDns(root.dnsProviders[index]) }
+        }
+      }
+
+      PanelRow {
+        id: bandRow
+        width: parent.width
+        visible: root.band !== ""
+        hasControl: true
+        label: "Band"
+
+        Dropdown {
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          width: bandRow.controlWidth
+          model: root.bandOptions
+          enabled: !root.bandBusy
+          currentIndex: root.bandIndex()
+          onActivated: function (index) { root.setBand(root.bandOptions[index].value) }
+        }
+      }
+
+      PanelSeparator {}
+
+      // The QR, behind a toggle. It carries the network's password in the clear,
+      // so it is drawn only while this is on, and generated only then — the image
+      // is not sitting in the state directory waiting for a panel to be open.
+      Toggle {
+        id: qrToggle
+        width: parent.width
+        height: implicitHeight
+        label: "Share this network"
+        description: "a QR code another device can scan to join"
+        checked: root.qrVisible
+        onToggled: root.setQr(!root.qrVisible)
+      }
+
+      PanelActionButton {
+        width: parent.width
+        label: root.passwordCopied ? "Password copied" : (root.passwordBusy ? "Copying…" : "Copy password")
+        outlined: true
+        navigational: false
+        available: !root.passwordBusy
+        onClicked: root.copyPassword()
+      }
+
+      // The box is the size the code is drawn at, not the size of the file behind
+      // it: an Image's implicit height is the source's own, and a QR that arrives
+      // as 512px made a 512px row that the panel then had to cut.
+      Item {
+        width: parent.width
+        height: root.qrVisible && root.qrReady ? root.qrSize : 0
+        visible: height > 0
+
+        SizedImage {
+          id: qrImage
+          anchors.horizontalCenter: parent.horizontalCenter
+          width: root.qrSize
+          height: root.qrSize
+          source: root.qrPath
+          fillMode: Image.PreserveAspectFit
+        }
+      }
+
+      Text {
+        width: parent.width
+        height: implicitHeight
+        visible: root.qrVisible && root.qrError !== ""
+        text: root.qrError
+        color: Theme.danger
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
+        maximumLineCount: 2
+        elide: Text.ElideRight
+        renderType: Text.NativeRendering
+      }
+    }
+
+    PanelSeparator {}
+
+    // ---- VPNs ----
+    //
+    // NetworkManager's links that are not the Wi-Fi one. The action is the whole
+    // row, the way the reference puts "disconnect" at the end of its VPN lines:
+    // there is one thing to do to a VPN and no reason to aim at a word for it.
+    PanelSectionHeader {
+      width: card.contentWidth
+      label: "VPNs & Proxies"
+    }
+
+    Text {
+      width: card.contentWidth
+      height: implicitHeight
+      visible: root.vpns.length === 0
+      text: "None"
+      color: Theme.muted
+      font.family: Style.font.family
+      font.pixelSize: Style.font.bodySmall
+      renderType: Text.NativeRendering
+    }
+
+    Column {
+      width: card.contentWidth
+      spacing: Style.space(2)
+
+      Repeater {
+        model: root.vpns
+
+        delegate: PanelActionButton {
+          required property var modelData
+
+          width: card.contentWidth
+          label: modelData.name + " (" + modelData.type + ")"
+          value: (modelData.active ? "Connected" : "Disconnected")
+            + " · " + (modelData.active ? "disconnect" : "connect")
+          navigational: false
+          available: !root.vpnBusy
+          onClicked: root.toggleVpn(modelData)
+        }
+      }
+    }
+
     // ---- what is nearby ----
     //
     // The rescan belongs to the list it rescans: at the end of the heading rather
@@ -825,7 +1039,7 @@ Item {
     // one control for the list a screenful away from the list.
     PanelSectionHeader {
       width: card.contentWidth
-      label: "Networks"
+      label: "Wi-Fi Networks"
       action: root.scanning ? "Scanning…" : "Rescan"
       actionEnabled: root.radioEnabled && !root.scanning && !root.failed && !root.busy
       onActionTriggered: root.rescan()
@@ -879,161 +1093,197 @@ Item {
       PanelSeparator {}
     }
 
-    ListView {
-      id: list
+    Column {
       width: card.contentWidth
-      // Whole rows only: `visibleRows` rows and the gaps between them, capped.
-      height: Math.max(
-        count > 0 ? Math.min(count, root.visibleRows) * root.rowStep - root.rowGap : 0,
-        root.emptyMessage !== "" ? root.emptyListHeight : 0)
-      clip: true
-      model: root.networks
-      spacing: root.rowGap
-      rightMargin: Style.space(8)
-      boundsBehavior: Flickable.StopAtBounds
+      spacing: Style.space(2)
 
-      // Visible while it can scroll, rather than only while it is being used:
-      // eight networks behind a list that looks like it ends is a list you do not
-      // know to scroll.
-      ScrollBar.vertical: ScrollBar {
-        policy: list.contentHeight > list.height + 1 ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
-      }
+      Repeater {
+        model: root.networks
 
-      delegate: ChoiceRow {
-        id: rowItem
-        required property var modelData
+        delegate: Column {
+          id: netRow
+          required property var modelData
 
-        readonly property bool inFlight: root.actionSsid === rowItem.modelData.ssid && root.busy
+          readonly property bool inFlight: root.actionSsid === netRow.modelData.ssid && root.busy
+          readonly property bool expanded: root.expandedSsid === netRow.modelData.ssid
+          readonly property var network: netRow.modelData.network
 
-        width: list.width - list.rightMargin
-        height: root.rowHeight
-        available: root.radioEnabled && !root.busy
+          width: card.contentWidth
+          spacing: Style.space(2)
 
-        // Only for networks that need a key. An open network gets no glyph rather
-        // than an open padlock: the absence says "open" more quietly than a
-        // symbol repeated on every row would.
-        glyph: rowItem.modelData.secured ? Util.lock : ""
-        label: rowItem.inFlight
-          // The row says what it is doing while it does it. Without this a click
-          // on a network that takes a second looks like nothing happened.
-          ? (root.actionKind === "connect" ? "Connecting…" : "Disconnecting…")
-          : rowItem.modelData.ssid
-        selected: rowItem.modelData.inUse && !rowItem.inFlight
-        onClicked: {
-          if (rowItem.modelData.inUse) root.disconnect(rowItem.modelData.ssid)
-          else root.connect(rowItem.modelData.ssid)
-        }
+          ChoiceRow {
+            width: parent.width
+            height: Style.space(28)
+            available: root.radioEnabled && !root.busy
 
-        Row {
-          spacing: Style.space(6)
+            // Only for networks that need a key. An open network gets no glyph
+            // rather than an open padlock: the absence says "open" more quietly
+            // than a symbol repeated on every row would.
+            glyph: netRow.modelData.secured ? Util.lock : ""
+            label: netRow.inFlight
+              // The row says what it is doing while it does it. Without this a
+              // click on a network that takes a second looks like nothing
+              // happened.
+              ? (root.actionKind === "connect" ? "Connecting…" : "Disconnecting…")
+              : netRow.modelData.ssid
+            selected: netRow.modelData.inUse && !netRow.inFlight
 
-          Text {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: text !== ""
-            text: root.bandLabel(rowItem.modelData)
-            color: Theme.muted
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            renderType: Text.NativeRendering
+            // Opening the row is what picks it now, rather than connecting on
+            // the first click: the reference puts Connect, Forget and Auto under
+            // the network, and a list where one click both chooses and joins is
+            // a list you cannot look at without acting on.
+            onClicked: root.expandedSsid = netRow.expanded ? "" : netRow.modelData.ssid
+
+            Row {
+              spacing: Style.space(6)
+
+              Text {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: text !== ""
+                text: root.bandLabel(netRow.modelData)
+                color: Theme.muted
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+                renderType: Text.NativeRendering
+              }
+
+              // Four ascending bars, the filled count set by the signal
+              // percentage.
+              Row {
+                spacing: 2
+
+                Repeater {
+                  model: 4
+                  delegate: Rectangle {
+                    required property int index
+                    width: 3
+                    height: 4 + index * 3
+                    radius: Theme.cornerRadius
+                    // Standing on the same line, not floating around their own
+                    // middles: centre-aligned bars of four different heights
+                    // read as dashes, not as a staircase, which is the whole
+                    // point of the glyph.
+                    anchors.bottom: parent.bottom
+                    color: index < root.signalLevel(netRow.modelData.signal)
+                      ? (netRow.modelData.inUse ? Theme.accent : Theme.muted)
+                      : Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.12)
+                  }
+                }
+              }
+            }
           }
 
-          // Four ascending bars, the filled count set by the signal percentage.
-          Row {
-            spacing: 2
+          Column {
+            width: parent.width
+            spacing: Style.space(2)
+            visible: netRow.expanded
 
-            Repeater {
-              model: 4
-              delegate: Rectangle {
-                required property int index
-                width: 3
-                height: 4 + index * 3
-                radius: Theme.cornerRadius
-                // Standing on the same line, not floating around their own middles:
-                // centre-aligned bars of four different heights read as dashes, not
-                // as a staircase, which is the whole point of the glyph.
-                anchors.bottom: parent.bottom
-                color: index < root.signalLevel(rowItem.modelData.signal)
-                  ? (rowItem.selected ? Theme.accent : Theme.muted)
-                  : Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.12)
+            Row {
+              anchors.horizontalCenter: parent.horizontalCenter
+              spacing: Style.space(4)
+
+              TextButton {
+                label: netRow.modelData.inUse ? "Disconnect" : "Connect"
+                active: netRow.modelData.inUse
+                available: !root.busy
+                onClicked: {
+                  root.expandedSsid = ""
+                  if (netRow.modelData.inUse) root.disconnect(netRow.modelData.ssid)
+                  else root.connect(netRow.modelData.ssid)
+                }
               }
+
+              TextButton {
+                visible: netRow.network ? netRow.network.known : false
+                label: "Forget"
+                danger: true
+                available: !root.busy
+                onClicked: {
+                  root.expandedSsid = ""
+                  root.actionError = ""
+                  NetworkHost.forget(netRow.modelData)
+                }
+              }
+
+              TextButton {
+                visible: netRow.network ? netRow.network.known : false
+                label: "Auto: " + (netRow.network && netRow.network.autoconnect ? "On" : "Off")
+                active: !!(netRow.network && netRow.network.autoconnect)
+                onClicked: {
+                  if (netRow.network) netRow.network.autoconnect = !netRow.network.autoconnect
+                }
+              }
+            }
+
+            Text {
+              width: parent.width
+              horizontalAlignment: Text.AlignHCenter
+              text: "Security: "
+                + (netRow.network ? NetworkHost.securityLabel(netRow.network.security) : "")
+                + (root.bandLabel(netRow.modelData) !== "" ? " · " + root.bandLabel(netRow.modelData) : "")
+              color: Theme.muted
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              elide: Text.ElideRight
+              renderType: Text.NativeRendering
             }
           }
         }
       }
-
-      // What an empty list means, rather than an empty box. Said in here,
-      // where the entries would have been.
-      Text {
-        anchors.fill: parent
-        visible: list.count === 0
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
-        wrapMode: Text.WordWrap
-        text: root.emptyMessage
-        color: Theme.muted
-        font.family: Style.font.family
-        font.pixelSize: Style.font.bodySmall
-      }
     }
 
-    // The QR, behind a toggle. It carries the network's password in the clear, so
-    // it is drawn only while this is on, and generated only then — the image is
-    // not sitting in the state directory waiting for a panel to be open.
-    PanelSeparator {
-      visible: root.connected
-    }
-
-    Toggle {
-      id: qrToggle
+    // What an empty list means, rather than an empty box. There is nothing to
+    // draw an expansion under, so the reason stands on its own.
+    Text {
       width: card.contentWidth
-      visible: root.connected
-      height: implicitHeight
-      label: "Share this network"
-      description: "a QR code another device can scan to join"
-      checked: root.qrVisible
-      onToggled: root.setQr(!root.qrVisible)
+      visible: root.networks.length === 0 && root.emptyMessage !== ""
+      text: root.emptyMessage
+      color: Theme.muted
+      font.family: Style.font.family
+      font.pixelSize: Style.font.bodySmall
+      horizontalAlignment: Text.AlignHCenter
+      renderType: Text.NativeRendering
     }
+
+    // ---- more ----
+    //
+    // The reference keeps its less-used actions behind one fold, and so does
+    // this: cycling the radio is the one thing that clears the state a network
+    // manager occasionally wedges in, and forgetting the current network is
+    // destructive enough that it should not sit next to the list.
+    PanelSeparator {}
 
     PanelActionButton {
       width: card.contentWidth
-      visible: root.connected
-      label: root.passwordCopied ? "Password copied" : (root.passwordBusy ? "Copying…" : "Copy password")
-      outlined: true
+      label: "More"
+      value: root.moreExpanded ? "hide" : "show"
       navigational: false
-      available: !root.passwordBusy
-      onClicked: root.copyPassword()
+      onClicked: root.moreExpanded = !root.moreExpanded
     }
 
-    // The box is the size the code is drawn at, not the size of the file behind
-    // it: an Image's implicit height is the source's own, and a QR that arrives
-    // as 512px made a 512px row that the panel then had to cut.
-    Item {
+    Column {
       width: card.contentWidth
-      height: root.qrVisible && root.qrReady ? root.qrSize : 0
-      visible: height > 0
+      spacing: Style.space(8)
+      visible: root.moreExpanded
 
-      SizedImage {
-        id: qrImage
-        anchors.horizontalCenter: parent.horizontalCenter
-        width: root.qrSize
-        height: root.qrSize
-        source: root.qrPath
-        fillMode: Image.PreserveAspectFit
+      PanelActionButton {
+        width: parent.width
+        label: root.restarting ? "Restarting…" : "Restart Wi-Fi"
+        navigational: false
+        available: !root.restarting && root.radioEnabled && !root.busy
+        onClicked: root.restartWifi()
       }
-    }
 
-    Text {
-      width: card.contentWidth
-      height: implicitHeight
-      visible: root.qrVisible && root.qrError !== ""
-      text: root.qrError
-      color: Theme.danger
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
-      wrapMode: Text.WordWrap
-      maximumLineCount: 2
-      elide: Text.ElideRight
-      renderType: Text.NativeRendering
+      PanelActionButton {
+        width: parent.width
+        visible: root.connected && root.networkFor(root.activeSsid) !== null
+        label: "Forget this network"
+        danger: true
+        outlined: true
+        navigational: false
+        available: !root.busy
+        onClicked: root.forget()
+      }
     }
   }
 }

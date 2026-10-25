@@ -51,6 +51,29 @@ QtObject {
     ? Math.round(Number(root.activeNetwork.signalStrength || 0) * 100)
     : 0
 
+  // The security in the words a person reads, not the enum's own name. The
+  // access point says Wpa2Psk; the panel says WPA2.
+  function securityLabel(type) {
+    switch (type) {
+    case WifiSecurityType.Wpa3SuiteB192: return "WPA3 Suite-B"
+    case WifiSecurityType.Sae: return "WPA3"
+    case WifiSecurityType.Wpa2Eap: return "WPA2 Enterprise"
+    case WifiSecurityType.Wpa2Psk: return "WPA2"
+    case WifiSecurityType.WpaEap: return "WPA Enterprise"
+    case WifiSecurityType.WpaPsk: return "WPA"
+    case WifiSecurityType.StaticWep: return "WEP"
+    case WifiSecurityType.DynamicWep: return "WEP"
+    case WifiSecurityType.Leap: return "LEAP"
+    case WifiSecurityType.Owe: return "OWE"
+    case WifiSecurityType.Open: return "Open"
+    }
+    return "Unknown"
+  }
+
+  readonly property string security: root.activeNetwork
+    ? root.securityLabel(root.activeNetwork.security)
+    : ""
+
   // SSID -> bands. Quickshell's WifiNetwork has no frequency, so the bands come
   // from NetworkManager's access-point cache. The cache is kept warm by the
   // scanner the panel enables.
