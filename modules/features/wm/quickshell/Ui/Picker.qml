@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Wayland
 import ".."
 
@@ -113,6 +114,12 @@ Item {
   Rectangle {
     id: card
 
+    // Above the curtain for input, not just for drawing. The card is declared
+    // after it already, but a full-output MouseArea behind a childless surface
+    // was still taking every press; the explicit z is what makes the card and
+    // its rows, tabs and window thumbnails the thing the click lands on.
+    z: 1
+
     anchors.centerIn: parent
     width: Math.min(root.width * 0.6, Style.space(640))
     height: cardColumn.implicitHeight
@@ -127,6 +134,13 @@ Item {
     color: Theme.surface
     border.color: Theme.border
     border.width: Style.strokeWidth
+
+    // Clicks on the card's own padding belong to the card. Without this they
+    // fall through the surface to the curtain behind and dismiss the picker.
+    MouseArea {
+      anchors.fill: parent
+      acceptedButtons: Qt.LeftButton | Qt.RightButton
+    }
 
     Column {
       id: cardColumn
@@ -319,7 +333,7 @@ Item {
         id: windowStrip
 
         width: parent.width
-        height: root.windowsVisible ? Style.space(44) : 0
+        height: root.windowsVisible ? Style.space(50) : 0
         visible: root.windowsVisible
         clip: true
 
@@ -334,15 +348,38 @@ Item {
           model: MenuHost.windows
 
           delegate: Rectangle {
+            id: windowTile
             required property int index
             required property var modelData
 
             readonly property bool chosen: root.windowIndex === index
+            readonly property var hypr: modelData.HyprlandToplevel
+            readonly property var workspace: hypr ? hypr.workspace : null
+            readonly property var monitor: hypr ? hypr.monitor : null
+
+            // Only the windows on their monitor's visible workspace can be
+            // captured: a window on a workspace that is not being composited
+            // comes back black. Those get the app's mark and a workspace badge
+            // instead, so the strip stays a switcher rather than a row of black
+            // rectangles. Clicking one still moves to its workspace.
+            readonly property bool onActiveWorkspace: {
+              if (!workspace || !monitor || !monitor.activeWorkspace) return true
+              return workspace.id === monitor.activeWorkspace.id
+            }
+            readonly property bool captured: capture.hasContent && onActiveWorkspace
+
             readonly property string iconSource:
               Quickshell.iconPath(String(modelData.appId || ""), true)
+            readonly property string workspaceLabel:
+              workspace ? String(workspace.name || workspace.id || "") : ""
+            readonly property string initial: {
+              const text = String(modelData.appId || modelData.title || "?")
+              const dot = text.indexOf(".")
+              return (dot > 0 ? text.slice(0, dot) : text).charAt(0).toUpperCase()
+            }
 
-            width: Style.space(44)
-            height: Style.space(34)
+            width: Style.space(56)
+            height: Style.space(40)
             y: (ListView.view.height - height) / 2
             radius: Theme.cornerRadius
             color: Theme.bg
@@ -350,20 +387,53 @@ Item {
             border.width: Style.strokeWidth
             border.color: chosen
               ? Theme.primary
-              : (windowMouse.containsMouse ? Theme.borderStrong : Theme.border)
+              : (modelData.activated
+                ? Theme.accent
+                : (windowMouse.containsMouse ? Theme.borderStrong : Theme.border))
+
+            // What a window that cannot be photographed looks like: its mark,
+            // large enough to identify, and the workspace it lives on.
+            Item {
+              anchors.fill: parent
+              visible: !windowTile.captured
+
+              Image {
+                anchors.centerIn: parent
+                width: Style.space(20)
+                height: width
+                source: windowTile.iconSource
+                visible: windowTile.iconSource !== ""
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+              }
+
+              Text {
+                anchors.centerIn: parent
+                visible: windowTile.iconSource === ""
+                text: windowTile.initial
+                color: Theme.muted
+                font.family: Style.font.family
+                font.pixelSize: Style.font.subtitle
+                font.weight: Font.DemiBold
+                renderType: Text.NativeRendering
+              }
+            }
 
             ScreencopyView {
+              id: capture
+
               anchors.fill: parent
               anchors.margins: Style.strokeWidth
               captureSource: modelData
-              live: windowStrip.visible
+              live: windowStrip.visible && windowTile.onActiveWorkspace
               paintCursor: false
+              visible: windowTile.captured
             }
 
             // The application's own mark, in the corner, so two windows of the
             // same shape are still distinguishable when the screenshots are.
             Rectangle {
-              visible: iconSource !== ""
+              visible: windowTile.captured && windowTile.iconSource !== ""
               width: Style.space(12)
               height: width
               anchors.left: parent.left
@@ -375,9 +445,33 @@ Item {
               Image {
                 anchors.fill: parent
                 anchors.margins: 1
-                source: iconSource
+                source: windowTile.iconSource
                 fillMode: Image.PreserveAspectFit
                 smooth: true
+              }
+            }
+
+            // The workspace badge is what tells two black previews apart; the
+            // reference puts one in the same corner.
+            Rectangle {
+              visible: windowTile.workspaceLabel !== ""
+              anchors.top: parent.top
+              anchors.right: parent.right
+              anchors.margins: Style.space(2)
+              width: workspaceText.implicitWidth + Style.space(4)
+              height: workspaceText.implicitHeight + Style.space(1)
+              color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, 0.8)
+              radius: Theme.cornerRadius
+
+              Text {
+                id: workspaceText
+                anchors.centerIn: parent
+                text: windowTile.workspaceLabel
+                color: Theme.accent
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+                font.weight: Font.DemiBold
+                renderType: Text.NativeRendering
               }
             }
 
@@ -385,6 +479,7 @@ Item {
               id: windowMouse
               anchors.fill: parent
               hoverEnabled: true
+              preventStealing: true
               cursorShape: Qt.PointingHandCursor
               onClicked: {
                 modelData.activate()

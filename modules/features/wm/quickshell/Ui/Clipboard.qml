@@ -42,6 +42,9 @@ Item {
   Row {
     id: cards
 
+    // The cards take input above the curtain, not only pixels.
+    z: 1
+
     anchors.centerIn: parent
     anchors.verticalCenterOffset: (1 - root.reveal) * Style.space(12)
     width: root.listWidth + (ClipboardHost.current ? root.previewWidth + spacing : 0)
@@ -397,7 +400,7 @@ Item {
         anchors.fill: parent
         anchors.margins: Style.space(12)
 
-        Row {
+        Item {
           id: previewHeader
 
           anchors.top: parent.top
