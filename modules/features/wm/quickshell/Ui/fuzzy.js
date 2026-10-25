@@ -332,3 +332,13 @@ function filter(rows, query) {
 function matches(text, query) {
   return score(String(text), query) !== null
 }
+
+// Node loads this file for the flake's tests. QML does not evaluate this branch,
+// so the functions above stay the whole interface there.
+if (typeof module !== "undefined") {
+  module.exports = {
+    score: score,
+    filter: filter,
+    matches: matches
+  }
+}

@@ -205,6 +205,23 @@
                   touch $out
                 '';
 
+            # The QML tree has a few pure JavaScript pieces — the JSONC parser,
+            # the fuzzy matcher, the state migration seam and the launcher's
+            # suggestions — and Node can load them because they export
+            # themselves when run outside QML. These are the cases a QML
+            # crash-loop would otherwise be the first to find.
+            js-tests =
+              pkgs.runCommand "js-tests"
+                {
+                  nativeBuildInputs = [ pkgs.nodejs ];
+                }
+                ''
+                  set -eu
+                  cd ${./.}
+                  node --test tests/js/*.test.js
+                  touch $out
+                '';
+
             # QML has no compiler, so a typo in a binding is found when the shell
             # restarts and crash-loops — or here. The Qt and Quickshell import
             # paths let qmllint resolve every type the shell uses; warnings are
