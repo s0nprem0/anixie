@@ -48,6 +48,15 @@ let
   # the shell service's PATH is the user manager's, not the profile's.
   lockHost = pkgs.writeText "LockHost.qml" (render ./Ui/LockHost.qml);
 
+  # The clock's calendar panel carries the calendar-events path, so the shell
+  # does not have to trust the user manager's PATH for it. Rendered in the same
+  # pass as the theme, which the panel also reads.
+  clock = pkgs.writeText "Clock.qml" (
+    builtins.replaceStrings [ "@CALENDAR_EVENTS@" ] [ config.anixie.wm.calendar.bin ] (
+      render ./components/Clock.qml
+    )
+  );
+
   # The notification display choice is read by the shell's window loop; the
   # panel writes it to NotificationHost, and this is the initial default.
   shell = pkgs.writeText "shell.qml" (render ./shell.qml);
@@ -82,6 +91,7 @@ let
     cp ${shell} $out/shell.qml
     cp ${theme} $out/Theme.qml
     cp ${notificationHost} $out/Ui/NotificationHost.qml
+    cp ${clock} $out/components/Clock.qml
     cp ${powerAlert} $out/Ui/PowerAlert.qml
     cp ${lockHost} $out/Ui/LockHost.qml
     cp ${focusConfig} $out/focus.json

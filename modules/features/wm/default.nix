@@ -1,6 +1,7 @@
 {
   imports = [
     ./bluetooth
+    ./calendar
     ./capture
     ./clipboard
     ./display
