@@ -14,7 +14,7 @@
 local function theme_colour(token, fallback, alpha)
   local state_home = os.getenv("XDG_STATE_HOME")
     or ((os.getenv("HOME") or "") .. "/.local/state")
-  local file = io.open(state_home .. "/anixie/theme/palette.json", "r")
+  local file = io.open(state_home .. "/anixie/theme/live/palette.json", "r")
   if not file then return fallback end
 
   local raw = file:read("a")
@@ -34,7 +34,7 @@ end
 local function theme_mode()
   local state_home = os.getenv("XDG_STATE_HOME")
     or ((os.getenv("HOME") or "") .. "/.local/state")
-  local file = io.open(state_home .. "/anixie/theme/mode", "r")
+  local file = io.open(state_home .. "/anixie/theme/live/mode", "r")
   if not file then return "dark" end
 
   local value = file:read("l")

@@ -80,10 +80,8 @@ let
   themeApps = pkgs.writeShellScriptBin "theme-apps" (
     builtins.replaceStrings
       [
-        "@PALETTES@"
         "@STATE_DIR@"
         "@JQ@"
-        "@TMUX@"
         "@HELIX_TEMPLATE@"
         "@YAZI_TEMPLATE@"
         "@HYPRLOCK_TEMPLATE@"
@@ -99,10 +97,8 @@ let
         "@POINTER_CURSOR_SIZE@"
       ]
       [
-        "${./themes.json}"
         stateDir
         "${pkgs.jq}/bin/jq"
-        "${pkgs.tmux}/bin/tmux"
         "${./templates/helix.toml}"
         "${./templates/yazi.toml}"
         "${./templates/hyprlock.conf}"
@@ -134,6 +130,7 @@ let
         "@WALLPAPER@"
         "@THEME_APPS@"
         "@MATUGEN@"
+        "@TMUX@"
         "@MAGICK@"
         "@FFMPEG@"
         "@SHA256SUM@"
@@ -157,6 +154,7 @@ let
         "${wallpaper}/bin/wallpaper"
         "${themeApps}/bin/theme-apps"
         "${pkgs.matugen}/bin/matugen"
+        "${pkgs.tmux}/bin/tmux"
         "${pkgs.imagemagick}/bin/magick"
         "${pkgs.ffmpeg}/bin/ffmpeg"
         "${pkgs.coreutils}/bin/sha256sum"
@@ -226,7 +224,9 @@ in
         printf '%s\n' ${lib.escapeShellArg config.anixie.theme.mode} >"$state/mode"
       fi
 
-      ${theme}/bin/theme migrate >/dev/null 2>&1 || true
+      if [ ! -f "$state/live/palette.json" ]; then
+        ${theme}/bin/theme apply >/dev/null 2>&1 || true
+      fi
     '';
   };
 

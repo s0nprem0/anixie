@@ -76,7 +76,7 @@ zle -N _fzf_file_no_hidden
 bindkey '^Xf' _fzf_file_no_hidden
 
 # Palette-derived FZF/EZA/BAT colours, rewritten by `theme` on every switch.
-theme_env="${XDG_STATE_HOME:-$HOME/.local/state}/anixie/theme/terminal.zsh"
+theme_env="${XDG_STATE_HOME:-$HOME/.local/state}/anixie/theme/live/terminal.zsh"
 if [[ -r "$theme_env" ]]; then
   source "$theme_env"
 fi

@@ -79,7 +79,9 @@ chosen() {
 # was built against.
 # shellcheck disable=SC2016  # the jq program is single-quoted on purpose
 colour() {
-  if [ -f "$STATE/palette.json" ]; then
+  if [ -f "$STATE/live/palette.json" ]; then
+    "$JQ" -r --arg k "$1" '.[$k]' "$STATE/live/palette.json"
+  elif [ -f "$STATE/palette.json" ]; then
     "$JQ" -r --arg k "$1" '.[$k]' "$STATE/palette.json"
   else
     theme="$(current_theme)"

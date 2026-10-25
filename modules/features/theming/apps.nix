@@ -1,7 +1,5 @@
 {
   config,
-  lib,
-  pkgs,
   ...
 }:
 
@@ -9,16 +7,8 @@ let
   # One palette, every app. Each of these is read when its program starts, so a
   # theme switched at runtime reaches the shell, Hyprland and kitty at once and
   # the rest at their next start — see theme.sh, which is honest about it.
-  render = config.anixie.theme.template.render;
   light = config.anixie.theme.mode == "light";
   stateDir = config.anixie.theme.stateDir;
-
-  # The same templates the runtime renderer uses, already rendered with the
-  # palette this machine is built from. Activation writes one to the state
-  # directory if it is not there yet.
-  defaultHelix = pkgs.writeText "anixie-helix.toml" (render ./templates/helix.toml);
-  defaultYazi = pkgs.writeText "anixie-yazi.toml" (render ./templates/yazi.toml);
-  defaultHyprlock = pkgs.writeText "anixie-hyprlock.conf" (render ./templates/hyprlock.conf);
 in
 {
   anixie.theme.template.placeholders."@HELIX_PARENT@" =
@@ -28,18 +18,13 @@ in
   # and are linked into ~/.config, so theme-apps can rewrite them on a switch
   # instead of waiting for the next build.
   xdg.configFile = {
-    "helix/themes/anixie.toml".source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/helix.toml";
-    "yazi/theme.toml".source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/yazi.toml";
-    "hypr/hyprlock.conf".source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/hyprlock.conf";
+    "helix/themes/anixie.toml".source =
+      config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/helix.toml";
+    "yazi/theme.toml".source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/yazi.toml";
+    "hypr/hyprlock.conf".source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/hyprlock.conf";
+    "btop/themes/anixie.theme".source =
+      config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/btop.theme";
   };
-
-  home.activation.anixieAppThemes = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    state=${lib.escapeShellArg stateDir}
-    mkdir -p "$state"
-    [ -f "$state/helix.toml" ] || install -m 644 ${defaultHelix} "$state/helix.toml"
-    [ -f "$state/yazi.toml" ] || install -m 644 ${defaultYazi} "$state/yazi.toml"
-    [ -f "$state/hyprlock.conf" ] || install -m 644 ${defaultHyprlock} "$state/hyprlock.conf"
-  '';
 
   # ---- Helix ----
   #
@@ -62,9 +47,9 @@ in
     # ---- btop ----
     #
     # btop only ships its own theme names, so `color_theme` names one that is
-    # generated. The file itself is written by theme-apps on every switch — at
-    # ~/.config/btop/themes/anixie.theme, which is the only place btop looks — so
-    # btop follows the palette at its next start rather than the next rebuild.
+    # generated. The file is written into each generation and linked at
+    # ~/.config/btop/themes/anixie.theme, the only place btop looks, so btop
+    # follows the palette at its next start rather than the next rebuild.
     btop = {
       enable = true;
       settings.color_theme = "anixie";
@@ -80,7 +65,7 @@ in
       # The colours are not here: theme-apps rewrites them on every switch, and
       # this config only says where to find them. `-q` so a server that starts
       # before the first `theme apply` has no error to report.
-      extraConfig = "source-file -q ${config.anixie.theme.stateDir}/tmux.conf";
+      extraConfig = "source-file -q ${config.anixie.theme.stateDir}/live/tmux.conf";
     };
 
     # ---- the lock screen ----

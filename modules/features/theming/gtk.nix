@@ -8,10 +8,6 @@
 let
   dark = config.anixie.theme.mode == "dark";
   stateDir = config.anixie.theme.stateDir;
-  render = config.anixie.theme.template.render;
-  defaultSettings = pkgs.writeText "anixie-gtk-settings.ini" (render ./templates/gtk-settings.ini);
-  default3Css = pkgs.writeText "anixie-gtk-3.0.css" (render ./templates/gtk-3.0.css);
-  default4Css = pkgs.writeText "anixie-gtk-4.0.css" (render ./templates/gtk-4.0.css);
 in
 {
   anixie.theme.template.placeholders = {
@@ -46,29 +42,16 @@ in
   # directory lets a theme switch rewrite them without a rebuild.
   xdg.configFile = {
     "gtk-3.0/settings.ini" = lib.mkForce {
-      source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/gtk-3.0-settings.ini";
+      source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/gtk-3.0-settings.ini";
     };
     "gtk-4.0/settings.ini" = lib.mkForce {
-      source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/gtk-4.0-settings.ini";
+      source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/gtk-4.0-settings.ini";
     };
     "gtk-3.0/gtk.css" = lib.mkForce {
-      source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/gtk-3.0.css";
+      source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/gtk-3.0.css";
     };
     "gtk-4.0/gtk.css" = lib.mkForce {
-      source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/gtk-4.0.css";
+      source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/gtk-4.0.css";
     };
   };
-
-  home.activation.anixieGtkSettings = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    state=${lib.escapeShellArg stateDir}
-    mkdir -p "$state"
-    [ -f "$state/gtk-3.0-settings.ini" ] ||
-      install -m 644 ${defaultSettings} "$state/gtk-3.0-settings.ini"
-    [ -f "$state/gtk-4.0-settings.ini" ] ||
-      install -m 644 ${defaultSettings} "$state/gtk-4.0-settings.ini"
-    [ -f "$state/gtk-3.0.css" ] ||
-      install -m 644 ${default3Css} "$state/gtk-3.0.css"
-    [ -f "$state/gtk-4.0.css" ] ||
-      install -m 644 ${default4Css} "$state/gtk-4.0.css"
-  '';
 }

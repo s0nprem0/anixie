@@ -16,7 +16,7 @@ in
     # `textsize` command. Both are defaulted by Home Manager so a fresh login
     # never includes a file that is not there yet.
     extraConfig = ''
-      include ${config.anixie.theme.stateDir}/kitty.conf
+      include ${config.anixie.theme.stateDir}/live/kitty.conf
       include ${config.anixie.theme.stateDir}/kitty-font.conf
     '';
 

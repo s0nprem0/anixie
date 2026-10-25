@@ -1,20 +1,11 @@
 {
   config,
-  lib,
   pkgs,
   ...
 }:
 
 let
-  dark = config.anixie.theme.mode == "dark";
   stateDir = config.anixie.theme.stateDir;
-  render = config.anixie.theme.template.render;
-
-  iconTheme = if dark then "Papirus-Dark" else "Papirus-Light";
-
-  # The build-time palette, used until theme-apps rewrites the same files for a
-  # live theme.
-  defaultColors = pkgs.writeText "anixie-qt6ct-colors.conf" (render ./templates/qt6ct-colors.conf);
 in
 {
   qt = {
@@ -38,23 +29,5 @@ in
   # `qt6ctSettings` is deliberately unused: Home Manager would write a read-only
   # store symlink in the same place.
   xdg.configFile."qt6ct/qt6ct.conf".source =
-    config.lib.file.mkOutOfStoreSymlink "${stateDir}/qt6ct.conf";
-
-  # Seed them before the first theme apply, so an application started early in
-  # the session still has a palette to read. Subsequent switches rewrite them.
-  home.activation.anixieQt6ct = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    state=${lib.escapeShellArg stateDir}
-    mkdir -p "$state"
-    [ -f "$state/qt6ct-colors.conf" ] ||
-      install -m 644 ${defaultColors} "$state/qt6ct-colors.conf"
-    if [ ! -f "$state/qt6ct.conf" ]; then
-      printf '%s\n' \
-        '[Appearance]' \
-        "color_scheme_path=$state/qt6ct-colors.conf" \
-        'custom_palette=true' \
-        'icon_theme=${iconTheme}' \
-        'style=Fusion' \
-        >"$state/qt6ct.conf"
-    fi
-  '';
+    config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/qt6ct.conf";
 }

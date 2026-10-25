@@ -99,6 +99,20 @@ state_set_theme() {
   fi
 }
 
+state_set_generation() {
+  state_generation=$1
+  state_ensure || return 1
+
+  state_tmp=$(mktemp "$STATE_DIR/.state.XXXXXX") || return 1
+  if "$JQ" --arg generation "$state_generation" '.version = 1 | .generation = $generation' \
+    "$state_file" >"$state_tmp"; then
+    mv "$state_tmp" "$state_file"
+  else
+    rm -f "$state_tmp"
+    return 1
+  fi
+}
+
 state_lock() {
   mkdir -p "$STATE_DIR" || return 1
   exec 9>"$STATE_DIR/.lock" || return 1

@@ -37,6 +37,7 @@ default_theme="@DEFAULT_THEME@"
 
 quickshell="@QUICKSHELL@"
 matugen="@MATUGEN@"
+tmux="@TMUX@"
 generated="@GENERATED@"
 hyprctl="@HYPRCTL@"
 gsettings="@GSETTINGS@"
@@ -58,6 +59,8 @@ FLOCK="@FLOCK@"
 
 current_file="$state_dir/current"
 wallpaper_mode_file="$state_dir/wallpaper-mode"
+live_link="$state_dir/live"
+generations_dir="$state_dir/generations"
 
 # shellcheck source=/dev/null
 . "@ANIXIE_LIB@"
@@ -192,50 +195,9 @@ current() {
   fi
 }
 
-# Write the files the apps read. Everything that follows a theme is materialised
-# here rather than rendered at build time, because a build-time value cannot
-# change without a rebuild.
-materialise() {
-  local name="$1" tmp
-  mkdir -p "$state_dir" || die "could not create $state_dir"
-  state_ensure || die "could not initialise $state_dir/state.json"
-
-  if [ "$name" = "wallpaper" ]; then
-    wallpaper_palette || die "the generated palette is missing; run 'theme wallpaper FILE'"
-  else
-    "$jq" -e --arg n "$name" '.[$n] | type == "object"' "$palettes" >/dev/null 2>&1 \
-      || die "no such theme: $name"
-    tmp=$(mktemp "$state_dir/palette.XXXXXX") || die "could not create a palette file"
-    "$jq" --arg n "$name" '.[$n] | with_entries(select(.key | startswith("_") | not))' "$palettes" >"$tmp" \
-      || die "could not resolve $name"
-    palette_ok "$tmp" || die "theme $name is missing colours"
-    mv "$tmp" "$generated"
-  fi
-
-  # The mode is metadata, not a colour: the build-time configs need it, and so
-  # does a runtime switch of the glass theme.
-  if [ "$name" = "wallpaper" ]; then
-    "$jq" -r '._mode // "dark"' "$generated" | write_atomic "$state_dir/mode" \
-      || die "could not write $state_dir/mode"
-  else
-    "$jq" -r --arg n "$name" '.[$n]._mode // "dark"' "$palettes" | write_atomic "$state_dir/mode" \
-      || die "could not write $state_dir/mode"
-  fi
-
-  printf '%s\n' "$name" | write_atomic "$current_file" \
-    || die "could not write $current_file"
-
-  if [ "$name" = "wallpaper" ]; then
-    state_source=wallpaper
-  else
-    state_source=preset
-  fi
-  state_set_theme "$name" "$state_source" \
-    || die "could not write $state_dir/state.json"
-
-  # kitty reads this through an include in its generated config, so the same four
-  # settings appear whether the theme was built in or set at runtime.
-  write_atomic "$state_dir/kitty.conf" <<EOF || die "could not write $state_dir/kitty.conf"
+write_kitty_conf() {
+  local file="$1"
+  write_atomic "$file" <<EOF
 background $(colour background)
 foreground $(colour foreground)
 selection_background $(colour accent)
@@ -257,33 +219,108 @@ color14 $(ansi_colour 14 accent)
 color7 $(ansi_colour 7 foreground)
 color15 $(ansi_colour 15 foreground)
 EOF
-
-  # tmux, btop, and whichever others have learned to read the state directory.
-  # A failure here must not take the theme switch with it — the shell and the
-  # terminal have already changed by this point.
-  "@THEME_APPS@" "$name" >/dev/null 2>&1 || true
 }
 
-# The compositor and the terminal have to be told. The shell is told through its
-# IPC rather than left to notice: it reads the state file once at startup, and a
-# FileView watch on it never fired on this Quickshell, so a running shell has no
-# other way to hear about the change.
-tell_apps() {
-  local name="$1" mode gtk_theme icon_theme color_scheme
+prune_generations() {
+  local current="$1" keep=0 gen
+  # shellcheck disable=SC2045
+  for gen in $(ls -1dt "$generations_dir"/* 2>/dev/null); do
+    [ "$gen" = "$current" ] && continue
+    keep=$((keep + 1))
+    [ "$keep" -le 2 ] && continue
+    rm -rf "$gen"
+  done
+}
 
-  # A generated palette cannot be named to the shell — the shell was built with
-  # the curated ones — so it is handed over whole.
+materialise() {
+  local name="$1" gen mode_value source
+  mkdir -p "$state_dir" "$generations_dir" || die "could not create $state_dir"
+  state_ensure || die "could not initialise $state_dir/state.json"
+
   if [ "$name" = "wallpaper" ]; then
-    "$quickshell" ipc call theme palette "$(tr -d '\n' <"$generated")" >/dev/null 2>&1 || true
+    wallpaper_palette || die "the generated palette is missing; run 'theme wallpaper FILE'"
+  else
+    "$jq" -e --arg n "$name" '.[$n] | type == "object"' "$palettes" >/dev/null 2>&1 \
+      || die "no such theme: $name"
+    local tmp
+    tmp=$(mktemp "$state_dir/palette.XXXXXX") || die "could not create a palette file"
+    "$jq" --arg n "$name" '.[$n] | with_entries(select(.key | startswith("_") | not))' "$palettes" >"$tmp" \
+      || die "could not resolve $name"
+    palette_ok "$tmp" || die "theme $name is missing colours"
+    mv "$tmp" "$generated"
+  fi
+
+  if [ "$name" = "wallpaper" ]; then
+    mode_value=$("$jq" -r '._mode // "dark"' "$generated")
+  else
+    mode_value=$("$jq" -r --arg n "$name" '.[$n]._mode // "dark"' "$palettes")
+  fi
+  printf '%s\n' "$mode_value" | write_atomic "$state_dir/mode" \
+    || die "could not write $state_dir/mode"
+
+  gen=$(mktemp -d "$generations_dir/$(date +%Y%m%d%H%M%S)-XXXXXX") \
+    || die "could not create a generation directory"
+  if ! cp "$generated" "$gen/palette.json"; then
+    rm -rf "$gen"
+    die "could not stage the palette"
+  fi
+  printf '%s\n' "$mode_value" >"$gen/mode" || {
+    rm -rf "$gen"
+    die "could not stage the mode"
+  }
+
+  if ! write_kitty_conf "$gen/kitty.conf"; then
+    rm -rf "$gen"
+    die "could not write the terminal palette"
+  fi
+  if ! "@THEME_APPS@" "$name" "$gen" >/dev/null 2>&1; then
+    rm -rf "$gen"
+    die "could not render the application themes"
+  fi
+
+  for source in palette.json mode kitty.conf helix.toml yazi.toml hyprlock.conf \
+    qt6ct-colors.conf qt6ct.conf gtk-3.0-settings.ini gtk-4.0-settings.ini \
+    gtk-3.0.css gtk-4.0.css share-picker.css tmux.conf btop.theme terminal.zsh; do
+    [ -s "$gen/$source" ] || {
+      rm -rf "$gen"
+      die "the generation is missing $source"
+    }
+  done
+
+  rm -f "$state_dir/.live.$$"
+  if ! ln -s "$gen" "$state_dir/.live.$$" || ! mv -T "$state_dir/.live.$$" "$live_link"; then
+    rm -rf "$gen" "$state_dir/.live.$$"
+    die "could not activate the generation"
+  fi
+
+  if [ "$name" = "wallpaper" ]; then
+    state_source=wallpaper
+  else
+    state_source=preset
+  fi
+  printf '%s\n' "$name" | write_atomic "$current_file" \
+    || die "could not write $current_file"
+  state_set_theme "$name" "$state_source" \
+    || die "could not write $state_dir/state.json"
+  state_set_generation "$(basename "$gen")" \
+    || printf 'theme: could not record the new generation\n' >&2
+
+  prune_generations "$gen"
+}
+
+tell_apps() {
+  local name="$1" mode gtk_theme icon_theme color_scheme palette
+  palette="$live_link/palette.json"
+
+  if [ "$name" = "wallpaper" ]; then
+    "$quickshell" ipc call theme palette "$(tr -d '\n' <"$palette" 2>/dev/null || tr -d '\n' <"$generated")" >/dev/null 2>&1 || true
   else
     "$quickshell" ipc call theme set "$name" >/dev/null 2>&1 || true
   fi
   "$hyprctl" reload >/dev/null 2>&1 || true
   pkill -USR1 -x kitty 2>/dev/null || true
 
-  # GTK reads the mode rather than only the palette: the dark and light variants
-  # are separate themes, and the icon set has a matching pair.
-  mode=$(tr -d '[:space:]' <"$state_dir/mode" 2>/dev/null || true)
+  mode=$(tr -d '[:space:]' <"$live_link/mode" 2>/dev/null || tr -d '[:space:]' <"$state_dir/mode" 2>/dev/null || true)
   if [ "$mode" = "light" ]; then
     gtk_theme=Adwaita
     icon_theme=Papirus-Light
@@ -301,19 +338,48 @@ tell_apps() {
   GSETTINGS_SCHEMA_DIR="$gsettings_schema_dir" "$gsettings" set \
     org.gnome.desktop.interface icon-theme "$icon_theme" >/dev/null 2>&1 || true
 
-  # Qt reads qt6ct's config when an application starts. The file lives in the
-  # state directory and is linked into ~/.config by the Nix module.
-  write_atomic "$state_dir/qt6ct.conf" <<EOF || die "could not write $state_dir/qt6ct.conf"
-[Appearance]
-color_scheme_path=$state_dir/qt6ct-colors.conf
-custom_palette=true
-icon_theme=$icon_theme
-style=Fusion
-EOF
-
-  # The wallpaper follows the palette unless one of your own is set, in which
-  # case this is a no-op — the `wallpaper` command owns that decision.
+  "$tmux" source-file "$live_link/tmux.conf" >/dev/null 2>&1 || true
   "$wallpaper" apply >/dev/null 2>&1 || true
+}
+
+run_hooks() {
+  local name="$1" mode hook_dir hook bg fg surface muted primary accent alt secondary tertiary yellow danger success error outline surface_container surface_variant bg_dark bg_light fg_light
+  hook_dir="${XDG_CONFIG_HOME:-$HOME/.config}/anixie/theme-hooks"
+  [ -d "$hook_dir" ] || return 0
+
+  mode=$(tr -d '[:space:]' <"$live_link/mode" 2>/dev/null || printf 'dark')
+  bg=$(colour background)
+  fg=$(colour foreground)
+  surface=$(colour surface)
+  muted=$(colour muted)
+  primary=$(colour primary)
+  accent=$(colour accent)
+  alt=$(colour accentAlt)
+  secondary=$(colour secondary)
+  tertiary=$(colour tertiary)
+  yellow=$(colour yellow)
+  danger=$(colour danger)
+  success=$(colour success)
+  error=$(colour error)
+  outline=$(colour outline)
+  surface_container=$(colour surfaceContainer)
+  surface_variant=$(colour surfaceVariant)
+  bg_dark=$(colour bgDark)
+  bg_light=$(colour bgLight)
+  fg_light=$(colour fgLight)
+
+  for hook in "$hook_dir"/*.sh; do
+    [ -x "$hook" ] || continue
+    env ANIXIE_THEME="$name" ANIXIE_MODE="$mode" \
+      ANIXIE_BG="$bg" ANIXIE_FG="$fg" ANIXIE_SURFACE="$surface" \
+      ANIXIE_MUTED="$muted" ANIXIE_PRIMARY="$primary" ANIXIE_ACCENT="$accent" \
+      ANIXIE_ACCENT_ALT="$alt" ANIXIE_SECONDARY="$secondary" ANIXIE_TERTIARY="$tertiary" \
+      ANIXIE_YELLOW="$yellow" ANIXIE_DANGER="$danger" ANIXIE_ERROR="$error" \
+      ANIXIE_SUCCESS="$success" ANIXIE_OUTLINE="$outline" \
+      ANIXIE_SURFACE_CONTAINER="$surface_container" ANIXIE_SURFACE_VARIANT="$surface_variant" \
+      ANIXIE_BG_DARK="$bg_dark" ANIXIE_BG_LIGHT="$bg_light" ANIXIE_FG_LIGHT="$fg_light" \
+      "$hook" >/dev/null 2>&1 || true
+  done
 }
 
 # Read the current wallpaper into a palette. Deliberately last in the order of
@@ -413,8 +479,11 @@ generate() {
 set_theme() {
   local name="$1"
   has "$name" || die "no theme called \"$name\" (try: theme list)"
+  state_lock || die "could not lock the theme state"
   materialise "$name"
+  state_unlock
   tell_apps "$name"
+  run_hooks "$name"
   printf 'Theme: %s\n' "$name"
 }
 
@@ -430,8 +499,13 @@ wallpaper_theme() {
   else
     requested=$(saved_wallpaper_mode)
   fi
+  state_lock || die "could not lock the theme state"
   generate "$wp" "$requested"
-  set_theme wallpaper
+  materialise wallpaper
+  state_unlock
+  tell_apps wallpaper
+  run_hooks wallpaper
+  printf 'Theme: wallpaper\n'
 }
 
 step() {
@@ -477,8 +551,11 @@ case "${1:-}" in
   apply)
     # No change, just make sure the files match the saved choice — this is what
     # login runs, since a fresh boot has the state directory but not the files.
+    state_lock || die "could not lock the theme state"
     materialise "$(current)"
+    state_unlock
     tell_apps "$(current)"
+    run_hooks "$(current)"
     ;;
   set)
     [ $# -ge 2 ] || die "set needs a theme name"

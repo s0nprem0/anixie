@@ -12,7 +12,7 @@ let
   # a wallpaper-derived theme leaves beside it. A restarted shell reads both: the
   # name is not in the embedded list, so it needs the colours too.
   themeState = "${config.anixie.theme.stateDir}/current";
-  themePalette = "${config.anixie.theme.stateDir}/palette.json";
+  themePalette = "${config.anixie.theme.stateDir}/live/palette.json";
 
   # Focus mode's blocked app ids, rendered where FocusHost can read them without
   # depending on the user's profile. The state (whether a block is running) lives

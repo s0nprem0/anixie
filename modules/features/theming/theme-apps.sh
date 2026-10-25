@@ -4,15 +4,12 @@
 #
 # Rendered when the theme changes rather than when the system is built, which is
 # the difference between a theme that reaches the editor and one that waits for a
-# rebuild. Each file lives in the state directory the Nix modules link into
-# ~/.config, and is rewritten on every switch; the applications pick it up at
-# their next start (tmux is told, so a running server changes at once).
+# rebuild. Each file is written into a generation directory the Nix modules
+# link into ~/.config; the applications pick it up at their next start.
 set -eu
 
-palettes="@PALETTES@"
 state_dir="@STATE_DIR@"
 jq="@JQ@"
-tmux="@TMUX@"
 helix_template="@HELIX_TEMPLATE@"
 yazi_template="@YAZI_TEMPLATE@"
 hyprlock_template="@HYPRLOCK_TEMPLATE@"
@@ -26,7 +23,6 @@ render_lib="@RENDER_LIB@"
 sed="@SED@"
 cursor_theme="@POINTER_CURSOR_THEME@"
 cursor_size="@POINTER_CURSOR_SIZE@"
-generated="@STATE_DIR@/palette.json"
 
 # shellcheck source=/dev/null
 . "$render_lib"
@@ -36,14 +32,13 @@ SED="$sed"
 TOKENS_JSON="$tokens"
 
 name="${1:-}"
+outdir="${2:-$state_dir}"
 [ -n "$name" ] || exit 0
 
+palette_file="$outdir/palette.json"
+
 colour() {
-  if [ "$name" = "wallpaper" ] && [ -f "$generated" ]; then
-    "$jq" -r --arg k "$1" '.[$k]' "$generated"
-  else
-    "$jq" -r --arg n "$name" --arg k "$1" '.[$n][$k]' "$palettes"
-  fi
+  "$jq" -r --arg k "$1" '.[$k]' "$palette_file"
 }
 
 bg=$(colour background)
@@ -86,7 +81,7 @@ for value in "$bg" "$fg" "$surface" "$surface_container" "$surface_variant" "$fg
   esac
 done
 
-mode=$(tr -d '[:space:]' <"$state_dir/mode" 2>/dev/null || printf 'dark')
+mode=$(tr -d '[:space:]' <"$outdir/mode" 2>/dev/null || printf 'dark')
 if [ "$mode" = "light" ]; then
   helix_parent=base16_default_light
   gtk_theme=Adwaita
@@ -99,15 +94,15 @@ else
   gtk_dark=1
 fi
 
-mkdir -p "$state_dir"
+mkdir -p "$outdir"
 
 # Render one of the templates with the selected palette.
-[ -f "$generated" ] || {
+[ -f "$palette_file" ] || {
   printf 'theme-apps: the resolved palette is missing; keeping the previous files\n' >&2
   exit 1
 }
 
-extras=$(mktemp "$state_dir/.extras.XXXXXX") || exit 1
+extras=$(mktemp "$outdir/.extras.XXXXXX") || exit 1
 trap 'rm -f "$extras"' EXIT
 "$jq" -n \
   --arg helix_parent "$helix_parent" \
@@ -119,26 +114,34 @@ trap 'rm -f "$extras"' EXIT
   '{HELIX_PARENT: $helix_parent, GTK_THEME: $gtk_theme, GTK_ICON: $gtk_icon, GTK_DARK: $gtk_dark, CURSOR_THEME: $cursor_theme, CURSOR_SIZE: $cursor_size}' \
   >"$extras"
 
-render_template "$helix_template" "$generated" "$state_dir/helix.toml" "$extras"
-render_template "$yazi_template" "$generated" "$state_dir/yazi.toml" "$extras"
-render_template "$hyprlock_template" "$generated" "$state_dir/hyprlock.conf" "$extras"
-render_template "$qt6ct_colors_template" "$generated" "$state_dir/qt6ct-colors.conf" "$extras"
-render_template "$gtk_template" "$generated" "$state_dir/gtk-3.0-settings.ini" "$extras"
-render_template "$gtk_template" "$generated" "$state_dir/gtk-4.0-settings.ini" "$extras"
-render_template "$gtk3_css_template" "$generated" "$state_dir/gtk-3.0.css" "$extras"
-render_template "$gtk4_css_template" "$generated" "$state_dir/gtk-4.0.css" "$extras"
-render_template "$share_picker_template" "$generated" "$state_dir/share-picker.css" "$extras"
+render_template "$helix_template" "$palette_file" "$outdir/helix.toml" "$extras"
+render_template "$yazi_template" "$palette_file" "$outdir/yazi.toml" "$extras"
+render_template "$hyprlock_template" "$palette_file" "$outdir/hyprlock.conf" "$extras"
+render_template "$qt6ct_colors_template" "$palette_file" "$outdir/qt6ct-colors.conf" "$extras"
+render_template "$gtk_template" "$palette_file" "$outdir/gtk-3.0-settings.ini" "$extras"
+render_template "$gtk_template" "$palette_file" "$outdir/gtk-4.0-settings.ini" "$extras"
+render_template "$gtk3_css_template" "$palette_file" "$outdir/gtk-3.0.css" "$extras"
+render_template "$gtk4_css_template" "$palette_file" "$outdir/gtk-4.0.css" "$extras"
+render_template "$share_picker_template" "$palette_file" "$outdir/share-picker.css" "$extras"
 
 for file in helix.toml yazi.toml hyprlock.conf qt6ct-colors.conf \
   gtk-3.0-settings.ini gtk-4.0-settings.ini gtk-3.0.css gtk-4.0.css share-picker.css; do
-  if grep -Eq '@[A-Z][A-Z0-9_]*@' "$state_dir/$file"; then
+  if grep -Eq '@[A-Z][A-Z0-9_]*@' "$outdir/$file"; then
     printf 'theme-apps: unrendered placeholder in %s\n' "$file" >&2
     exit 1
   fi
 done
 
 # ---- tmux ----
-tmux_conf=$(mktemp "$state_dir/.tmux.XXXXXX") || exit 1
+cat >"$outdir/qt6ct.conf" <<EOF
+[Appearance]
+color_scheme_path=$state_dir/live/qt6ct-colors.conf
+custom_palette=true
+icon_theme=$gtk_icon
+style=Fusion
+EOF
+
+tmux_conf=$(mktemp "$outdir/.tmux.XXXXXX") || exit 1
 cat >"$tmux_conf" <<EOF
 set -g status-style "bg=$surface,fg=$fg"
 set -g status-left-style "bg=$surface,fg=$muted"
@@ -154,18 +157,10 @@ set -g clock-mode-colour "$primary"
 set -g copy-mode-match-style "bg=$surface,fg=$accent"
 set -g copy-mode-current-match-style "bg=$accent,fg=$bg"
 EOF
-mv "$tmux_conf" "$state_dir/tmux.conf"
-
-# Told, not left to notice: a running server changes now.
-"$tmux" source-file "$state_dir/tmux.conf" >/dev/null 2>&1 || true
+mv "$tmux_conf" "$outdir/tmux.conf"
 
 # ---- btop ----
-# btop only looks for themes inside its own config directory, so the file has to
-# live there rather than in the state directory.
-btop_themes="${XDG_CONFIG_HOME:-$HOME/.config}/btop/themes"
-mkdir -p "$btop_themes"
-
-btop_theme=$(mktemp "$btop_themes/.anixie.XXXXXX") || exit 1
+btop_theme=$(mktemp "$outdir/.btop.XXXXXX") || exit 1
 cat >"$btop_theme" <<EOF
 theme[main_bg]="$bg"
 theme[main_fg]="$fg"
@@ -205,37 +200,17 @@ theme[upload_start]="$primary"
 theme[upload_mid]="$accent"
 theme[upload_end]="$alt"
 EOF
-mv "$btop_theme" "$btop_themes/anixie.theme"
+mv "$btop_theme" "$outdir/btop.theme"
 
 # ---- terminal tools ----
 # The zsh prompt uses ANSI names, which kitty now maps to the palette. bat and
 # eza are told to use those same ANSI names, and fzf gets an explicit palette so
 # its chrome does not stay on the default grey.
-terminal_env="$state_dir/terminal.zsh"
-terminal_tmp=$(mktemp "$state_dir/.terminal.XXXXXX") || exit 1
+terminal_env="$outdir/terminal.zsh"
+terminal_tmp=$(mktemp "$outdir/.terminal.XXXXXX") || exit 1
 cat >"$terminal_tmp" <<EOF
 export BAT_THEME=ansi
 export EZA_COLORS='di=34:ln=36:ex=32:or=31:mi=31:*.tar=31:*.zip=31:*.gz=31:*.7z=31:*.jpg=35:*.png=35:*.mp4=35'
 export FZF_DEFAULT_OPTS="\${FZF_DEFAULT_OPTS:-} --color=fg:$fg,bg:$bg,hl:$primary,fg+:$fg,bg+:$surface,hl+:$primary,info:$accent,prompt:$primary,pointer:$accent,marker:$success,spinner:$accent,header:$muted,border:$surface"
 EOF
 mv "$terminal_tmp" "$terminal_env"
-
-# ---- user hooks ----
-# Applications without a config format worth owning get a small contract instead:
-# an executable under ~/.config/anixie/theme-hooks receives the palette in the
-# environment after every switch.
-hook_dir="${XDG_CONFIG_HOME:-$HOME/.config}/anixie/theme-hooks"
-if [ -d "$hook_dir" ]; then
-  for hook in "$hook_dir"/*.sh; do
-    [ -x "$hook" ] || continue
-    env ANIXIE_THEME="$name" ANIXIE_MODE="$mode" \
-      ANIXIE_BG="$bg" ANIXIE_FG="$fg" ANIXIE_SURFACE="$surface" \
-      ANIXIE_MUTED="$muted" ANIXIE_PRIMARY="$primary" ANIXIE_ACCENT="$accent" \
-      ANIXIE_ACCENT_ALT="$alt" ANIXIE_SECONDARY="$secondary" ANIXIE_TERTIARY="$tertiary" \
-      ANIXIE_YELLOW="$yellow" ANIXIE_DANGER="$danger" ANIXIE_ERROR="$error" \
-      ANIXIE_SUCCESS="$success" ANIXIE_OUTLINE="$outline" \
-      ANIXIE_SURFACE_CONTAINER="$surface_container" ANIXIE_SURFACE_VARIANT="$surface_variant" \
-      ANIXIE_BG_DARK="$bg_dark" ANIXIE_BG_LIGHT="$bg_light" ANIXIE_FG_LIGHT="$fg_light" \
-      "$hook" >/dev/null 2>&1 || true
-  done
-fi

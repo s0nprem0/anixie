@@ -34,6 +34,9 @@ state_ensure
 state_set_theme "gruvbox-dark" preset
 "$JQ" -e '.version == 1 and .theme == "gruvbox-dark" and .source == "preset" and .recent[0] == "gruvbox-dark"' "$STATE_DIR/state.json" >/dev/null
 
+state_set_generation "generation-one"
+"$JQ" -e '.version == 1 and .generation == "generation-one"' "$STATE_DIR/state.json" >/dev/null
+
 rm -f "$STATE_DIR/current"
 state_migrate
 "$JQ" -e '.version == 1' "$STATE_DIR/state.json" >/dev/null
