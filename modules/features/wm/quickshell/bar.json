@@ -86,6 +86,9 @@
         "id": "bar.remote-session"
       },
       {
+        "id": "bar.appearance"
+      },
+      {
         "id": "bar.power"
       }
     ]

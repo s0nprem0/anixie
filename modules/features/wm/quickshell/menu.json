@@ -106,9 +106,8 @@
       "group": "Style",
       "entries": [
         {
-          "label": "Theme",
-          "list": "themes",
-          "run": "theme set {}"
+          "label": "Appearance",
+          "run": "appearance"
         },
         {
           "label": "Wallpaper",

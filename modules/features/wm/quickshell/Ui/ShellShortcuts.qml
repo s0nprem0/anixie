@@ -24,6 +24,12 @@ Item {
   }
 
   GlobalShortcut {
+    name: "appearance"
+    description: "Open the appearance panel"
+    onPressed: AppearanceHost.toggle()
+  }
+
+  GlobalShortcut {
     name: "menu-capture"
     description: "Open the capture menu"
     onPressed: MenuHost.open("Capture")

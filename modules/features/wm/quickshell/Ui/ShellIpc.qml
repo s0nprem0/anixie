@@ -142,6 +142,15 @@ Item {
   // its own, so this is how you check that it did rather than taking a screenshot
   // and squinting at it.
   IpcHandler {
+    target: "appearance"
+
+    function toggle(): void { AppearanceHost.toggle() }
+    function open(): void { AppearanceHost.open() }
+    function close(): void { AppearanceHost.close() }
+    function state(): string { return AppearanceHost.stateJson }
+  }
+
+  IpcHandler {
     target: "theme"
 
     function set(name: string): void { Theme.set(name) }

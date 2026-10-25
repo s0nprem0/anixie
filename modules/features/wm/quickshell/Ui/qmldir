@@ -44,6 +44,8 @@ singleton DockHost 1.0 DockHost.qml
 singleton PickHost 1.0 PickHost.qml
 singleton ClipboardHost 1.0 ClipboardHost.qml
 singleton MenuHost 1.0 MenuHost.qml
+singleton AppearanceHost 1.0 AppearanceHost.qml
+ThemeRow 1.0 ThemeRow.qml
 singleton MediaHost 1.0 MediaHost.qml
 singleton RecorderHost 1.0 RecorderHost.qml
 Picker 1.0 Picker.qml

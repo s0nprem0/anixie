@@ -65,6 +65,12 @@ let
       (builtins.readFile ./wallpaper.sh)
   );
 
+  appearance = pkgs.writeShellScriptBin "appearance" (
+    builtins.replaceStrings [ "@QUICKSHELL@" ] [ "${pkgs.quickshell}/bin/quickshell" ] (
+      builtins.readFile ./appearance.sh
+    )
+  );
+
   # The global text-size knob. Writes the kitty include and the shell's state
   # file, and tells GTK and the running shell through their own controls.
   textsize = pkgs.writeShellScriptBin "textsize" (
@@ -264,6 +270,7 @@ in
     home = {
       packages = [
         theme
+        appearance
         wallpaper
         textsize
       ];

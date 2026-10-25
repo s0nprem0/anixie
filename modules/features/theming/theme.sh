@@ -14,6 +14,10 @@
 #   theme state          the saved theme state as JSON
 #   theme migrate        import the old separate state files
 #   theme auto           apply the scheduled light or dark variant
+#   theme favorite add|remove|toggle NAME
+#   theme pin | unpin    keep auto from changing the current theme
+#   theme export         print a Nix snippet for the current choice
+#   theme doctor         check the live state and generated files
 #   theme apply          re-apply the current one (run at login)
 #
 # One palette drives the shell, the compositor's window borders, the terminal and
@@ -526,6 +530,7 @@ wallpaper_theme() {
 auto_theme() {
   state_ensure || die "could not read the theme state"
   [ "$AUTO_SCHEDULE" = "true" ] || return 0
+  [ "$("$jq" -r '.pinned // false' "$state_dir/state.json")" = "true" ] && return 0
 
   light="$auto_light"
   dark="$auto_dark"
@@ -578,6 +583,98 @@ auto_theme() {
   fi
 }
 
+
+favorite_theme() {
+  action="$1"
+  name="$2"
+  has "$name" || die "no theme called \"$name\" (try: theme list)"
+  state_ensure || die "could not read the theme state"
+
+  case "$action" in
+    add) filter='.favorites = ((.favorites // []) + [$name] | unique)' ;;
+    remove) filter='.favorites = ((.favorites // []) | map(select(. != $name)))' ;;
+    toggle)
+      filter='if ((.favorites // []) | index($name)) then .favorites = ((.favorites // []) | map(select(. != $name))) else .favorites = (((.favorites // []) + [$name]) | unique) end'
+      ;;
+    *) die "favorite must be add, remove or toggle" ;;
+  esac
+
+  tmp=$(mktemp "$state_dir/.state.XXXXXX") || die "could not create the theme state"
+  if "$jq" --arg name "$name" ".version = 1 | $filter" "$state_dir/state.json" >"$tmp"; then
+    mv "$tmp" "$state_dir/state.json"
+  else
+    rm -f "$tmp"
+    die "could not update favorites"
+  fi
+}
+
+pin_theme() {
+  value="$1"
+  state_ensure || die "could not read the theme state"
+  tmp=$(mktemp "$state_dir/.state.XXXXXX") || die "could not create the theme state"
+  if "$jq" --argjson value "$value" '.version = 1 | .pinned = $value' "$state_dir/state.json" >"$tmp"; then
+    mv "$tmp" "$state_dir/state.json"
+  else
+    rm -f "$tmp"
+    die "could not update the pin"
+  fi
+}
+
+export_theme() {
+  name=$(current)
+  if [ "$name" = "wallpaper" ]; then
+    printf '# the live theme is generated from a wallpaper\n'
+    printf '# choose a preset, then run: anixie theme export\n'
+    return
+  fi
+  printf 'anixie.theme.theme = "%s";\n' "$name"
+}
+
+doctor_theme() {
+  state_ensure || die "could not read the theme state"
+  live=$(readlink "$live_link" 2>/dev/null || true)
+  failures=0
+
+  if [ -z "$live" ] || [ ! -f "$live_link/palette.json" ]; then
+    printf 'missing  live generation\n'
+    failures=$((failures + 1))
+  else
+    printf 'ok       live generation %s\n' "$(basename "$live")"
+    if ! palette_ok "$live_link/palette.json"; then
+      printf 'invalid  live palette\n'
+      failures=$((failures + 1))
+    else
+      printf 'ok       palette\n'
+    fi
+    for file in kitty.conf helix.toml yazi.toml hyprlock.conf qt6ct.conf \
+      gtk-3.0.css gtk-4.0.css share-picker.css tmux.conf btop.theme terminal.zsh; do
+      if [ ! -s "$live_link/$file" ]; then
+        printf 'missing  %s\n' "$file"
+        failures=$((failures + 1))
+      fi
+    done
+    if grep -R -q '@[A-Z][A-Z0-9_]*@' "$live_link" 2>/dev/null; then
+      printf 'invalid  unresolved placeholders in the live generation\n'
+      failures=$((failures + 1))
+    fi
+  fi
+
+  if [ -f "$state_dir/wallpapers.json" ]; then
+    if "$jq" -e . "$state_dir/wallpapers.json" >/dev/null 2>&1; then
+      printf 'ok       wallpaper state\n'
+    else
+      printf 'invalid  wallpaper state\n'
+      failures=$((failures + 1))
+    fi
+  fi
+
+  if [ "$failures" -ne 0 ]; then
+    printf '%s problem(s)\n' "$failures"
+    return 1
+  fi
+  printf 'no problems found\n'
+}
+
 step() {
   local direction="$1" here target
   here=$(current)
@@ -620,6 +717,22 @@ case "${1:-}" in
     ;;
   auto)
     auto_theme
+    ;;
+  favorite)
+    [ $# -ge 3 ] || die "favorite needs add|remove|toggle and a theme name"
+    favorite_theme "$2" "$3"
+    ;;
+  pin)
+    pin_theme true
+    ;;
+  unpin)
+    pin_theme false
+    ;;
+  export)
+    export_theme
+    ;;
+  doctor)
+    doctor_theme
     ;;
   apply)
     # No change, just make sure the files match the saved choice — this is what

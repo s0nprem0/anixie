@@ -105,6 +105,9 @@ QtObject {
 
   // Display brightness.
   readonly property string sun: glyph("f185")
+  readonly property string star: glyph("f005")
+  readonly property string starOutline: glyph("f006")
+  readonly property string palette: glyph("f53f")
 
   readonly property string wifi: glyph("f1eb")
   readonly property string ethernet: glyph("f6ff")

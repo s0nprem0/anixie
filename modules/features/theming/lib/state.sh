@@ -42,6 +42,7 @@ state_migrate() {
       source: $source,
       theme: $theme,
       followWallpaper: $follow,
+      pinned: false,
       favorites: [],
       recent: [$theme],
       auto: {

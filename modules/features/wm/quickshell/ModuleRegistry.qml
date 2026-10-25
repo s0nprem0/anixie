@@ -33,6 +33,7 @@ QtObject {
   readonly property Component modelUsage: Component { ModelUsage {} }
   readonly property Component meet: Component { Meet {} }
   readonly property Component systemStats: Component { SystemStats {} }
+  readonly property Component appearance: Component { Appearance {} }
 
   readonly property var registry: ({
     "bar.workspaces": workspaces,
@@ -61,7 +62,8 @@ QtObject {
     "bar.dropbox": dropbox,
     "bar.model-usage": modelUsage,
     "bar.meet": meet,
-    "bar.system-stats": systemStats
+    "bar.system-stats": systemStats,
+    "bar.appearance": appearance
   })
 
   function has(id) {

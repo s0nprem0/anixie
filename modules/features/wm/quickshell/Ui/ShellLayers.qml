@@ -72,7 +72,7 @@ Item {
             { label: "Terminal", glyph: Util.keyboard, action: function () { Commands.app("kitty") } },
             { label: "Files", glyph: Util.menu, action: function () { Commands.app("thunar") } },
             { separator: true },
-            { label: "Theme picker", glyph: Util.sun, action: function () { Commands.run("theme") } },
+            { label: "Appearance", glyph: Util.palette, action: function () { Commands.run("appearance") } },
             { label: "Next theme", action: function () { Commands.run("theme next") } },
             { separator: true },
             { label: "Screen time & focus…", glyph: Util.clock, action: function () { Commands.run("screentime panel") } },

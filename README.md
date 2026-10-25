@@ -245,9 +245,13 @@ palettes switch the same surfaces; GTK follows the mode through gsettings
 anixie theme list | set NAME | next | prev | current
 anixie theme state              # the saved appearance state as JSON
 anixie theme migrate            # import the old separate state files
+anixie theme favorite add|remove|toggle NAME
+anixie theme pin|unpin          # keep automatic switching from changing the theme
+anixie theme doctor             # check the live state and generated files
 anixie theme wallpaper [FILE] [auto|light|dark]  # palette from a picture
 anixie theme wallpaper-mode [auto|light|dark]    # remember the next mode
 anixie theme auto               # apply the scheduled light/dark variant
+anixie appearance               # open the appearance panel
 anixie textsize up|down|set N   # the whole shell, not just the bar
 anixie wallpaper library [--json]  # pictures found in the configured folders
 anixie wallpaper set FILE       # or `wallpaper theme` for the palette's gradient
@@ -273,8 +277,10 @@ bat and eza follow the theme, not just the background. GTK also gets
 palette-derived `gtk.css`, beyond the Adwaita light/dark switch. The picker
 previews a palette's colours as a small swatch.
 
-Wallpapers are resolved per output and stored in `wallpapers.json`; the shell
-reads the resulting `background.json`. Stills are drawn by the shell, videos by
+The appearance panel — opened from the bar's palette glyph, `Super+Ctrl+T`, or
+`anixie appearance` — combines the wallpaper strip, preset swatches, favorites,
+pinning, glass and bar-background controls. Wallpapers are resolved per output
+and stored in `wallpapers.json`; the shell reads the resulting `background.json`. Stills are drawn by the shell, videos by
 `mpvpaper`, and generated gradients match each output's resolution. The library
 scans `~/Pictures/Wallpapers`, `~/Pictures` and the per-theme folder by default;
 change `anixie.theme.wallpaper.dirs` to point somewhere else. Scheduled

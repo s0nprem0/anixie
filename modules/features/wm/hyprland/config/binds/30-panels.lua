@@ -51,8 +51,8 @@ bind(mod .. " + SHIFT + SPACE", "Toggle bar", "quickshell ipc call bar toggle")
 -- Omarchy also puts the theme picker on CTRL+T, which is quicker once the
 -- gesture is learned; both stay bound rather than moving a key that is already
 -- in muscle memory.
-bind(mod .. " + CTRL + SHIFT + SPACE", "Theme picker", "theme")
-bind(mod .. " + CTRL + T", "Theme picker", "theme")
+bind_global(mod .. " + CTRL + SHIFT + SPACE", "Appearance", "appearance")
+bind_global(mod .. " + CTRL + T", "Appearance", "appearance")
 
 -- The background picker, next to the theme picker. `wallpaper` with no argument
 -- lists the generated background and the pictures for the current theme; it is

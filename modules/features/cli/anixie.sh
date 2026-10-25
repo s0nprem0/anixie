@@ -35,7 +35,8 @@ set -eu
 # command's dispatch case, and `description` is the help line — last, so it may
 # contain `|`.
 ANIXIE_GROUPS='
-theme|theme||list current set wallpaper wallpaper-mode state migrate auto next prev apply|palettes: list, set, wallpaper FILE, state, migrate, auto, next, prev, apply
+theme|theme||list current set wallpaper wallpaper-mode state migrate auto favorite pin unpin export doctor next prev apply|palettes: list, set, wallpaper FILE, state, migrate, auto, favorite, pin, export, doctor
+appearance|appearance||toggle open close state|appearance panel
 textsize|textsize|text|up down show set reset apply|global text size: up, down, set N, reset
 wallpaper|wallpaper||list library set add next prev rotate generated pause resume status apply current|desktop background: set FILE, library, next, rotate, current
 display|monitors|monitors|scale internal lid mirror brightness recover wake workspace workspace-step move-window workspaces list set try keep revert identify status|monitors: scale, internal, mirror, status
