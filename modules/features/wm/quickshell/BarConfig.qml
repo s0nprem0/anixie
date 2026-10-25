@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "Ui/State.js" as State
 
 // The bar's layout: which module sits in which section, and in what order.
 //
@@ -23,6 +24,7 @@ QtObject {
   // Stand-in for a missing or broken bar.json, so a typo in the config never
   // leaves the session without a bar at all.
   readonly property var fallback: ({
+    version: State.VERSION,
     background: "clear",
     layout: {
       left: [{ id: "bar.workspaces" }],
@@ -74,7 +76,7 @@ QtObject {
 
     try {
       const parsed = JSON.parse(raw)
-      if (parsed && typeof parsed === "object") root.builtin = parsed
+      if (parsed && typeof parsed === "object") root.builtin = State.upgrade(parsed)
       else console.warn("quickshell bar: bar.json is not an object, keeping the previous config")
     } catch (e) {
       console.warn("quickshell bar: bar.json is not valid JSON, keeping the previous config")
@@ -98,8 +100,13 @@ QtObject {
     try {
       const parsed = JSON.parse(raw)
       if (parsed && typeof parsed === "object") {
-        root.state = parsed
+        const legacy = parsed.version === undefined
+          || Number(parsed.version) < State.VERSION
+        root.state = State.upgrade(parsed)
         root.savedText = raw
+        // A file written before versioning existed is upgraded in memory and
+        // rewritten once, so the next reader does not have to guess again.
+        if (legacy) root.save(root.state)
       }
     } catch (e) {
       console.warn("quickshell bar: the saved layout is not valid JSON, using bar.json")
@@ -413,6 +420,8 @@ QtObject {
   }
 
   function save(next) {
+    next = State.upgrade(next)
+
     // The in-memory layout moves immediately, before the file is written. The
     // write goes through a process and a file adapter, and a second move in that
     // window would otherwise read the layout from before the first — dropping two

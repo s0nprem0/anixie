@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import ".."
+import "State.js" as State
 
 // Focus mode: a timer that closes the configured distractions and silences
 // notifications while it runs.
@@ -68,7 +69,7 @@ QtObject {
 
   function restore(text) {
     try {
-      const state = JSON.parse(String(text || ""))
+      const state = State.upgrade(JSON.parse(String(text || "")))
       if (!state || Number(state.until) <= Date.now()) {
         // A block that ran out while the shell was down still has to put the
         // notification setting back; otherwise the next session silently starts
@@ -128,11 +129,11 @@ QtObject {
   }
 
   function persist() {
-    root.pendingWrite = JSON.stringify({
+    root.pendingWrite = JSON.stringify(State.upgrade({
       until: root.until,
       started: root.started,
       priorDnd: root.priorDnd
-    })
+    }))
     root.mkdir.running = false
     root.mkdir.running = true
   }
