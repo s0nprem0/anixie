@@ -12,13 +12,11 @@ anixie update boot     # build for the next boot (also: test)
 anixie <group> --help  # every group documents itself
 ```
 
-**Commit before rebuilding.** The flake source is the git tree, so an untracked
-file is invisible to the build — which is silent: the panels that reference it
-ship, the file they import does not, and the shell crash-loops. `anixie update`
-refuses to run while there are untracked files and names them; `--allow-dirty`
-is the explicit override. A staged file is tracked, so `git add` is enough for
-the build, but commit before `nh os switch` so the generation matches the
-history.
+**Commit before rebuilding.** The flake source is the git tree, so untracked
+files are invisible to the build — silently, until the shell crash-loops on a
+missing import. `anixie update` refuses and names them; `--allow-dirty`
+overrides. `git add` is enough to build, but commit before `nh os switch` so the
+generation matches the history.
 
 **Going back** is a generation away: pick the previous one in the systemd-boot
 menu, or `nixos-rebuild switch --rollback`.
@@ -31,7 +29,7 @@ journalctl --user -u quickshell -n 50
 ```
 
 QML errors go to the journal *and* to
-`$XDG_RUNTIME_DIR/quickshell/by-id/*/log.qslog`; QML `console.log` lands in the
+`$XDG_RUNTIME_DIR/quickshell/by-id/*/log.qslog`; `console.log` lands only in the
 latter, interleaved with service noise.
 
 ## What is where
@@ -65,17 +63,14 @@ modules.json              where a widget goes when enabled from the menu/CLI
 
 ## The bar
 
-`bar.json` ships the layout. One bar is drawn on every connected screen, with the
-same layout on each; panels and their hotkeys use the display they belong to.
-Entries under the `tray` section are parked in the tray drawer instead of taking
-a permanent slot on the bar.
-The shell writes its own copy when the layout, background, position, or a widget setting changes:
+`bar.json` ships the layout: one bar per screen, same layout everywhere; panels
+and hotkeys stay on their display. `tray` entries go to the tray drawer instead
+of a permanent slot. The shell writes its own copy on any layout, background,
+position or widget change; it **takes precedence** over `bar.json` until reset:
 
 ```
 ~/.local/state/anixie/bar/bar.json
 ```
-
-which **takes precedence** over `bar.json` until you reset it:
 
 ```sh
 anixie bar reset                  # back to the shipped layout
@@ -92,19 +87,18 @@ anixie bar tray                   # open the tray drawer (parked widgets)
 anixie bar toggle|on|off          # hide the bar, keeping panels and hotkeys
 ```
 
-Position is saved with the layout too, so a switch does not need a rebuild. The
-Nix option `anixie.wm.quickshell.position` is the default a fresh state starts
-from. After editing the saved layout by hand, run `anixie bar reload`; the
-shipped `bar.json` still changes only with a rebuild. The same controls are in
-**Menu → Setup → Bar**.
+Position is saved with the layout, so changing it needs no rebuild;
+`anixie.wm.quickshell.position` is only the default for fresh state. After a
+hand edit, run `anixie bar reload`; the shipped `bar.json` changes only with a
+rebuild. The same controls live in **Menu → Setup → Bar**.
 
-Widgets are looked up in `ModuleRegistry`, then in `modules.json` — a widget is a
-section, a source file and optional settings, so one the default layout does not
-show is one line in the manifest rather than a code change. **Menu → Setup →
-Plugins** lists what can be enabled or disabled without editing JSON.
+Widgets resolve through `ModuleRegistry` and `modules.json`: a section, a source
+file and optional settings, so showing one the default layout omits is a
+manifest line, not code. **Menu → Setup → Plugins** toggles them without editing
+JSON.
 
 The weather follows the machine's IP unless its entry names a place. A city,
-postcode or `"lat,lon"` in `location` pins it instead, which is what a VPN needs:
+postcode or `"lat,lon"` in `location` pins it, which is what a VPN needs:
 
 ```json
 { "id": "bar.weather", "interval": 1800, "location": "Malibu, CA" }
@@ -112,12 +106,11 @@ postcode or `"lat,lon"` in `location` pins it instead, which is what a VPN needs
 
 ## Menu
 
-`Super+Space` opens the shell's menu; `Super+Ctrl+C` opens it filtered to
-capture. The shipped tree is `modules/features/wm/quickshell/menu.json` and
-changes with a rebuild. `~/.config/anixie/menu.json` is a JSONC extension read on
-every open: entries merge by group name, and by label within a group. A matching
-entry replaces the shipped one, a new one is appended, and `"hidden": true`
-removes it.
+`Super+Space` opens the menu; `Super+Ctrl+C` opens it filtered to capture. The
+shipped tree is `modules/features/wm/quickshell/menu.json` and changes with a
+rebuild. `~/.config/anixie/menu.json` is a JSONC extension read on every open:
+entries merge by group and then label; a match replaces, a new entry appends,
+and `"hidden": true` removes.
 
 ```json
 {
@@ -142,27 +135,24 @@ menu --only Capture         # open only that group
 menu firefox                # launch an application by name
 ```
 
-The full menu also answers a typed query that is not an app or command. In
-order, it offers arithmetic (`2+3*4` → a copyable `= 14`), a URL to open
-(`example.com`), then the matching installed entries, then file hits from `fd`
-under your home directory, and finally a web search. The extra rows are only
-in the full menu; a theme or audio picker stays a fixed list.
+When a typed query is not an app or command, the full menu falls through in
+order: arithmetic (`2+3*4` → a copyable `= 14`), a URL (`example.com`), installed
+entries, `fd` hits under your home, then a web search. These rows are only in
+the full menu; a theme or audio picker stays a fixed list.
 
-`Tab` switches between `all`, `apps`, `web` and `files`; `all` is the menu
-described above, so a command or theme stays one query away. The app tabs show
-a `most used` section built from launches this shell has counted (kept in
-`$XDG_STATE_HOME/anixie/app-usage.json`), and the open windows as live
-thumbnails while the query is empty — `Shift+↑`/`Shift+↓` walks them and Return
-focuses one. A web or files query is the same suggestion machinery as the full
-menu, narrowed to that tab.
+`Tab` cycles `all`, `apps`, `web` and `files`. `apps` adds a `most used` section
+from launches this shell has counted (`$XDG_STATE_HOME/anixie/app-usage.json`)
+and, while the query is empty, live window thumbnails — `Shift+↑`/`Shift+↓`
+walks them and Return focuses one. `web` and `files` narrow the same suggestions
+to that tab.
 
 ## Panels
 
 One per widget, opening under it. A screen shows one panel at a time: opening
-another there replaces it, while panels on other outputs stay up. Arrows walk the
-controls, Return activates, ←/→ move a slider or pick a chip, Tab moves to the
-panel on the next screen, Escape closes the one the keys are on, and
-`Super+Ctrl+1-9` toggles a panel by its position from the left.
+another replaces it, while panels on other outputs stay. Arrows walk controls,
+Return activates, ←/→ move a slider or pick a chip, Tab moves to the next
+screen's panel, Escape closes the focused one, and `Super+Ctrl+1-9` toggles by
+position from the left.
 
 | Hotkey | Panel |
 | --- | --- |
@@ -184,8 +174,8 @@ application menu (the app supplies it over DBusMenu).
 ## Calendar
 
 The clock's month view (`Super+Ctrl+Alt+D`) can show a read-only calendar
-subscription. Put the `.ics` URL in `~/.config/anixie/calendar.json`; this is the
-one calendar file meant to be edited, so it stays out of the store:
+subscription. Put the `.ics` URL in `~/.config/anixie/calendar.json` — the one
+calendar file you edit, deliberately outside the store:
 
 ```json
 {
@@ -197,31 +187,27 @@ one calendar file meant to be edited, so it stays out of the store:
 }
 ```
 
-The panel fetches the feed into `~/.cache/anixie/calendar`, expands recurring
-events, and draws a dot on days with something on them and the selected day's
-list below the grid. A failed refresh keeps the cached copy and shows a warning
-instead of blanking the view. Nothing is written back to the calendar, and the
-secret URL never leaves the config file except to the subscription server.
-Disable the whole feature with `anixie.wm.calendar.enable = false`.
+The panel fetches into `~/.cache/anixie/calendar`, expands recurring events,
+and marks days with a dot plus the selected day's list. A failed refresh keeps
+the cached copy and warns instead of blanking the view. Nothing is written back
+to the calendar, and the secret URL leaves the config only for the subscription
+server. Disable the feature with `anixie.wm.calendar.enable = false`.
 
 ## Multiple displays
 
 Every output has its own bar, workspace row and panels. Scale, rotation, mode,
-position, on/off and mirroring are per output and written to
-`~/.local/state/anixie/display.conf`; the catch-all rule in
-`hyprland/config/20-settings.lua` only supplies defaults for a screen that has
-no saved line (`anixie.wm.display.defaultScale`, 1 by default).
+position, on/off and mirroring are per output in
+`~/.local/state/anixie/display.conf`; `hyprland/config/20-settings.lua` supplies
+defaults for a screen with no saved line (`anixie.wm.display.defaultScale`, 1).
 
-The Displays panel (`Super+Ctrl+Shift+D`) draws the arrangement from the live
-coordinates and offers an Identify action that flashes each output's name on it.
-Mirroring is a Layout choice per screen; a mirrored screen has no geometry of
-its own, so those rows are disabled until it is extended again.
+The Displays panel (`Super+Ctrl+Shift+D`) draws the live arrangement and offers
+Identify, which flashes each output's name. Mirroring is a per-screen Layout
+choice; a mirrored screen has no geometry, so those rows stay disabled until it
+is extended.
 
-A geometry change goes through `monitors try`: it applies immediately but
-automatically returns to the previous value after fifteen seconds unless it is
-kept. The panel shows that countdown as a Keep/Revert dialog, and the revert is
-owned by a systemd timer rather than the panel, so a mode that makes the screen
-unreadable still comes back after the panel is gone.
+A geometry change goes through `monitors try`: immediate, but reverted after
+fifteen seconds unless kept. The panel shows the countdown, and a systemd timer
+owns the revert, so an unreadable mode returns even if the panel is gone.
 
 Workspaces are per monitor: each output gets a block of ten global workspace
 ids, so `Super+1` is the first workspace of whichever screen has focus, and
@@ -242,10 +228,10 @@ monitors recover                            # clear a stale internal-off state
 monitors wake                               # DPMS off/on after a dark resume
 ```
 
-Closing the lid with an external screen attached takes the internal panel out
-of the layout and opening it puts it back at the saved scale. Booting undocked
-clears a saved internal-off state before Hyprland reads it, so the laptop screen
-cannot come up disabled as the only display.
+Closing the lid with an external screen removes the internal panel from the
+layout; opening it restores the saved scale. Booting undocked clears a stale
+internal-off state before Hyprland reads it, so the laptop screen cannot come up
+disabled as the only display.
 
 ## Themes
 
@@ -261,22 +247,22 @@ anixie textsize up|down|set N   # the whole shell, not just the bar
 anixie wallpaper set FILE       # or `wallpaper theme` for the palette's gradient
 ```
 
-A theme switched at runtime reaches the **shell, Hyprland's borders, kitty, btop
-and tmux immediately**. GTK follows through its state settings.ini and gsettings,
-Qt through a qt6ct palette, and Helix, yazi and the lock screen through their
-state-directory configs; those applications take the change at their next start.
-No rebuild is needed for a theme switch. `theme wallpaper` uses matugen's smart mode unless `light` or
-`dark` is named, and falls back to the previous palette if the picture cannot be
-read. Results are cached per picture and mode, and a video contributes its first
-frame. `theme wallpaper` remembers an explicit `auto`/`light`/`dark` choice for
-the next picture; `theme set wallpaper` reuses the last generated palette. While
-`wallpaper` is the current theme, choosing a background through `anixie
-wallpaper` also regenerates the palette from it.
+A runtime switch reaches the **shell, Hyprland's borders, kitty, btop and tmux
+immediately**. GTK follows via settings.ini and gsettings, Qt via a qt6ct
+palette, and Helix, yazi and the lock screen via state configs at next start. No
+rebuild needed.
 
-The terminal gets the full 16-colour ANSI palette, so kitty, the zsh prompt,
-fzf, bat and eza follow the theme rather than only the terminal background. GTK
-also gets palette-derived `gtk.css` files, not just the Adwaita light/dark
-switch. The picker previews a palette's colours as a small swatch.
+`theme wallpaper` uses matugen's smart mode unless `light` or `dark` is given,
+and falls back to the previous palette on an unreadable picture. Results are
+cached per picture and mode (a video contributes its first frame). An explicit
+`auto`/`light`/`dark` is remembered for the next picture, and
+`theme set wallpaper` reuses the last generated palette. While `wallpaper` is the
+theme, `anixie wallpaper` also regenerates the palette.
+
+The terminal gets the full 16-colour ANSI palette, so kitty, the zsh prompt, fzf,
+bat and eza follow the theme, not just the background. GTK also gets
+palette-derived `gtk.css`, beyond the Adwaita light/dark switch. The picker
+previews a palette's colours as a small swatch.
 
 Applications without a supported config format can be reached through
 `~/.config/anixie/theme-hooks/*.sh`. Each executable hook runs after a switch
@@ -293,9 +279,6 @@ anixie focus start 25 | stop | extend 15 | status
 anixie screentime [show|json|reset|path|panel]
 notify -G f017 SUMMARY [BODY] --exec COMMAND [ARG...]   # a toast with a glyph and a click action
 notify SUMMARY [BODY] --action LABEL CMD [ARG...]... --with DATA...  # up to three persistent buttons
-monitors …                          # scale, rotation, mode, position, mirror,
-                                    # try/keep/revert, identify, brightness, lid,
-                                    # workspaces, recover, wake
 anixie power …                      # profile for AC or battery, charge ceiling
 anixie snapshot create|list|restore|prune
 anixie webapp add NAME URL          # a site as an application
@@ -304,10 +287,10 @@ anixie webapp add NAME URL          # a site as an application
 OCR is `capture-text` (`Super+Ctrl+Print`): drag a region, the text is on the
 clipboard.
 
-`Super+Ctrl+V` opens the clipboard history as a list with a preview beside it:
-images as thumbnails, text with character/line/word counts, and file paths with
-`go to location`. `Delete` removes the selected entry, `clear all` wipes the
-history, and Return or a click copies. The history itself is cliphist's.
+`Super+Ctrl+V` opens clipboard history with a preview: image thumbnails, text
+with character/line/word counts, and paths with `go to location`. `Delete`
+removes an entry, `clear all` wipes the history, and Return or a click copies.
+The history is cliphist's.
 
 `shot scroll` selects a region, pages down with Page Down, and stitches the
 frames, stopping when the view stops moving. `shot smart redact` opens satty
@@ -315,31 +298,27 @@ with the blur tool, and `shot smart text` with the text tool.
 
 ## Screen time, focus and battery
 
-Screen time is tracked in the shell from the focused toplevel and the idle
-monitor, and written one JSON file per day under
-`~/.local/state/anixie/screentime`. The bar's screen-time clock opens the
-breakdown; `anixie screentime` prints it, and `screentime panel` opens the panel
-(adding the widget to a saved bar layout that predates it).
+Screen time is tracked from the focused toplevel and idle monitor into one JSON
+file per day under `~/.local/state/anixie/screentime`. The bar's screen-time clock
+opens the breakdown; `anixie screentime` prints it and `screentime panel` shows
+it (adding the widget to a saved layout that lacks it).
 
-`anixie focus start 25` closes the app classes listed in
-`anixie.wm.focus.blockedClasses`, silences notifications, and shows a
-countdown indicator. The state survives a shell restart; `focus stop` puts the
-previous notification setting back. `Super+Ctrl+F` starts a 25-minute block and
-`Super+Ctrl+Shift+F` stops one.
+`anixie focus start 25` closes the app classes in
+`anixie.wm.focus.blockedClasses`, silences notifications, and shows a countdown.
+State survives a shell restart; `focus stop` restores the previous notification
+setting. `Super+Ctrl+F` starts a 25-minute block, `Super+Ctrl+Shift+F` stops one.
 
-While on battery, the power watcher dims the screen and steps down the profile
-at 20% and again at 8%, restoring the brightness you had when mains returns.
-The thresholds, profiles and brightness levels are
-`anixie.power.batteryAutomation` options, and the same thresholds drive the
+While on battery the power watcher dims the screen and steps down the profile at
+20%, then 8%, restoring your brightness on mains. Thresholds, profiles and
+brightness are `anixie.power.batteryAutomation` options; they also drive the
 bar's warning colour and the low-battery notification. The power panel toggles
-the automation at runtime; that choice lives in
+automation; that choice is stored in
 `~/.local/state/anixie/powerprofile/automation` and overrides the build default.
 
-On mains, the charge controller is held at 80% so the battery spends its desk
-life below full. `anixie power charge full` lifts the ceiling to 100% for a trip,
-and `anixie power charge limit N` puts it back; the choice is saved in
-`/var/lib/anixie/charge-limit` and re-applied at boot, after resume and when the
-adapter is plugged in.
+On mains the charge controller is held at 80%. `anixie power charge full` lifts
+it to 100% for a trip; `anixie power charge limit N` caps it again. The choice is
+saved in `/var/lib/anixie/charge-limit` and re-applied at boot, on resume and on
+adapter plug.
 
 ## Gaming
 
@@ -375,8 +354,7 @@ module on an unencrypted root makes the machine unbootable.
 
 ## Things worth knowing
 
-- **No disk encryption yet.** Adding it needs a reinstall; see the secrets and
-  encryption section above.
+- **No disk encryption.** It needs a reinstall; see above.
 - **sudo asks for a password**; `wheelNeedsPassword = false` is one line away if
   a rebuild prompt is worse than the risk.
 - **The Craft Apps run under XWayland** — Wayland has no native file
@@ -384,12 +362,9 @@ module on an unencrypted root makes the machine unbootable.
 - **Performance is more than the daemon's profile.** While `performance` is
   selected, a system service also forces the GPU's DPM level high, turns off
   PCIe ASPM, caps dirty page cache at 512M and disables the NMI watchdog, then
-  puts every value back on any other profile. `anixie power show` reports it.
-- **`nix flake check` is the gate.** It runs `shellcheck -S warning` over every
-  module script, `qmllint` over the assembled QML tree (with the Qt and
-  Quickshell import paths, so a syntax error fails before the shell
-  crash-loops), and nixfmt, statix and deadnix over the Nix code. A headless
-  start is still not part of it.
-- **Saved matches are for this machine.** The hostname, backlight device and
-  keyboard backlight are named in `hosts/vivobook` and
-  `modules/features/wm/quickshell/bar.json`-adjacent settings.
+  restores every value on any other profile. `anixie power show` reports it.
+- **`nix flake check` is the gate.** shellcheck over every module script,
+  qmllint over the assembled QML tree, and nixfmt/statix/deadnix over the Nix.
+  A headless start is not part of it.
+- **Saved matches are machine-specific** — the hostname, backlight and keyboard
+  backlight are named in `hosts/vivobook` and the Quickshell bar settings.
