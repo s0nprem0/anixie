@@ -53,8 +53,26 @@ let
     }) files
   );
 
+  # nvm is pinned here rather than cloned at activation time. Its scripts are
+  # installed beside the versions it downloads, and the store is read-only, so
+  # activation copies this tree into ~/.nvm and leaves `versions/` alone.
+  # Without nix-ld (modules/system/dev.nix) the Node builds it fetches cannot
+  # load their interpreter.
+  nvm = pkgs.fetchFromGitHub {
+    owner = "nvm-sh";
+    repo = "nvm";
+    tag = "v0.40.8";
+    hash = "sha256-24FP1brAAyWu+Q0Dk+Y4aXgdCBon9GkBXgFaGXBO7sc=";
+  };
+
   # Inline fragments that are not worth their own file.
   inlineChunks = [
+    (lib.mkOrder 500 ''
+      # nvm. Sourced before compinit at 570 so its `nvm` completion is
+      # registered when the completion system initialises.
+      export NVM_DIR="$HOME/.nvm"
+      [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+    '')
     (lib.mkOrder 520 ''
       # Full upstream completion set, alongside the curated nix-zsh-completions
       # that Home Manager adds for enableCompletion.
@@ -70,6 +88,14 @@ in
 {
   home = {
     file = sourcedFiles;
+
+    # `-T` copies the tree's contents, not the tree node, so nvm.sh lands at
+    # ~/.nvm/nvm.sh where nvm expects it. `-f` is needed on rebuilds: the
+    # previous copy's files are the ones being overwritten.
+    activation.nvm = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      ${pkgs.coreutils}/bin/install -d -m 0755 "$HOME/.nvm"
+      ${pkgs.coreutils}/bin/cp -rfT --no-preserve=mode,ownership ${nvm} "$HOME/.nvm"
+    '';
 
     # atuin comes from programs.atuin below; it is not repeated here.
     packages = with pkgs; [

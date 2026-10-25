@@ -13,6 +13,17 @@
   # falls back to whatever gpg can find and usually fails on "No pinentry".
   programs.gnupg.agent.enable = true;
 
+  # nvm (see features/shell/zsh) downloads the official Node builds, which are
+  # linked against /lib64/ld-linux-x86-64.so.2 — a path NixOS does not have. The
+  # nix-ld shim provides it and points the loader at these libraries, so an
+  # `nvm install`ed `node` starts instead of failing on a missing interpreter.
+  programs.nix-ld = {
+    enable = true;
+    libraries = with pkgs; [
+      stdenv.cc.cc.lib
+    ];
+  };
+
   # htop on the system rather than in a user profile: it is the tool you reach
   # for when something is wrong, at a console, as root, or from a session whose
   # profile is not the one you are logged in as. btop is the everyday one and
