@@ -296,7 +296,7 @@ notify SUMMARY [BODY] --action LABEL CMD [ARG...]... --with DATA...  # up to thr
 monitors …                          # scale, rotation, mode, position, mirror,
                                     # try/keep/revert, identify, brightness, lid,
                                     # workspaces, recover, wake
-anixie power …                      # profile for AC or battery
+anixie power …                      # profile for AC or battery, charge ceiling
 anixie snapshot create|list|restore|prune
 anixie webapp add NAME URL          # a site as an application
 ```
@@ -334,6 +334,12 @@ The thresholds, profiles and brightness levels are
 bar's warning colour and the low-battery notification. The power panel toggles
 the automation at runtime; that choice lives in
 `~/.local/state/anixie/powerprofile/automation` and overrides the build default.
+
+On mains, the charge controller is held at 80% so the battery spends its desk
+life below full. `anixie power charge full` lifts the ceiling to 100% for a trip,
+and `anixie power charge limit N` puts it back; the choice is saved in
+`/var/lib/anixie/charge-limit` and re-applied at boot, after resume and when the
+adapter is plugged in.
 
 ## Gaming
 

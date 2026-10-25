@@ -1,4 +1,29 @@
 {
+  config,
+  pkgs,
+  ...
+}:
+
+let
+  # The ceiling is a controller setting, not a file, so the choice made with
+  # `charge-limit full` is kept here for the boot/resume/plug helper to re-apply.
+  chargeState = "/var/lib/anixie/charge-limit";
+
+  chargeLimit = pkgs.writeShellScriptBin "charge-limit" (
+    builtins.replaceStrings
+      [ "@BAT@" "@STATE@" "@DEFAULT@" "@ANIXIE_LIB@" ]
+      [
+        "/sys/class/power_supply/BAT0/charge_control_end_threshold"
+        chargeState
+        "80"
+        "${../features/cli/lib.sh}"
+      ]
+      (builtins.readFile ./charge-limit.sh)
+  );
+in
+{
+  environment.systemPackages = [ chargeLimit ];
+
   services = {
     power-profiles-daemon.enable = true;
 
@@ -39,17 +64,27 @@
   # A laptop that lives on a desk spends its life at 100%, which is the fastest
   # way to wear a battery out. The charge controller accepts a ceiling; 80% is the
   # usual compromise between wear and having enough to leave the house with.
-  # Re-asserted at boot because the setting lives in the controller, not on disk.
+  # `charge-limit full` lifts it for a trip and saves that choice, so this reads
+  # the saved value rather than forcing 80 on every boot.
   systemd.services.battery-charge-limit = {
-    description = "Cap battery charging at 80%";
+    description = "Apply the saved battery charge ceiling";
     wantedBy = [ "multi-user.target" ];
     unitConfig.ConditionPathExists = "/sys/class/power_supply/BAT0/charge_control_end_threshold";
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
     };
-    script = "echo 80 > /sys/class/power_supply/BAT0/charge_control_end_threshold";
+    script = "${chargeLimit}/bin/charge-limit apply";
   };
+
+  # The controller can forget the ceiling across a firmware reset. Re-assert it
+  # whenever the adapter is plugged in, and after resume, rather than trusting a
+  # single boot-time write.
+  services.udev.extraRules = ''
+    ACTION=="change", SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="1", RUN+="${config.systemd.package}/bin/systemctl --no-block restart battery-charge-limit.service"
+  '';
+
+  powerManagement.resumeCommands = "${chargeLimit}/bin/charge-limit apply";
 
   # Compressed swap in RAM. The disk swap partition still exists for suspend,
   # but this keeps the common case off the slow device when memory fills.

@@ -23,6 +23,8 @@ let
         "@CRITICAL_PROFILE@"
         "@LOW_BRIGHTNESS@"
         "@CRITICAL_BRIGHTNESS@"
+        "@CHARGE_LIMIT@"
+        "@SUDO@"
         "@ANIXIE_LIB@"
       ]
       [
@@ -37,6 +39,10 @@ let
         cfg.criticalProfile
         (toString cfg.lowBrightness)
         (toString cfg.criticalBrightness)
+        # The charge helper is a system package: writing the controller needs
+        # root, so the write goes through the setuid sudo wrapper.
+        "/run/current-system/sw/bin/charge-limit"
+        "/run/wrappers/bin/sudo"
         "${../cli/lib.sh}"
       ]
       (builtins.readFile ./powerprofile.sh)
