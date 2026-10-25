@@ -462,7 +462,7 @@ QtObject {
       lead.push({
         label: "Open " + url,
         group: "Web",
-        icon: Util.globe,
+        icon: "",
         state: "",
         match: q,
         run: "xdg-open " + Util.shellQuote(url)
@@ -474,7 +474,7 @@ QtObject {
       tail.push({
         label: "Search the web for “" + q.trim() + "”",
         group: "Web",
-        icon: Util.globe,
+        icon: "",
         state: "",
         match: q,
         run: "xdg-open " + Util.shellQuote(Suggest.webUrl(q))

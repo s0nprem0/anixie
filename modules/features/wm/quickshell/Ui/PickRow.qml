@@ -111,11 +111,18 @@ Item {
     smooth: true
     // A clipboard thumbnail takes the icon slot when there is one. A desktop
     // entry can name an icon that is not installed, and a missing one is normal
-    // rather than an error: the row is still worth showing.
-    opacity: root.hasPreview || root.icon !== "" ? 1 : 0
-    source: root.hasPreview
-      ? "file://" + root.preview
-      : (root.icon !== "" ? Quickshell.iconPath(root.icon, "") : "")
+    // rather than an error: the row is still worth showing. The existence check
+    // is what keeps it blank — without it `iconPath` still returns an image URL,
+    // and the provider fills it with its black and purple missing-icon square.
+    readonly property string iconSource: {
+      if (root.hasPreview) return "file://" + root.preview
+      if (root.icon === "") return ""
+      if (root.icon.charAt(0) === "/") return "file://" + root.icon
+      return Quickshell.iconPath(root.icon, true)
+    }
+
+    opacity: iconSource !== "" ? 1 : 0
+    source: iconSource
   }
 
   Row {
