@@ -68,7 +68,7 @@ let
 
   scrolloverview = makePlugin {
     pname = "hyprland-scroll-overview";
-    version = "0.1";
+    version = "0-unstable-2026-10-22";
     src = inputs.hyprland-scroll-overview;
     source = "scrolloverview";
     names = [
@@ -81,26 +81,17 @@ let
 
   hyprglass = makePlugin {
     pname = "hyprglass";
-    version = "0.1";
+    version = "0.11.0";
     src = inputs.hyprglass;
     names = [
       "libhyprglass"
       "hyprglass"
     ];
-
-    # Modern toolchains refuse to dlopen a shared object without an explicit
-    # non-executable stack note. The Makefile does not carry one, and the
-    # assembly blob has no section of its own, so both are supplied here.
-    postPatch = ''
-      sed -i 's/LDFLAGS = -shared/LDFLAGS = -shared -Wl,-z,noexecstack/' Makefile
-      sed -i 's/\$(CC) -shared -fPIC/\$(CC) -shared -fPIC -Wl,-z,noexecstack/' Makefile
-      echo '.section .note.GNU-stack,"",@progbits' >> src/ItemHelperBlob.S
-    '';
   };
 
   dynamicCursors = makePlugin {
     pname = "hypr-dynamic-cursors";
-    version = "0.1";
+    version = "0-unstable-2026-08-06";
     src = inputs.hypr-dynamic-cursors;
     source = "out/dynamic-cursors";
     names = [
@@ -116,7 +107,7 @@ let
 
   edgehover = pkgs.stdenv.mkDerivation {
     pname = "hypr-edgehover";
-    version = "0.1";
+    version = "0-unstable-2026-10-15";
     src = inputs.hypr-edgehover;
 
     nativeBuildInputs = [
@@ -132,7 +123,7 @@ let
 
   hymission = pkgs.stdenv.mkDerivation {
     pname = "hymission";
-    version = "0.7.1";
+    version = "0.11.0";
     src = inputs.hymission;
 
     patches = [ ./patches/hymission-effective-alpha.patch ];

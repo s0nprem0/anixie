@@ -33,12 +33,12 @@
     };
 
     hyprland-scroll-overview = {
-      url = "github:yayuuu/hyprland-scroll-overview/7ff22457dc016239eff1b19c3ea57de93404b5c9";
+      url = "github:yayuuu/hyprland-scroll-overview/6b59bd8bfaec54ceba2d2e2add2dde114d277b9b";
       flake = false;
     };
 
     hyprglass = {
-      url = "github:hyprnux/hyprglass/84c1a5ab217101a317d4edaab7fba2efcc1bf346";
+      url = "github:hyprnux/hyprglass/7fc328064c63d9fbaaac8d8204eadf85dcdeae19";
       flake = false;
     };
 
@@ -48,12 +48,12 @@
     };
 
     hypr-edgehover = {
-      url = "github:gfhdhytghd/hypr-edgehover/77b5e1445361b3a1f7b6f03bb4bee15e91229c94";
+      url = "github:gfhdhytghd/hypr-edgehover/1b41eb054e1d7690648b0c293b0bf4ff4a1d87e3";
       flake = false;
     };
 
     hymission = {
-      url = "github:gfhdhytghd/hymission/cff1070f6ee9fbafacca7f7efd76397fe1975510";
+      url = "github:gfhdhytghd/hymission/91326b304b165b5aa54d98c06baa186c6851de82";
       flake = false;
     };
 
