@@ -7,6 +7,7 @@ with pkgs;
 [
   # Monitoring. btop is also what the reference bar's CPU readout launches.
   btop
+  fastfetch
   duf
   dust
   procs
