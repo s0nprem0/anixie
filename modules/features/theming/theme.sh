@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2034
 # Themes.
 #
 #   theme                pick one
@@ -10,6 +11,8 @@
 #   theme wallpaper-mode [auto|light|dark]
 #                        remember the mode for the next picture
 #   theme next | prev    step through the list
+#   theme state          the saved theme state as JSON
+#   theme migrate         import the old separate state files
 #   theme apply          re-apply the current one (run at login)
 #
 # One palette drives the shell, the compositor's window borders, the terminal and
@@ -44,12 +47,24 @@ magick="@MAGICK@"
 ffmpeg="@FFMPEG@"
 sha256sum="@SHA256SUM@"
 stat="@STAT@"
+palette_jq="@PALETTE_JQ@"
+matugen_version=$("$matugen" --version 2>/dev/null | head -n 1)
+palette_version=1
+
+STATE_DIR="$state_dir"
+DEFAULT_THEME="$default_theme"
+JQ="$jq"
+FLOCK="@FLOCK@"
 
 current_file="$state_dir/current"
 wallpaper_mode_file="$state_dir/wallpaper-mode"
 
 # shellcheck source=/dev/null
 . "@ANIXIE_LIB@"
+# shellcheck source=/dev/null
+. "@COLOR_LIB@"
+# shellcheck source=/dev/null
+. "@STATE_LIB@"
 
 # Write a file through a temporary in the same directory, so a failure never
 # leaves a half-written palette or config behind.
@@ -124,14 +139,14 @@ saved_wallpaper_mode() {
 # file, a failed write or a missing theme would otherwise reach the templates as
 # `null`, which Yazi refuses to parse and the others render as a colour called
 # "null". Checked before anything is written, so a bad palette leaves the
-# previous files alone instead of replacing them with broken ones. `yellow` is
-# optional because a palette generated before that token existed falls back to
-# the accent.
+# previous files alone instead of replacing them with broken ones.
 palette_ok() {
   "$jq" -e '
     type == "object" and
-    ([.background, .foreground, .surface, .muted, .primary, .accent,
-      .accentAlt, .danger, .success]
+    ([.background, .surface, .surfaceContainer, .surfaceVariant,
+      .foreground, .fgLight, .bgDark, .bgLight, .muted, .outline,
+      .primary, .accent, .accentAlt, .secondary, .tertiary,
+      .success, .yellow, .danger, .error]
       | all(type == "string" and length > 0))
   ' "$1" >/dev/null 2>&1
 }
@@ -158,6 +173,15 @@ colour() {
   printf '%s' "$value"
 }
 
+ansi_colour() {
+  local index="$1" fallback="$2" value
+  value=$("$jq" -r --arg k "ansi$index" '.[$k] // empty' "$generated")
+  if [ -z "$value" ]; then
+    value=$("$jq" -r --arg k "$fallback" '.[$k] // empty' "$generated")
+  fi
+  printf '%s' "$value"
+}
+
 current() {
   local name=""
   [ -f "$current_file" ] && name=$(tr -d '[:space:]' <"$current_file")
@@ -174,6 +198,7 @@ current() {
 materialise() {
   local name="$1" tmp
   mkdir -p "$state_dir" || die "could not create $state_dir"
+  state_ensure || die "could not initialise $state_dir/state.json"
 
   if [ "$name" = "wallpaper" ]; then
     wallpaper_palette || die "the generated palette is missing; run 'theme wallpaper FILE'"
@@ -181,7 +206,7 @@ materialise() {
     "$jq" -e --arg n "$name" '.[$n] | type == "object"' "$palettes" >/dev/null 2>&1 \
       || die "no such theme: $name"
     tmp=$(mktemp "$state_dir/palette.XXXXXX") || die "could not create a palette file"
-    "$jq" --arg n "$name" '.[$n] | del(._mode)' "$palettes" >"$tmp" \
+    "$jq" --arg n "$name" '.[$n] | with_entries(select(.key | startswith("_") | not))' "$palettes" >"$tmp" \
       || die "could not resolve $name"
     palette_ok "$tmp" || die "theme $name is missing colours"
     mv "$tmp" "$generated"
@@ -200,6 +225,14 @@ materialise() {
   printf '%s\n' "$name" | write_atomic "$current_file" \
     || die "could not write $current_file"
 
+  if [ "$name" = "wallpaper" ]; then
+    state_source=wallpaper
+  else
+    state_source=preset
+  fi
+  state_set_theme "$name" "$state_source" \
+    || die "could not write $state_dir/state.json"
+
   # kitty reads this through an include in its generated config, so the same four
   # settings appear whether the theme was built in or set at runtime.
   write_atomic "$state_dir/kitty.conf" <<EOF || die "could not write $state_dir/kitty.conf"
@@ -207,22 +240,22 @@ background $(colour background)
 foreground $(colour foreground)
 selection_background $(colour accent)
 selection_foreground $(colour background)
-color0 $(colour background)
-color8 $(colour muted)
-color1 $(colour danger)
-color9 $(colour danger)
-color2 $(colour success)
-color10 $(colour success)
-color3 $(colour yellow)
-color11 $(colour yellow)
-color4 $(colour primary)
-color12 $(colour primary)
-color5 $(colour accentAlt)
-color13 $(colour accentAlt)
-color6 $(colour accent)
-color14 $(colour accent)
-color7 $(colour foreground)
-color15 $(colour foreground)
+color0 $(ansi_colour 0 background)
+color8 $(ansi_colour 8 muted)
+color1 $(ansi_colour 1 danger)
+color9 $(ansi_colour 9 danger)
+color2 $(ansi_colour 2 success)
+color10 $(ansi_colour 10 success)
+color3 $(ansi_colour 3 yellow)
+color11 $(ansi_colour 11 yellow)
+color4 $(ansi_colour 4 primary)
+color12 $(ansi_colour 12 primary)
+color5 $(ansi_colour 5 accentAlt)
+color13 $(ansi_colour 13 accentAlt)
+color6 $(ansi_colour 6 accent)
+color14 $(ansi_colour 14 accent)
+color7 $(ansi_colour 7 foreground)
+color15 $(ansi_colour 15 foreground)
 EOF
 
   # tmux, btop, and whichever others have learned to read the state directory.
@@ -316,7 +349,7 @@ generate() {
   # Cache the result per path, modification time and mode. Re-selecting the same
   # wallpaper is then instant, and an overwritten file is read again.
   mtime=$("$stat" -Lc %Y "$wp" 2>/dev/null || printf '0')
-  key=$(printf '%s\n%s\n%s\n' "$wp" "$mtime" "$requested" | "$sha256sum")
+  key=$(printf '%s\n%s\n%s\n%s\n%s\n' "$wp" "$mtime" "$requested" "$palette_version" "$matugen_version" | "$sha256sum")
   key=${key%% *}
   cache_dir="$state_dir/cache"
   cache="$cache_dir/palette-$key.json"
@@ -324,7 +357,7 @@ generate() {
   find "$cache_dir" -type f -mtime +30 -delete 2>/dev/null || true
 
   if [ -f "$cache" ]; then
-    if "$jq" -e 'has("background") and has("surface") and has("foreground") and has("muted") and has("primary") and has("accent") and has("accentAlt") and has("success") and has("danger") and (._mode == "dark" or ._mode == "light")' "$cache" >/dev/null 2>&1; then
+    if palette_ok "$cache" && "$jq" -e '._mode == "dark" or ._mode == "light"' "$cache" >/dev/null 2>&1; then
       tmp=$(mktemp "$state_dir/palette.XXXXXX") || die "could not create a palette file"
       cp "$cache" "$tmp" && mv "$tmp" "$generated" || die "could not use the cached palette"
       return
@@ -363,18 +396,14 @@ generate() {
 
   json=$("$matugen" "${args[@]}" 2>/dev/null) \
     || die "matugen could not read $source"
-  [ -f "$generated" ] || die "matugen wrote no palette"
+  [ -n "$json" ] || die "matugen wrote no palette"
 
-  mode=$(printf '%s' "$json" | "$jq" -r '.mode // empty' 2>/dev/null || true)
-  if [ -z "$mode" ]; then
-    if [ "$requested" = "smart" ]; then mode=dark; else mode=$requested; fi
-  fi
-
-  # Keep the mode with the palette so the shell can style light surfaces and a
-  # later `theme apply` knows what it is applying without asking matugen again.
   tmp=$(mktemp "$state_dir/palette.XXXXXX") || die "could not create a palette file"
-  "$jq" --arg mode "$mode" '. + {_mode: $mode}' "$generated" >"$tmp" \
+  printf '%s' "$json" | "$jq" -f "$palette_jq" --arg fallback "$requested" >"$tmp" \
     || die "could not read the generated palette"
+  palette_ok "$tmp" || die "matugen returned an incomplete palette"
+  color_palette_fix "$tmp" || die "could not adjust the generated palette"
+  palette_ok "$tmp" || die "the adjusted palette is incomplete"
   mv "$tmp" "$generated"
 
   tmp=$(mktemp "$cache.XXXXXX") || die "could not create a cache file"
@@ -436,6 +465,14 @@ case "${1:-}" in
     ;;
   current)
     current
+    ;;
+  state)
+    state_ensure || die "could not initialise $state_dir/state.json"
+    state_json
+    ;;
+  migrate)
+    state_migrate || die "could not migrate the theme state"
+    state_json
     ;;
   apply)
     # No change, just make sure the files match the saved choice — this is what

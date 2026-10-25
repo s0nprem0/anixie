@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2034
 # The files the other applications read their colours from.
 #
 # Rendered when the theme changes rather than when the system is built, which is
@@ -20,9 +21,19 @@ gtk_template="@GTK_TEMPLATE@"
 gtk3_css_template="@GTK3_CSS_TEMPLATE@"
 gtk4_css_template="@GTK4_CSS_TEMPLATE@"
 share_picker_template="@SHARE_PICKER_TEMPLATE@"
+tokens="@TOKENS@"
+render_lib="@RENDER_LIB@"
+sed="@SED@"
 cursor_theme="@POINTER_CURSOR_THEME@"
 cursor_size="@POINTER_CURSOR_SIZE@"
 generated="@STATE_DIR@/palette.json"
+
+# shellcheck source=/dev/null
+. "$render_lib"
+
+JQ="$jq"
+SED="$sed"
+TOKENS_JSON="$tokens"
 
 name="${1:-}"
 [ -n "$name" ] || exit 0
@@ -38,13 +49,22 @@ colour() {
 bg=$(colour background)
 fg=$(colour foreground)
 surface=$(colour surface)
+surface_container=$(colour surfaceContainer)
+surface_variant=$(colour surfaceVariant)
+fg_light=$(colour fgLight)
+bg_dark=$(colour bgDark)
+bg_light=$(colour bgLight)
 muted=$(colour muted)
+outline=$(colour outline)
 primary=$(colour primary)
 accent=$(colour accent)
 alt=$(colour accentAlt)
+secondary=$(colour secondary)
+tertiary=$(colour tertiary)
 yellow=$(colour yellow)
 danger=$(colour danger)
 success=$(colour success)
+error=$(colour error)
 
 # A generated palette from before the yellow token existed still gets a usable
 # terminal yellow instead of the literal string "null".
@@ -55,7 +75,9 @@ esac
 # Rendering a palette file with a missing key would write the literal string
 # "null" into every template — which is not a colour, and Yazi refuses to parse
 # its TOML at all. Refuse instead, leaving the last good files in place.
-for value in "$bg" "$fg" "$surface" "$muted" "$primary" "$accent" "$alt" "$danger" "$success"; do
+for value in "$bg" "$fg" "$surface" "$surface_container" "$surface_variant" "$fg_light" \
+  "$bg_dark" "$bg_light" "$muted" "$outline" "$primary" "$accent" "$alt" \
+  "$secondary" "$tertiary" "$danger" "$error" "$success"; do
   case "$value" in
     "" | null)
       printf 'theme-apps: the palette is incomplete; keeping the previous files\n' >&2
@@ -79,62 +101,41 @@ fi
 
 mkdir -p "$state_dir"
 
-# Render one of the templates with the palette. Only the placeholders the
-# templates actually use are listed; the hex values are safe inside the sed
-# expression because none of them contains the delimiter.
-render() {
-  render_tmp=$(mktemp "$state_dir/.render.XXXXXX") || return 1
-  sed \
-    -e "s|@BG@|$bg|g" \
-    -e "s|@SURFACE@|$surface|g" \
-    -e "s|@FG@|$fg|g" \
-    -e "s|@MUTED@|$muted|g" \
-    -e "s|@PRIMARY@|$primary|g" \
-    -e "s|@ACCENT@|$accent|g" \
-    -e "s|@ACCENT_ALT@|$alt|g" \
-    -e "s|@YELLOW@|$yellow|g" \
-    -e "s|@SUCCESS@|$success|g" \
-    -e "s|@DANGER@|$danger|g" \
-    -e "s|@BG_HEX@|${bg#\#}|g" \
-    -e "s|@SURFACE_HEX@|${surface#\#}|g" \
-    -e "s|@FG_HEX@|${fg#\#}|g" \
-    -e "s|@MUTED_HEX@|${muted#\#}|g" \
-    -e "s|@PRIMARY_HEX@|${primary#\#}|g" \
-    -e "s|@ACCENT_HEX@|${accent#\#}|g" \
-    -e "s|@ACCENT_ALT_HEX@|${alt#\#}|g" \
-    -e "s|@YELLOW_HEX@|${yellow#\#}|g" \
-    -e "s|@SUCCESS_HEX@|${success#\#}|g" \
-    -e "s|@DANGER_HEX@|${danger#\#}|g" \
-    -e "s|@HELIX_PARENT@|$helix_parent|g" \
-    -e "s|@GTK_THEME@|$gtk_theme|g" \
-    -e "s|@GTK_ICON@|$gtk_icon|g" \
-    -e "s|@GTK_DARK@|$gtk_dark|g" \
-    -e "s|@CURSOR_THEME@|$cursor_theme|g" \
-    -e "s|@CURSOR_SIZE@|$cursor_size|g" \
-    -e "s|@BG_RGBA_F2@|rgba(${bg#\#}f2)|g" \
-    -e "s|@BG_RGBA_FF@|rgba(${bg#\#}ff)|g" \
-    -e "s|@SURFACE_RGBA_FF@|rgba(${surface#\#}ff)|g" \
-    -e "s|@FG_RGBA_FF@|rgba(${fg#\#}ff)|g" \
-    -e "s|@SUCCESS_RGBA_FF@|rgba(${success#\#}ff)|g" \
-    -e "s|@DANGER_RGBA_FF@|rgba(${danger#\#}ff)|g" \
-    -e "s|@ACCENT_ALT_RGBA_FF@|rgba(${alt#\#}ff)|g" \
-    -e "s|@MUTED_RGBA_FF@|rgba(${muted#\#}ff)|g" \
-    "$1" >"$render_tmp" || {
-    rm -f "$render_tmp"
-    return 1
-  }
-  mv "$render_tmp" "$2"
+# Render one of the templates with the selected palette.
+[ -f "$generated" ] || {
+  printf 'theme-apps: the resolved palette is missing; keeping the previous files\n' >&2
+  exit 1
 }
 
-render "$helix_template" "$state_dir/helix.toml"
-render "$yazi_template" "$state_dir/yazi.toml"
-render "$hyprlock_template" "$state_dir/hyprlock.conf"
-render "$qt6ct_colors_template" "$state_dir/qt6ct-colors.conf"
-render "$gtk_template" "$state_dir/gtk-3.0-settings.ini"
-render "$gtk_template" "$state_dir/gtk-4.0-settings.ini"
-render "$gtk3_css_template" "$state_dir/gtk-3.0.css"
-render "$gtk4_css_template" "$state_dir/gtk-4.0.css"
-render "$share_picker_template" "$state_dir/share-picker.css"
+extras=$(mktemp "$state_dir/.extras.XXXXXX") || exit 1
+trap 'rm -f "$extras"' EXIT
+"$jq" -n \
+  --arg helix_parent "$helix_parent" \
+  --arg gtk_theme "$gtk_theme" \
+  --arg gtk_icon "$gtk_icon" \
+  --arg gtk_dark "$gtk_dark" \
+  --arg cursor_theme "$cursor_theme" \
+  --arg cursor_size "$cursor_size" \
+  '{HELIX_PARENT: $helix_parent, GTK_THEME: $gtk_theme, GTK_ICON: $gtk_icon, GTK_DARK: $gtk_dark, CURSOR_THEME: $cursor_theme, CURSOR_SIZE: $cursor_size}' \
+  >"$extras"
+
+render_template "$helix_template" "$generated" "$state_dir/helix.toml" "$extras"
+render_template "$yazi_template" "$generated" "$state_dir/yazi.toml" "$extras"
+render_template "$hyprlock_template" "$generated" "$state_dir/hyprlock.conf" "$extras"
+render_template "$qt6ct_colors_template" "$generated" "$state_dir/qt6ct-colors.conf" "$extras"
+render_template "$gtk_template" "$generated" "$state_dir/gtk-3.0-settings.ini" "$extras"
+render_template "$gtk_template" "$generated" "$state_dir/gtk-4.0-settings.ini" "$extras"
+render_template "$gtk3_css_template" "$generated" "$state_dir/gtk-3.0.css" "$extras"
+render_template "$gtk4_css_template" "$generated" "$state_dir/gtk-4.0.css" "$extras"
+render_template "$share_picker_template" "$generated" "$state_dir/share-picker.css" "$extras"
+
+for file in helix.toml yazi.toml hyprlock.conf qt6ct-colors.conf \
+  gtk-3.0-settings.ini gtk-4.0-settings.ini gtk-3.0.css gtk-4.0.css share-picker.css; do
+  if grep -Eq '@[A-Z][A-Z0-9_]*@' "$state_dir/$file"; then
+    printf 'theme-apps: unrendered placeholder in %s\n' "$file" >&2
+    exit 1
+  fi
+done
 
 # ---- tmux ----
 tmux_conf=$(mktemp "$state_dir/.tmux.XXXXXX") || exit 1
@@ -230,8 +231,11 @@ if [ -d "$hook_dir" ]; then
     env ANIXIE_THEME="$name" ANIXIE_MODE="$mode" \
       ANIXIE_BG="$bg" ANIXIE_FG="$fg" ANIXIE_SURFACE="$surface" \
       ANIXIE_MUTED="$muted" ANIXIE_PRIMARY="$primary" ANIXIE_ACCENT="$accent" \
-      ANIXIE_ACCENT_ALT="$alt" ANIXIE_YELLOW="$yellow" \
-      ANIXIE_DANGER="$danger" ANIXIE_SUCCESS="$success" \
+      ANIXIE_ACCENT_ALT="$alt" ANIXIE_SECONDARY="$secondary" ANIXIE_TERTIARY="$tertiary" \
+      ANIXIE_YELLOW="$yellow" ANIXIE_DANGER="$danger" ANIXIE_ERROR="$error" \
+      ANIXIE_SUCCESS="$success" ANIXIE_OUTLINE="$outline" \
+      ANIXIE_SURFACE_CONTAINER="$surface_container" ANIXIE_SURFACE_VARIANT="$surface_variant" \
+      ANIXIE_BG_DARK="$bg_dark" ANIXIE_BG_LIGHT="$bg_light" ANIXIE_FG_LIGHT="$fg_light" \
       "$hook" >/dev/null 2>&1 || true
   done
 fi

@@ -1,0 +1,8 @@
+{
+  "HELIX_PARENT": "base16_default_dark",
+  "GTK_THEME": "Adwaita-dark",
+  "GTK_ICON": "Papirus-Dark",
+  "GTK_DARK": "1",
+  "CURSOR_THEME": "macOS",
+  "CURSOR_SIZE": "24"
+}

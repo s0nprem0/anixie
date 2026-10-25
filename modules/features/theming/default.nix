@@ -92,6 +92,9 @@ let
         "@GTK3_CSS_TEMPLATE@"
         "@GTK4_CSS_TEMPLATE@"
         "@SHARE_PICKER_TEMPLATE@"
+        "@TOKENS@"
+        "@RENDER_LIB@"
+        "@SED@"
         "@POINTER_CURSOR_THEME@"
         "@POINTER_CURSOR_SIZE@"
       ]
@@ -108,6 +111,9 @@ let
         "${./templates/gtk-3.0.css}"
         "${./templates/gtk-4.0.css}"
         "${../wm/share-picker/style.css}"
+        "${./tokens.json}"
+        "${./lib/render.sh}"
+        "${pkgs.gnused}/bin/sed"
         config.home.pointerCursor.name
         (toString config.home.pointerCursor.size)
       ]
@@ -133,6 +139,10 @@ let
         "@SHA256SUM@"
         "@STAT@"
         "@GENERATED@"
+        "@PALETTE_JQ@"
+        "@COLOR_LIB@"
+        "@STATE_LIB@"
+        "@FLOCK@"
         "@ANIXIE_LIB@"
       ]
       [
@@ -152,6 +162,10 @@ let
         "${pkgs.coreutils}/bin/sha256sum"
         "${pkgs.coreutils}/bin/stat"
         "${stateDir}/palette.json"
+        "${./palette.jq}"
+        "${./lib/color.sh}"
+        "${./lib/state.sh}"
+        "${pkgs.util-linux}/bin/flock"
         "${../cli/lib.sh}"
       ]
       (builtins.readFile ./theme.sh)
@@ -211,6 +225,8 @@ in
       if [ ! -f "$state/mode" ]; then
         printf '%s\n' ${lib.escapeShellArg config.anixie.theme.mode} >"$state/mode"
       fi
+
+      ${theme}/bin/theme migrate >/dev/null 2>&1 || true
     '';
   };
 

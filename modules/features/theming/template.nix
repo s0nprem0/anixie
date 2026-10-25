@@ -1,36 +1,30 @@
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  ...
+}:
 
 let
   c = config.anixie.theme.colors;
+  spec = builtins.fromJSON (builtins.readFile ./tokens.json);
 
-  # Token names used in templates, keyed by colour option.
-  shortNames = {
-    background = "BG";
-    surface = "SURFACE";
-    foreground = "FG";
-    muted = "MUTED";
-    primary = "PRIMARY";
-    accent = "ACCENT";
-    accentAlt = "ACCENT_ALT";
-    success = "SUCCESS";
-    yellow = "YELLOW";
-    danger = "DANGER";
-  };
+  shortNames = spec.colors;
+  alphas = spec.alphas or [ ];
 
-  # Colour with the leading '#' stripped, so it can be reused in every notation.
+  derived = lib.mapAttrs (key: source: c.${key} or c.${source}) (spec.derived or { });
+  allColors = derived // c;
+
+  tokenName =
+    key:
+    shortNames.${key}
+      or (if lib.hasPrefix "ansi" key then "ANSI_" + lib.removePrefix "ansi" key else lib.toUpper key);
+
   hex = value: builtins.substring 1 6 value;
-
-  # Alphas the desktop uses: opaque, muted, and slightly translucent.
-  alphas = [
-    "FF"
-    "AA"
-    "F2"
-  ];
 
   tokensFor =
     name: value:
     let
-      short = shortNames.${name};
+      short = tokenName name;
       h = hex value;
     in
     {
@@ -43,7 +37,7 @@ let
       "@${short}_RGBA_${a}@" = "rgba(${h}${lib.strings.toLower a})";
     }) (lib.listToAttrs (map (a: lib.nameValuePair a a) alphas));
 
-  placeholders = lib.concatMapAttrs tokensFor c;
+  placeholders = lib.concatMapAttrs tokensFor allColors;
 in
 {
   options.anixie.theme.template = {
@@ -65,15 +59,10 @@ in
   };
 
   config.anixie.theme.template = {
-    # Seeded from the palette.
     inherit placeholders;
 
     render =
       source:
-      # Read through the option rather than captured from the let binding, so a
-      # module that adds its own placeholder — the bar's position, say — is
-      # actually substituted here. Reading the local binding would only ever see
-      # the palette, and silently drop every other module's tokens.
       let
         tokens = config.anixie.theme.template.placeholders;
       in

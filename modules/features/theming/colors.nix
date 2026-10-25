@@ -6,8 +6,9 @@ let
   # cannot evaluate a Nix expression — so the data lives somewhere both can reach
   # and neither has to be kept in step with the other by hand.
   #
-  # `_mode` is metadata, not a colour. It stays in the embedded palette the shell
-  # reads (so QML can tell light from dark) and is stripped before a palette is
+  # Keys beginning with `_` are metadata, not colours. They stay in the
+  # embedded palette the shell reads (so QML can tell light from dark, find a
+  # paired variant, and group a family) and are stripped before a palette is
   # rendered or written to the state directory.
   palettes = builtins.fromJSON (builtins.readFile ./themes.json);
 
@@ -17,8 +18,11 @@ let
   # of the upstream colours did not, so they carry a lightened `muted` here.
   names = builtins.attrNames palettes;
 
-  colours = builtins.mapAttrs (_: palette: removeAttrs palette [ "_mode" ]) palettes;
+  colours = builtins.mapAttrs (
+    _: palette: lib.filterAttrs (key: _: !(lib.hasPrefix "_" key)) palette
+  ) palettes;
   modeOf = name: palettes.${name}._mode or "dark";
+  pairOf = name: palettes.${name}._pair or null;
 
   # Every palette has to carry every token: a missing one would render as an
   # empty string into a config file and only show up as a wrong colour somewhere
@@ -57,15 +61,15 @@ in
       readOnly = true;
       default = palettes;
       description = ''
-        Every palette, keyed by name, including each one's `_mode`. The shell
-        embeds all of them so it can switch without a rebuild; nothing else
-        should need this.
+        Every palette, keyed by name, including its metadata. The shell embeds
+        all of them so it can switch without a rebuild; nothing else should
+        need this.
       '';
     };
 
     colors = lib.mkOption {
       type = lib.types.attrsOf lib.types.str;
-      description = "The selected palette's colours, without the `_mode` metadata.";
+      description = "The selected palette's colours, without the metadata keys.";
     };
 
     stateDir = lib.mkOption {
@@ -95,6 +99,16 @@ in
           ]
         ) names;
         message = "every palette in theming/themes.json must set _mode to \"dark\" or \"light\"";
+      }
+      {
+        assertion = builtins.all (
+          name:
+          let
+            pair = pairOf name;
+          in
+          pair == null || builtins.hasAttr pair palettes
+        ) names;
+        message = "every _pair in theming/themes.json must name another palette";
       }
     ];
 

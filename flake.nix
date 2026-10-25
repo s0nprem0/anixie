@@ -210,6 +210,31 @@
                   touch $out
                 '';
 
+            # The theming scripts keep their state, colour maths and template
+            # rendering in small shell libraries. These tests exercise those
+            # pieces directly, without needing a running desktop.
+            shell-tests =
+              pkgs.runCommand "shell-tests"
+                {
+                  nativeBuildInputs = [
+                    pkgs.bash
+                    pkgs.coreutils
+                    pkgs.findutils
+                    pkgs.gawk
+                    pkgs.gnused
+                    pkgs.jq
+                    pkgs.util-linux
+                  ];
+                }
+                ''
+                  set -eu
+                  cd ${./.}
+                  for test in tests/shell/*.test.sh; do
+                    bash "$test"
+                  done
+                  touch $out
+                '';
+
             # The QML tree has a few pure JavaScript pieces — the JSONC parser,
             # the fuzzy matcher, the state migration seam and the launcher's
             # suggestions — and Node can load them because they export

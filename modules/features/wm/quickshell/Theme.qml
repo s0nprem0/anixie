@@ -41,13 +41,23 @@ QtObject {
 
   readonly property color bg: palette.background
   readonly property color surface: palette.surface
+  readonly property color surfaceContainer: palette.surfaceContainer || palette.surface
+  readonly property color surfaceVariant: palette.surfaceVariant || palette.surface
   readonly property color fg: palette.foreground
+  readonly property color fgLight: palette.fgLight || palette.foreground
+  readonly property color bgDark: palette.bgDark || palette.background
+  readonly property color bgLight: palette.bgLight || palette.surface
   readonly property color muted: palette.muted
+  readonly property color outline: palette.outline || palette.muted
   readonly property color primary: palette.primary
   readonly property color accent: palette.accent
   readonly property color accentAlt: palette.accentAlt
+  readonly property color secondary: palette.secondary || palette.accentAlt
+  readonly property color tertiary: palette.tertiary || palette.accent
   readonly property color success: palette.success
+  readonly property color yellow: palette.yellow || palette.accent
   readonly property color danger: palette.danger
+  readonly property color error: palette.error || palette.danger
 
   // Outlines and rules are not text, and should not borrow the muted text
   // colour: at full strength that turned every card edge into a line as loud as

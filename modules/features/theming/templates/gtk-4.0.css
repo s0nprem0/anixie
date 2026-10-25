@@ -3,14 +3,14 @@
 @define-color window_fg_color @FG@;
 @define-color view_bg_color @SURFACE@;
 @define-color view_fg_color @FG@;
-@define-color headerbar_bg_color @BG@;
+@define-color headerbar_bg_color @SURFACE@;
 @define-color headerbar_fg_color @FG@;
-@define-color headerbar_border_color @MUTED@;
-@define-color card_bg_color @SURFACE@;
+@define-color headerbar_border_color @OUTLINE@;
+@define-color card_bg_color @SURFACE_CONTAINER@;
 @define-color card_fg_color @FG@;
-@define-color dialog_bg_color @SURFACE@;
+@define-color dialog_bg_color @SURFACE_CONTAINER@;
 @define-color dialog_fg_color @FG@;
-@define-color popover_bg_color @SURFACE@;
+@define-color popover_bg_color @SURFACE_CONTAINER@;
 @define-color popover_fg_color @FG@;
 @define-color accent_bg_color @PRIMARY@;
 @define-color accent_fg_color @BG@;
@@ -22,4 +22,4 @@
 @define-color warning_fg_color @BG@;
 @define-color error_bg_color @DANGER@;
 @define-color error_fg_color @BG@;
-@define-color borders @MUTED@;
+@define-color borders @OUTLINE@;

@@ -235,12 +235,16 @@ disabled as the only display.
 
 ## Themes
 
-`themes.json` holds ten colours and a mode per palette; everything else is
-derived. Light and dark palettes switch the same surfaces; GTK follows the mode
-through gsettings (Adwaita/Adwaita-dark and Papirus/Papirus-Light icons).
+`themes.json` holds the palette tokens — background, surface containers,
+outline, semantic accents, ANSI derivation — plus metadata such as the mode,
+family and paired light/dark variant; everything else is derived. Light and dark
+palettes switch the same surfaces; GTK follows the mode through gsettings
+(Adwaita/Adwaita-dark and Papirus/Papirus-Light icons).
 
 ```sh
 anixie theme list | set NAME | next | prev | current
+anixie theme state              # the saved appearance state as JSON
+anixie theme migrate            # import the old separate state files
 anixie theme wallpaper [FILE] [auto|light|dark]  # palette from a picture
 anixie theme wallpaper-mode [auto|light|dark]    # remember the next mode
 anixie textsize up|down|set N   # the whole shell, not just the bar
