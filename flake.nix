@@ -180,6 +180,11 @@
                   set -eu
                   find ${./modules} -name '*.sh' -print0 |
                     xargs -0 shellcheck -S warning -f gcc
+                  # monitors is assembled from parts at build time, so check
+                  # the same concatenation the build installs rather than the
+                  # fragments on their own.
+                  cat ${./modules/features/wm/display/monitors}/*.bash |
+                    shellcheck -S warning -f gcc -
                   touch $out
                 '';
 

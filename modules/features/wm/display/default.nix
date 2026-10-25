@@ -11,6 +11,16 @@ let
   # Monitor scaling, the internal panel, and mirroring — the things the brightness
   # and function keys do not reach. Built the same way as the capture commands:
   # paths substituted rather than left to $PATH, since these run from a bind.
+  #
+  # The source is split by concern under monitors/ and concatenated in name
+  # order, so the installed command is still one file with no runtime lookup.
+  monitorsSource =
+    let
+      dir = ./monitors;
+      names = lib.filter (name: lib.hasSuffix ".bash" name) (builtins.attrNames (builtins.readDir dir));
+    in
+    builtins.concatStringsSep "\n" (map (name: builtins.readFile (dir + "/${name}")) names);
+
   monitors = pkgs.writeShellScriptBin "monitors" (
     builtins.replaceStrings
       [
@@ -33,7 +43,7 @@ let
         "${pkgs.systemd}/bin/systemctl"
         "${../../cli/lib.sh}"
       ]
-      (builtins.readFile ./monitors.sh)
+      monitorsSource
   );
 in
 {

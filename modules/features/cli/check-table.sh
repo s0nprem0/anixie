@@ -42,6 +42,7 @@ hidden() {
 script_for() {
   case "$1" in
     pick) printf '%s\n' "$root/modules/features/wm/pick/pick.sh" ;;
+    monitors) printf '%s\n' "$root/modules/features/wm/display/monitors/90-dispatch.bash" ;;
     *) find "$root/modules" -name "$1.sh" -print ;;
   esac
 }
