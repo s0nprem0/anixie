@@ -39,6 +39,7 @@ Item {
 
   implicitWidth: labelText.implicitWidth + Style.space(12)
   implicitHeight: Math.max(labelText.implicitHeight, Style.space(20))
+  width: implicitWidth
   height: implicitHeight
   opacity: root.available ? 1 : Style.disabledOpacity
 
