@@ -50,6 +50,13 @@ in
     upower = {
       enable = true;
 
+      # Match the two levels anixie.power.batteryAutomation uses, so UPower's
+      # notion of low and critical agrees with the bar's warning colour and the
+      # dimming watcher instead of warning at a different point. Keep these in
+      # step if the automation thresholds change.
+      percentageLow = 20;
+      percentageCritical = 8;
+
       # At the critical level (2%, from the stock PercentageAction), suspend rather
       # than hibernate. Hibernation writes a resume image to the swap partition and
       # boot.resumeDevice (set in boot.nix) points the kernel at it, but suspend is
