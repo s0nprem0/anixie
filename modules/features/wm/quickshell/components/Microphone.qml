@@ -1,7 +1,6 @@
 import QtQuick
 import ".."
 import "../Ui"
-import Quickshell
 import Quickshell.Services.Pipewire
 
 // Microphone. Like the volume module this talks to PipeWire directly, so the
@@ -50,7 +49,7 @@ BarWidget {
     foreground: root.listening ? Theme.danger : Theme.fg
     tooltipText: (root.source ? root.source.name : "No input")
       + (root.muted ? " · muted" : " · " + root.percent + "%")
-      + " · scroll to change · left-click to mute · middle-click for the audio panel"
+      + " · scroll to change · left-click to mute · middle-click for the media & audio panel"
     onPressed: function (button) {
       // Mute stays on the primary button; the middle button is the way into the
       // mixer, the same gesture the volume widget uses for its panel.

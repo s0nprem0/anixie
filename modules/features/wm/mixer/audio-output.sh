@@ -4,7 +4,7 @@
 #   audio-output set <node-id> <sink-name>
 #   audio-output switch
 #
-# `set` is what the Audio panel calls when a sink is chosen; `switch` is the
+# `set` is what the media & audio panel calls when a sink is chosen; `switch` is the
 # Shift+mute key and the volume menu. Both used to be separate binaries.
 set -eu
 

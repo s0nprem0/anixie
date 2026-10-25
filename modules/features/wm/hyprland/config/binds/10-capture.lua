@@ -38,7 +38,7 @@ bind_handler(mod .. " + SHIFT + C", "Screenshot to clipboard", capture("shot sma
 -- mode, so this crops and annotates rather than capturing everything and
 -- then waiting to be told what to do.
 --
--- ALT, not CTRL: the reference shell puts the audio panel on SUPER+CTRL+A, and
+-- ALT, not CTRL: the reference shell puts the media & audio panel on SUPER+CTRL+A, and
 -- the panel keys are a set worth keeping together — A, W, B, D, P below. This
 -- key had CTRL only because SUPER+SHIFT+A was taken by the lock at the time,
 -- which is no longer true; ALT keeps it clear of the whole panel group. It is

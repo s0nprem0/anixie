@@ -1,8 +1,6 @@
 import QtQuick
-import ".."
 import "../Ui"
 import "../panels"
-import Quickshell
 import Quickshell.Services.Pipewire
 
 // Volume readout backed by PipeWire directly. The node exposes volume and mute
@@ -54,7 +52,7 @@ BarWidget {
     id: readout
     contextMenu: function () {
       return [
-        { label: "Audio panel", glyph: Util.volumeHigh, action: function () { PanelRegistry.toggle("audio", readout) } },
+        { label: "Media & audio panel", glyph: Util.volumeHigh, action: function () { PanelRegistry.toggle("audio", readout) } },
         {
           label: root.muted ? "Unmute" : "Mute",
           glyph: root.muted ? Util.volumeMute : Util.volumeHigh,
@@ -76,7 +74,7 @@ BarWidget {
     // object declaration, so it cannot be passed as a call argument.
     Component {
       id: mixer
-      Audio {}
+      MediaMixer {}
     }
 
     // Left opens the mixer; mute moves to the right button so clicking the

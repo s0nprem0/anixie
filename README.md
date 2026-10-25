@@ -55,7 +55,7 @@ Quickshell's tree:
 ```
 shell.qml                 assembly point for the shell's component groups
 components/               one widget per file (clock, weather, media, tray, …)
-panels/                   panel bodies (audio, network, power, displays, …)
+panels/                   panel bodies (media mixer, network, power, displays, …)
 Ui/                       shared pieces, hosts and the surface/IPC components:
                           Panel, PanelHero, ShellLayers, ShellOverlays, ShellIpc,
                           Style, Theme, PanelHost
@@ -166,7 +166,7 @@ panel on the next screen, Escape closes the one the keys are on, and
 
 | Hotkey | Panel |
 | --- | --- |
-| `Super+Ctrl+A` | Audio |
+| `Super+Ctrl+A` | Media & audio (now playing, transport, output/input, app volumes, devices) |
 | `Super+Ctrl+W` | Network (scan, DNS, share by QR) |
 | `Super+Ctrl+B` | Bluetooth |
 | `Super+Ctrl+D` | Display (brightness, text size) |
@@ -174,8 +174,8 @@ panel on the next screen, Escape closes the one the keys are on, and
 | `Super+Ctrl+P` | Power (profile, brightness, battery, system) |
 | `Super+Ctrl+Alt+D` | Calendar |
 
-Media, notifications and the forecast panel open from their widgets and have no
-key of their own.
+The media widget opens the same media & audio panel. Notifications and the
+forecast panel open from their widgets and have no key of their own.
 
 Right-click a bar widget for a small action menu; right-click the desktop for
 terminal, files, theme, screen-time and lock. Tray icons keep their own

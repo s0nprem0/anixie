@@ -13,7 +13,7 @@
 -- A, W, B, D and P are the reference shell's letters for audio, network,
 -- bluetooth, brightness and power. Calendar is the clock's panel.
 -- ------------------------------------------------------------------
-bind(mod .. " + CTRL + A", "Audio panel", "quickshell ipc call panel toggle audio")
+bind(mod .. " + CTRL + A", "Media & audio panel", "quickshell ipc call panel toggle audio")
 bind(mod .. " + CTRL + W", "Network panel", "quickshell ipc call panel toggle network")
 bind(mod .. " + CTRL + B", "Bluetooth panel", "quickshell ipc call panel toggle bluetooth")
 bind(mod .. " + CTRL + D", "Brightness panel", "quickshell ipc call panel toggle display")
