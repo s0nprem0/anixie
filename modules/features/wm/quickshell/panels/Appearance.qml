@@ -38,6 +38,17 @@ Item {
         + (AppearanceHost.pinned ? " · pinned" : "")
     }
 
+    Text {
+      width: card.contentWidth
+      height: implicitHeight
+      visible: AppearanceHost.busy
+      text: "Applying…"
+      color: Theme.muted
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      renderType: Text.NativeRendering
+    }
+
     PanelSeparator {}
 
     PanelSectionHeader {
@@ -141,7 +152,7 @@ Item {
       Text {
         visible: AppearanceHost.library.length === 0
         anchors.centerIn: parent
-        text: "No wallpapers found"
+        text: AppearanceHost.libraryProc.running ? "Loading wallpapers…" : "No wallpapers found"
         color: Theme.muted
         font.family: Style.font.family
         font.pixelSize: Style.font.caption

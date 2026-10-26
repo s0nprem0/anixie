@@ -59,6 +59,9 @@ printf 'video\n' >"$tmp/lib/v.mp4"
 
 HOME="$tmp/home" sh "$tmp/wallpaper" library --json >"$tmp/library.json"
 "$JQ" -e 'length == 4 and any(.[]; .name == "a.png") and any(.[]; .video == true)' "$tmp/library.json" >/dev/null
+[ -s "$tmp/state/library.json" ]
+HOME="$tmp/home" sh "$tmp/wallpaper" library --json --refresh >"$tmp/library2.json"
+"$JQ" -e 'length == 4' "$tmp/library2.json" >/dev/null
 
 HOME="$tmp/home" sh "$tmp/wallpaper" use "$tmp/lib/a.png" --output eDP-1 >/dev/null
 "$JQ" -e --arg p "$tmp/lib/a.png" '.outputs["eDP-1"].path == $p and .outputs["eDP-1"].video == false' "$tmp/state/background.json" >/dev/null

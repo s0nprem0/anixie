@@ -50,6 +50,7 @@ HEIGHT="@HEIGHT@"
 GENERATED="$STATE/wallpaper.png"
 WALLPAPERS="$STATE/wallpapers.json"
 BACKGROUND_JSON="$STATE/background.json"
+LIBRARY_CACHE="$STATE/library.json"
 THUMBS="$STATE/thumbs"
 GENERATED_DIR="$STATE/wallpapers"
 
@@ -249,23 +250,34 @@ library_paths() {
 }
 
 library_json() {
-  {
-    printf 'Generated\tgenerated\t%s\t0\t1\n' "$(thumb_for "$GENERATED")"
-    library_paths | while IFS= read -r path; do
-      [ "$path" = generated ] && continue
-      if is_video "$path"; then video=1; else video=0; fi
-      printf '%s\t%s\t%s\t%s\t0\n' "$(basename "$path")" "$path" "$(thumb_for "$path")" "$video"
-    done
-  } | "$JQ" -R -s '
-    split("\n")
-    | map(select(length > 0) | split("\t") | {
-        name: .[0],
-        path: .[1],
-        thumb: .[2],
-        video: (.[3] == "1"),
-        generated: (.[4] == "1")
-      })
-  '
+  refresh="${1:-}"
+  if [ "$refresh" != "--refresh" ] && [ -s "$LIBRARY_CACHE" ]; then
+    cat "$LIBRARY_CACHE"
+    return
+  fi
+
+  json=$(
+    {
+      printf 'Generated\tgenerated\t%s\t0\t1\n' "$(thumb_for "$GENERATED")"
+      library_paths | while IFS= read -r path; do
+        [ "$path" = generated ] && continue
+        if is_video "$path"; then video=1; else video=0; fi
+        printf '%s\t%s\t%s\t%s\t0\n' "$(basename "$path")" "$path" "$(thumb_for "$path")" "$video"
+      done
+    } | "$JQ" -R -s '
+      split("\n")
+      | map(select(length > 0) | split("\t") | {
+          name: .[0],
+          path: .[1],
+          thumb: .[2],
+          video: (.[3] == "1"),
+          generated: (.[4] == "1")
+        })
+    '
+  ) || return 1
+
+  printf '%s\n' "$json" | write_atomic "$LIBRARY_CACHE" || true
+  printf '%s\n' "$json"
 }
 
 generated_file() {
@@ -465,6 +477,7 @@ use() {
 add_file() {
   [ $# -ge 1 ] || { echo "wallpaper: set needs a file" >&2; exit 1; }
   [ -f "$1" ] || { printf 'wallpaper: no such file: %s\n' "$1" >&2; exit 1; }
+  rm -f "$LIBRARY_CACHE"
   dir="$(theme_dir)"
   mkdir -p "$dir"
   dst="$dir/$(basename "$1")"
@@ -475,6 +488,7 @@ add_file() {
 add_dir() {
   [ $# -ge 1 ] || { echo "wallpaper: add needs a folder" >&2; exit 1; }
   [ -d "$1" ] || { printf 'wallpaper: no such folder: %s\n' "$1" >&2; exit 1; }
+  rm -f "$LIBRARY_CACHE"
   dir="$(theme_dir)"
   mkdir -p "$dir"
   n=0
@@ -512,7 +526,7 @@ case "${1:-}" in
   apply) apply ;;
   list | ls)
     if [ "${2:-}" = "--json" ]; then
-      library_json
+      library_json "${3:-}"
     else
       library_paths | while IFS= read -r entry; do
         [ "$entry" = generated ] && echo generated || basename "$entry"
@@ -520,9 +534,17 @@ case "${1:-}" in
     fi
     ;;
   library)
-    [ "${2:-}" = "--json" ] && library_json || library_paths | while IFS= read -r entry; do
-      [ "$entry" = generated ] && echo generated || basename "$entry"
-    done
+    if [ "${2:-}" = "--json" ] || [ "${3:-}" = "--json" ]; then
+      if [ "${3:-}" = "--refresh" ] || [ "${2:-}" = "--refresh" ]; then
+        library_json --refresh
+      else
+        library_json
+      fi
+    else
+      library_paths | while IFS= read -r entry; do
+        [ "$entry" = generated ] && echo generated || basename "$entry"
+      done
+    fi
     ;;
   set | add-file) shift; add_file "$@" ;;
   add) shift; add_dir "$@" ;;
