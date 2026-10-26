@@ -52,13 +52,20 @@ in
     systemd.user.services.hyprsunset = {
       Unit = {
         Description = "hyprsunset blue light filter";
-        After = [ "graphical-session-pre.target" ];
+        After = [
+          "graphical-session-pre.target"
+          "wayland-session-waitenv.service"
+        ];
+        Wants = [ "wayland-session-waitenv.service" ];
       };
       Service = {
         ExecStart = "${pkgs.hyprsunset}/bin/hyprsunset";
         Type = "simple";
         Restart = "on-failure";
-        RestartSec = 5;
+        # The compositor socket is ready by the time wayland-session-waitenv
+        # completes, so this is only a fallback. Five seconds turned every
+        # failed first attempt into five seconds of missing night light.
+        RestartSec = 1;
       };
       Install.WantedBy = [ "graphical-session.target" ];
     };

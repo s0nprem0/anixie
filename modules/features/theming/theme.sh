@@ -298,6 +298,13 @@ materialise() {
     rm -rf "$gen"
     die "could not write the terminal palette"
   fi
+  # Record what produced this generation. `theme apply` at login can then skip
+  # re-rendering an identical generation, while still regenerating after a
+  # rebuild changes the palettes or the renderer.
+  if ! printf '%s %s\n' "$palettes" "@THEME_APPS@" >"$gen/renderer"; then
+    rm -rf "$gen"
+    die "could not record the renderer"
+  fi
   if ! "@THEME_APPS@" "$name" "$gen" >/dev/null 2>&1; then
     rm -rf "$gen"
     die "could not render the application themes"
@@ -752,13 +759,23 @@ case "${1:-}" in
     set_cursor_size "$2"
     ;;
   apply)
-    # No change, just make sure the files match the saved choice — this is what
-    # login runs, since a fresh boot has the state directory but not the files.
+    # Login runs this after every boot. When the live generation already
+    # matches the saved theme and was made by the current renderer, re-rendering
+    # it is pure work: the files are on disk. Tell the apps about it instead,
+    # and only materialise on a fresh state or after a rebuild changed the
+    # palettes or the renderer.
     state_lock || die "could not lock the theme state"
-    materialise "$(current)"
+    name=$(current)
+    state_theme=$("$jq" -r '.theme // ""' "$state_dir/state.json" 2>/dev/null || true)
+    renderer=$(cat "$live_link/renderer" 2>/dev/null || true)
+    if [ ! -f "$live_link/palette.json" ] ||
+      [ "$state_theme" != "$name" ] ||
+      [ "$renderer" != "$palettes @THEME_APPS@" ]; then
+      materialise "$name"
+    fi
     state_unlock
-    tell_apps "$(current)"
-    run_hooks "$(current)"
+    tell_apps "$name"
+    run_hooks "$name"
     ;;
   set)
     [ $# -ge 2 ] || die "set needs a theme name"

@@ -197,7 +197,11 @@ in
     systemd.user.services.quickshell = {
       Unit = {
         Description = "Quickshell status bar";
-        After = [ "graphical-session-pre.target" ];
+        After = [
+          "graphical-session-pre.target"
+          "wayland-session-waitenv.service"
+        ];
+        Wants = [ "wayland-session-waitenv.service" ];
         StartLimitIntervalSec = 0;
       };
       Service = {
