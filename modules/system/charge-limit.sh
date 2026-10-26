@@ -26,9 +26,19 @@ reading() {
   cat "$BAT" 2>/dev/null || true
 }
 
+# A write can be accepted by sysfs and still leave another value in the
+# controller (firmware clamping, an EC that only supports two levels, or a
+# driver that stores the request without reaching the hardware). The read-back
+# is the result, so every caller checks it instead of trusting the write.
+try_write() {
+  [ -e "$BAT" ] || return 1
+  printf '%s\n' "$1" >"$BAT" 2>/dev/null || return 1
+  [ "$(reading)" = "$1" ]
+}
+
 write() {
   [ -e "$BAT" ] || die "no charge controller at $BAT"
-  printf '%s\n' "$1" >"$BAT"
+  try_write "$1" || die "the controller reports $(reading), not $1%"
 }
 
 save() {
@@ -48,11 +58,20 @@ case "${1:-show}" in
         *) limit=$saved ;;
       esac
     fi
-    write "$limit"
+    if ! try_write "$limit"; then
+      # Keep the default in place rather than leaving the battery on whatever
+      # the firmware reset itself to. The saved value is deliberately left
+      # alone so a later controller/firmware update can honour it.
+      printf 'charge-limit: %s%% is not accepted; falling back to %s%%\n' \
+        "$limit" "$DEFAULT" >&2
+      write "$DEFAULT"
+    fi
     ;;
   full)
-    save 100
+    # Save only after the controller took the value, so the state file cannot
+    # claim a ceiling the hardware is not actually using.
     write 100
+    save 100
     ;;
   limit)
     limit=${2:-$DEFAULT}
@@ -62,8 +81,8 @@ case "${1:-show}" in
     if [ "$limit" -lt 40 ] || [ "$limit" -gt 100 ]; then
       die "limit must be between 40 and 100"
     fi
-    save "$limit"
     write "$limit"
+    save "$limit"
     ;;
   -h | --help | help) usage ;;
   *) die "unknown argument \"$1\" (try --help)" ;;

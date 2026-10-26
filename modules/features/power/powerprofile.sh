@@ -3,8 +3,8 @@
 #
 # power-profiles-daemon holds one profile at a time and has no notion of
 # plugging in: something has to notice the cable move and set the other one. This
-# remembers a choice per source and re-applies it — performance on mains, balanced
-# on battery, until told otherwise.
+# remembers a choice per source and re-applies it — performance on mains,
+# power-saver on battery, until told otherwise.
 #
 #   powerprofile              show the current source, profile and choices
 #   powerprofile set ac P     what to use while plugged in
@@ -41,11 +41,14 @@ BRIGHTNESSCTL="@BRIGHTNESSCTL@"
 AUTO_DEFAULT="@AUTO@"
 LOW="@LOW@"
 CRITICAL="@CRITICAL@"
+AC_PROFILE="@AC_PROFILE@"
+BATTERY_PROFILE="@BATTERY_PROFILE@"
 LOW_PROFILE="@LOW_PROFILE@"
 CRITICAL_PROFILE="@CRITICAL_PROFILE@"
 LOW_BRIGHTNESS="@LOW_BRIGHTNESS@"
 CRITICAL_BRIGHTNESS="@CRITICAL_BRIGHTNESS@"
 CHARGE_LIMIT="@CHARGE_LIMIT@"
+CHARGE_STATE="@CHARGE_STATE@"
 SUDO="@SUDO@"
 
 # shellcheck source=/dev/null
@@ -159,8 +162,8 @@ enter_dim() {
 # The stored choice for a source, or the default.
 preferred() {
   case "$1" in
-    ac) fallback=performance ;;
-    battery) fallback=balanced ;;
+    ac) fallback=$AC_PROFILE ;;
+    battery) fallback=$BATTERY_PROFILE ;;
     *) die "unknown source \"$1\" (want ac or battery)" ;;
   esac
   if [ -f "$STATE/$1" ]; then
@@ -274,6 +277,11 @@ show() {
   printf 'on battery: %s\n' "$(preferred battery)"
   if ceiling=$(charge_ceiling); then
     printf 'charge:    %s%% ceiling\n' "$ceiling"
+    saved=$(cat "$CHARGE_STATE" 2>/dev/null || true)
+    case "$saved" in
+      '' | *[!0-9]*) ;;
+      *) [ "$saved" = "$ceiling" ] || printf 'saved:     %s%% (not applied)\n' "$saved" ;;
+    esac
   fi
   if [ -d /run/anixie/performance ]; then
     printf 'tuning:    performance extras on\n'
@@ -303,14 +311,47 @@ case "${1:-}" in
     apply
 
     # udev reports the plug, the unplug and most charge changes as power-supply
-    # property changes. Only the relevant keys are acted on; every other line
-    # falls through. The timer beside it is the safety net for the events a
-    # battery does not emit.
+    # property changes. The kernel emits a block for every property update — on
+    # this battery that is several a second, and the AC/battery duplicate from
+    # the kernel and udev doubles it. Acting on each line spawned
+    # powerprofilesctl and brightnessctl dozens of times a second and kept the
+    # CPU awake for nothing. Collect one event, compare the three values that
+    # actually matter, and act only when one of them changed. The timer beside
+    # it is the safety net for the events a battery does not emit.
+    if on_mains; then last_online=1; else last_online=0; fi
+    last_sig=
+    event_has_online=
+    event_online=
+    event_status=
+    event_capacity=
     "$UDEV" monitor --subsystem-match=power_supply --property 2>/dev/null |
       while IFS= read -r line; do
         case "$line" in
-          POWER_SUPPLY_ONLINE=* | POWER_SUPPLY_STATUS=*) apply ;;
-          POWER_SUPPLY_CAPACITY=*) check_battery ;;
+          POWER_SUPPLY_ONLINE=*)
+            event_has_online=1
+            event_online=${line#*=}
+            ;;
+          POWER_SUPPLY_STATUS=*) event_status=${line#*=} ;;
+          POWER_SUPPLY_CAPACITY=*) event_capacity=${line#*=} ;;
+          "")
+            sig="${event_has_online:-0}:${event_online:-}|${event_status:-}|${event_capacity:-}"
+            if [ -n "${event_has_online:-}${event_status:-}${event_capacity:-}${event_online:-}" ] &&
+              [ "$sig" != "$last_sig" ]; then
+              last_sig=$sig
+              # A source change applies the stored profile for the new source
+              # at once. A battery-only change just re-checks the thresholds.
+              if [ -n "${event_has_online:-}" ] && [ "$event_online" != "$last_online" ]; then
+                last_online=$event_online
+                apply
+              else
+                check_battery
+              fi
+            fi
+            event_has_online=
+            event_online=
+            event_status=
+            event_capacity=
+            ;;
         esac
       done &
     monitor=$!

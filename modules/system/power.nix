@@ -68,30 +68,98 @@ in
     };
   };
 
-  # A laptop that lives on a desk spends its life at 100%, which is the fastest
-  # way to wear a battery out. The charge controller accepts a ceiling; 80% is the
-  # usual compromise between wear and having enough to leave the house with.
-  # `charge-limit full` lifts it for a trip and saves that choice, so this reads
-  # the saved value rather than forcing 80 on every boot.
-  systemd.services.battery-charge-limit = {
-    description = "Apply the saved battery charge ceiling";
-    wantedBy = [ "multi-user.target" ];
-    unitConfig.ConditionPathExists = "/sys/class/power_supply/BAT0/charge_control_end_threshold";
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
+  systemd = {
+    services = {
+      # UPower 1.90+ can own the charge thresholds itself. When enabled it
+      # re-applies the hwdb default (75/80 on every battery) at startup, which
+      # silently overwrote the value saved by `charge-limit full`. The helper
+      # below is the single writer here, so leave UPower's automation off; it
+      # persists that choice in /var/lib/upower/charging-threshold-status.
+      upower-charge-threshold = {
+        description = "Leave charge thresholds to charge-limit";
+        wantedBy = [ "multi-user.target" ];
+        after = [ "upower.service" ];
+        wants = [ "upower.service" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+        };
+        script = ''
+          # UPower can be up before its battery object is in the list, so give
+          # enumeration a few tries rather than leaving the automation enabled.
+          for _ in 1 2 3 4 5; do
+            found=
+            for dev in $(${pkgs.upower}/bin/upower -e 2>/dev/null || true); do
+              case "$dev" in
+                */battery_*)
+                  found=1
+                  ${config.systemd.package}/bin/busctl call --system \
+                    org.freedesktop.UPower "$dev" \
+                    org.freedesktop.UPower.Device EnableChargeThreshold b false || true
+                  ;;
+              esac
+            done
+            [ -n "$found" ] && break
+            sleep 1
+          done
+        '';
+      };
+
+      # A laptop that lives on a desk spends its life at 100%, which is the
+      # fastest way to wear a battery out. The charge controller accepts a
+      # ceiling; 80% is the usual compromise between wear and having enough to
+      # leave the house with. `charge-limit full` lifts it for a trip and saves
+      # that choice, so this reads the saved value rather than forcing 80 on
+      # every boot.
+      battery-charge-limit = {
+        description = "Apply the saved battery charge ceiling";
+        wantedBy = [ "multi-user.target" ];
+        after = [ "upower-charge-threshold.service" ];
+        unitConfig.ConditionPathExists = "/sys/class/power_supply/BAT0/charge_control_end_threshold";
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+        };
+        script = "${chargeLimit}/bin/charge-limit apply";
+      };
     };
-    script = "${chargeLimit}/bin/charge-limit apply";
+
+    # Some firmware resets the controller while the machine sits idle, not only
+    # at boot or on a cable event. The write is one sysfs line, so re-asserting
+    # it every quarter hour is cheaper than being surprised by an 80% cap after a
+    # firmware reset — and it never touches the battery itself.
+    timers.battery-charge-limit = {
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnBootSec = "2min";
+        OnUnitActiveSec = "15min";
+        AccuracySec = "1min";
+      };
+    };
   };
 
   # The controller can forget the ceiling across a firmware reset. Re-assert it
-  # whenever the adapter is plugged in, and after resume, rather than trusting a
-  # single boot-time write.
+  # on either cable movement and after resume, rather than trusting a single
+  # boot-time write. Matching without `online` covers the unplug too: the EC on
+  # this machine drops back to its own default when the adapter goes away.
   services.udev.extraRules = ''
-    ACTION=="change", SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="1", RUN+="${config.systemd.package}/bin/systemctl --no-block restart battery-charge-limit.service"
+    ACTION=="change", SUBSYSTEM=="power_supply", ATTR{type}=="Mains", RUN+="${config.systemd.package}/bin/systemctl --no-block restart battery-charge-limit.service"
   '';
 
   powerManagement.resumeCommands = "${chargeLimit}/bin/charge-limit apply";
+
+  # The NMI watchdog spends a PMU counter and a periodic NMI on a machine that
+  # is not being debugged. The performance tuner clears it while the performance
+  # profile is active; clearing it at boot means the power-saver profile gets the
+  # same saving instead of leaving it on by default.
+  #
+  # PCIe ASPM parks idle links. `powersave` is the conservative setting: it
+  # still wakes the NVMe and GPU on demand, unlike `powersupersave`, and it is
+  # what the performance tuner restores when it leaves the performance profile.
+  boot.kernelParams = [
+    "nmi_watchdog=0"
+    "pcie_aspm.policy=powersave"
+  ];
 
   # Compressed swap in RAM. The disk swap partition still exists for suspend,
   # but this keeps the common case off the slow device when memory fills.

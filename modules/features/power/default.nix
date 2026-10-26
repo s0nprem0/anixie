@@ -16,6 +16,8 @@ let
         "@PPD@"
         "@UDEVADM@"
         "@BRIGHTNESSCTL@"
+        "@AC_PROFILE@"
+        "@BATTERY_PROFILE@"
         "@AUTO@"
         "@LOW@"
         "@CRITICAL@"
@@ -24,6 +26,7 @@ let
         "@LOW_BRIGHTNESS@"
         "@CRITICAL_BRIGHTNESS@"
         "@CHARGE_LIMIT@"
+        "@CHARGE_STATE@"
         "@SUDO@"
         "@ANIXIE_LIB@"
       ]
@@ -32,6 +35,8 @@ let
         "${pkgs.power-profiles-daemon}/bin/powerprofilesctl"
         "${pkgs.systemd}/bin/udevadm"
         "${pkgs.brightnessctl}/bin/brightnessctl"
+        config.anixie.power.acProfile
+        config.anixie.power.batteryProfile
         (if cfg.enable then "1" else "0")
         (toString cfg.lowThreshold)
         (toString cfg.criticalThreshold)
@@ -42,6 +47,9 @@ let
         # The charge helper is a system package: writing the controller needs
         # root, so the write goes through the setuid sudo wrapper.
         "/run/current-system/sw/bin/charge-limit"
+        # Read-only here: `show` uses it to report a saved value that the
+        # controller has not taken yet.
+        "/var/lib/anixie/charge-limit"
         "/run/wrappers/bin/sudo"
         "${../cli/lib.sh}"
       ]
@@ -50,6 +58,34 @@ let
 in
 {
   options.anixie.power = {
+    acProfile = lib.mkOption {
+      type = lib.types.enum [
+        "power-saver"
+        "balanced"
+        "performance"
+      ];
+      default = "performance";
+      description = ''
+        The default profile while the adapter is connected. A profile chosen at
+        runtime with `powerprofile set ac PROFILE` overrides this.
+      '';
+    };
+
+    batteryProfile = lib.mkOption {
+      type = lib.types.enum [
+        "power-saver"
+        "balanced"
+        "performance"
+      ];
+      default = "power-saver";
+      description = ''
+        The default profile while on battery. Power-saver lowers the platform
+        profile and EPP, which is the largest idle-power win on this machine; use
+        `powerprofile set battery balanced` when the extra responsiveness is
+        worth the drain. A runtime choice overrides this.
+      '';
+    };
+
     batteryAutomation = {
       enable = lib.mkOption {
         type = lib.types.bool;

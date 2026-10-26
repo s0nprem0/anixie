@@ -378,6 +378,12 @@ it (adding the widget to a saved layout that lacks it).
 State survives a shell restart; `focus stop` restores the previous notification
 setting. `Super+Ctrl+F` starts a 25-minute block, `Super+Ctrl+Shift+F` stops one.
 
+The default profile is `performance` on mains and `power-saver` on battery
+(`anixie.power.acProfile` and `anixie.power.batteryProfile`; use
+`anixie power set battery balanced` for more responsiveness). Power-saver also
+lowers the platform profile and EPP, which is the largest idle-power saving
+available without leaving the machine sluggish at a desk.
+
 While on battery the power watcher dims the screen and steps down the profile at
 20%, then 8%, restoring your brightness on mains. Thresholds, profiles and
 brightness are `anixie.power.batteryAutomation` options; they also drive the
@@ -385,10 +391,20 @@ bar's warning colour and the low-battery notification. The power panel toggles
 automation; that choice is stored in
 `~/.local/state/anixie/powerprofile/automation` and overrides the build default.
 
+The watcher coalesces the battery's udev event stream and acts only when the
+source, charge state or percentage actually changes. UPower still polls the
+battery every 30 seconds, which is enough for the thresholds.
+
 On mains the charge controller is held at 80%. `anixie power charge full` lifts
-it to 100% for a trip; `anixie power charge limit N` caps it again. The choice is
-saved in `/var/lib/anixie/charge-limit` and re-applied at boot, on resume and on
-adapter plug.
+it to 100% for a trip; `anixie power charge limit N` caps it again. The helper
+reads the controller back after every write, so a firmware that rejects or
+clamps a value is reported instead of being recorded as success. The choice is
+saved in `/var/lib/anixie/charge-limit` and re-applied at boot, on resume, on
+either cable movement and by a 15-minute timer.
+
+UPower's own charge-threshold automation is turned off. Since 1.90 it re-applies
+the hwdb default (75/80) at every boot, which would otherwise overwrite a `full`
+or custom ceiling; `charge-limit` is the single writer here.
 
 ## Gaming
 
@@ -432,7 +448,9 @@ module on an unencrypted root makes the machine unbootable.
 - **Performance is more than the daemon's profile.** While `performance` is
   selected, a system service also forces the GPU's DPM level high, turns off
   PCIe ASPM, caps dirty page cache at 512M and disables the NMI watchdog, then
-  restores every value on any other profile. `anixie power show` reports it.
+  restores every value on any other profile. Outside that profile the kernel
+  starts with `pcie_aspm.policy=powersave` and `nmi_watchdog=0`, and the battery
+  default is `power-saver`. `anixie power show` reports the active profile.
 - **`nix flake check` is the gate.** shellcheck over every module script,
   qmllint over the assembled QML tree, and nixfmt/statix/deadnix over the Nix.
   A headless start is not part of it.
