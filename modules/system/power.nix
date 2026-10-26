@@ -111,40 +111,43 @@ in
       # leave the house with. `charge-limit full` lifts it for a trip and saves
       # that choice, so this reads the saved value rather than forcing 80 on
       # every boot.
-      battery-charge-limit = {
+      # Named away from `battery-charge-limit` so the udev rule left in an
+      # older generation cannot restart this unit during the switch. That rule
+      # is removed with this generation, but activation happens while the old
+      # rules are still loaded.
+      anixie-battery-charge-limit = {
         description = "Apply the saved battery charge ceiling";
         wantedBy = [ "multi-user.target" ];
         after = [ "upower-charge-threshold.service" ];
         unitConfig.ConditionPathExists = "/sys/class/power_supply/BAT0/charge_control_end_threshold";
         serviceConfig = {
+          # No RemainAfterExit: the timer below must be able to run this again.
+          # The write is idempotent, so leaving the unit inactive after a
+          # successful run is the point.
           Type = "oneshot";
-          RemainAfterExit = true;
         };
         script = "${chargeLimit}/bin/charge-limit apply";
       };
     };
 
-    # Some firmware resets the controller while the machine sits idle, not only
-    # at boot or on a cable event. The write is one sysfs line, so re-asserting
-    # it every quarter hour is cheaper than being surprised by an 80% cap after a
-    # firmware reset — and it never touches the battery itself.
-    timers.battery-charge-limit = {
+    # The controller can forget the ceiling across a firmware reset, including
+    # while the machine sits idle. The write is one sysfs line, so re-asserting
+    # it every two minutes is cheaper than being surprised by an 80% cap after a
+    # reset — and it never touches the battery itself.
+    #
+    # This is deliberately a timer rather than a udev rule: this EC emits Mains
+    # change events several times a second even when nothing moves, and a rule
+    # that restarted the service on each one hit systemd's start limit and made
+    # activation fail.
+    timers.anixie-battery-charge-limit = {
       wantedBy = [ "timers.target" ];
       timerConfig = {
-        OnBootSec = "2min";
-        OnUnitActiveSec = "15min";
-        AccuracySec = "1min";
+        OnBootSec = "1min";
+        OnUnitActiveSec = "2min";
+        AccuracySec = "30s";
       };
     };
   };
-
-  # The controller can forget the ceiling across a firmware reset. Re-assert it
-  # on either cable movement and after resume, rather than trusting a single
-  # boot-time write. Matching without `online` covers the unplug too: the EC on
-  # this machine drops back to its own default when the adapter goes away.
-  services.udev.extraRules = ''
-    ACTION=="change", SUBSYSTEM=="power_supply", ATTR{type}=="Mains", RUN+="${config.systemd.package}/bin/systemctl --no-block restart battery-charge-limit.service"
-  '';
 
   powerManagement.resumeCommands = "${chargeLimit}/bin/charge-limit apply";
 
