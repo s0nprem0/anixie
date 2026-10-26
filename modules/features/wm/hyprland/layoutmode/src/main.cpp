@@ -81,7 +81,9 @@ SP<SHyprCtlCommand> g_hyprCmd;
 bool g_floating = false;
 
 struct SRowSnap {
-    Desktop::View::CWindow* win = nullptr; // raw + liveness-checked, never dereferenced blindly
+    // m_stableID, not a raw pointer: a new window can reuse a closed window's
+    // address, and a stale pointer would make it inherit the old arrangement.
+    uint64_t windowID = 0;
     float    rowSize = 1.F;
 };
 
@@ -97,17 +99,17 @@ struct SWsSnap {
 };
 
 std::vector<SWsSnap> g_snap;
-std::unordered_map<Desktop::View::CWindow*, CBox> g_floatGeoms;
-std::unordered_map<std::string, CBox>            g_floatGeomsByClass;
-std::vector<Desktop::View::CWindow*> g_nativeFloating; // floating before us: never touch
+std::unordered_map<uint64_t, CBox>    g_floatGeoms; // keyed by CWindow::m_stableID
+std::unordered_map<std::string, CBox> g_floatGeomsByClass;
+std::unordered_set<uint64_t>          g_nativeFloating; // floating before us: never touch
 PHLWINDOW g_focusBefore;
 PHLWINDOW g_lastFocusedWindow;
 
 bool                  g_geomsDirty = false;
 SP<CEventLoopTimer>   g_geomSaveTimer;
 
-bool isNative(Desktop::View::CWindow* raw) {
-    return std::find(g_nativeFloating.begin(), g_nativeFloating.end(), raw) != g_nativeFloating.end();
+bool isNative(uint64_t windowID) {
+    return g_nativeFloating.contains(windowID);
 }
 
 std::string envDir(const char* variable, const char* fallback) {
@@ -316,12 +318,12 @@ void saveWindowGeom(const PHLWINDOW& w) {
         const auto& old = it->second;
         if (std::abs(old.x - box.x) < 1 && std::abs(old.y - box.y) < 1 &&
             std::abs(old.width - box.width) < 1 && std::abs(old.height - box.height) < 1) {
-            g_floatGeoms[w.get()] = box;
+            g_floatGeoms[w->m_stableID] = box;
             return;
         }
     }
 
-    g_floatGeoms[w.get()] = box;
+    g_floatGeoms[w->m_stableID] = box;
     g_floatGeomsByClass[cls] = box;
     scheduleGeomSave();
 }
@@ -333,7 +335,7 @@ void applyWindowGeom(const PHLWINDOW& w) {
     if (!t || !t->floating())
         return;
 
-    const auto git = g_floatGeoms.find(w.get());
+    const auto git = g_floatGeoms.find(w->m_stableID);
     if (git != g_floatGeoms.end()) {
         t->setPositionGlobal(clampToMonitor(git->second, w));
         return;
@@ -345,7 +347,7 @@ void applyWindowGeom(const PHLWINDOW& w) {
         if (cit != g_floatGeomsByClass.end()) {
             const auto box = clampToMonitor(cit->second, w);
             t->setPositionGlobal(box);
-            g_floatGeoms[w.get()] = box;
+            g_floatGeoms[w->m_stableID] = box;
         }
     }
 }
@@ -372,23 +374,66 @@ bool qualifies(const PHLWINDOW& w) {
     return true;
 }
 
-bool alive(Desktop::View::CWindow* raw) {
-    if (!raw)
+bool alive(uint64_t windowID) {
+    if (windowID == 0)
         return false;
     for (const auto& w : Desktop::windowState()->windows()) {
-        if (w.get() == raw)
+        if (w->m_stableID == windowID)
             return true;
     }
     return false;
 }
 
-PHLWINDOW findWin(Desktop::View::CWindow* raw) {
+PHLWINDOW findWin(uint64_t windowID) {
+    if (windowID == 0)
+        return nullptr;
     for (const auto& w : Desktop::windowState()->windows()) {
-        if (w.get() == raw)
+        if (w->m_stableID == windowID)
             return w;
     }
     return nullptr;
 }
+
+// Focus needs the target's workspace to be visible. Switching normally would
+// animate, emit workspace events, and move pinned windows, so the retile uses
+// the internal switch and puts every monitor back afterwards. RAII because a
+// throw midway must not leave the desktop on another workspace.
+struct SWorkspaceRestore {
+    std::vector<std::pair<PHLMONITOR, PHLWORKSPACE>> originals;
+
+    void remember(const PHLWORKSPACE& ws) {
+        if (!ws)
+            return;
+        const auto mon = ws->m_monitor.lock();
+        if (!mon)
+            return;
+        for (const auto& [m, old] : originals) {
+            if (m == mon)
+                return;
+        }
+        originals.emplace_back(mon, mon->m_activeWorkspace);
+    }
+
+    void makeVisible(const PHLWORKSPACE& ws) {
+        if (!ws)
+            return;
+        const auto mon = ws->m_monitor.lock();
+        if (!mon || mon->m_activeWorkspace == ws)
+            return;
+        mon->changeWorkspace(ws, true, true, true);
+    }
+
+    void restore() {
+        for (const auto& [mon, old] : originals) {
+            if (mon && old && mon->m_activeWorkspace != old)
+                mon->changeWorkspace(old, true, true, true);
+        }
+    }
+
+    ~SWorkspaceRestore() {
+        restore();
+    }
+};
 
 // Non-aborting config writes: CConfigValue's ctor RASSERTs when the key
 // doesn't exist (crashed the compositor at boot when hyprbars loads after
@@ -467,7 +512,7 @@ void toFloating() {
             continue;
         if (Fullscreen::controller()->isFullscreen(w))
             continue;
-        g_nativeFloating.push_back(w.get());
+        g_nativeFloating.insert(w->m_stableID);
     }
 
     // collect affected workspaces first (stable order by id for determinism)
@@ -497,7 +542,7 @@ void toFloating() {
                 const auto w = t->window();
                 if (!qualifies(w))
                     continue;
-                c.rows.push_back({w.get(), col->getTargetSize(i)});
+                c.rows.push_back({w->m_stableID, col->getTargetSize(i)});
             }
             if (!c.rows.empty())
                 s.cols.push_back(std::move(c));
@@ -509,7 +554,7 @@ void toFloating() {
     for (const auto& s : g_snap) {
         for (const auto& c : s.cols) {
             for (const auto& r : c.rows) {
-                auto w = findWin(r.win);
+                auto w = findWin(r.windowID);
                 if (!w || !qualifies(w))
                     continue;
                 g_layoutManager->changeFloatingMode(w->layoutTarget());
@@ -518,7 +563,7 @@ void toFloating() {
         }
     }
 
-    if (g_focusBefore && alive(g_focusBefore.get()))
+    if (g_focusBefore && alive(g_focusBefore->m_stableID))
         Desktop::focusState()->fullWindowFocus(g_focusBefore, Desktop::FOCUS_REASON_OTHER);
 
     g_floating = true;
@@ -545,16 +590,21 @@ void toTiling() {
 
     // 1. retile snapshot windows in saved order, focusing each predecessor
     // so the layout inserts the next window right after it.
-    PHLWINDOW lastRetiled;
+    SWorkspaceRestore workspaceRestore;
+    PHLWINDOW           lastRetiled;
     for (const auto& s : g_snap) {
+        if (s.ws) {
+            workspaceRestore.remember(s.ws);
+            workspaceRestore.makeVisible(s.ws);
+        }
         lastRetiled.reset();
         for (const auto& c : s.cols) {
             for (const auto& r : c.rows) {
-                auto w = findWin(r.win);
+                auto w = findWin(r.windowID);
                 if (!w || !w->m_isFloating)
                     continue;
                 saveWindowGeom(w);
-                if (lastRetiled && alive(lastRetiled.get()))
+                if (lastRetiled && alive(lastRetiled->m_stableID))
                     focusWin(lastRetiled);
                 g_layoutManager->changeFloatingMode(w->layoutTarget());
                 lastRetiled = w;
@@ -575,7 +625,7 @@ void toTiling() {
             continue;
         if (!w->layoutTarget())
             continue;
-        if (isNative(w.get()))
+        if (isNative(w->m_stableID))
             continue;
         saveWindowGeom(w);
         g_layoutManager->changeFloatingMode(w->layoutTarget());
@@ -600,7 +650,7 @@ void toTiling() {
         for (const auto& c : s.cols) {
             if (c.rows.empty())
                 continue;
-            auto w = findWin(c.rows[0].win);
+            auto w = findWin(c.rows[0].windowID);
             if (!w)
                 continue;
             const auto t = w->layoutTarget();
@@ -621,8 +671,17 @@ void toTiling() {
 
     Desktop::globalWindowController()->updateAllWindowsDecorations();
 
-    if (g_focusBefore && alive(g_focusBefore.get()))
+    workspaceRestore.restore();
+
+    // The focused window can have died while the mode was floating; without a
+    // fallback the keyboard focus would stay on a window whose workspace is
+    // hidden again.
+    if (g_focusBefore && alive(g_focusBefore->m_stableID)) {
         Desktop::focusState()->fullWindowFocus(g_focusBefore, Desktop::FOCUS_REASON_OTHER);
+    } else if (const auto mon = Desktop::focusState()->monitor(); mon && mon->m_activeWorkspace) {
+        const auto w = mon->m_activeWorkspace->getLastFocusedWindow();
+        Desktop::focusState()->fullWindowFocus(w && alive(w->m_stableID) ? w : nullptr, Desktop::FOCUS_REASON_OTHER);
+    }
 
     g_snap.clear();
     g_floating = false;
@@ -639,6 +698,25 @@ void toggle() {
         if (g_handle)
             HyprlandAPI::addNotification(g_handle, "[layoutmode] toggle failed: " + std::string(e.what()), CHyprColor(1.F, 0.3F, 0.3F, 1.F), 5000);
     }
+}
+
+// A window that was fullscreen when the mode switched stayed tiled because
+// the snapshot skipped it. Once it leaves fullscreen in floating mode, float
+// it, otherwise the global mode and the actual window states disagree.
+void onFullscreenChanged(PHLWINDOW w) {
+    if (g_floating && w && w->m_isMapped && !w->m_isFloating && !Fullscreen::controller()->isFullscreen(w)) {
+        const auto ws = w->m_workspace;
+        if (ws && !ws->m_isSpecialWorkspace) {
+            try {
+                if (w->layoutTarget()) {
+                    g_layoutManager->changeFloatingMode(w->layoutTarget());
+                    applyWindowGeom(w);
+                }
+            } catch (...) {
+            }
+        }
+    }
+    refreshBars();
 }
 
 void onWindowOpen(PHLWINDOW w) {
@@ -730,13 +808,11 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     static const auto openListener = Event::bus()->m_events.window.open.listen([](PHLWINDOW w) { onWindowOpen(w); });
     (void)openListener;
 
-    static const auto updateRulesListener = Event::bus()->m_events.window.updateRules.listen([](PHLWINDOW w) {
-        if (!w || !w->m_isFloating || w->m_class.empty())
-            return;
-        if (g_floatGeoms.find(w.get()) == g_floatGeoms.end())
-            applyWindowGeom(w);
-    });
-    (void)updateRulesListener;
+    // No geometry re-apply on window.updateRules: 0.56 emits that event on
+    // every focus change (FocusState -> propertiesChanged(RULE_PROP_FOCUS)),
+    // so applying a cached box here snapped windows under the pointer and
+    // moved focus with them. Geometry is seeded on open, on floating, and on
+    // the mode switch instead.
 
     static const auto floatingListener = Event::bus()->m_events.window.floating.listen([](PHLWINDOW w) {
         if (w && w->m_isFloating)
@@ -747,21 +823,21 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     static const auto closeListener = Event::bus()->m_events.window.close.listen([](PHLWINDOW w) {
         if (!w)
             return;
-        const auto raw = w.get();
-        g_nativeFloating.erase(std::remove(g_nativeFloating.begin(), g_nativeFloating.end(), raw), g_nativeFloating.end());
         saveWindowGeom(w);
+        g_floatGeoms.erase(w->m_stableID);
+        g_nativeFloating.erase(w->m_stableID);
         refreshBars();
     });
     (void)closeListener;
 
-    static const auto fsListener = Event::bus()->m_events.window.fullscreen.listen([]() { refreshBars(); });
+    static const auto fsListener = Event::bus()->m_events.window.fullscreen.listen([](PHLWINDOW w) { onFullscreenChanged(w); });
     (void)fsListener;
 
     static const auto wsListener = Event::bus()->m_events.workspace.active.listen([]() { refreshBars(); });
     (void)wsListener;
 
     static const auto winActiveListener = Event::bus()->m_events.window.active.listen([](PHLWINDOW w, Desktop::eFocusReason) {
-        if (g_lastFocusedWindow && alive(g_lastFocusedWindow.get()))
+        if (g_lastFocusedWindow && alive(g_lastFocusedWindow->m_stableID))
             saveWindowGeom(g_lastFocusedWindow);
         g_lastFocusedWindow = w;
         refreshBars();
