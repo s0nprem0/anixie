@@ -57,14 +57,19 @@ in
     };
   };
 
+  # papirus-folders rewrites symlinks inside the theme, so it needs a writable
+  # tree rather than the read-only store path. Copy the theme once, preserving
+  # its relative symlinks: dereferencing them (`cp -L`) turned a 262M theme into
+  # 1.6G, and the recursive chmod that followed took 27 seconds on every boot.
+  # `--no-preserve=mode` makes the copy writable in the first place, so there is
+  # nothing to chmod afterwards.
   home.activation.anixiePapirusFolders = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     icons=${lib.escapeShellArg "${config.xdg.dataHome}/icons"}
     mkdir -p "$icons"
     for theme in Papirus Papirus-Dark Papirus-Light; do
       if [ ! -d "$icons/$theme" ]; then
-        cp -rL ${pkgs.papirus-icon-theme}/share/icons/$theme "$icons/$theme"
+        cp -r --no-preserve=mode ${pkgs.papirus-icon-theme}/share/icons/$theme "$icons/$theme"
       fi
-      chmod -R u+w "$icons/$theme"
     done
   '';
 }
