@@ -15,6 +15,10 @@
       # them. Ten generations is months of rollbacks on this machine and still
       # nowhere near filling a 512MB /boot.
       systemd-boot.configurationLimit = 10;
+
+      # The stock five-second menu countdown was a quarter of the boot. One
+      # second still leaves time to hold a key for an older generation.
+      timeout = 1;
     };
 
     kernelPackages = pkgs.linuxPackages_latest;
