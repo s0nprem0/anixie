@@ -58,18 +58,35 @@ in
   };
 
   # papirus-folders rewrites symlinks inside the theme, so it needs a writable
-  # tree rather than the read-only store path. Copy the theme once, preserving
-  # its relative symlinks: dereferencing them (`cp -L`) turned a 262M theme into
-  # 1.6G, and the recursive chmod that followed took 27 seconds on every boot.
-  # `--no-preserve=mode` makes the copy writable in the first place, so there is
-  # nothing to chmod afterwards.
+  # tree rather than the read-only store path. Copy the theme preserving its
+  # relative symlinks: dereferencing them (`cp -L`) turned a 262M tree into 1.6G
+  # and made the copy take half a minute. `--no-preserve=mode` makes the copy
+  # writable in the first place, so there is nothing to chmod afterwards.
+  #
+  # The copy is versioned by the store path it came from. A marker from an older
+  # generation (or an old dereferenced copy) is rebuilt once, and a Papirus
+  # update replaces the tree instead of leaving it stale forever. On btrfs/xfs
+  # `--reflink=auto` makes that rebuild a metadata-only copy.
   home.activation.anixiePapirusFolders = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     icons=${lib.escapeShellArg "${config.xdg.dataHome}/icons"}
+    src=${lib.escapeShellArg "${pkgs.papirus-icon-theme}/share/icons"}
+    marker="$icons/.papirus-source"
     mkdir -p "$icons"
-    for theme in Papirus Papirus-Dark Papirus-Light; do
-      if [ ! -d "$icons/$theme" ]; then
-        cp -r --no-preserve=mode ${pkgs.papirus-icon-theme}/share/icons/$theme "$icons/$theme"
-      fi
-    done
+
+    if [ "$(cat "$marker" 2>/dev/null || true)" != "$src" ]; then
+      for theme in Papirus Papirus-Dark Papirus-Light; do
+        if [ -d "$icons/$theme" ]; then
+          rm -rf "$icons/$theme"
+        fi
+        cp -r --reflink=auto --no-preserve=mode "$src/$theme" "$icons/$theme" || exit 1
+      done
+      printf '%s\n' "$src" >"$marker"
+    else
+      for theme in Papirus Papirus-Dark Papirus-Light; do
+        if [ ! -d "$icons/$theme" ]; then
+          cp -r --reflink=auto --no-preserve=mode "$src/$theme" "$icons/$theme" || exit 1
+        fi
+      done
+    fi
   '';
 }

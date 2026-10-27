@@ -309,17 +309,29 @@ generate() {
   output="$1"
   file=$(generated_file "$output")
   size=$(output_size "$output")
+  mkdir -p "$(dirname "$file")"
+
+  # The gradient is a pure function of the palette and the output size, and
+  # rendering one costs more than the rest of `theme apply` together. Reuse the
+  # file while both inputs are unchanged; `materialise` gives a new palette a
+  # fresh mtime, so a theme change still invalidates it.
+  if [ -s "$file" ] &&
+    [ "$(cat "$file.size" 2>/dev/null || true)" = "$size" ] &&
+    [ "$file" -nt "$STATE/live/palette.json" ]; then
+    return 0
+  fi
+
   bg=$(colour background)
   surface=$(colour surface)
   primary=$(colour primary)
-  mkdir -p "$(dirname "$file")"
   "$MAGICK" -size "$size" \
     gradient:"$bg"-"$surface" \
     \( -size "$size" radial-gradient:none-"$primary" \
     -alpha set -channel A -evaluate multiply 0.10 +channel \) \
     -compose over -composite \
     -depth 8 \
-    "$file" >/dev/null 2>&1
+    "$file" >/dev/null 2>&1 || return 1
+  printf '%s\n' "$size" >"$file.size" || true
 }
 
 output_names() {
