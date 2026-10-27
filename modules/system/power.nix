@@ -46,9 +46,8 @@ _:
   };
 
   # The NMI watchdog spends a PMU counter and a periodic NMI on a machine that
-  # is not being debugged. The performance tuner clears it while the performance
-  # profile is active; clearing it at boot means the power-saver profile gets the
-  # same saving instead of leaving it on by default.
+  # is not being debugged. Disable it once at boot rather than toggling it with
+  # the power profile, so every profile gets the same saving.
   #
   # PCIe ASPM parks idle links. `powersave` is the conservative setting: it
   # still wakes the NVMe and GPU on demand, unlike `powersupersave`, and it is
