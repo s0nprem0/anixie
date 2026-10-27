@@ -14,11 +14,6 @@
 #   powerprofile set-automation on|off
 #                             toggle it at runtime; the choice is remembered in
 #                             the state directory and overrides the build default
-#   powerprofile charge       print the charge ceiling
-#   powerprofile charge full  let it charge to 100%
-#   powerprofile charge limit [N]
-#                             cap charging at N% (default 80) and remember it
-#                             for boot; both writes ask for root through sudo
 #
 # While on battery, two thresholds also dim the screen and step down the profile:
 # low at @LOW@%, critical at @CRITICAL@%. The brightness before the first dim is
@@ -47,9 +42,6 @@ LOW_PROFILE="@LOW_PROFILE@"
 CRITICAL_PROFILE="@CRITICAL_PROFILE@"
 LOW_BRIGHTNESS="@LOW_BRIGHTNESS@"
 CRITICAL_BRIGHTNESS="@CRITICAL_BRIGHTNESS@"
-CHARGE_LIMIT="@CHARGE_LIMIT@"
-CHARGE_STATE="@CHARGE_STATE@"
-SUDO="@SUDO@"
 
 # shellcheck source=/dev/null
 . "@ANIXIE_LIB@"
@@ -86,19 +78,6 @@ source_name() {
 # has nothing to automate; the caller treats an empty reading as "leave it".
 battery_percent() {
   for file in /sys/class/power_supply/BAT*/capacity; do
-    [ -r "$file" ] || continue
-    value=$(cat "$file" 2>/dev/null || true)
-    case "$value" in
-      '' | *[!0-9]*) continue ;;
-    esac
-    printf '%s\n' "$value"
-    return 0
-  done
-  return 1
-}
-
-charge_ceiling() {
-  for file in /sys/class/power_supply/BAT*/charge_control_end_threshold; do
     [ -r "$file" ] || continue
     value=$(cat "$file" 2>/dev/null || true)
     case "$value" in
@@ -260,29 +239,11 @@ set_automation() {
   apply
 }
 
-charge() {
-  [ -x "$CHARGE_LIMIT" ] || die "charge-limit is not installed; rebuild the system"
-  case "${1:-show}" in
-    "" | show) "$CHARGE_LIMIT" ;;
-    full) "$SUDO" "$CHARGE_LIMIT" full ;;
-    limit) shift; "$SUDO" "$CHARGE_LIMIT" limit "$@" ;;
-    *) die "charge wants show, full or limit [N]" ;;
-  esac
-}
-
 show() {
   printf 'source:  %s\n' "$(source_name)"
   printf 'profile: %s\n' "$("$PPD" get 2>/dev/null || echo unknown)"
   printf 'on mains:  %s\n' "$(preferred ac)"
   printf 'on battery: %s\n' "$(preferred battery)"
-  if ceiling=$(charge_ceiling); then
-    printf 'charge:    %s%% ceiling\n' "$ceiling"
-    saved=$(cat "$CHARGE_STATE" 2>/dev/null || true)
-    case "$saved" in
-      '' | *[!0-9]*) ;;
-      *) [ "$saved" = "$ceiling" ] || printf 'saved:     %s%% (not applied)\n' "$saved" ;;
-    esac
-  fi
   if [ -d /run/anixie/performance ]; then
     printf 'tuning:    performance extras on\n'
   else
@@ -305,7 +266,6 @@ case "${1:-}" in
   set) shift; set_pref "$@" ;;
   automation) if automation_enabled; then echo on; else echo off; fi ;;
   set-automation) shift; set_automation "$@" ;;
-  charge) shift; charge "$@" ;;
   watch)
     mkdir -p "$STATE"
     apply

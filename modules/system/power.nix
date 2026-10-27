@@ -1,29 +1,6 @@
+_:
+
 {
-  config,
-  pkgs,
-  ...
-}:
-
-let
-  # The ceiling is a controller setting, not a file, so the choice made with
-  # `charge-limit full` is kept here for the boot/resume/plug helper to re-apply.
-  chargeState = "/var/lib/anixie/charge-limit";
-
-  chargeLimit = pkgs.writeShellScriptBin "charge-limit" (
-    builtins.replaceStrings
-      [ "@BAT@" "@STATE@" "@DEFAULT@" "@ANIXIE_LIB@" ]
-      [
-        "/sys/class/power_supply/BAT0/charge_control_end_threshold"
-        chargeState
-        "80"
-        "${../features/cli/lib.sh}"
-      ]
-      (builtins.readFile ./charge-limit.sh)
-  );
-in
-{
-  environment.systemPackages = [ chargeLimit ];
-
   services = {
     power-profiles-daemon.enable = true;
 
@@ -67,89 +44,6 @@ in
       allowRiskyCriticalPowerAction = true;
     };
   };
-
-  systemd = {
-    services = {
-      # UPower 1.90+ can own the charge thresholds itself. When enabled it
-      # re-applies the hwdb default (75/80 on every battery) at startup, which
-      # silently overwrote the value saved by `charge-limit full`. The helper
-      # below is the single writer here, so leave UPower's automation off; it
-      # persists that choice in /var/lib/upower/charging-threshold-status.
-      upower-charge-threshold = {
-        description = "Leave charge thresholds to charge-limit";
-        wantedBy = [ "multi-user.target" ];
-        after = [ "upower.service" ];
-        wants = [ "upower.service" ];
-        serviceConfig = {
-          Type = "oneshot";
-          RemainAfterExit = true;
-        };
-        script = ''
-          # UPower can be up before its battery object is in the list, so give
-          # enumeration a few tries rather than leaving the automation enabled.
-          for _ in 1 2 3 4 5; do
-            found=
-            for dev in $(${pkgs.upower}/bin/upower -e 2>/dev/null || true); do
-              case "$dev" in
-                */battery_*)
-                  found=1
-                  ${config.systemd.package}/bin/busctl call --system \
-                    org.freedesktop.UPower "$dev" \
-                    org.freedesktop.UPower.Device EnableChargeThreshold b false || true
-                  ;;
-              esac
-            done
-            [ -n "$found" ] && break
-            sleep 1
-          done
-        '';
-      };
-
-      # A laptop that lives on a desk spends its life at 100%, which is the
-      # fastest way to wear a battery out. The charge controller accepts a
-      # ceiling; 80% is the usual compromise between wear and having enough to
-      # leave the house with. `charge-limit full` lifts it for a trip and saves
-      # that choice, so this reads the saved value rather than forcing 80 on
-      # every boot.
-      # Named away from `battery-charge-limit` so the udev rule left in an
-      # older generation cannot restart this unit during the switch. That rule
-      # is removed with this generation, but activation happens while the old
-      # rules are still loaded.
-      anixie-battery-charge-limit = {
-        description = "Apply the saved battery charge ceiling";
-        wantedBy = [ "multi-user.target" ];
-        after = [ "upower-charge-threshold.service" ];
-        unitConfig.ConditionPathExists = "/sys/class/power_supply/BAT0/charge_control_end_threshold";
-        serviceConfig = {
-          # No RemainAfterExit: the timer below must be able to run this again.
-          # The write is idempotent, so leaving the unit inactive after a
-          # successful run is the point.
-          Type = "oneshot";
-        };
-        script = "${chargeLimit}/bin/charge-limit apply";
-      };
-    };
-
-    # The controller can forget the ceiling across a firmware reset, including
-    # while the machine sits idle. The write is one sysfs line, so re-asserting
-    # it every two minutes is cheaper than being surprised by an 80% cap after a
-    # reset — and it never touches the battery itself.
-    #
-    # This is deliberately a timer rather than a udev rule: this EC emits Mains
-    # change events several times a second even when nothing moves, and a rule
-    # that restarted the service on each one hit systemd's start limit and made
-    # activation fail.
-    timers.anixie-battery-charge-limit = {
-      wantedBy = [ "timers.target" ];
-      timerConfig = {
-        OnBootSec = "1min";
-        OnUnitActiveSec = "2min";
-        AccuracySec = "30s";
-      };
-    };
-  };
-
-  powerManagement.resumeCommands = "${chargeLimit}/bin/charge-limit apply";
 
   # The NMI watchdog spends a PMU counter and a periodic NMI on a machine that
   # is not being debugged. The performance tuner clears it while the performance
