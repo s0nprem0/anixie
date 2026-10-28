@@ -58,4 +58,11 @@
     title = "GridCraft";
     description = "Excel-style spreadsheet";
   };
+
+  lightcraft = {
+    version = "0.14.0";
+    hash = "sha256-uCM7k3PW6ZsRgMHDn9yxPUnEQfgAkncIMfqxlcTE/aI=";
+    title = "LightCraft";
+    description = "Lightroom-style photo library and raw developer";
+  };
 }
