@@ -65,4 +65,27 @@ in
   xdg.configFile."uwsm/env".text = ''
     . "${config.home.sessionVariablesPackage}/etc/profile.d/hm-session-vars.sh"
   '';
+
+  # The plain session entry does not start graphical-session.target by itself
+  # (see the start handler in config/70-startup.lua). A target that pulls it in
+  # is how a compositor starts the session anyway: graphical-session.target has
+  # RefuseManualStart=yes, but a dependency start is still allowed. BindsTo,
+  # rather than a plain Wants, keeps the two lifetimes tied -- the session
+  # target stops when graphical-session.target stops, and graphic stays active
+  # while this target exists (it has StopWhenUnneeded=yes).
+  #
+  # The pre target carries anixie-display-recover, and the autostart target is
+  # what starts the XDG autostart entries; both are otherwise pulled in by a
+  # session manager, which the plain entry does not have.
+  systemd.user.targets.anixie-session = {
+    Unit = {
+      Description = "anixie graphical session";
+      BindsTo = [ "graphical-session.target" ];
+      Wants = [
+        "graphical-session-pre.target"
+        "xdg-desktop-autostart.target"
+      ];
+      After = [ "basic.target" ];
+    };
+  };
 }

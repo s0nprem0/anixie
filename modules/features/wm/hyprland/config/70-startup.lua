@@ -35,6 +35,19 @@ hl.on("hyprland.start", function()
   -- Named explicitly rather than importing the whole environment, which
   -- would drag every variable Hyprland happens to be carrying along.
   hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_ID")
+
+  -- The plain Hyprland session entry (upstream's start-hyprland) has no
+  -- session manager behind it, so nothing starts graphical-session.target.
+  -- That target is not a cosmetic grouping: xdg-desktop-portal carries
+  -- Requisite=graphical-session.target, so the portal refuses to activate
+  -- ("Dependency failed for Portal service"), and every unit installed with
+  -- WantedBy=graphical-session.target -- the bar, the lock bridge, the theme
+  -- and power helpers -- stays down. Starting it directly is refused
+  -- (RefuseManualStart=yes), so this starts anixie-session.target instead,
+  -- which binds to it; a dependency start is what systemd allows.
+  --
+  -- Under UWSM the target is already active and this is a no-op.
+  hl.exec_cmd("systemctl --user start --no-block anixie-session.target")
 end)
 
 -- A dock appearing or disappearing changes the set of active outputs. Sync the
