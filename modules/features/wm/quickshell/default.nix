@@ -1,6 +1,7 @@
 {
   config,
   lib,
+  osConfig,
   pkgs,
   ...
 }:
@@ -207,6 +208,14 @@ in
       Service = {
         Type = "simple";
         ExecStart = "${lib.getExe pkgs.quickshell} -p %h/.config/quickshell";
+
+        # Qt resolves the system zone from /etc/timezone or an /usr/share/
+        # zoneinfo path, neither of which NixOS has; without TZ it warns that
+        # it cannot determine the zone. The service is started by the user
+        # manager, which does not source the login shell's variables, so the
+        # zone has to be put into the unit explicitly.
+        Environment = [ "TZ=${osConfig.time.timeZone}" ];
+
         Restart = "always";
         RestartSec = 2;
       };

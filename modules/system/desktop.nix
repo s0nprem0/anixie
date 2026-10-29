@@ -27,6 +27,12 @@ let
   ];
 in
 {
+  # NixOS sets /etc/localtime but, unlike most distributions, no TZ or
+  # /etc/timezone. Qt (and Quickshell, and anything else that asks it for the
+  # system zone) only looks at those two, so without this it warns that the
+  # zone cannot be determined even though the clock is right.
+  environment.sessionVariables.TZ = config.time.timeZone;
+
   # ddcutil talks to external monitors over /dev/i2c-*. The NixOS module loads
   # i2c-dev and its udev rule grants the logged-in seat access, which is what
   # `monitors brightness` needs when focus is on an HDMI/DP display.
