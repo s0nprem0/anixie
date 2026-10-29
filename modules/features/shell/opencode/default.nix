@@ -5,7 +5,7 @@
     pkgs.opencode
   ];
 
-  # Only the two entries below are managed. `~/.config/opencode` itself stays a
+  # Only the entries below are managed. `~/.config/opencode` itself stays a
   # real directory on purpose: opencode writes `package.json` and installs
   # plugin dependencies into it at runtime, so linking the whole config
   # directory into the store would leave it read-only and break plugin install.
@@ -18,6 +18,11 @@
     # copied to the store. A new skill that has not been `git add`ed is
     # silently absent from the store copy and will not be deployed.
     "opencode/skills".source = ./skills;
+
+    # Local plugins are read from this tree, not written to it. The V2
+    # caveman-blocks port lives here rather than in the installer's writable
+    # copy so `hooks install` cannot overwrite it with the V1 template.
+    "opencode/plugins".source = ./plugins;
 
     # Generated rather than a literal file, so the value stays valid JSON with
     # no trailing commas and Nix can interpolate store paths into it later
