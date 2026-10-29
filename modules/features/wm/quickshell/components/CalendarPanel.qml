@@ -137,13 +137,20 @@ Panel {
   }
 
   function apply(raw) {
+    // Changing `command` on an idle Process ends its previous (empty) stream,
+    // so `streamFinished` fires once with nothing before the new run's output
+    // arrives. Parsing that reports a parse error on a perfectly good fetch.
+    const text = String(raw || "").trim()
+    if (text === "") return
+
     cal.loading = false
 
     try {
-      const data = JSON.parse(String(raw || ""))
+      const data = JSON.parse(text)
       cal.configured = data.configured !== false
       cal.events = Array.isArray(data.events) ? data.events : []
       cal.warnings = Array.isArray(data.warnings) ? data.warnings : []
+      cal.failure = ""
     } catch (error) {
       cal.events = []
       cal.warnings = []
@@ -177,6 +184,7 @@ Panel {
     }
 
     onExited: function (exitCode) {
+      cal.loading = false
       if (exitCode !== 0 && cal.failure === "") cal.failure = "calendar backend failed"
     }
   }
