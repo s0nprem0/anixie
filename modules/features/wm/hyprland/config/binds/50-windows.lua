@@ -44,7 +44,10 @@ dispatch(mod .. " + SHIFT + DOWN", "Swap down", "window.swap", { direction = "do
 dispatch(mod .. " + Q", "Close window", "window.close")
 
 dispatch(mod .. " + F", "Fullscreen", "window.fullscreen", { action = "toggle" })
-dispatch(mod .. " + V", "Float", "window.float", { action = "toggle" })
+
+-- Float lives on T, not V. V is the universal paste key now (see
+-- binds/55-clipboard.lua); T is free and is where the reference puts tile/float.
+dispatch(mod .. " + T", "Float", "window.float", { action = "toggle" })
 
 -- pseudo-tile turns the window into a column the group resizes as a unit;
 -- pin floats a window above everything regardless of focus order.

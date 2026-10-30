@@ -61,9 +61,11 @@ in
       "kitty_mod+f" =
         "launch --location=hsplit --allow-remote-control kitty +kitten search.py @active-kitty-window-id";
 
-      # ctrl+c is copy in a terminal, not SIGINT. Interrupting is ctrl+shift+c.
-      "ctrl+c" = "copy_or_interrupt";
-      "ctrl+v" = "paste_from_clipboard";
+      # ctrl+c and ctrl+v are deliberately left unbound. Ctrl+V has to reach
+      # the application so agent harnesses can read an image from the
+      # clipboard, and Ctrl+C has to stay an interrupt. Text copy/paste is on
+      # kitty's ctrl+shift+c/v, and SUPER+C/V reaches the same actions through
+      # the compositor's universal clipboard binds.
 
       # Font size across every window, so a long paste does not have to be read
       # squinting, and ctrl+0 puts it back.

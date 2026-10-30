@@ -25,6 +25,7 @@ let
     "binds/30-panels.lua"
     "binds/40-toggles.lua"
     "binds/50-windows.lua"
+    "binds/55-clipboard.lua"
     "binds/60-plugins.lua"
     "binds/70-session.lua"
     "binds/80-media.lua"
