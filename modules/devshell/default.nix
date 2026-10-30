@@ -20,6 +20,21 @@ let
     shellcheck
   ];
 
+  # The QML tools — qmllint, qmlformat, qmlls and qmlscene — live in
+  # qtdeclarative, the same package the flake's qmllint check builds with, so a
+  # hand-run lint and the check cannot disagree about which Qt is being read.
+  # quickshell is here for its QML module directory: qmllint does not read
+  # QML_IMPORT_PATH, so `import Quickshell` only resolves when the call passes
+  # `-I ${pkgs.quickshell}/lib/qt-6/qml`, as the check does.
+  #
+  # Both are here rather than in the shared CLI list because they are around
+  # 700 MiB of Qt: worth it while editing the shell, not worth it on the
+  # profile at large, and not needed by the lite shell.
+  qmlTools = with pkgs; [
+    qt6.qtdeclarative
+    quickshell
+  ];
+
   # Everyday CLI with no configuration of its own. Shared with
   # features/shell/tools so `nix develop` and the user profile stay in step.
   cliTools = import ../features/shell/tools/packages.nix { inherit pkgs; };
@@ -48,7 +63,7 @@ in
   # standard library, matching the `nil` LSP.
   default = {
     name = "nix-dots-dev";
-    packages = nixTools ++ shellTools ++ cliTools ++ fullStack;
+    packages = nixTools ++ shellTools ++ qmlTools ++ cliTools ++ fullStack;
     RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
   };
 
