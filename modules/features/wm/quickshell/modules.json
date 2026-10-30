@@ -6,6 +6,7 @@
   "bar.world-clock": { "section": "center", "source": "components/WorldClock.qml" },
   "bar.update": { "section": "centerEnd", "source": "components/UpdateBadge.qml" },
   "bar.keyboard-layout": { "section": "right", "source": "components/KeyboardLayout.qml" },
+  "bar.layoutmode": { "section": "left", "source": "components/LayoutMode.qml" },
   "bar.agents": { "section": "right", "source": "components/Agents.qml" },
   "bar.tailscale": { "section": "right", "source": "components/Tailscale.qml" },
   "bar.dropbox": { "section": "right", "source": "components/Dropbox.qml" },

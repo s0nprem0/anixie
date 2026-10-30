@@ -754,17 +754,41 @@ std::string hyprctlLayoutmode(eHyprCtlOutputFormat, std::string args) {
     // exact=false passes the remainder in various shapes ("toggle",
     // "layoutmode toggle", ...). Match whole words so "notoggle" or a future
     // "toggle-foo" is not a toggle.
+    bool toggleWanted = false;
+    bool floatWanted  = false;
+    bool tileWanted   = false;
+
     std::istringstream words(args);
-    std::string word;
+    std::string        word;
     while (words >> word) {
-        if (word == "toggle") {
-            toggle();
-            break;
-        }
+        if (word == "toggle")
+            toggleWanted = true;
+        else if (word == "floating" || word == "float")
+            floatWanted = true;
+        else if (word == "tiling" || word == "tile")
+            tileWanted = true;
     }
-    if (g_floating)
-        return "{\"text\":\"F\",\"class\":\"floating\",\"tooltip\":\"Floating layout — click to tile\"}\n";
-    return "{\"text\":\"T\",\"class\":\"tiling\",\"tooltip\":\"Tiling layout — click to float\"}\n";
+
+    // Explicit modes make the command safe for scripts and bar clicks: asking
+    // for the mode you are already in does nothing, so a retry or a stale
+    // click cannot flip the desktop the wrong way. `toggle` stays the plain
+    // switch the key uses.
+    if (floatWanted != tileWanted) {
+        if (floatWanted != g_floating)
+            toggle();
+    } else if (toggleWanted) {
+        toggle();
+    }
+
+    const std::string mode  = g_floating ? "floating" : "tiling";
+    const std::string other = g_floating ? "tiling" : "floating";
+    const std::string label = g_floating ? "Floating" : "Tiling";
+
+    // text/class/tooltip is the shape bar modules already understand; mode and
+    // alt give scripts a stable answer without parsing the label.
+    return std::format(
+        "{{\"text\":\"{}\",\"class\":\"{}\",\"tooltip\":\"{} layout — click to {}\",\"mode\":\"{}\",\"alt\":\"{}\"}}\n",
+        g_floating ? "F" : "T", mode, label, other, mode, other);
 }
 
 } // namespace
@@ -792,9 +816,15 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         g_floating = (mode == "floating");
     }
 
+    // Write the mode at startup as well as on every toggle: the shell's
+    // layout indicator watches this file, and a session that has never
+    // toggled still needs one to read. It also migrates a mode inherited
+    // from the old cache path.
+    persistMode();
+
     if (!HyprlandAPI::addLuaFunction(g_handle, "layoutmode", "toggle", luaToggle)) {
         HyprlandAPI::addNotification(g_handle, "[layoutmode] failed to register lua function", CHyprColor(1.F, 0.3F, 0.3F, 1.F), 5000);
-        return {"layoutmode", "Global tiling/floating toggle", "parazeeknova",  "0.3.0"};
+        return {"layoutmode", "Global tiling/floating toggle", "parazeeknova",  "0.4.0"};
     }
 
     g_hyprCmd = HyprlandAPI::registerHyprCtlCommand(g_handle, SHyprCtlCommand{
@@ -875,7 +905,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     } catch (...) {
     }
 
-    return {"layoutmode", "Global tiling/floating toggle", "parazeeknova",  "0.3.0"};
+    return {"layoutmode", "Global tiling/floating toggle", "parazeeknova",  "0.4.0"};
 }
 
 APICALL EXPORT void PLUGIN_EXIT() {

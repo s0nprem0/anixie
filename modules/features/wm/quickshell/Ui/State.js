@@ -11,7 +11,7 @@
 // stripped by an older reader. A file with no version is version 1, which is
 // what every store wrote before this existed.
 
-var VERSION = 1
+var VERSION = 2
 
 function versionOf(state) {
   if (!state || typeof state !== "object") return 0
@@ -35,6 +35,23 @@ function upgrade(state) {
   // the loop means a file several versions behind is brought forward in order
   // rather than only from the last one.
   while (version < VERSION) {
+    // v1 -> v2: the layout-mode indicator (bar.layoutmode) ships with this
+    // version. Add it next to the workspaces so an existing saved layout picks
+    // it up without a manual reset; a user who removed it afterwards keeps
+    // that choice, since this only runs once.
+    if (version === 1 && state && state.layout && Array.isArray(state.layout.left)) {
+      const hasLayoutMode = state.layout.left.some(function (entry) {
+        return entry && entry.id === "bar.layoutmode"
+      })
+      if (!hasLayoutMode) {
+        const entry = { id: "bar.layoutmode" }
+        const workspaceIndex = state.layout.left.findIndex(function (item) {
+          return item && item.id === "bar.workspaces"
+        })
+        if (workspaceIndex >= 0) state.layout.left.splice(workspaceIndex + 1, 0, entry)
+      }
+    }
+
     version++
   }
 

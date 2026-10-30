@@ -27,6 +27,7 @@ QtObject {
   readonly property Component worldClock: Component { WorldClock {} }
   readonly property Component updateBadge: Component { UpdateBadge {} }
   readonly property Component keyboardLayout: Component { KeyboardLayout {} }
+  readonly property Component layoutmode: Component { LayoutMode {} }
   readonly property Component agents: Component { Agents {} }
   readonly property Component tailscale: Component { Tailscale {} }
   readonly property Component dropbox: Component { Dropbox {} }
@@ -57,6 +58,7 @@ QtObject {
     "bar.world-clock": worldClock,
     "bar.update": updateBadge,
     "bar.keyboard-layout": keyboardLayout,
+    "bar.layoutmode": layoutmode,
     "bar.agents": agents,
     "bar.tailscale": tailscale,
     "bar.dropbox": dropbox,

@@ -8,6 +8,9 @@
       },
       {
         "id": "bar.workspaces"
+      },
+      {
+        "id": "bar.layoutmode"
       }
     ],
     "centerBegin": [

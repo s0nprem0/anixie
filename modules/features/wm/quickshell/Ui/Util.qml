@@ -116,6 +116,11 @@ QtObject {
   readonly property string cpu: glyph("f2db")
   readonly property string memory: glyph("f538")
 
+  // Global layout mode: a grid of tiles, and overlapping windows for the mode
+  // where each window keeps its own geometry.
+  readonly property string tiling: glyph("f009")
+  readonly property string floating: glyph("f2d2")
+
   readonly property string micOn: glyph("f130")
   readonly property string micOff: glyph("f131")
 

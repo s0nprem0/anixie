@@ -59,6 +59,10 @@ QtObject {
     if (key === "brightness" || key === "display") return Util.sun
     if (key === "keyboard") return Util.keyboard
 
+    // The global tiling/floating switch, read back from LayoutModeHost.
+    if (key === "layout-tiling" || key === "tiling") return Util.tiling
+    if (key === "layout-floating" || key === "floating") return Util.floating
+
     if (key === "media" || key === "player" || key === "media-source" || key === "player-source") return Util.media
     if (key === "media-play" || key === "player-play") return Util.mediaPlay
     if (key === "media-pause" || key === "player-pause") return Util.mediaPause
