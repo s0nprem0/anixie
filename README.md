@@ -308,11 +308,16 @@ Wallpapers are resolved per output and stored in `wallpapers.json`; the shell
 reads the resulting `background.json`. Stills are drawn by the shell, videos by
 `mpvpaper`, and generated gradients match each output's resolution. The library
 scans `~/Pictures/Wallpapers`, `~/Pictures` and the per-theme folder by default.
+Set `anixie.theme.wallpaper.default` to a picture to use it wherever neither the
+theme nor an output has a choice; a runtime `anixie wallpaper use` still wins.
 
 ### Options
 
 - `anixie.theme.theme` — the build-time default preset.
-- `anixie.theme.wallpaper.dirs` and `.recursive` — where the library scans.
+- `anixie.theme.wallpaper.dirs`, `.extraDirs` and `.recursive` — where the
+  library scans.
+- `anixie.theme.wallpaper.default` — picture used when nothing else is chosen;
+  `null` keeps the generated palette gradient.
 - `anixie.theme.auto.schedule.enable`, `.light`, `.dark` — automatic day/night
   switching; the timer is installed by Home Manager.
 - `anixie.theme.auto.rotation.enable`, `.interval`, `.shuffle` — wallpaper

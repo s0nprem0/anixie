@@ -1,10 +1,12 @@
 #!/bin/sh
 # Desktop wallpaper.
 #
-# The default is not a picture but a gradient generated from the live palette, so
-# every theme brings its own without shipping image files. On top of that each
-# theme has a folder of your own backgrounds, and the library scans the folders
-# named in the theming options:
+# By default the wallpaper is not a picture but a gradient generated from the
+# live palette, so every theme brings its own without shipping image files. Set
+# anixie.theme.wallpaper.default to a picture to use one instead whenever a theme
+# or output has no choice of its own. On top of that each theme has a folder of
+# your own backgrounds, and the library scans the folders named in the theming
+# options:
 #
 #   wallpaper                 pick one
 #   wallpaper list            names from the library, one per line
@@ -32,6 +34,7 @@ STATE="@STATE_DIR@"
 BACKGROUNDS="@DATA_DIR@/backgrounds"
 WALLPAPER_DIRS=@WALLPAPER_DIRS@
 WALLPAPER_RECURSIVE="@WALLPAPER_RECURSIVE@"
+DEFAULT_WALLPAPER=@DEFAULT_WALLPAPER@
 PALETTES="@PALETTES@"
 DEFAULT_THEME="@DEFAULT_THEME@"
 JQ="@JQ@"
@@ -154,6 +157,8 @@ chosen() {
   file="$STATE/wallpaper.$theme"
   if [ -f "$file" ]; then
     cat "$file"
+  elif [ -n "$DEFAULT_WALLPAPER" ] && [ -f "$DEFAULT_WALLPAPER" ]; then
+    printf '%s' "$DEFAULT_WALLPAPER"
   else
     echo generated
   fi
@@ -242,6 +247,9 @@ scan_dir() {
 library_paths() {
   {
     echo generated
+    if [ -n "$DEFAULT_WALLPAPER" ] && [ -f "$DEFAULT_WALLPAPER" ]; then
+      printf '%s\n' "$DEFAULT_WALLPAPER"
+    fi
     scan_dir "$BACKGROUNDS/$(current_theme)"
     printf '%s\n' "$WALLPAPER_DIRS" | while IFS= read -r dir; do
       [ -n "$dir" ] && scan_dir "$dir"

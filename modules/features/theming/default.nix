@@ -10,8 +10,31 @@ let
   # ~/.config: Home Manager owns those paths as read-only store symlinks, and a
   # theme set at runtime has to be able to write.
   stateDir = config.anixie.theme.stateDir;
-  wallpaperDirs = lib.escapeShellArg (lib.concatStringsSep "\n" config.anixie.theme.wallpaper.dirs);
+  wallpaperDirs = lib.escapeShellArg (
+    lib.concatStringsSep "\n" (
+      config.anixie.theme.wallpaper.dirs ++ config.anixie.theme.wallpaper.extraDirs
+    )
+  );
   wallpaperRecursive = if config.anixie.theme.wallpaper.recursive then "true" else "false";
+  # The picture used when neither the theme nor the output has a choice. Empty
+  # means the generated palette gradient. `~/` is expanded here because a shell
+  # assignment would keep the tilde literal.
+  wallpaperDefault =
+    let
+      default = config.anixie.theme.wallpaper.default;
+    in
+    if default == null then
+      ""
+    else
+      lib.escapeShellArg (
+        let
+          value = toString default;
+        in
+        if lib.hasPrefix "~/" value then
+          "${config.home.homeDirectory}/${lib.removePrefix "~/" value}"
+        else
+          value
+      );
 
   # The generated desktop wallpaper and its dimensions. A gradient rather than an
   # image file, so every palette carries its own without shipping pictures. The
@@ -37,6 +60,7 @@ let
         "@HEIGHT@"
         "@WALLPAPER_DIRS@"
         "@WALLPAPER_RECURSIVE@"
+        "@DEFAULT_WALLPAPER@"
         "@SHA256SUM@"
         "@STAT@"
         "@ANIXIE_LIB@"
@@ -58,6 +82,7 @@ let
         "1080"
         wallpaperDirs
         wallpaperRecursive
+        wallpaperDefault
         "${pkgs.coreutils}/bin/sha256sum"
         "${pkgs.coreutils}/bin/stat"
         "${../cli/lib.sh}"
@@ -219,6 +244,24 @@ in
       type = lib.types.bool;
       default = false;
       description = "Whether the wallpaper library scans folders recursively.";
+    };
+
+    extraDirs = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      description = "Folders scanned after `dirs`, for pictures that ship with a host.";
+    };
+
+    default = lib.mkOption {
+      type = lib.types.nullOr (lib.types.either lib.types.path lib.types.str);
+      default = null;
+      example = "~/Pictures/Wallpapers/forest.jpg";
+      description = ''
+        Picture used when neither the current theme nor an output has a
+        wallpaper choice. Accepts a path in the flake, an absolute path or one
+        starting with `~/`. Leave null to use the gradient generated from the
+        palette. A runtime choice (`wallpaper use`) still overrides it.
+      '';
     };
   };
 

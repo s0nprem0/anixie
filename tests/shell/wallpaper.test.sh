@@ -33,6 +33,7 @@ sed \
   -e "s|@DATA_DIR@|$tmp/data|g" \
   -e "s|@WALLPAPER_DIRS@|'$tmp/lib'|g" \
   -e "s|@WALLPAPER_RECURSIVE@|false|g" \
+  -e "s|@DEFAULT_WALLPAPER@|'$tmp/lib/a.png'|g" \
   -e "s|@PALETTES@|$root/modules/features/theming/themes.json|g" \
   -e "s|@DEFAULT_THEME@|tokyo-night|g" \
   -e "s|@JQ@|$(command -v jq)|g" \
@@ -62,6 +63,16 @@ HOME="$tmp/home" sh "$tmp/wallpaper" library --json >"$tmp/library.json"
 [ -s "$tmp/state/library.json" ]
 HOME="$tmp/home" sh "$tmp/wallpaper" library --json --refresh >"$tmp/library2.json"
 "$JQ" -e 'length == 4' "$tmp/library2.json" >/dev/null
+
+# A configured default fills in before anything is chosen, for the fallback and
+# for every output.
+[ "$(HOME="$tmp/home" sh "$tmp/wallpaper" current)" = "$tmp/lib/a.png" ]
+HOME="$tmp/home" sh "$tmp/wallpaper" apply >/dev/null
+"$JQ" -e --arg p "$tmp/lib/a.png" '
+  .fallback.path == $p
+  and .outputs["eDP-1"].path == $p
+  and .outputs["HDMI-A-1"].path == $p
+' "$tmp/state/background.json" >/dev/null
 
 HOME="$tmp/home" sh "$tmp/wallpaper" use "$tmp/lib/a.png" --output eDP-1 >/dev/null
 "$JQ" -e --arg p "$tmp/lib/a.png" '.outputs["eDP-1"].path == $p and .outputs["eDP-1"].video == false' "$tmp/state/background.json" >/dev/null
