@@ -37,6 +37,26 @@ Item {
   // does not expose the profile name.
   property string activeConnection: ""
 
+  // Request generations for asynchronous reads. A result is applied only when its
+  // generation and captured identity still match the current state.
+  property int detailsGeneration: 0
+  property string detailsDevice: ""
+  property int dnsGeneration: 0
+  property string dnsConnection: ""
+  property int bandGeneration: 0
+  property string bandDevice: ""
+  property string bandSsid: ""
+  property int vpnGeneration: 0
+
+  // Wi-Fi restart is a two-step operation. The token prevents a stale timer from
+  // overriding a newer radio action.
+  property int restartToken: 0
+  property bool bluetoothBusy: false
+
+  // QR generation is invalidated by a token, so a late process cannot install a
+  // path from an earlier or cancelled request.
+  property int qrGeneration: 0
+
   readonly property bool scanning: NetworkHost.scanning
 
   readonly property bool failed: NetworkHost.unavailable
@@ -100,7 +120,11 @@ Item {
     target: NetworkHost
 
     function onActionFailed(message) { root.actionError = message }
-    function onSecretRequested(ssid) { root.askingSsid = ssid }
+    function onSecretRequested(ssid) {
+      root.askingSsid = ssid
+      root.expandedSsid = ssid
+      root.actionError = ""
+    }
   }
 
   // ---- share by QR ----
@@ -185,12 +209,19 @@ Item {
       return
     }
 
+    root.bandGeneration += 1
+    root.bandDevice = root.wifiDevice ? root.wifiDevice.name : ""
+    root.bandSsid = root.activeSsid
+    bandGet.expectedGeneration = root.bandGeneration
+    bandGet.expectedDevice = root.bandDevice
+    bandGet.expectedSsid = root.bandSsid
     bandGet.running = false
     bandGet.running = true
   }
 
   function setBand(value) {
-    if (value === root.bandSelection) return
+    const allowed = root.bandOptions.some(function (option) { return option.value === value })
+    if (!allowed || value === root.bandSelection) return
 
     root.actionError = ""
     root.bandBusy = true
@@ -220,6 +251,10 @@ Item {
       return
     }
 
+    root.detailsGeneration += 1
+    root.detailsDevice = root.wifiDevice.name
+    details.expectedGeneration = root.detailsGeneration
+    details.expectedDevice = root.detailsDevice
     details.running = false
     details.running = true
   }
@@ -258,38 +293,43 @@ Item {
   Process {
     id: details
     running: false
+    property int expectedGeneration: 0
+    property string expectedDevice: ""
     command: ["sh", "-c",
       'nmcli -g GENERAL.CONNECTION device show "$1" 2>/dev/null; echo ---; '
       + 'nmcli -g IP4.ADDRESS device show "$1" 2>/dev/null | head -1; echo ---; '
       + 'nmcli -g IP4.GATEWAY device show "$1" 2>/dev/null | head -1; echo ---; '
       + 'nmcli -t -f TYPE,STATE,CONNECTION device status 2>/dev/null | grep -E "^ethernet:" || true',
       "_", root.wifiDevice ? root.wifiDevice.name : ""]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const parts = String(this.text).split("---")
+    stdout: StdioCollector {}
+    onExited: function (exitCode) {
+      if (root.detailsGeneration !== details.expectedGeneration) return
+      if (root.wifiDevice ? root.wifiDevice.name !== details.expectedDevice : details.expectedDevice !== "") return
+      if (exitCode !== 0) return
 
-        // `-g` is terse output and escapes `:` and `\`, so the profile name has
-        // to be decoded before it is used as an argument to the con verbs.
-        root.activeConnection = root.decodeSsid(String(parts[0] || "").trim())
+      const parts = String(details.stdout.text || "").split("---")
 
-        root.address = String(parts[1] || "").trim().split("/")[0]
-        root.gateway = String(parts[2] || "").trim()
+      // `-g` is terse output and escapes `:` and `\`, so the profile name has
+      // to be decoded before it is used as an argument to the con verbs.
+      root.activeConnection = root.decodeSsid(String(parts[0] || "").trim())
 
-        let wired = ""
-        const links = String(parts[3] || "").trim().split("\n")
-        for (let i = 0; i < links.length; i++) {
-          const fields = links[i].split(":")
-          if (fields[1] === "connected") wired = root.decodeSsid(fields[2] || "connected")
-        }
+      root.address = String(parts[1] || "").trim().split("/")[0]
+      root.gateway = String(parts[2] || "").trim()
 
-        root.wired = wired
-
-        // DNS is a property of the profile, so it can only be read once the
-        // profile name is known. Always, not only on a change: a details read
-        // can land before the list has named the active network, and that read
-        // would otherwise leave DNS empty until the next change.
-        root.refreshDns()
+      let wired = ""
+      const links = String(parts[3] || "").trim().split("\n")
+      for (let i = 0; i < links.length; i++) {
+        const fields = links[i].split(":")
+        if (fields[1] === "connected") wired = root.decodeSsid(fields[2] || "connected")
       }
+
+      root.wired = wired
+
+      // DNS is a property of the profile, so it can only be read once the
+      // profile name is known. Always, not only on a change: a details read
+      // can land before the list has named the active network, and that read
+      // would otherwise leave DNS empty until the next change.
+      root.refreshDns()
     }
   }
 
@@ -299,6 +339,8 @@ Item {
   // a profile name, so the type and the active flag are taken from the two ends
   // of the line rather than by splitting the name on a colon it may contain.
   function refreshVpns() {
+    root.vpnGeneration += 1
+    vpnList.expectedGeneration = root.vpnGeneration
     vpnList.running = false
     vpnList.running = true
   }
@@ -318,31 +360,36 @@ Item {
   Process {
     id: vpnList
     running: false
+    property int expectedGeneration: 0
     command: ["sh", "-c", "nmcli -t -f NAME,TYPE,ACTIVE connection show 2>/dev/null || true"]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const out = []
-        const lines = String(this.text || "").split("\n")
+    stdout: StdioCollector {}
+    onExited: function (exitCode) {
+      if (root.vpnGeneration !== vpnList.expectedGeneration) return
+      if (exitCode !== 0) return
 
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i]
-          if (line === "") continue
+      const out = []
+      const lines = String(vpnList.stdout.text || "").split("\n")
 
-          const activeAt = line.lastIndexOf(":")
-          if (activeAt < 0) continue
-          const typeAt = line.lastIndexOf(":", activeAt - 1)
-          if (typeAt < 0) continue
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        if (line === "") continue
 
-          const name = root.decodeSsid(line.slice(0, typeAt))
-          const type = line.slice(typeAt + 1, activeAt)
-          if (name === "" || name === "lo") continue
-          if (type !== "vpn" && type !== "wireguard" && type !== "tun") continue
+        const activeAt = line.lastIndexOf(":")
+        if (activeAt < 0) continue
+        const typeAt = line.lastIndexOf(":", activeAt - 1)
+        if (typeAt < 0) continue
 
-          out.push({ name: name, type: type, active: line.slice(activeAt + 1) === "yes" })
-        }
+        const name = root.decodeSsid(line.slice(0, typeAt))
+        const type = line.slice(typeAt + 1, activeAt)
+        if (name === "" || name === "lo") continue
+        // Keep VPN and WireGuard links. A tun device is only a VPN candidate when
+        // NetworkManager reports it as one of the VPN-like types above.
+        if (type !== "vpn" && type !== "wireguard" && type !== "tun") continue
 
-        root.vpns = out
+        out.push({ name: name, type: type, active: line.slice(activeAt + 1) === "yes" })
       }
+
+      root.vpns = out
     }
   }
 
@@ -371,33 +418,40 @@ Item {
   Process {
     id: bandGet
     running: false
+    property int expectedGeneration: 0
+    property string expectedDevice: ""
+    property string expectedSsid: ""
     command: ["wifi", "band"]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        let band = ""
-        let available = []
-        let selected = "auto"
-        const lines = String(this.text || "").split("\n")
+    stdout: StdioCollector {}
+    onExited: function (exitCode) {
+      if (root.bandGeneration !== bandGet.expectedGeneration) return
+      if (root.wifiDevice ? root.wifiDevice.name !== bandGet.expectedDevice : bandGet.expectedDevice !== "") return
+      if (root.activeSsid !== bandGet.expectedSsid) return
+      if (exitCode !== 0) return
 
-        for (let i = 0; i < lines.length; i++) {
-          if (lines[i] === "") continue
-          const fields = lines[i].split("\t")
+      let band = ""
+      let available = []
+      let selected = "auto"
+      const lines = String(bandGet.stdout.text || "").split("\n")
 
-          if (fields[0] === "band") {
-            band = fields[1] || ""
-          } else if (fields[0] === "available") {
-            available = String(fields[1] || "")
-              .split(" ")
-              .filter(function (value) { return value !== "" })
-          } else if (fields[0] === "selected") {
-            selected = fields[1] || "auto"
-          }
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i] === "") continue
+        const fields = lines[i].split("\t")
+
+        if (fields[0] === "band") {
+          band = fields[1] || ""
+        } else if (fields[0] === "available") {
+          available = String(fields[1] || "")
+            .split(" ")
+            .filter(function (value) { return value !== "" })
+        } else if (fields[0] === "selected") {
+          selected = fields[1] || "auto"
         }
-
-        root.band = band
-        root.availableBands = available
-        root.bandSelection = selected
       }
+
+      root.band = band
+      root.availableBands = available
+      root.bandSelection = selected
     }
   }
 
@@ -447,12 +501,17 @@ Item {
       return
     }
 
+    root.dnsGeneration += 1
+    root.dnsConnection = root.activeConnection
+    dnsGet.expectedGeneration = root.dnsGeneration
+    dnsGet.expectedConnection = root.dnsConnection
     dnsGet.running = false
     dnsGet.running = true
   }
 
   function setDns(provider) {
     if (!provider || root.activeConnection === "") return
+    if (root.dnsBusy) return
 
     root.actionError = ""
     root.dnsBusy = true
@@ -464,23 +523,28 @@ Item {
   Process {
     id: dnsGet
     running: false
+    property int expectedGeneration: 0
+    property string expectedConnection: ""
     command: ["wifi", "dns"]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        let v4 = ""
-        let v6 = ""
-        const lines = String(this.text || "").split("\n")
+    stdout: StdioCollector {}
+    onExited: function (exitCode) {
+      if (root.dnsGeneration !== dnsGet.expectedGeneration) return
+      if (root.activeConnection !== dnsGet.expectedConnection) return
+      if (exitCode !== 0) return
 
-        for (let i = 0; i < lines.length; i++) {
-          if (lines[i] === "") continue
-          const fields = lines[i].split("\t")
-          if (fields[0] === "ipv4") v4 = fields[1] || ""
-          else if (fields[0] === "ipv6") v6 = fields[1] || ""
-        }
+      let v4 = ""
+      let v6 = ""
+      const lines = String(dnsGet.stdout.text || "").split("\n")
 
-        root.dns = v4
-        root.dns6 = v6
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i] === "") continue
+        const fields = lines[i].split("\t")
+        if (fields[0] === "ipv4") v4 = fields[1] || ""
+        else if (fields[0] === "ipv6") v6 = fields[1] || ""
       }
+
+      root.dns = v4
+      root.dns6 = v6
     }
   }
 
@@ -530,14 +594,16 @@ Item {
     root.qrVisible = on
 
     if (on) {
+      root.qrGeneration += 1
       root.qrPath = ""
       root.qrError = ""
+      qrQuery.expectedGeneration = root.qrGeneration
       qrQuery.running = false
       qrQuery.running = true
     } else {
-      // Stop a generation that is still running before removing the file.
-      // Otherwise it can finish after the removal and leave the password on
-      // disk with the toggle that made it off.
+      // Invalidate any in-flight generation before stopping it, so a late
+      // completion cannot install a path after the toggle is off.
+      root.qrGeneration += 1
       qrQuery.running = false
       root.qrPath = ""
       root.qrError = ""
@@ -550,25 +616,32 @@ Item {
 
   Process {
     id: qrQuery
+    property int expectedGeneration: 0
     command: ["wifi", "qr"]
     stdout: StdioCollector {
       onStreamFinished: {
-        const path = String(this.text || "").trim()
-
-        // The toggle may have gone off while the code was being written; the
-        // file that just appeared is not wanted.
+        // A cancelled or replaced request must not install its path.
+        if (qrQuery.expectedGeneration !== root.qrGeneration) return
         if (!root.qrVisible) {
           root.qrPath = ""
           rmQr.running = true
           return
         }
 
+        const path = String(this.text || "").trim()
+        if (path === "" || root.stateDir === "" || !path.startsWith(root.stateDir + "/")) {
+          root.qrPath = ""
+          root.qrError = "Could not read the network password"
+          return
+        }
+
         root.qrPath = path
+        root.qrError = ""
       }
     }
     stderr: StdioCollector { id: qrErr }
     onExited: function (exitCode) {
-      // Killed by turning the toggle off; its exit is not a failure to show.
+      if (qrQuery.expectedGeneration !== root.qrGeneration) return
       if (!root.qrVisible) return
 
       if (exitCode === 0) {
@@ -661,13 +734,20 @@ Item {
     NetworkHost.disconnect(item)
   }
 
-  function connectSecret(secret) {
-    if (root.askingSsid === "" || secret === "") return
+  function connectSecret(secret, ssid) {
+    const target = (ssid && ssid !== "") ? ssid : root.askingSsid
+    if (target === "") return
 
-    const item = root.networkFor(root.askingSsid)
-    root.askingSsid = ""
+    const item = root.networkFor(target)
+    if (!item) return
+
     root.actionError = ""
-    if (item) NetworkHost.connectWithPsk(item, secret)
+    if (secret !== "") {
+      root.askingSsid = ""
+      NetworkHost.connectWithPsk(item, secret)
+    } else {
+      root.connect(target)
+    }
   }
 
   function setRadio(on) {
@@ -682,7 +762,19 @@ Item {
   function setAirplane(on) {
     root.actionError = ""
     root.setRadio(!on)
-    if (root.bluetoothAdapter) root.bluetoothAdapter.enabled = !on
+
+    if (!root.bluetoothAdapter) {
+      root.actionError = "No Bluetooth adapter"
+      return
+    }
+
+    root.bluetoothBusy = true
+    try {
+      root.bluetoothAdapter.enabled = !on
+    } catch (e) {
+      root.actionError = "Could not change Bluetooth"
+    }
+    root.bluetoothBusy = false
   }
 
   // Cycling the radio is the fix for the state a network manager occasionally
@@ -694,6 +786,8 @@ Item {
 
     root.actionError = ""
     root.restarting = true
+    root.restartToken += 1
+    restartOn.token = root.restartToken
     NetworkHost.setWifiEnabled(false)
     restartOn.restart()
   }
@@ -701,9 +795,23 @@ Item {
   Timer {
     id: restartOn
     interval: 500
+    property int token: 0
     onTriggered: {
+      if (token !== root.restartToken) return
+      if (root.radioEnabled) {
+        root.restarting = false
+        return
+      }
       NetworkHost.setWifiEnabled(true)
       root.restarting = false
+    }
+  }
+
+  onRadioEnabledChanged: {
+    if (root.restarting && root.radioEnabled) {
+      restartOn.stop()
+      root.restarting = false
+      root.restartToken += 1
     }
   }
 
@@ -719,6 +827,9 @@ Item {
   Component.onDestruction: {
     NetworkHost.deactivate()
     qrQuery.running = false
+    restartOn.stop()
+    if (root.restarting) NetworkHost.setWifiEnabled(true)
+    root.restarting = false
     if (root.stateDir !== "") rmQr.running = true
   }
 
@@ -734,6 +845,7 @@ Item {
 
   // Signal bars: four steps, filled by where the percentage lands.
   function signalLevel(percent) {
+    if (percent <= 0) return 0
     if (percent >= 70) return 4
     if (percent >= 45) return 3
     if (percent >= 20) return 2
@@ -846,6 +958,7 @@ Item {
         label: "Airplane"
         value: root.airplaneMode ? "On" : "Off"
         navigational: false
+        available: !root.radioBusy && !root.bluetoothBusy
         onClicked: root.setAirplane(!root.airplaneMode)
       }
     }
@@ -1147,7 +1260,10 @@ Item {
               onVisibleChanged: {
                 if (!visible) return
                 inlineSecretField.text = ""
-                Qt.callLater(function () { inlineSecretField.forceActiveFocus() })
+                Qt.callLater(function () {
+                  if (inlineSecretField.visible && inlineSecretField.parent)
+                    inlineSecretField.forceActiveFocus()
+                })
               }
 
               Text {
@@ -1165,20 +1281,26 @@ Item {
                 width: parent.width
                 echoMode: TextInput.Password
                 placeholderText: "network password"
-                Keys.onEscapePressed: root.askingSsid = ""
-                onAccepted: root.connectSecret(inlineSecretField.text)
+                Keys.onEscapePressed: {
+                  inlineSecretField.text = ""
+                  root.askingSsid = ""
+                }
+                onAccepted: {
+                  const secret = inlineSecretField.text
+                  inlineSecretField.text = ""
+                  root.connectSecret(secret, netRow.modelData.ssid)
+                }
               }
 
               PanelActionButton {
                 width: parent.width
                 label: "Connect"
                 navigational: false
-                available: inlineSecretField.text !== ""
+                available: !root.busy && root.actionSsid === "" && inlineSecretField.text !== ""
                 onClicked: {
-                  if (inlineSecretField.text !== "")
-                    NetworkHost.connectWithPsk(netRow.modelData, inlineSecretField.text)
-                  else
-                    root.connect(netRow.modelData.ssid)
+                  const secret = inlineSecretField.text
+                  inlineSecretField.text = ""
+                  root.connectSecret(secret, netRow.modelData.ssid)
                 }
               }
 
@@ -1186,7 +1308,10 @@ Item {
                 width: parent.width
                 label: "Cancel"
                 navigational: false
-                onClicked: root.askingSsid = ""
+                onClicked: {
+                  inlineSecretField.text = ""
+                  root.askingSsid = ""
+                }
               }
             }
 
@@ -1208,17 +1333,16 @@ Item {
               TextButton {
                 label: netRow.modelData.inUse ? "Disconnect" : "Connect"
                 active: netRow.modelData.inUse
-                available: !root.busy
+                available: !root.busy && root.actionSsid === ""
                 onClicked: {
                   if (netRow.modelData.inUse) {
                     root.expandedSsid = ""
                     root.disconnect(netRow.modelData.ssid)
-                  } else if (netRow.modelData.secured && inlineSecretField.text !== "") {
-                    root.expandedSsid = netRow.modelData.ssid
-                    NetworkHost.connectWithPsk(netRow.modelData, inlineSecretField.text)
                   } else {
+                    const secret = inlineSecretField.text
+                    if (secret !== "") inlineSecretField.text = ""
                     root.expandedSsid = netRow.modelData.ssid
-                    root.connect(netRow.modelData.ssid)
+                    root.connectSecret(secret, netRow.modelData.ssid)
                   }
                 }
               }
