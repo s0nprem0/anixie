@@ -64,7 +64,7 @@ Item {
 
       Column {
         id: sidebar
-        width: Style.space(160)
+        width: Style.space(180)
         spacing: Style.space(4)
         focus: true
 
@@ -86,9 +86,9 @@ Item {
             required property var modelData
             required property int index
             width: sidebar.width
-            height: Style.space(32)
+            height: Style.space(36)
             radius: Theme.cornerRadius
-            color: tabButton.active ? Theme.primary : (tabMouse.containsMouse ? Theme.bg : "transparent")
+            color: tabButton.active ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.18) : (tabMouse.containsMouse ? Theme.bg : "transparent")
             border.width: Style.strokeWidth
             border.color: tabButton.active ? Theme.primary : Theme.border
 
@@ -100,7 +100,7 @@ Item {
 
               Text {
                 text: tabButton.modelData.icon
-                color: tabButton.active ? Theme.bg : Theme.fg
+                color: tabButton.active ? Theme.primary : Theme.fg
                 font.family: "JetBrainsMono Nerd Font"
                 font.pixelSize: Style.font.body
                 renderType: Text.NativeRendering
