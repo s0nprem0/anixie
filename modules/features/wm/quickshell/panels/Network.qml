@@ -967,9 +967,14 @@ Item {
       width: card.contentWidth
       visible: root.vpns.some(function (vpn) { return vpn.active })
       label: "VPN"
+      controlWidth: 0
+      hasControl: false
       value: {
         for (let i = 0; i < root.vpns.length; i++) {
-          if (root.vpns[i].active) return root.vpns[i].name + " connected"
+          if (root.vpns[i].active) {
+            const name = root.vpns[i].name || ""
+            return name.length > 20 ? name.substring(0, 17) + "…" : name + " connected"
+          }
         }
         return "None"
       }
@@ -1019,7 +1024,7 @@ Item {
 
           ChoiceRow {
             width: parent.width
-            height: Style.space(28)
+            height: Style.space(26)
             available: root.radioEnabled && !root.busy
             clip: true
 
@@ -1396,9 +1401,9 @@ Item {
             required property var modelData
 
             width: parent.width
-            label: modelData.name + " (" + modelData.type + ")"
+            label: (modelData.name.length > 18 ? modelData.name.substring(0, 15) + "…" : modelData.name) + " (" + modelData.type + ")"
             value: (modelData.active ? "Connected" : "Disconnected")
-              + " · " + (modelData.active ? "disconnect" : "connect")
+              + " · " + (modelData.active ? "disc" : "conn")
             navigational: false
             available: !root.vpnBusy
             onClicked: root.toggleVpn(modelData)

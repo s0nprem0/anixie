@@ -86,8 +86,8 @@ Item {
       ? valueText.left
       : (root.navigational ? chevron.left : parent.right)
     anchors.rightMargin: valueText.visible
-      ? Style.space(12)
-      : (root.navigational ? Style.space(10) : 0)
+      ? Style.space(6)
+      : (root.navigational ? Style.space(6) : 0)
     anchors.verticalCenter: parent.verticalCenter
     text: root.label
     color: root.foreground
@@ -100,16 +100,16 @@ Item {
   Text {
     id: valueText
     anchors.right: root.navigational ? chevron.left : parent.right
-    anchors.rightMargin: Style.space(10)
+    anchors.rightMargin: root.navigational ? Style.space(6) : 0
     anchors.verticalCenter: parent.verticalCenter
     visible: root.value !== ""
-    width: Math.min(implicitWidth, Style.space(140))
+    width: Math.min(implicitWidth, Style.space(80))
     text: root.value
     color: Theme.muted
     font.family: Style.font.family
     font.pixelSize: Style.font.bodySmall
     renderType: Text.NativeRendering
-    elide: Text.ElideLeft
+    elide: Text.ElideRight
   }
 
   // Invisible rather than absent: the value anchors to its left edge whether or
