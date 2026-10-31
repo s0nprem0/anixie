@@ -25,8 +25,12 @@ Item {
 
   height: Style.space(34)
 
-  scale: hover.containsMouse ? 1.06 : 1.0
-  transformOrigin: Item.Center
+  transform: Scale {
+    origin.x: root.width / 2
+    origin.y: root.height / 2
+    xScale: hover.containsMouse ? 1.06 : 1.0
+    yScale: hover.containsMouse ? 1.06 : 1.0
+  }
   Behavior on scale { NumberAnimation { duration: Style.duration(120) } }
 
   Rectangle {
