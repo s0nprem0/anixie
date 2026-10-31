@@ -17,6 +17,7 @@ import ".."
 // the order they are written, and reports what the focused one does when asked.
 FocusScope {
   id: root
+  clip: true
 
   // Children a panel declares land in the content column rather than on the
   // card itself, which is the whole point of the type.

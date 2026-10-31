@@ -22,6 +22,7 @@ Item {
   Panel {
     id: card
     anchors.fill: parent
+    clip: true
 
     PanelHero {
       width: card.contentWidth

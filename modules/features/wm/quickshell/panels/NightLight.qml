@@ -91,9 +91,7 @@ Item {
 
     PanelSeparator {}
 
-    PanelSeparator {}
-
-    Row {
+    Flow {
       width: card.contentWidth
       spacing: Style.space(6)
 

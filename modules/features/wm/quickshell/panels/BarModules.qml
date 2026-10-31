@@ -119,6 +119,7 @@ Item {
   Panel {
     id: card
     anchors.fill: parent
+    clip: true
     maxWidth: Style.space(460)
 
     PanelHero {
