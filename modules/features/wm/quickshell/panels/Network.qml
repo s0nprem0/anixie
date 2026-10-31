@@ -1142,7 +1142,7 @@ Item {
             Column {
               width: parent.width
               spacing: Style.space(6)
-              visible: root.askingSsid === netRow.modelData.ssid
+              visible: netRow.modelData.secured && !netRow.modelData.inUse
 
               onVisibleChanged: {
                 if (!visible) return
@@ -1174,7 +1174,12 @@ Item {
                 label: "Connect"
                 navigational: false
                 available: inlineSecretField.text !== ""
-                onClicked: root.connectSecret(inlineSecretField.text)
+                onClicked: {
+                  if (inlineSecretField.text !== "")
+                    NetworkHost.connectWithPsk(netRow.modelData, inlineSecretField.text)
+                  else
+                    root.connect(netRow.modelData.ssid)
+                }
               }
 
               PanelActionButton {
@@ -1197,6 +1202,9 @@ Item {
                   if (netRow.modelData.inUse) {
                     root.expandedSsid = ""
                     root.disconnect(netRow.modelData.ssid)
+                  } else if (netRow.modelData.secured && inlineSecretField.text !== "") {
+                    root.expandedSsid = netRow.modelData.ssid
+                    NetworkHost.connectWithPsk(netRow.modelData, inlineSecretField.text)
                   } else {
                     root.expandedSsid = netRow.modelData.ssid
                     root.connect(netRow.modelData.ssid)
