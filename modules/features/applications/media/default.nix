@@ -28,16 +28,20 @@ in
       pkgs.mpv
     ]
     ++ lib.optionals cfg.obs [
-      (pkgs.wrapOBS {
-        plugins = with pkgs.obs-studio-plugins; [ distroav ];
-      }).overrideAttrs (old: {
-        nativeBuildInputs = (old.nativeBuildInputs or []) ++ [ pkgs.makeWrapper ];
-        postBuild = (old.postBuild or "") + ''
-          wrapProgram $out/bin/obs \
-            --set NDILIB_REDIST_FOLDER ${pkgs.ndi-6}/lib \
-            --prefix LD_LIBRARY_PATH : ${pkgs.ndi-6}/lib
-        '';
-      })
+      (pkgs.runCommand "obs-studio-ndi" {
+        nativeBuildInputs = [ pkgs.makeWrapper ];
+        propagatedBuildInputs = [
+          (pkgs.wrapOBS {
+            plugins = with pkgs.obs-studio-plugins; [ distroav ];
+          })
+        ];
+      } ''
+        mkdir -p $out/bin
+        makeWrapper ${pkgs.wrapOBS { plugins = with pkgs.obs-studio-plugins; [ distroav ]; }}/bin/obs $out/bin/obs \
+          --set NDILIB_REDIST_FOLDER ${pkgs.ndi-6}/lib \
+          --prefix LD_LIBRARY_PATH : ${pkgs.ndi-6}/lib
+        ln -s ${pkgs.wrapOBS { plugins = with pkgs.obs-studio-plugins; [ distroav ]; }}/share $out/share 2>/dev/null || true
+      '')
     ];
 
     xdg.mimeApps = {
