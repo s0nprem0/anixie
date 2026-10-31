@@ -185,10 +185,10 @@ Item {
       opacity: WorkspaceOverviewHost.shown ? 1 : 0
       scale: WorkspaceOverviewHost.shown ? 1 : 0.97
       Behavior on opacity {
-        NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic }
+        NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.InOutCubic }
       }
       Behavior on scale {
-        NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic }
+        NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.InOutCubic }
       }
     }
 
