@@ -14,21 +14,35 @@ workspace_base() {
 # The mapping is written to workspaces.json for the bar, and the workspace rules
 # are re-asserted through Hyprland's Lua API.
 workspaces_sync_action() {
-  local map names name base candidate i lua tmp
+  local map names name base candidate i lua tmp identity identities
   map='{}'
   if [ -f "$workspace_file" ]; then
     map=$(cat "$workspace_file" 2>/dev/null || printf '{}')
     "$jq" -e 'type == "object"' <<<"$map" >/dev/null 2>&1 || map='{}'
   fi
 
+  # Identity map: prefer the EDID serial so a display keeps its workspace block
+  # when it moves to a different port. Fall back to the output name when no
+  # serial is reported.
+  identities='{}'
+  [ -f "$state_dir/monitor_identities.json" ] && identities=$(cat "$state_dir/monitor_identities.json" 2>/dev/null || printf '{}')
+  "$jq" -e 'type == "object"' <<<"$identities" >/dev/null 2>&1 || identities='{}'
+
   names=$("$jq" -r '.[].name' <<<"$(monitors_json)")
   for name in $names; do
-    if [ "$("$jq" -r --arg n "$name" 'has($n)' <<<"$map")" != true ]; then
+    identity=$("$jq" -r --arg n "$name" '.[] | select(.name == $n) | (.serial // .name)' <<<"$(all_monitors_json)")
+    [ -n "$identity" ] || identity="$name"
+    # Migrate an old name-keyed entry to the identity key on first run.
+    if [ "$("$jq" -r --arg n "$name" 'has($n)' <<<"$map")" = true ] &&        [ "$("$jq" -r --arg i "$identity" 'has($i)' <<<"$map")" != true ]; then
+      base=$("$jq" -r --arg n "$name" '.[$n]' <<<"$map")
+      map=$("$jq" --arg n "$name" --arg i "$identity" --argjson b "$base" 'del(.[$n]) + {($i): $b}' <<<"$map")
+    fi
+    if [ "$("$jq" -r --arg i "$identity" 'has($i)' <<<"$map")" != true ]; then
       candidate=1
       while [ "$("$jq" -r --argjson b "$candidate" 'any(.[]; . == $b)' <<<"$map")" = true ]; do
         candidate=$((candidate + 10))
       done
-      map=$("$jq" --arg n "$name" --argjson b "$candidate" '. + {($n): $b}' <<<"$map")
+      map=$("$jq" --arg i "$identity" --argjson b "$candidate" '. + {($i): $b}' <<<"$map")
     fi
   done
 

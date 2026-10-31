@@ -22,8 +22,14 @@ BarWidget {
   readonly property string workspaceState: (Quickshell.env("XDG_STATE_HOME")
     || Quickshell.env("HOME") + "/.local/state") + "/anixie/workspaces.json"
   property var mapping: ({})
+  property var identities: ({})
   readonly property int base: {
-    const value = Number(root.mapping[root.screenName])
+    const name = root.screenName
+    if (name === "") return 1
+    const identity = (root.identities && root.identities[name] && root.identities[name].serial)
+      ? root.identities[name].serial
+      : name
+    const value = Number(root.mapping[identity])
     return isFinite(value) && value > 0 ? value : 1
   }
 
@@ -35,6 +41,25 @@ BarWidget {
 
     Component.onCompleted: root.parseMapping()
     onTextChanged: root.parseMapping()
+  }
+
+  property FileView identityFile: FileView {
+    path: Qt.resolvedUrl((Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/anixie/monitor_identities.json")
+    printErrors: false
+    blockLoading: true
+    watchChanges: true
+
+    Component.onCompleted: root.parseIdentities()
+    onTextChanged: root.parseIdentities()
+  }
+
+  function parseIdentities() {
+    try {
+      const data = JSON.parse(String(root.identityFile.text() || "{}"))
+      root.identities = data && typeof data === "object" && !Array.isArray(data) ? data : ({})
+    } catch (e) {
+      root.identities = ({})
+    }
   }
 
   function parseMapping() {
@@ -51,7 +76,10 @@ BarWidget {
   Connections {
     target: Hyprland
     function onRawEvent(event) {
-      if (String(event.name).indexOf("monitor") === 0) root.mappingFile.reload()
+      if (String(event.name).indexOf("monitor") === 0) {
+        root.mappingFile.reload()
+        root.identityFile.reload()
+      }
     }
   }
 
