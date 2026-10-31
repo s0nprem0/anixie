@@ -73,6 +73,7 @@ BarWidget {
     keyboardSet.command = ["brightnessctl", "--device", root.keyboardDevice,
                            "set", String(Math.round(percent * root.keyboardMax / 100))]
     keyboardSet.running = true
+    OsdHost.show("keyboard", "Keyboard backlight " + Math.round(percent) + "%", "", "", "", 1200)
   }
 
   function adjust(delta) {
