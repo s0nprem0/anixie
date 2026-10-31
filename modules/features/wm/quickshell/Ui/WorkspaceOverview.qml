@@ -50,14 +50,32 @@ Item {
             Repeater {
               model: modelData.toplevels ? modelData.toplevels.values : []
 
-              delegate: Text {
+              delegate: Row {
                 required property var modelData
-                text: "• " + String(modelData.title || modelData.class || "window")
-                color: Theme.muted
-                font.family: Style.font.family
-                font.pixelSize: Style.font.bodySmall
-                elide: Text.ElideRight
-                renderType: Text.NativeRendering
+                property string address: String(modelData.address || "")
+                spacing: Style.space(6)
+
+                Drag.active: dragArea.drag.active
+                Drag.source: parent
+                Drag.hotSpot.x: width / 2
+                Drag.hotSpot.y: height / 2
+
+                Image {
+                  width: Style.space(16)
+                  height: Style.space(16)
+                  source: Quickshell.iconPath(String(modelData.class || ""), "")
+                  visible: source !== ""
+                  fillMode: Image.PreserveAspectFit
+                }
+
+                Text {
+                  text: "• " + String(modelData.title || modelData.class || "window")
+                  color: Theme.muted
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.bodySmall
+                  elide: Text.ElideRight
+                  renderType: Text.NativeRendering
+                }
 
                 MouseArea {
                   anchors.fill: parent
@@ -66,12 +84,31 @@ Item {
                     if (modelData.address) Commands.run("hyprctl dispatch 'hl.dsp.focus({window = \"" + modelData.address + "\"})'")
                   }
                 }
+
+                MouseArea {
+                  id: dragArea
+                  anchors.fill: parent
+                  drag.target: parent
+                  onPressed: parent.Drag.active = true
+                  onReleased: parent.Drag.active = false
+                }
               }
             }
 
             MouseArea {
               anchors.fill: parent
               onClicked: Commands.run("hyprctl dispatch 'hl.dsp.focus({workspace = " + modelData.id + "})'")
+            }
+
+            DropArea {
+              anchors.fill: parent
+              onDropped: function (drop) {
+                const source = drop.source
+                const addr = source && source.address ? source.address : ""
+                if (addr !== "") {
+                  Commands.run("hyprctl dispatch movetoworkspace " + modelData.id + ",address:" + addr)
+                }
+              }
             }
           }
         }
