@@ -17,6 +17,7 @@ Item {
   property bool active: false
   property bool danger: false
   property bool available: true
+  property string tooltipText: ""
 
   signal clicked()
 
@@ -71,6 +72,8 @@ Item {
     enabled: root.available
     hoverEnabled: true
     cursorShape: root.available ? Qt.PointingHandCursor : Qt.ArrowCursor
+    onEntered: if (root.tooltipText !== "") TooltipHost.show(root.tooltipText, root)
+    onExited: if (root.tooltipText !== "") TooltipHost.hide(root)
     onClicked: root.clicked()
   }
 }

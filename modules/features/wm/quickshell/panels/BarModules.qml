@@ -249,6 +249,7 @@ Item {
 
                 TextButton {
                   label: "↑"
+                  tooltipText: "Move up"
                   available: root.filterText.trim() === ""
                   onClicked: {
                     if (root.filterText.trim() === "" && moduleRow.index > 0)
@@ -258,6 +259,7 @@ Item {
 
                 TextButton {
                   label: "↓"
+                  tooltipText: "Move down"
                   available: root.filterText.trim() === ""
                   onClicked: {
                     const full = root.entriesOf(sectionItem.sectionName)
@@ -268,11 +270,13 @@ Item {
 
                 TextButton {
                   label: "Park"
+                  tooltipText: "Park in the tray (remembers original place)"
                   onClicked: BarConfig.disable(moduleRow.moduleId)
                 }
 
                 TextButton {
                   label: "Remove"
+                  tooltipText: "Fully remove (no tray, re-enable goes to default section)"
                   onClicked: BarConfig.remove(moduleRow.moduleId)
                 }
               }
