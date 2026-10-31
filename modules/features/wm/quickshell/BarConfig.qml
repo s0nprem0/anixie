@@ -278,8 +278,30 @@ QtObject {
     return BarLayout.sectionFor(root.config, id, root.defaults)
   }
 
+  function undo() {
+    if (!root.hasPrevious) return false
+    const prev = root.previousState
+    root.hasPrevious = false
+    root.undoing = true
+    if (prev === null) {
+      root.reset()
+    } else {
+      root.state = prev
+      root.save(prev)
+    }
+    root.undoing = false
+    return true
+  }
+
   function save(next) {
     next = State.upgrade(next)
+
+    // Remember what we are replacing, so `undo()` can put it back, unless
+    // this save is itself the undo.
+    if (!root.undoing) {
+      root.previousState = root.state
+      root.hasPrevious = true
+    }
 
     // The in-memory layout moves immediately, before the file is written. The
     // write goes through a process and a file adapter, and a second move in that
@@ -307,6 +329,9 @@ QtObject {
   // What was last written, so the write can be deferred until the directory
   // exists without losing a later change.
   property string savedText: ""
+  property var previousState: null
+  property bool hasPrevious: false
+  property bool undoing: false
 
   // The last persistence error, if any. Empty when the saved layout is in sync
   // with disk.

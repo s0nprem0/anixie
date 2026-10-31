@@ -140,6 +140,17 @@ Item {
       onTextChanged: root.filterText = text
     }
 
+    Row {
+      width: card.contentWidth
+      spacing: Style.space(6)
+
+      TextButton {
+        label: "Undo"
+        available: BarConfig.hasPrevious
+        onClicked: BarConfig.undo()
+      }
+    }
+
     Repeater {
       model: root.sections
 

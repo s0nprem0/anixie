@@ -50,6 +50,9 @@ Item {
       PanelHost.closeAll()
       BarConfig.reset()
     }
+    function undo(): string {
+      return BarConfig.undo() ? "ok" : "nothing to undo"
+    }
     function background(mode: string): string {
       return BarConfig.setBackground(mode) ? "ok" : "background must be clear, glassy or opaque"
     }
