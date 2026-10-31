@@ -165,4 +165,6 @@ Item {
     cursorShape: root.available ? Qt.PointingHandCursor : Qt.ArrowCursor
     onClicked: root.clicked()
   }
+
+  clip: true
 }

@@ -32,6 +32,7 @@ Item {
   // it would silently ignore a click. A queue does neither. Each entry is
   // { mode: "set" | "try", args: [output, key, value] }.
   property var pending: []
+  property var pendingStates: ({})
 
   // The last list this panel rendered. A poll that finds the same answer must
   // not hand the Repeater a new array: that destroys every delegate — and with

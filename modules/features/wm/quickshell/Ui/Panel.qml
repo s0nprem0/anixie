@@ -431,19 +431,20 @@ FocusScope {
     target: root.focusedItem
     enabled: root.focusedItem !== null
     function onVisibleChanged() {
-      if (target && target.visible === false) root.focusedItem = null
+      const item = root.focusedItem
+      if (item && item.visible === false) root.focusedItem = null
     }
     function onEnabledChanged() {
-      if (target && target.enabled === false) root.focusedItem = null
+      const item = root.focusedItem
+      if (item && item.enabled === false) root.focusedItem = null
     }
     function onPanelFocusableChanged() {
-      if (target && target.panelFocusable !== true) root.focusedItem = null
+      const item = root.focusedItem
+      if (item && item.panelFocusable !== true) root.focusedItem = null
     }
     function onParentChanged() {
-      if (!target || target.parent === null) root.focusedItem = null
-    }
-    function onDestroyed() {
-      root.focusedItem = null
+      const item = root.focusedItem
+      if (!item || item.parent === null) root.focusedItem = null
     }
     function onXChanged() { root.updateRing() }
     function onYChanged() { root.updateRing() }
