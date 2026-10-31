@@ -693,6 +693,7 @@ Item {
 
           PanelRow {
             id: sdrBrightnessRow
+            visible: CompositorHost.supportsMonitorColorMgmt
             width: parent.width
             hasControl: true
             label: "SDR brightness"
@@ -716,6 +717,7 @@ Item {
 
           PanelRow {
             id: sdrSaturationRow
+            visible: CompositorHost.supportsMonitorColorMgmt
             width: parent.width
             hasControl: true
             label: "SDR saturation"
