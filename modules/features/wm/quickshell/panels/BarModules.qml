@@ -302,38 +302,55 @@ Item {
       spacing: Style.space(6)
 
       readonly property var enabledIds: BarConfig.enabledModules
+      property string selected: enabledIds.length > 0 ? enabledIds[0] : ""
 
       Dropdown {
         id: widgetSelect
         width: parent.width
         model: parent.enabledIds
         currentIndex: 0
+        onActivated: function (i) {
+          const ids = parent.enabledIds
+          if (i >= 0 && i < ids.length) parent.selected = ids[i]
+        }
+      }
+
+      readonly property string selectedId: parent.selected
+
+      Text {
+        width: parent.width
+        visible: parent.enabledIds.length === 0
+        text: "No enabled widgets"
+        color: Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        renderType: Text.NativeRendering
       }
 
       TextField {
         width: parent.width
-        visible: String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || "").indexOf("clock") !== -1
+        visible: parent.selectedId.indexOf("clock") !== -1
         placeholderText: "Clock format (e.g. dddd HH:mm)"
-        text: BarConfig.settingOf(String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || ""), "format") || ""
-        onEditingFinished: BarConfig.setSetting(String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || ""), "format", text)
+        text: BarConfig.settingOf(parent.selectedId, "format") || ""
+        onEditingFinished: BarConfig.setSetting(parent.selectedId, "format", text)
       }
 
       TextField {
         width: parent.width
-        visible: String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || "").indexOf("weather") !== -1
+        visible: parent.selectedId.indexOf("weather") !== -1
         placeholderText: "Weather location"
-        text: BarConfig.settingOf(String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || ""), "location") || ""
-        onEditingFinished: BarConfig.setSetting(String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || ""), "location", text)
+        text: BarConfig.settingOf(parent.selectedId, "location") || ""
+        onEditingFinished: BarConfig.setSetting(parent.selectedId, "location", text)
       }
 
       TextField {
         width: parent.width
-        visible: String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || "").indexOf("weather") !== -1
+        visible: parent.selectedId.indexOf("weather") !== -1
         placeholderText: "Weather interval (seconds)"
-        text: String(BarConfig.settingOf(String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || ""), "interval") || "")
+        text: String(BarConfig.settingOf(parent.selectedId, "interval") || "")
         onEditingFinished: {
           const n = parseInt(text, 10)
-          if (isFinite(n)) BarConfig.setSetting(String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || ""), "interval", n)
+          if (isFinite(n)) BarConfig.setSetting(parent.selectedId, "interval", n)
         }
       }
     }
