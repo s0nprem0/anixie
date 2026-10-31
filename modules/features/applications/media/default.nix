@@ -28,8 +28,18 @@ in
       pkgs.mpv
     ]
     ++ lib.optionals cfg.obs [
-      (pkgs.wrapOBS {
-        plugins = with pkgs.obs-studio-plugins; [ distroav ];
+      (pkgs.symlinkJoin {
+        name = "obs-studio-ndi";
+        paths = [
+          (pkgs.wrapOBS {
+            plugins = with pkgs.obs-studio-plugins; [ distroav ];
+          })
+        ];
+        nativeBuildInputs = [ pkgs.makeWrapper ];
+        postBuild = ''
+          wrapProgram $out/bin/obs \
+            --prefix LD_LIBRARY_PATH : ${pkgs.ndi-6}/lib
+        '';
       })
     ];
 
