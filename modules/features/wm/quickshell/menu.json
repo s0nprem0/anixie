@@ -183,6 +183,10 @@
           "run": "shortcuts"
         },
         {
+          "label": "Settings",
+          "run": "quickshell ipc call settings open"
+        },
+        {
           "group": "Plugins",
           "entries": [
             {
