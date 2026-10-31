@@ -77,14 +77,14 @@ Item {
           (root.width - Style.space(24) - Style.space(10) - Style.space(44)
            - Style.space(10) - Style.space(28)))
         height: Style.space(6)
-        radius: height / 2
+        radius: Theme.cornerRadius
         color: Theme.separator
         clip: true
 
         Rectangle {
           width: Math.max(0, Math.min(parent.width, parent.width * root.ratio))
           height: parent.height
-          radius: parent.radius
+          radius: Theme.cornerRadius
           color: Theme.primary
 
           Behavior on width {
