@@ -1054,9 +1054,6 @@ Item {
       onActionTriggered: root.rescan()
     }
 
-      PanelSeparator {}
-    }
-
     Column {
       width: card.contentWidth
       spacing: Style.space(2)
