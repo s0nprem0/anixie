@@ -296,7 +296,13 @@ Item {
                 anchors.fill: parent
                 enabled: root.filterText.trim() === ""
 
-                onEntered: function (drag) { dropTarget.highlight = true }
+                onEntered: function (drag) {
+                  dropTarget.highlight = true
+                  dropTarget.dropY = drag ? drag.y : 0
+                }
+                onPositionChanged: function (drag) {
+                  if (drag) dropTarget.dropY = drag.y
+                }
                 onExited: dropTarget.highlight = false
                 onDropped: function (drop) {
                   dropTarget.highlight = false
@@ -308,13 +314,18 @@ Item {
                 }
 
                 property bool highlight: false
+                property real dropY: 0
               }
 
               Rectangle {
-                anchors.fill: parent
-                color: dropTarget.highlight ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
-                radius: Theme.cornerRadius
-                z: -1
+                x: 0
+                y: dropTarget.dropY < (parent.height / 2) ? 0 : (parent.height - height)
+                width: parent.width
+                height: dropTarget.highlight ? Style.space(2) : 0
+                color: Theme.primary
+                radius: 0
+                z: 1
+                visible: dropTarget.highlight
               }
             }            }
           }
