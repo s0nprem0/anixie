@@ -8,6 +8,7 @@ QtObject {
   id: root
 
   property var panelComponent: null
+  property string requestedTab: ""
 
   function panelBuilder() {
     if (root.panelComponent === null) {
@@ -17,6 +18,11 @@ QtObject {
   }
 
   function open() {
+    root.openTab("")
+  }
+
+  function openTab(name) {
+    root.requestedTab = String(name || "")
     const anchor = PanelHost.focusedBar
     if (!anchor) return
     const component = root.panelBuilder()
