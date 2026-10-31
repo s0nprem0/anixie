@@ -17,7 +17,7 @@ QtObject {
 
   function panelBuilder() {
     if (root.panelComponent === null) {
-      root.panelComponent = Qt.createComponent(Qt.resolvedUrl("../panels/Bar.qml"))
+      root.panelComponent = Qt.createComponent(Qt.resolvedUrl("../panels/BarModules.qml"))
     }
     return root.panelComponent
   }
