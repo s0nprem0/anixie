@@ -186,6 +186,18 @@ Item {
     }
   }
 
+  // Running indicator: a dot or a line, depending on the dock's style.
+  Rectangle {
+    anchors.left: parent.left
+    anchors.leftMargin: Style.space(2)
+    anchors.verticalCenter: parent.verticalCenter
+    visible: root.windows.length > 0
+    width: DockHost.indicatorStyle === "line" ? Style.space(3) : Style.space(6)
+    height: DockHost.indicatorStyle === "line" ? parent.height - Style.space(10) : Style.space(6)
+    radius: DockHost.indicatorStyle === "dot" ? width / 2 : Style.strokeWidth
+    color: root.anyFocused ? Theme.primary : Theme.muted
+  }
+
   // Only on hover, and only for the tile under the pointer, so a dock full of
   // close buttons is not a wall of targets.
   Rectangle {

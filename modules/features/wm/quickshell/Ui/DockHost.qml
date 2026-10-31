@@ -34,6 +34,9 @@ QtObject {
   // automatically would surprise anyone who opened it on purpose.
   property bool autoHide: false
 
+  // Running indicator style for tiles that have a window open.
+  property string indicatorStyle: "dot"
+
   // Pinned apps stay in the dock even with no window. Persisted separately
   // from the bar layout so a dock reset does not touch the bar.
   property var pinned: []
