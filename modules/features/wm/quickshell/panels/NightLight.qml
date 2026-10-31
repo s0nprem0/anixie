@@ -85,12 +85,23 @@ Item {
 
   function apply() {
     if (root.enabled) {
-      hyprsunset.command = ["hyprsunset", "-t", String(root.temperature)]
-      hyprsunset.running = false
-      hyprsunset.running = true
+      if (CompositorHost.isHyprland) {
+        hyprsunset.command = ["hyprsunset", "-t", String(root.temperature)]
+        hyprsunset.running = false
+        hyprsunset.running = true
+      } else {
+        gammastep.command = ["gammastep", "-O", String(root.temperature)]
+        gammastep.running = false
+        gammastep.running = true
+      }
     } else {
-      hyprsunsetStop.running = false
-      hyprsunsetStop.running = true
+      if (CompositorHost.isHyprland) {
+        hyprsunsetStop.running = false
+        hyprsunsetStop.running = true
+      } else {
+        gammastepStop.running = false
+        gammastepStop.running = true
+      }
     }
   }
 
@@ -99,6 +110,12 @@ Item {
     id: hyprsunsetStop
     running: false
     command: ["pkill", "-x", "hyprsunset"]
+  }
+  Process { id: gammastep; running: false }
+  Process {
+    id: gammastepStop
+    running: false
+    command: ["gammastep", "-x"]
   }
 }
 EOF

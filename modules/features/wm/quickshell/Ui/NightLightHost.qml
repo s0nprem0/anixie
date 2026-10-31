@@ -37,5 +37,3 @@ QtObject {
     PanelHost.close("nightlight")
   }
 }
-EOF
-echo done
