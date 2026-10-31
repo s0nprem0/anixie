@@ -33,7 +33,7 @@ Item {
   AnimatedImage {
     anchors.fill: parent
     source: BackgroundHost.videoFor(root.screenName)
-      ? ""
+      ? root.imageUrl(BackgroundHost.posterFor(root.screenName))
       : root.imageUrl(BackgroundHost.pathFor(root.screenName))
     sourceSize.width: width
     sourceSize.height: height

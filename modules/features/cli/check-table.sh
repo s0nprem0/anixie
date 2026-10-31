@@ -28,7 +28,7 @@ hidden() {
   case "$1" in
     theme) printf '%s\n' previous ;;
     update) printf '%s\n' --allow-dirty ;;
-    wallpaper) printf '%s\n' pick ls add-file use previous theme default ;;
+    wallpaper) printf '%s\n' pick ls add-file use record previous theme default ;;
     power) printf '%s\n' watch ;;
     clipboard) printf '%s\n' --list --text --images --image --delete --wipe ;;
     reminder) printf '%s\n' --interactive --ask list ;;

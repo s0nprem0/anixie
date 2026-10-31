@@ -550,6 +550,14 @@ wallpaper_theme() {
   generate "$wp" "$requested"
   materialise wallpaper
   state_unlock
+  # A named picture is the background the palette came from. `wallpaper use`
+  # has already recorded its own choice (and may have recorded it for one
+  # output only), so it sets ANIXIE_WALLPAPER_RECORDED to keep this from
+  # replacing that with a global one.
+  if [ -n "$wp" ] && [ "${ANIXIE_WALLPAPER_RECORDED:-}" != "1" ]; then
+    "$wallpaper" record "$wp" >/dev/null 2>&1 \
+      || printf 'theme: could not record the wallpaper choice\n' >&2
+  fi
   tell_apps wallpaper
   run_hooks wallpaper
   printf 'Theme: wallpaper\n'

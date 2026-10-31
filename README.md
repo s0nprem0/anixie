@@ -297,8 +297,10 @@ preset so a runtime choice can be made the build default.
 and falls back to the previous palette on an unreadable picture. Results are
 cached per picture and mode (a video contributes its first frame). An explicit
 `auto`/`light`/`dark` is remembered for the next picture, and
-`theme set wallpaper` reuses the last generated palette. While `wallpaper` is the
-theme, `anixie wallpaper` also regenerates the palette.
+`theme set wallpaper` reuses the last generated palette. Naming a picture also
+records it as the current background, so the palette and the wallpaper stay in
+step. While `wallpaper` is the theme, `anixie wallpaper` also regenerates the
+palette.
 
 The terminal gets the full 16-colour ANSI palette, so kitty, the zsh prompt, fzf,
 bat and eza follow the theme, not just the background. GTK also gets
@@ -306,8 +308,10 @@ palette-derived `gtk.css`, beyond the light/dark switch.
 
 Wallpapers are resolved per output and stored in `wallpapers.json`; the shell
 reads the resulting `background.json`. Stills are drawn by the shell, videos by
-`mpvpaper`, and generated gradients match each output's resolution. The library
-scans `~/Pictures/Wallpapers`, `~/Pictures` and the per-theme folder by default.
+`mpvpaper`, and generated gradients match each output's resolution. The lock
+screen shows a still frame for a video wallpaper, and a display that is plugged
+in or changes resolution is re-applied automatically. The library scans
+`~/Pictures/Wallpapers`, `~/Pictures` and the per-theme folder by default.
 Set `anixie.theme.wallpaper.default` to a picture to use it wherever neither the
 theme nor an output has a choice; a runtime `anixie wallpaper use` still wins.
 

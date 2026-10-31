@@ -63,6 +63,7 @@ let
         "@DEFAULT_WALLPAPER@"
         "@SHA256SUM@"
         "@STAT@"
+        "@FLOCK@"
         "@ANIXIE_LIB@"
       ]
       [
@@ -85,6 +86,7 @@ let
         wallpaperDefault
         "${pkgs.coreutils}/bin/sha256sum"
         "${pkgs.coreutils}/bin/stat"
+        "${pkgs.util-linux}/bin/flock"
         "${../cli/lib.sh}"
       ]
       (builtins.readFile ./wallpaper.sh)

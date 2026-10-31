@@ -15,6 +15,8 @@
 #   wallpaper add DIR         add every picture in a folder
 #   wallpaper use FILE [--output NAME]
 #                             use a picture, for one output or all of them
+#   wallpaper record FILE [--output NAME]
+#                             save a choice without applying it (theme.sh)
 #   wallpaper next|prev [--random]
 #   wallpaper rotate          rotate to a random wallpaper
 #   wallpaper generated       go back to the palette gradient
@@ -47,6 +49,7 @@ PKILL="@PKILL@"
 QUICKSHELL="@QUICKSHELL@"
 SHA256SUM="@SHA256SUM@"
 STAT="@STAT@"
+FLOCK="@FLOCK@"
 WIDTH="@WIDTH@"
 HEIGHT="@HEIGHT@"
 
@@ -54,10 +57,25 @@ GENERATED="$STATE/wallpaper.png"
 WALLPAPERS="$STATE/wallpapers.json"
 BACKGROUND_JSON="$STATE/background.json"
 LIBRARY_CACHE="$STATE/library.json"
+LIBRARY_STAMP="$STATE/library.stamp"
 THUMBS="$STATE/thumbs"
+POSTERS="$STATE/posters"
 GENERATED_DIR="$STATE/wallpapers"
 
-mkdir -p "$STATE" "$THUMBS" "$GENERATED_DIR"
+mkdir -p "$STATE" "$THUMBS" "$POSTERS" "$GENERATED_DIR"
+
+# Selections are read-modify-write, and the rotation timer, the panel and the
+# command line can all reach them. One lock around the writes is enough to keep
+# a concurrent update from disappearing; reads are still atomic renames.
+wallpaper_lock() {
+  exec 9>"$STATE/.wallpapers.lock" || return 1
+  "$FLOCK" -w 30 9 || return 1
+}
+
+wallpaper_unlock() {
+  "$FLOCK" -u 9 2>/dev/null || true
+  exec 9>&-
+}
 
 write_atomic() {
   file="$1"
@@ -83,7 +101,7 @@ theme_dir() {
 }
 
 wallpapers_ensure() {
-  [ -s "$WALLPAPERS" ] || printf '{"version":1,"themes":{}}\n' >"$WALLPAPERS"
+  [ -s "$WALLPAPERS" ] || printf '{"version":1,"themes":{}}\n' | write_atomic "$WALLPAPERS"
 }
 
 # shellcheck disable=SC2016
@@ -175,17 +193,28 @@ save_selection() {
   path="$3"
   video="$4"
   theme=$(current_theme)
+
+  wallpaper_lock || {
+    printf 'wallpaper: could not lock the selection state\n' >&2
+    return 1
+  }
   wallpapers_ensure
 
   if [ -n "$output" ]; then
     "$JQ" --arg theme "$theme" --arg output "$output" --arg mode "$mode" --arg path "$path" --arg video "$video" '
       .themes[$theme].outputs[$output] = { mode: $mode, path: $path, video: ($video == "1") }
-    ' "$WALLPAPERS" | write_atomic "$WALLPAPERS"
+    ' "$WALLPAPERS" | write_atomic "$WALLPAPERS" || {
+      wallpaper_unlock
+      return 1
+    }
   else
     "$JQ" --arg theme "$theme" --arg mode "$mode" --arg path "$path" --arg video "$video" '
       .themes[$theme].fallback = { mode: $mode, path: $path, video: ($video == "1") }
       | .themes[$theme].outputs = {}
-    ' "$WALLPAPERS" | write_atomic "$WALLPAPERS"
+    ' "$WALLPAPERS" | write_atomic "$WALLPAPERS" || {
+      wallpaper_unlock
+      return 1
+    }
   fi
 
   if [ -z "$output" ]; then
@@ -195,6 +224,7 @@ save_selection() {
       remember "$path"
     fi
   fi
+  wallpaper_unlock
 }
 
 thumb_for() {
@@ -232,6 +262,38 @@ thumb_for() {
   printf '%s' "$thumb"
 }
 
+# A still from a video, for surfaces that cannot play it — the lock screen, and
+# anything else that reads background.json. Keyed by path, mtime, size and the
+# output's dimensions, so a changed video or a new resolution gets a new frame.
+poster_for() {
+  path="$1"
+  output="$2"
+  [ -f "$path" ] || return 0
+  is_video "$path" || return 0
+
+  mtime=$("$STAT" -Lc %Y "$path" 2>/dev/null || printf '0')
+  size=$("$STAT" -Lc %s "$path" 2>/dev/null || printf '0')
+  dims=$(output_size "$output")
+  w=${dims%x*}
+  h=${dims#*x}
+  key=$(printf '%s\n%s\n%s\n%s\n' "$path" "$mtime" "$size" "$dims" | "$SHA256SUM")
+  key=${key%% *}
+  poster="$POSTERS/$key.jpg"
+
+  if [ ! -f "$poster" ]; then
+    tmp=$(mktemp "$POSTERS/.poster.XXXXXX.jpg") || return 0
+    if "$FFMPEG" -y -loglevel error -i "$path" -frames:v 1 \
+      -vf "scale=$w:$h:force_original_aspect_ratio=increase,crop=$w:$h" \
+      -q:v 2 "$tmp" >/dev/null 2>&1 && [ -s "$tmp" ]; then
+      mv "$tmp" "$poster" || rm -f "$tmp"
+    else
+      rm -f "$tmp"
+    fi
+  fi
+
+  [ -f "$poster" ] && printf '%s' "$poster"
+}
+
 scan_dir() {
   dir="$1"
   [ -d "$dir" ] || return 0
@@ -257,9 +319,41 @@ library_paths() {
   } | awk '!seen[$0]++'
 }
 
+# The cache is only as good as the inputs it was built from. Every file's path,
+# mtime and size goes into the fingerprint, so adding, removing or editing a
+# picture (or changing the generated gradient) is noticed without throwing away
+# the thumbnails that are still valid.
+library_fingerprint() {
+  {
+    printf 'theme\t%s\n' "$(current_theme)"
+    printf 'default\t%s\n' "$DEFAULT_WALLPAPER"
+    if [ -n "$DEFAULT_WALLPAPER" ] && [ -f "$DEFAULT_WALLPAPER" ]; then
+      "$STAT" -Lc 'file\t%n\t%Y\t%s' "$DEFAULT_WALLPAPER" 2>/dev/null || true
+    fi
+    if [ -f "$GENERATED" ]; then
+      "$STAT" -Lc 'generated\t%n\t%Y\t%s' "$GENERATED" 2>/dev/null || true
+    fi
+    {
+      printf '%s\n' "$BACKGROUNDS/$(current_theme)"
+      printf '%s\n' "$WALLPAPER_DIRS"
+    } | while IFS= read -r dir; do
+      [ -n "$dir" ] || continue
+      if [ ! -d "$dir" ]; then
+        printf 'missing\t%s\n' "$dir"
+      elif [ "$WALLPAPER_RECURSIVE" = "true" ]; then
+        find "$dir" -type f -printf 'file\t%p\t%T@\t%s\n' 2>/dev/null | sort
+      else
+        find "$dir" -maxdepth 1 -type f -printf 'file\t%p\t%T@\t%s\n' 2>/dev/null | sort
+      fi
+    done
+  } | "$SHA256SUM" | cut -d ' ' -f 1
+}
+
 library_json() {
   refresh="${1:-}"
-  if [ "$refresh" != "--refresh" ] && [ -s "$LIBRARY_CACHE" ]; then
+  stamp=$(library_fingerprint)
+  if [ "$refresh" != "--refresh" ] && [ -s "$LIBRARY_CACHE" ] &&
+    [ -f "$LIBRARY_STAMP" ] && [ "$(cat "$LIBRARY_STAMP" 2>/dev/null || true)" = "$stamp" ]; then
     cat "$LIBRARY_CACHE"
     return
   fi
@@ -285,6 +379,7 @@ library_json() {
   ) || return 1
 
   printf '%s\n' "$json" | write_atomic "$LIBRARY_CACHE" || true
+  printf '%s\n' "$stamp" | write_atomic "$LIBRARY_STAMP" || true
   printf '%s\n' "$json"
 }
 
@@ -332,13 +427,21 @@ generate() {
   bg=$(colour background)
   surface=$(colour surface)
   primary=$(colour primary)
-  "$MAGICK" -size "$size" \
+  tmp=$(mktemp "$(dirname "$file")/.generate.XXXXXX.png") || return 1
+  if ! "$MAGICK" -size "$size" \
     gradient:"$bg"-"$surface" \
     \( -size "$size" radial-gradient:none-"$primary" \
     -alpha set -channel A -evaluate multiply 0.10 +channel \) \
     -compose over -composite \
     -depth 8 \
-    "$file" >/dev/null 2>&1 || return 1
+    "$tmp" >/dev/null 2>&1; then
+    rm -f "$tmp"
+    return 1
+  fi
+  if ! mv "$tmp" "$file"; then
+    rm -f "$tmp"
+    return 1
+  fi
   printf '%s\n' "$size" >"$file.size" || true
 }
 
@@ -361,10 +464,16 @@ apply() {
   fallback_path=$(printf '%s' "$fallback_line" | cut -f2)
   fallback_video=$(printf '%s' "$fallback_line" | cut -f3)
   if [ "$fallback_mode" = generated ] || [ ! -f "$fallback_path" ]; then
-    generate ""
-    fallback_path="$GENERATED"
+    generate "" || true
+    if [ -f "$GENERATED" ]; then
+      fallback_path="$GENERATED"
+    else
+      fallback_path=""
+    fi
     fallback_video=0
   fi
+  fallback_poster=""
+  [ "$fallback_video" = 1 ] && fallback_poster=$(poster_for "$fallback_path" "")
 
   for output in $outputs; do
     line=$(selection "$theme" "$output")
@@ -373,28 +482,31 @@ apply() {
     video=$(printf '%s' "$line" | cut -f3)
 
     if [ "$mode" = generated ] || [ ! -f "$path" ]; then
-      generate "$output"
+      generate "$output" || true
       path=$(generated_file "$output")
+      [ -f "$path" ] || path=""
       video=0
     fi
 
+    poster=""
     if [ "$video" = 1 ]; then
-      if [ -n "$output" ]; then
+      poster=$(poster_for "$path" "$output")
+      if [ -n "$output" ] && [ -f "$path" ]; then
         "$MPVPAPER" -f -o "no-audio loop" "$output" "$path" >/dev/null 2>&1 || true
       fi
     fi
-    printf '%s\t%s\t%s\n' "$output" "$path" "$video" >>"$rows"
+    printf '%s\t%s\t%s\t%s\n' "$output" "$path" "$video" "$poster" >>"$rows"
   done
 
   if [ -z "$outputs" ]; then
-    printf '\t%s\t%s\n' "$fallback_path" "$fallback_video" >>"$rows"
+    printf '\t%s\t%s\t%s\n' "$fallback_path" "$fallback_video" "$fallback_poster" >>"$rows"
   fi
 
-  "$JQ" -R -s --arg path "$fallback_path" --arg video "$fallback_video" '
+  "$JQ" -R -s --arg path "$fallback_path" --arg video "$fallback_video" --arg poster "$fallback_poster" '
     {
       outputs: (split("\n") | map(select(length > 0) | split("\t")
-        | { key: .[0], value: { path: .[1], video: (.[2] == "1") } }) | from_entries),
-      fallback: { path: $path, video: ($video == "1") }
+        | { key: .[0], value: { path: .[1], video: (.[2] == "1"), poster: (.[3] // "") } }) | from_entries),
+      fallback: { path: $path, video: ($video == "1"), poster: $poster }
     }
   ' "$rows" | write_atomic "$BACKGROUND_JSON"
   rm -f "$rows"
@@ -469,23 +581,38 @@ use() {
 
   wallpapers_ensure
   cp "$WALLPAPERS" "$STATE/.wallpapers.previous" 2>/dev/null || true
+  theme_name=$(current_theme)
+  legacy="$STATE/wallpaper.$theme_name"
+  legacy_previous="$STATE/.wallpaper.previous"
+  if [ -f "$legacy" ]; then
+    cp "$legacy" "$legacy_previous" 2>/dev/null || true
+  else
+    rm -f "$legacy_previous"
+  fi
 
   if [ "$target" = generated ]; then
-    save_selection generated "$output" "" 0
+    save_selection generated "$output" "" 0 || exit 1
   else
     [ -f "$target" ] || { printf 'wallpaper: no such file: %s\n' "$target" >&2; exit 1; }
     target=$(readlink -f "$target" 2>/dev/null || printf '%s' "$target")
     if is_video "$target"; then video=1; else video=0; fi
-    save_selection file "$output" "$target" "$video"
+    save_selection file "$output" "$target" "$video" || exit 1
   fi
 
   if [ "$target" != generated ] && [ "$(current_theme)" = wallpaper ]; then
-    if command -v theme >/dev/null 2>&1 && theme wallpaper "$target"; then
+    # The selection is already saved. Tell theme.sh so it does not record a
+    # second, global choice on top of an output-specific one.
+    if command -v theme >/dev/null 2>&1 && ANIXIE_WALLPAPER_RECORDED=1 theme wallpaper "$target"; then
       return
     fi
     printf 'wallpaper: could not derive a palette; keeping the previous theme\n' >&2
     if [ -f "$STATE/.wallpapers.previous" ]; then
       cp "$STATE/.wallpapers.previous" "$WALLPAPERS"
+    fi
+    if [ -f "$legacy_previous" ]; then
+      cp "$legacy_previous" "$legacy"
+    else
+      rm -f "$legacy"
     fi
     apply
     return 1
@@ -494,10 +621,39 @@ use() {
   apply
 }
 
+# Save a selection without applying it. This is what `theme wallpaper FILE`
+# uses, so the picture that produced a palette is the picture on screen without
+# making theme.sh re-enter this command's picker/apply path.
+record_selection() {
+  [ $# -ge 1 ] || { echo "wallpaper: record needs a value" >&2; exit 1; }
+  target="$1"
+  shift
+  output=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --output)
+        [ $# -ge 2 ] || { echo "wallpaper: --output needs a name" >&2; exit 1; }
+        output="$2"
+        shift 2
+        ;;
+      *) break ;;
+    esac
+  done
+
+  if [ "$target" = generated ]; then
+    save_selection generated "$output" "" 0 || exit 1
+  else
+    [ -f "$target" ] || { printf 'wallpaper: no such file: %s\n' "$target" >&2; exit 1; }
+    target=$(readlink -f "$target" 2>/dev/null || printf '%s' "$target")
+    if is_video "$target"; then video=1; else video=0; fi
+    save_selection file "$output" "$target" "$video" || exit 1
+  fi
+}
+
 add_file() {
   [ $# -ge 1 ] || { echo "wallpaper: set needs a file" >&2; exit 1; }
   [ -f "$1" ] || { printf 'wallpaper: no such file: %s\n' "$1" >&2; exit 1; }
-  rm -f "$LIBRARY_CACHE"
+  rm -f "$LIBRARY_CACHE" "$LIBRARY_STAMP"
   dir="$(theme_dir)"
   mkdir -p "$dir"
   dst="$dir/$(basename "$1")"
@@ -508,7 +664,7 @@ add_file() {
 add_dir() {
   [ $# -ge 1 ] || { echo "wallpaper: add needs a folder" >&2; exit 1; }
   [ -d "$1" ] || { printf 'wallpaper: no such folder: %s\n' "$1" >&2; exit 1; }
-  rm -f "$LIBRARY_CACHE"
+  rm -f "$LIBRARY_CACHE" "$LIBRARY_STAMP"
   dir="$(theme_dir)"
   mkdir -p "$dir"
   n=0
@@ -569,6 +725,7 @@ case "${1:-}" in
   set | add-file) shift; add_file "$@" ;;
   add) shift; add_dir "$@" ;;
   use) shift; use "$@" ;;
+  record) shift; record_selection "$@" ;;
   next) shift; step next "${1:-}" ;;
   prev | previous) shift; step prev "${1:-}" ;;
   rotate) step next --random ;;
@@ -578,7 +735,7 @@ case "${1:-}" in
       if [ -f "$BACKGROUND_JSON" ]; then
         "$JQ" . "$BACKGROUND_JSON"
       else
-        "$JQ" -n --arg path "$(chosen)" '{outputs:{},fallback:{path:$path,video:false}}'
+        "$JQ" -n --arg path "$(chosen)" '{outputs:{},fallback:{path:$path,video:false,poster:""}}'
       fi
     else
       chosen

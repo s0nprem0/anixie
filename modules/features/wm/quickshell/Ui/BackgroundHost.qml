@@ -25,12 +25,13 @@ QtObject {
   property var outputs: ({})
   property string path: ""
   property bool video: false
+  property string poster: ""
   property int revision: 0
 
   function entryFor(screenName) {
     const name = String(screenName || "")
     if (name !== "" && root.outputs[name] !== undefined) return root.outputs[name]
-    return { path: root.path, video: root.video }
+    return { path: root.path, video: root.video, poster: root.poster }
   }
 
   function pathFor(screenName) {
@@ -39,6 +40,12 @@ QtObject {
 
   function videoFor(screenName) {
     return !!root.entryFor(screenName).video
+  }
+
+  // A still from a video, for the lock screen and any other surface that cannot
+  // play it. Empty when the video has not been applied yet or ffmpeg failed.
+  function posterFor(screenName) {
+    return root.entryFor(screenName).poster || ""
   }
 
   function adopt(raw) {
@@ -57,7 +64,8 @@ QtObject {
       if (map[name] && typeof map[name].path === "string") {
         next[String(name)] = {
           path: map[name].path,
-          video: !!map[name].video
+          video: !!map[name].video,
+          poster: typeof map[name].poster === "string" ? map[name].poster : ""
         }
       }
     }
@@ -65,10 +73,12 @@ QtObject {
     root.outputs = next
     root.path = typeof fallback.path === "string" ? fallback.path : ""
     root.video = !!fallback.video
+    root.poster = typeof fallback.poster === "string" ? fallback.poster : ""
     if (root.path === "") {
       for (const name in next) {
         root.path = next[name].path
         root.video = next[name].video
+        root.poster = next[name].poster
         break
       }
     }
@@ -84,6 +94,7 @@ QtObject {
     root.outputs = ({})
     root.video = lines[0] === "video"
     root.path = root.video ? (lines[1] || "") : lines[0]
+    root.poster = ""
     root.revision += 1
   }
 
@@ -92,6 +103,7 @@ QtObject {
     const fallback = map.fallback || {}
     root.path = fallback.path || ""
     root.video = !!fallback.video
+    root.poster = fallback.poster || ""
     root.revision += 1
     root.stateFile.setText(JSON.stringify(map, null, 2) + "\n")
   }
@@ -101,7 +113,7 @@ QtObject {
     if (value === "") return
     root.applyMap({
       outputs: {},
-      fallback: { path: value, video: false }
+      fallback: { path: value, video: false, poster: "" }
     })
   }
 
@@ -110,21 +122,21 @@ QtObject {
     if (value === "") return
     root.applyMap({
       outputs: {},
-      fallback: { path: value, video: true }
+      fallback: { path: value, video: true, poster: "" }
     })
   }
 
-  function setOutput(output, path, video) {
+  function setOutput(output, path, video, poster) {
     const name = String(output || "")
     const value = String(path || "").trim()
     if (name === "" || value === "") return
 
     const next = {}
     for (const key in root.outputs) next[key] = root.outputs[key]
-    next[name] = { path: value, video: !!video }
+    next[name] = { path: value, video: !!video, poster: String(poster || "") }
     root.applyMap({
       outputs: next,
-      fallback: { path: root.path, video: root.video }
+      fallback: { path: root.path, video: root.video, poster: root.poster }
     })
   }
 
@@ -156,6 +168,45 @@ QtObject {
   }
 
   property int attempts: 0
+
+  // ---- output hotplug ----
+  //
+  // A monitor that arrives or changes resolution needs its own generated
+  // gradient, and a video output needs mpvpaper started on it. Hyprland does
+  // not tell the wallpaper command, so the shell watches its own screen list
+  // instead: Quickshell.screens is change-notifying, and the signature includes
+  // the size so a resolution change counts as well.
+  readonly property string monitorSignature: {
+    const all = Quickshell.screens || []
+    const out = []
+    for (let i = 0; i < all.length; i++) {
+      out.push(String(all[i].name) + ":" + all[i].width + "x" + all[i].height)
+    }
+    out.sort()
+    return out.join(",")
+  }
+
+  onMonitorSignatureChanged: {
+    if (root.monitorSignature === "") return
+    // Hyprland and Quickshell do not update in the same event turn; a short
+    // settle keeps one hotplug from applying twice.
+    root.monitorApplyTimer.restart()
+  }
+
+  property Timer monitorApplyTimer: Timer {
+    interval: 900
+    repeat: false
+    running: false
+    onTriggered: {
+      root.monitorApply.running = false
+      root.monitorApply.running = true
+    }
+  }
+
+  property Process monitorApply: Process {
+    command: ["wallpaper", "apply"]
+    running: false
+  }
 
   property Timer settle: Timer {
     interval: 500

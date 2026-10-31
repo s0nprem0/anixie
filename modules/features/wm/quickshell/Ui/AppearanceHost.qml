@@ -189,7 +189,9 @@ QtObject {
 
   property Process libraryProc: Process {
     running: false
-    command: ["wallpaper", "library", "--json"]
+    // Force a scan: the panel should show files added outside the command, and
+    // thumbnails that already exist make the refresh cheap.
+    command: ["wallpaper", "library", "--json", "--refresh"]
     stdout: StdioCollector {
       onStreamFinished: {
         try {
