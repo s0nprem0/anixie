@@ -40,6 +40,8 @@ singleton TooltipHost 1.0 TooltipHost.qml
 singleton PanelHost 1.0 PanelHost.qml
 singleton PanelRegistry 1.0 PanelRegistry.qml
 singleton WorkspacesHost 1.0 WorkspacesHost.qml
+singleton CompositorHost 1.0 CompositorHost.qml
+singleton HyprlandAdapter 1.0 HyprlandAdapter.qml
 singleton DockHost 1.0 DockHost.qml
 singleton PickHost 1.0 PickHost.qml
 singleton ClipboardHost 1.0 ClipboardHost.qml
@@ -81,4 +83,3 @@ Dropdown 1.0 Dropdown.qml
 DisplayMap 1.0 DisplayMap.qml
 ConfirmDialog 1.0 ConfirmDialog.qml
 singleton SettingsHost 1.0 SettingsHost.qml
-singleton CompositorHost 1.0 CompositorHost.qml
