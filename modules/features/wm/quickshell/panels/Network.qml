@@ -859,23 +859,21 @@ Item {
     id: card
     anchors.fill: parent
 
-    // ---- status ----
-    //
-    // The reference leads with the state rather than with a switch: whether this
-    // machine is on the network is what the panel is about, and the radios are
-    // the controls underneath that.
+    // ---- connection header ----
     PanelHero {
       width: card.contentWidth
       glyph: Util.wifi
-      title: root.connected ? "Wi-Fi Connected" : "Wi-Fi"
+      title: root.connected
+        ? root.activeSsid
+        : (root.radioEnabled ? "Wi-Fi" : "Wi-Fi disabled")
       subtitle: root.connected
-        ? root.activeSsid + " · Signal " + NetworkHost.signal + "%"
+        ? "Connected" + (NetworkHost.signal >= 0 ? " · Signal " + NetworkHost.signal + "%" : "")
+          + (NetworkHost.security !== "" ? " · " + NetworkHost.security : "")
         : (root.radioEnabled ? "Not connected" : "Wireless off")
     }
 
-    // The last action's own failure — a connect, a DNS change, a forgotten
-    // profile — next to the thing it happened to. The "Unavailable" below is for
-    // the read, not for these.
+    // Compact, global feedback for the last action. It stays near the header
+    // instead of being repeated under every network row.
     Text {
       width: card.contentWidth
       height: implicitHeight
@@ -890,24 +888,17 @@ Item {
       renderType: Text.NativeRendering
     }
 
-    // The status line doubles as the error surface: when nmcli is broken it is
-    // the only place the reason can be read, since the list below is empty for
-    // exactly the same reason either way.
     Text {
       width: card.contentWidth
       height: implicitHeight
       visible: root.failed
-      text: "Unavailable"
+      text: "NetworkManager unavailable"
       color: Theme.danger
       font.family: Style.font.family
       font.pixelSize: Style.font.body
       renderType: Text.NativeRendering
     }
 
-    // What nmcli said, under the fact that it failed. A failure that explains
-    // itself is not the same as one that does not, and a half-dozen lines of
-    // nmcli's own prose is not something to put in a panel either: the first
-    // line, which is the reason.
     Text {
       width: card.contentWidth
       height: implicitHeight
@@ -922,9 +913,6 @@ Item {
       renderType: Text.NativeRendering
     }
 
-    // A failure with no way out of it is a dead end. nmcli exits non-zero for a
-    // transient reason often enough — NetworkManager restarting, the device still
-    // coming up — and the one thing that always helps is asking again.
     PanelActionButton {
       width: card.contentWidth
       visible: root.failed
@@ -933,20 +921,19 @@ Item {
       onClicked: root.retry()
     }
 
+    // ---- radios ----
+    //
+    // Compact toggle-style controls. Airplane mode is visibly both radios, and
+    // a missing Bluetooth adapter is reported rather than implied.
     PanelSeparator {}
 
-    // ---- the radios ----
-    //
-    // Side by side, like the reference's "Wi-Fi: On  Airplane: Off" line: they
-    // are two halves of the same decision, and putting them in one run keeps the
-    // panel from spending a full row on each.
     Row {
       width: card.contentWidth
       spacing: Style.space(8)
 
       PanelActionButton {
         width: (card.contentWidth - Style.space(8)) / 2
-        label: "Wi-Fi"
+        label: Util.wifi + "  Wi-Fi"
         value: root.radioEnabled ? "On" : "Off"
         navigational: false
         available: !root.radioBusy
@@ -963,29 +950,303 @@ Item {
       }
     }
 
-    PanelSeparator {
-      visible: root.connected
+    Text {
+      width: card.contentWidth
+      height: implicitHeight
+      visible: !root.bluetoothAdapter
+      text: "No Bluetooth adapter; airplane mode controls Wi-Fi only."
+      color: Theme.muted
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      wrapMode: Text.WordWrap
+      renderType: Text.NativeRendering
     }
 
-    // ---- details ----
-    //
-    // Folded away because the facts under it are what you read once, while the
-    // networks below are what the panel is opened for. It also keeps the panel
-    // short enough that the list is still on screen when it opens.
+    // Compact VPN status, even while Advanced is collapsed.
+    PanelRow {
+      width: card.contentWidth
+      visible: root.vpns.some(function (vpn) { return vpn.active })
+      label: "VPN"
+      value: {
+        for (let i = 0; i < root.vpns.length; i++) {
+          if (root.vpns[i].active) return root.vpns[i].name + " connected"
+        }
+        return "None"
+      }
+    }
+
+    PanelSeparator {}
+
+    // ---- networks ----
+    PanelSectionHeader {
+      width: card.contentWidth
+      label: "Wi-Fi Networks"
+      action: root.scanning ? "Scanning…" : "Rescan"
+      actionEnabled: root.radioEnabled && !root.scanning && !root.failed && !root.busy
+      onActionTriggered: root.rescan()
+    }
+
+    Text {
+      width: card.contentWidth
+      height: implicitHeight
+      visible: root.networks.length === 0 && root.emptyMessage !== ""
+      text: root.emptyMessage
+      color: Theme.muted
+      font.family: Style.font.family
+      font.pixelSize: Style.font.bodySmall
+      horizontalAlignment: Text.AlignHCenter
+      renderType: Text.NativeRendering
+    }
+
+    Column {
+      width: card.contentWidth
+      spacing: Style.space(2)
+
+      Repeater {
+        model: root.networks
+
+        delegate: Column {
+          id: netRow
+          required property var modelData
+
+          readonly property bool inFlight: root.actionSsid === netRow.modelData.ssid && root.busy
+          readonly property bool expanded: root.expandedSsid === netRow.modelData.ssid
+          readonly property var network: netRow.modelData.network
+          property bool passwordVisible: false
+
+          width: card.contentWidth
+          spacing: Style.space(2)
+
+          ChoiceRow {
+            width: parent.width
+            height: Style.space(28)
+            available: root.radioEnabled && !root.busy
+
+            glyph: netRow.modelData.secured ? Util.lock : ""
+            label: netRow.inFlight
+              ? (root.actionKind === "connect" ? "Connecting…" : "Disconnecting…")
+              : netRow.modelData.ssid
+            selected: netRow.modelData.inUse && !netRow.inFlight
+
+            onClicked: root.expandedSsid = netRow.expanded ? "" : netRow.modelData.ssid
+
+            Row {
+              spacing: Style.space(6)
+
+              Text {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: text !== ""
+                text: root.bandLabel(netRow.modelData)
+                color: Theme.muted
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+                renderType: Text.NativeRendering
+              }
+
+              Row {
+                spacing: 2
+
+                Repeater {
+                  model: 4
+                  delegate: Rectangle {
+                    required property int index
+                    width: 3
+                    height: 4 + index * 3
+                    radius: Theme.cornerRadius
+                    anchors.bottom: parent.bottom
+                    color: index < root.signalLevel(netRow.modelData.signal)
+                      ? (netRow.modelData.inUse ? Theme.accent : Theme.muted)
+                      : Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.12)
+                  }
+                }
+              }
+
+              Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: netRow.expanded ? "⌄" : "›"
+                color: Theme.muted
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+                renderType: Text.NativeRendering
+              }
+            }
+          }
+
+          Column {
+            width: parent.width
+            spacing: Style.space(6)
+            visible: netRow.expanded
+
+            // Password form for secured, unused networks.
+            Column {
+              width: parent.width
+              spacing: Style.space(6)
+              visible: netRow.modelData.secured && !netRow.modelData.inUse
+
+              onVisibleChanged: {
+                if (!visible) return
+                inlineSecretField.text = ""
+                Qt.callLater(function () {
+                  if (inlineSecretField.visible && inlineSecretField.parent)
+                    inlineSecretField.forceActiveFocus()
+                })
+              }
+
+              Text {
+                width: parent.width
+                text: "Password for " + netRow.modelData.ssid
+                color: Theme.fg
+                font.family: Style.font.family
+                font.pixelSize: Style.font.body
+                elide: Text.ElideRight
+                renderType: Text.NativeRendering
+              }
+
+              Row {
+                width: parent.width
+                spacing: Style.space(6)
+
+                TextField {
+                  id: inlineSecretField
+                  width: parent.width - showPasswordButton.implicitWidth - Style.space(6)
+                  echoMode: netRow.passwordVisible ? TextInput.Normal : TextInput.Password
+                  placeholderText: "network password"
+                  Keys.onEscapePressed: {
+                    inlineSecretField.text = ""
+                    root.askingSsid = ""
+                  }
+                  onAccepted: {
+                    const secret = inlineSecretField.text
+                    inlineSecretField.text = ""
+                    root.connectSecret(secret, netRow.modelData.ssid)
+                  }
+                }
+
+                TextButton {
+                  id: showPasswordButton
+                  label: netRow.passwordVisible ? "Hide" : "Show"
+                  available: true
+                  onClicked: netRow.passwordVisible = !netRow.passwordVisible
+                }
+              }
+
+              PanelActionButton {
+                width: parent.width
+                label: "Connect"
+                navigational: false
+                available: !root.busy && root.actionSsid === "" && inlineSecretField.text !== ""
+                onClicked: {
+                  const secret = inlineSecretField.text
+                  inlineSecretField.text = ""
+                  root.connectSecret(secret, netRow.modelData.ssid)
+                }
+              }
+
+              PanelActionButton {
+                width: parent.width
+                label: "Cancel"
+                navigational: false
+                onClicked: {
+                  inlineSecretField.text = ""
+                  root.askingSsid = ""
+                }
+              }
+            }
+
+            // Simple connect action for open networks.
+            PanelActionButton {
+              width: parent.width
+              visible: !netRow.modelData.secured && !netRow.modelData.inUse
+              label: "Connect"
+              navigational: false
+              available: !root.busy && root.actionSsid === ""
+              onClicked: root.connect(netRow.modelData.ssid)
+            }
+
+            // Active network action.
+            PanelActionButton {
+              width: parent.width
+              visible: netRow.modelData.inUse
+              label: "Disconnect"
+              navigational: false
+              available: !root.busy && root.actionSsid === ""
+              onClicked: {
+                root.expandedSsid = ""
+                root.disconnect(netRow.modelData.ssid)
+              }
+            }
+
+            // Known-network actions.
+            Row {
+              width: parent.width
+              spacing: Style.space(4)
+              visible: netRow.network ? netRow.network.known : false
+
+              TextButton {
+                label: "Forget"
+                danger: true
+                available: !root.busy
+                onClicked: {
+                  root.expandedSsid = ""
+                  root.actionError = ""
+                  NetworkHost.forget(netRow.modelData)
+                }
+              }
+
+              TextButton {
+                label: "Auto: " + (netRow.network && netRow.network.autoconnect ? "On" : "Off")
+                active: !!(netRow.network && netRow.network.autoconnect)
+                available: !root.busy
+                onClicked: {
+                  if (netRow.network) netRow.network.autoconnect = !netRow.network.autoconnect
+                }
+              }
+            }
+
+            Text {
+              width: parent.width
+              visible: root.actionError !== "" && netRow.expanded
+              text: root.actionError
+              color: Theme.danger
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              wrapMode: Text.WordWrap
+              renderType: Text.NativeRendering
+            }
+
+            Text {
+              width: parent.width
+              text: "Security: "
+                + (netRow.network ? NetworkHost.securityLabel(netRow.network.security) : "")
+                + (root.bandLabel(netRow.modelData) !== "" ? " · " + root.bandLabel(netRow.modelData) : "")
+              color: Theme.muted
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              elide: Text.ElideRight
+              renderType: Text.NativeRendering
+            }
+          }
+        }
+      }
+    }
+
+    PanelSeparator {}
+
+    // ---- advanced ----
     PanelActionButton {
       width: card.contentWidth
-      visible: root.connected
-      label: "Details"
-      value: root.detailsExpanded ? "hide" : "show"
+      label: "Advanced"
+      value: root.moreExpanded ? "hide" : "show"
       navigational: false
-      onClicked: root.detailsExpanded = !root.detailsExpanded
+      onClicked: root.moreExpanded = !root.moreExpanded
     }
 
     Column {
       width: card.contentWidth
       spacing: Style.space(8)
-      visible: root.connected && root.detailsExpanded
+      visible: root.moreExpanded
 
+      // Connection details
       PanelRow {
         width: parent.width
         visible: root.address !== ""
@@ -1007,9 +1268,6 @@ Item {
         value: NetworkHost.security
       }
 
-      // The links the Wi-Fi panel is not about, but is the only network surface
-      // the shell has: an Ethernet cable on a dock changes the answer to "is
-      // this machine online".
       PanelRow {
         width: parent.width
         visible: root.wired !== ""
@@ -1055,9 +1313,7 @@ Item {
 
       PanelSeparator {}
 
-      // The QR, behind a toggle. It carries the network's password in the clear,
-      // so it is drawn only while this is on, and generated only then — the image
-      // is not sitting in the state directory waiting for a panel to be open.
+      // Sharing
       Toggle {
         id: qrToggle
         width: parent.width
@@ -1077,9 +1333,6 @@ Item {
         onClicked: root.copyPassword()
       }
 
-      // The box is the size the code is drawn at, not the size of the file behind
-      // it: an Image's implicit height is the source's own, and a QR that arrives
-      // as 512px made a 512px row that the panel then had to cut.
       Item {
         width: parent.width
         height: root.qrVisible && root.qrReady ? root.qrSize : 0
@@ -1108,318 +1361,50 @@ Item {
         elide: Text.ElideRight
         renderType: Text.NativeRendering
       }
-    }
 
-    PanelSeparator {}
+      PanelSeparator {}
 
-    // ---- VPNs ----
-    //
-    // NetworkManager's links that are not the Wi-Fi one. The action is the whole
-    // row, the way the reference puts "disconnect" at the end of its VPN lines:
-    // there is one thing to do to a VPN and no reason to aim at a word for it.
-    PanelSectionHeader {
-      width: card.contentWidth
-      label: "VPNs & Proxies"
-    }
-
-    Text {
-      width: card.contentWidth
-      height: implicitHeight
-      visible: root.vpns.length === 0
-      text: "None"
-      color: Theme.muted
-      font.family: Style.font.family
-      font.pixelSize: Style.font.bodySmall
-      renderType: Text.NativeRendering
-    }
-
-    Column {
-      width: card.contentWidth
-      spacing: Style.space(2)
-
-      Repeater {
-        model: root.vpns
-
-        delegate: PanelActionButton {
-          required property var modelData
-
-          width: card.contentWidth
-          label: modelData.name + " (" + modelData.type + ")"
-          value: (modelData.active ? "Connected" : "Disconnected")
-            + " · " + (modelData.active ? "disconnect" : "connect")
-          navigational: false
-          available: !root.vpnBusy
-          onClicked: root.toggleVpn(modelData)
-        }
+      // VPNs
+      PanelSectionHeader {
+        width: parent.width
+        label: "VPNs & Proxies"
       }
-    }
 
-    // ---- what is nearby ----
-    //
-    // The rescan belongs to the list it rescans: at the end of the heading rather
-    // than in a row of its own at the bottom, which read as a label and put the
-    // one control for the list a screenful away from the list.
-    PanelSectionHeader {
-      width: card.contentWidth
-      label: "Wi-Fi Networks"
-      action: root.scanning ? "Scanning…" : "Rescan"
-      actionEnabled: root.radioEnabled && !root.scanning && !root.failed && !root.busy
-      onActionTriggered: root.rescan()
-    }
+      Text {
+        width: parent.width
+        height: implicitHeight
+        visible: root.vpns.length === 0
+        text: "None"
+        color: Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.bodySmall
+        renderType: Text.NativeRendering
+      }
 
-    Column {
-      width: card.contentWidth
-      spacing: Style.space(2)
+      Column {
+        width: parent.width
+        spacing: Style.space(2)
 
-      Repeater {
-        model: root.networks
+        Repeater {
+          model: root.vpns
 
-        delegate: Column {
-          id: netRow
-          required property var modelData
+          delegate: PanelActionButton {
+            required property var modelData
 
-          readonly property bool inFlight: root.actionSsid === netRow.modelData.ssid && root.busy
-          readonly property bool expanded: root.expandedSsid === netRow.modelData.ssid
-          readonly property var network: netRow.modelData.network
-
-          width: card.contentWidth
-          spacing: Style.space(2)
-
-          ChoiceRow {
             width: parent.width
-            height: Style.space(28)
-            available: root.radioEnabled && !root.busy
-
-            // Only for networks that need a key. An open network gets no glyph
-            // rather than an open padlock: the absence says "open" more quietly
-            // than a symbol repeated on every row would.
-            glyph: netRow.modelData.secured ? Util.lock : ""
-            label: netRow.inFlight
-              // The row says what it is doing while it does it. Without this a
-              // click on a network that takes a second looks like nothing
-              // happened.
-              ? (root.actionKind === "connect" ? "Connecting…" : "Disconnecting…")
-              : netRow.modelData.ssid
-            selected: netRow.modelData.inUse && !netRow.inFlight
-
-            // Opening the row is what picks it now, rather than connecting on
-            // the first click: the reference puts Connect, Forget and Auto under
-            // the network, and a list where one click both chooses and joins is
-            // a list you cannot look at without acting on.
-            onClicked: root.expandedSsid = netRow.expanded ? "" : netRow.modelData.ssid
-
-            Row {
-              spacing: Style.space(6)
-
-              Text {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: text !== ""
-                text: root.bandLabel(netRow.modelData)
-                color: Theme.muted
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
-                renderType: Text.NativeRendering
-              }
-
-              // Four ascending bars, the filled count set by the signal
-              // percentage.
-              Row {
-                spacing: 2
-
-                Repeater {
-                  model: 4
-                  delegate: Rectangle {
-                    required property int index
-                    width: 3
-                    height: 4 + index * 3
-                    radius: Theme.cornerRadius
-                    // Standing on the same line, not floating around their own
-                    // middles: centre-aligned bars of four different heights
-                    // read as dashes, not as a staircase, which is the whole
-                    // point of the glyph.
-                    anchors.bottom: parent.bottom
-                    color: index < root.signalLevel(netRow.modelData.signal)
-                      ? (netRow.modelData.inUse ? Theme.accent : Theme.muted)
-                      : Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.12)
-                  }
-                }
-              }
-            }
-          }
-
-          Column {
-            width: parent.width
-            spacing: Style.space(2)
-            visible: netRow.expanded
-
-            Column {
-              width: parent.width
-              spacing: Style.space(6)
-              visible: netRow.modelData.secured && !netRow.modelData.inUse
-
-              onVisibleChanged: {
-                if (!visible) return
-                inlineSecretField.text = ""
-                Qt.callLater(function () {
-                  if (inlineSecretField.visible && inlineSecretField.parent)
-                    inlineSecretField.forceActiveFocus()
-                })
-              }
-
-              Text {
-                width: parent.width
-                text: "Password for " + netRow.modelData.ssid
-                color: Theme.fg
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
-                elide: Text.ElideRight
-                renderType: Text.NativeRendering
-              }
-
-              TextField {
-                id: inlineSecretField
-                width: parent.width
-                echoMode: TextInput.Password
-                placeholderText: "network password"
-                Keys.onEscapePressed: {
-                  inlineSecretField.text = ""
-                  root.askingSsid = ""
-                }
-                onAccepted: {
-                  const secret = inlineSecretField.text
-                  inlineSecretField.text = ""
-                  root.connectSecret(secret, netRow.modelData.ssid)
-                }
-              }
-
-              PanelActionButton {
-                width: parent.width
-                label: "Connect"
-                navigational: false
-                available: !root.busy && root.actionSsid === "" && inlineSecretField.text !== ""
-                onClicked: {
-                  const secret = inlineSecretField.text
-                  inlineSecretField.text = ""
-                  root.connectSecret(secret, netRow.modelData.ssid)
-                }
-              }
-
-              PanelActionButton {
-                width: parent.width
-                label: "Cancel"
-                navigational: false
-                onClicked: {
-                  inlineSecretField.text = ""
-                  root.askingSsid = ""
-                }
-              }
-            }
-
-            Text {
-              width: parent.width
-              visible: root.actionError !== "" && netRow.expanded
-              text: root.actionError
-              color: Theme.danger
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
-              wrapMode: Text.WordWrap
-              renderType: Text.NativeRendering
-            }
-
-            Row {
-              anchors.horizontalCenter: parent.horizontalCenter
-              spacing: Style.space(4)
-
-              TextButton {
-                label: netRow.modelData.inUse ? "Disconnect" : "Connect"
-                active: netRow.modelData.inUse
-                available: !root.busy && root.actionSsid === ""
-                onClicked: {
-                  if (netRow.modelData.inUse) {
-                    root.expandedSsid = ""
-                    root.disconnect(netRow.modelData.ssid)
-                  } else {
-                    const secret = inlineSecretField.text
-                    if (secret !== "") inlineSecretField.text = ""
-                    root.expandedSsid = netRow.modelData.ssid
-                    root.connectSecret(secret, netRow.modelData.ssid)
-                  }
-                }
-              }
-
-              TextButton {
-                visible: netRow.network ? netRow.network.known : false
-                label: "Forget"
-                danger: true
-                available: !root.busy
-                onClicked: {
-                  root.expandedSsid = ""
-                  root.actionError = ""
-                  NetworkHost.forget(netRow.modelData)
-                }
-              }
-
-              TextButton {
-                visible: netRow.network ? netRow.network.known : false
-                label: "Auto: " + (netRow.network && netRow.network.autoconnect ? "On" : "Off")
-                active: !!(netRow.network && netRow.network.autoconnect)
-                onClicked: {
-                  if (netRow.network) netRow.network.autoconnect = !netRow.network.autoconnect
-                }
-              }
-            }
-
-            Text {
-              width: parent.width
-              horizontalAlignment: Text.AlignHCenter
-              text: "Security: "
-                + (netRow.network ? NetworkHost.securityLabel(netRow.network.security) : "")
-                + (root.bandLabel(netRow.modelData) !== "" ? " · " + root.bandLabel(netRow.modelData) : "")
-              color: Theme.muted
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
-              elide: Text.ElideRight
-              renderType: Text.NativeRendering
-            }
+            label: modelData.name + " (" + modelData.type + ")"
+            value: (modelData.active ? "Connected" : "Disconnected")
+              + " · " + (modelData.active ? "disconnect" : "connect")
+            navigational: false
+            available: !root.vpnBusy
+            onClicked: root.toggleVpn(modelData)
           }
         }
       }
-    }
 
-    // What an empty list means, rather than an empty box. There is nothing to
-    // draw an expansion under, so the reason stands on its own.
-    Text {
-      width: card.contentWidth
-      visible: root.networks.length === 0 && root.emptyMessage !== ""
-      text: root.emptyMessage
-      color: Theme.muted
-      font.family: Style.font.family
-      font.pixelSize: Style.font.bodySmall
-      horizontalAlignment: Text.AlignHCenter
-      renderType: Text.NativeRendering
-    }
+      PanelSeparator {}
 
-    // ---- more ----
-    //
-    // The reference keeps its less-used actions behind one fold, and so does
-    // this: cycling the radio is the one thing that clears the state a network
-    // manager occasionally wedges in, and forgetting the current network is
-    // destructive enough that it should not sit next to the list.
-    PanelSeparator {}
-
-    PanelActionButton {
-      width: card.contentWidth
-      label: "More"
-      value: root.moreExpanded ? "hide" : "show"
-      navigational: false
-      onClicked: root.moreExpanded = !root.moreExpanded
-    }
-
-    Column {
-      width: card.contentWidth
-      spacing: Style.space(8)
-      visible: root.moreExpanded
-
+      // Restart and forget
       PanelActionButton {
         width: parent.width
         label: root.restarting ? "Restarting…" : "Restart Wi-Fi"
@@ -1440,4 +1425,3 @@ Item {
       }
     }
   }
-}
