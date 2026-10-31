@@ -309,7 +309,7 @@ Item {
                   }
                 }
 
-                Row {
+                Flow {
                   id: actionRow
                   width: parent.width
                   spacing: Style.space(4)
