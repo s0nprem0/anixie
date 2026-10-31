@@ -96,5 +96,16 @@ Item {
       width: card.contentWidth
       source: Qt.resolvedUrl(root.allTabs[root.currentTab].source)
     }
+
+    Text {
+      width: card.contentWidth
+      visible: tabLoader.status !== Loader.Ready
+      text: "Loading…"
+      color: Theme.muted
+      font.family: Style.font.family
+      font.pixelSize: Style.font.body
+      horizontalAlignment: Text.AlignHCenter
+      renderType: Text.NativeRendering
+    }
   }
 }
