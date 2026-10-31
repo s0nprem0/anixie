@@ -165,57 +165,123 @@ Item {
           Repeater {
             model: root.filteredEntries(sectionItem.sectionName)
 
-            delegate: Row {
+            delegate: Item {
               id: moduleRow
               required property var modelData
               required property int index
-              width: parent.width
-              spacing: Style.space(4)
+              width: card.contentWidth
+              height: Style.space(32)
 
-              // Drag-and-drop reordering handle. Only active when no filter
-              // is applied, so indices stay aligned with the saved layout.
-              Drag.source: moduleRow
-              property string dragId: String(moduleRow.modelData.id || "")
+              readonly property string moduleId: String(modelData.id || "")
+              property string dragId: String(modelData.id || "")
 
-              readonly property string moduleId: String(moduleRow.modelData.id || "")
+              Row {
+                id: row
+                anchors.fill: parent
+                spacing: Style.space(4)
 
-              Rectangle {
-                id: grip
-                anchors.verticalCenter: parent.verticalCenter
-                width: Style.space(16)
-                height: Style.space(20)
-                radius: Theme.cornerRadius
-                color: dragHandle.containsMouse ? Theme.bg : "transparent"
-                visible: root.filterText.trim() === ""
+                Rectangle {
+                  id: grip
+                  anchors.verticalCenter: parent.verticalCenter
+                  width: Style.space(16)
+                  height: Style.space(20)
+                  radius: Theme.cornerRadius
+                  color: dragHandle.containsMouse ? Theme.bg : "transparent"
+                  visible: root.filterText.trim() === ""
+
+                  Text {
+                    anchors.centerIn: parent
+                    text: "≡"
+                    color: Theme.muted
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.body
+                    renderType: Text.NativeRendering
+                  }
+
+                  DragHandler {
+                    id: dragHandle
+                    target: null
+                    enabled: root.filterText.trim() === ""
+                    onActiveChanged: {
+                      if (active) moduleRow.Drag.active = true
+                      else moduleRow.Drag.active = false
+                    }
+                  }
+                }
 
                 Text {
-                  anchors.centerIn: parent
-                  text: "≡"
-                  color: Theme.muted
+                  anchors.verticalCenter: parent.verticalCenter
+                  width: Style.space(120)
+                  text: root.prettyId(moduleRow.moduleId)
+                  color: Theme.fg
                   font.family: Style.font.family
                   font.pixelSize: Style.font.body
+                  elide: Text.ElideRight
                   renderType: Text.NativeRendering
                 }
 
-                DragHandler {
-                  id: dragHandle
-                  target: null
-                  enabled: root.filterText.trim() === ""
-                  onActiveChanged: {
-                    if (active) moduleRow.Drag.active = true
-                    else moduleRow.Drag.active = false
+                Dropdown {
+                  width: Style.space(90)
+                  model: root.sections.map(root.sectionLabel)
+                  currentIndex: root.sections.indexOf(sectionItem.sectionName)
+                  onActivated: function (i) {
+                    const target = root.sections[i]
+                    if (target !== sectionItem.sectionName)
+                      BarConfig.move(moduleRow.moduleId, target, 0)
                   }
+                }
+
+                Dropdown {
+                  width: Style.space(100)
+                  model: (["All screens"]).concat(Quickshell.screens.map(function (s) { return String(s.name) }))
+                  currentIndex: {
+                    const screens = moduleRow.modelData.screens
+                    if (!Array.isArray(screens) || screens.length === 0 || screens.indexOf("all") !== -1)
+                      return 0
+                    const idx = Quickshell.screens.map(function (s) { return String(s.name) }).indexOf(String(screens[0]))
+                    return idx >= 0 ? idx + 1 : 0
+                  }
+                  onActivated: function (i) {
+                    if (i === 0) BarConfig.setScreens(moduleRow.moduleId, null)
+                    else BarConfig.setScreens(moduleRow.moduleId, Quickshell.screens[i - 1].name)
+                  }
+                }
+
+                TextButton {
+                  label: "↑"
+                  available: root.filterText.trim() === ""
+                  onClicked: {
+                    if (root.filterText.trim() === "" && moduleRow.index > 0)
+                      BarConfig.move(moduleRow.moduleId, sectionItem.sectionName, moduleRow.index - 1)
+                  }
+                }
+
+                TextButton {
+                  label: "↓"
+                  available: root.filterText.trim() === ""
+                  onClicked: {
+                    const full = root.entriesOf(sectionItem.sectionName)
+                    if (root.filterText.trim() === "" && moduleRow.index < full.length - 1)
+                      BarConfig.move(moduleRow.moduleId, sectionItem.sectionName, moduleRow.index + 2)
+                  }
+                }
+
+                TextButton {
+                  label: "Park"
+                  onClicked: BarConfig.disable(moduleRow.moduleId)
+                }
+
+                TextButton {
+                  label: "Remove"
+                  onClicked: BarConfig.remove(moduleRow.moduleId)
                 }
               }
 
               DropArea {
-                id: dropTarget
                 anchors.fill: parent
                 enabled: root.filterText.trim() === ""
 
-                onEntered: function (drag) {
-                  dropTarget.highlight = true
-                }
+                onEntered: function (drag) { dropTarget.highlight = true }
                 onExited: dropTarget.highlight = false
                 onDropped: function (drop) {
                   dropTarget.highlight = false
@@ -235,74 +301,7 @@ Item {
                 radius: Theme.cornerRadius
                 z: -1
               }
-
-              Text {
-                anchors.verticalCenter: parent.verticalCenter
-                width: Style.space(120)
-                text: root.prettyId(moduleRow.moduleId)
-                color: Theme.fg
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
-                elide: Text.ElideRight
-                renderType: Text.NativeRendering
-              }
-
-              Dropdown {
-                width: Style.space(90)
-                model: root.sections.map(root.sectionLabel)
-                currentIndex: root.sections.indexOf(sectionItem.sectionName)
-                onActivated: function (i) {
-                  const target = root.sections[i]
-                  if (target !== sectionItem.sectionName)
-                    BarConfig.move(moduleRow.moduleId, target, 0)
-                }
-              }
-
-              Dropdown {
-                width: Style.space(100)
-                model: (["All screens"]).concat(Quickshell.screens.map(function (s) { return String(s.name) }))
-                currentIndex: {
-                  const screens = moduleRow.modelData.screens
-                  if (!Array.isArray(screens) || screens.length === 0 || screens.indexOf("all") !== -1)
-                    return 0
-                  const idx = Quickshell.screens.map(function (s) { return String(s.name) }).indexOf(String(screens[0]))
-                  return idx >= 0 ? idx + 1 : 0
-                }
-                onActivated: function (i) {
-                  if (i === 0) BarConfig.setScreens(moduleRow.moduleId, null)
-                  else BarConfig.setScreens(moduleRow.moduleId, Quickshell.screens[i - 1].name)
-                }
-              }
-
-              TextButton {
-                label: "↑"
-                available: root.filterText.trim() === ""
-                onClicked: {
-                  if (root.filterText.trim() === "" && moduleRow.index > 0)
-                    BarConfig.move(moduleRow.moduleId, sectionItem.sectionName, moduleRow.index - 1)
-                }
-              }
-
-              TextButton {
-                label: "↓"
-                available: root.filterText.trim() === ""
-                onClicked: {
-                  const full = root.entriesOf(sectionItem.sectionName)
-                  if (root.filterText.trim() === "" && moduleRow.index < full.length - 1)
-                    BarConfig.move(moduleRow.moduleId, sectionItem.sectionName, moduleRow.index + 2)
-                }
-              }
-
-              TextButton {
-                label: "Park"
-                onClicked: BarConfig.disable(moduleRow.moduleId)
-              }
-
-              TextButton {
-                label: "Remove"
-                onClicked: BarConfig.remove(moduleRow.moduleId)
-              }
-            }
+            }            }
           }
         }
       }
