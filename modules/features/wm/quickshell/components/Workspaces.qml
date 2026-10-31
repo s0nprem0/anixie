@@ -67,7 +67,10 @@ BarWidget {
 
   readonly property var workspaces: {
     const all = Hyprland.workspaces ? Hyprland.workspaces.values : []
-    if (root.screenName === "") return all
+    // Until this bar knows which output it is on, showing every workspace
+    // would mix another monitor's blocks into this one (and make a click
+    // focus a workspace that is not even here). Wait for the screen name.
+    if (root.screenName === "") return []
 
     const out = []
     for (let i = 0; i < all.length; i++) {
