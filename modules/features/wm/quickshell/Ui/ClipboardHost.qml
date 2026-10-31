@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "fuzzy.js" as Fuzzy
 
 // The clipboard's data and actions: the history from cliphist, the filter, the
 // selection, and the preview the window draws beside the list.
@@ -32,6 +33,7 @@ QtObject {
 
   property bool busy: false
   property string lastError: ""
+  property bool largePreview: false
 
   readonly property var current: {
     if (root.selected < 0 || root.selected >= root.filtered.length) return null
@@ -93,12 +95,14 @@ QtObject {
   }
 
   function applyFilter(keepId) {
-    const q = root.query.trim().toLowerCase()
-    const out = []
+    const q = root.query.trim()
+    let out = []
 
-    for (let i = 0; i < root.entries.length; i++) {
-      const entry = root.entries[i]
-      if (q === "" || entry.label.toLowerCase().indexOf(q) !== -1) out.push(entry)
+    if (q === "") {
+      out = root.entries.slice()
+    } else {
+      const result = Fuzzy.filter(root.entries, q)
+      for (let i = 0; i < result.length; i++) out.push(result[i].row)
     }
 
     root.filtered = out

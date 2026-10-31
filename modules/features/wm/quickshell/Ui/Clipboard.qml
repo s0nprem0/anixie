@@ -22,7 +22,7 @@ Item {
   }
 
   readonly property int listWidth: Style.space(300)
-  readonly property int previewWidth: Style.space(380)
+  readonly property int previewWidth: ClipboardHost.largePreview ? Style.space(520) : Style.space(380)
   readonly property int cardHeight: Math.max(
     Style.space(220),
     Math.min(Style.space(430), root.height - Style.space(72)))
@@ -354,6 +354,27 @@ Item {
             elide: Text.ElideRight
             width: clearAll.left - Style.space(8)
             renderType: Text.NativeRendering
+          }
+
+          Text {
+            id: previewToggle
+
+            anchors.right: clearAll.left
+            anchors.rightMargin: Style.space(12)
+            anchors.verticalCenter: parent.verticalCenter
+            text: ClipboardHost.largePreview ? "normal preview" : "large preview"
+            color: previewToggleMouse.containsMouse ? Theme.fg : Theme.muted
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            renderType: Text.NativeRendering
+
+            MouseArea {
+              id: previewToggleMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: ClipboardHost.largePreview = !ClipboardHost.largePreview
+            }
           }
 
           Text {
