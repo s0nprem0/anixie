@@ -59,10 +59,12 @@ QtObject {
 
     if (root.level <= root.criticalAt && root.warned < 2) {
       root.warned = 2
+      OsdHost.show("battery", "Battery critical: " + root.level + "%", "", "", "", 3000)
       root.notify("critical", "Battery critical",
         "Battery is at " + root.level + "%. Plug in now.", "battery-empty")
     } else if (root.level <= root.warnAt && root.warned < 1) {
       root.warned = 1
+      OsdHost.show("battery", "Battery low: " + root.level + "%", "", "", "", 3000)
       root.notify("normal", "Battery low",
         "Battery is at " + root.level + "%. Find a charger.", "battery-caution")
     } else if (root.level > root.warnAt) {

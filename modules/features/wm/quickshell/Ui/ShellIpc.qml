@@ -215,7 +215,10 @@ Item {
         OsdHost.show("nightlight", "Night light off", "", "", "", 1500)
     }
     function idle(state: string): void { IndicatorHost.setIdle(state) }
-    function stayawake(state: string): void { IndicatorHost.setStayAwake(state) }
+    function stayawake(state: string): void {
+      IndicatorHost.setStayAwake(state)
+      OsdHost.show("stayawake", "Stay awake " + (state === "on" ? "on" : "off"), "", "", "", 1500)
+    }
     function reminders(count: string): void { IndicatorHost.setReminders(count) }
   }
 
