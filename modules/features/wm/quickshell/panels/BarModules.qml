@@ -235,6 +235,11 @@ Item {
                 label: "Park"
                 onClicked: BarConfig.disable(moduleRow.moduleId)
               }
+
+              TextButton {
+                label: "Remove"
+                onClicked: BarConfig.remove(moduleRow.moduleId)
+              }
             }
           }
         }
