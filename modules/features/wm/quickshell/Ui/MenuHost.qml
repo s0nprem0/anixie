@@ -393,11 +393,11 @@ QtObject {
         }
       })
     case "bar-modules":
-      return BarConfig.availableModules().map(function (id) {
+      return BarConfig.availableModules.map(function (id) {
         return { label: String(id), icon: "", app: null }
       })
     case "bar-enabled":
-      return BarConfig.enabledModules().map(function (id) {
+      return BarConfig.enabledModules.map(function (id) {
         return { label: String(id), icon: "", app: null }
       })
     }

@@ -29,6 +29,55 @@ QtObject {
 
   property bool shown: false
 
+  // Auto-hide the dock when the active workspace has no windows. Off by
+  // default: the dock is otherwise a manual toggle, and hiding it
+  // automatically would surprise anyone who opened it on purpose.
+  property bool autoHide: false
+
+  // Pinned apps stay in the dock even with no window. Persisted separately
+  // from the bar layout so a dock reset does not touch the bar.
+  property var pinned: []
+
+  function isPinned(klass) {
+    return root.pinned.indexOf(String(klass || "")) !== -1
+  }
+
+  function pin(klass) {
+    klass = String(klass || "")
+    if (klass === "" || root.isPinned(klass)) return
+    const next = root.pinned.slice()
+    next.push(klass)
+    root.pinned = next
+    root.saveDock()
+  }
+
+  function unpin(klass) {
+    klass = String(klass || "")
+    const next = root.pinned.filter(function (k) { return k !== klass })
+    if (next.length === root.pinned.length) return
+    root.pinned = next
+    root.saveDock()
+  }
+
+  function saveDock() {
+    try { root.dockFile.setText(JSON.stringify({ pinned: root.pinned }, null, 2) + "\n") } catch (e) {}
+  }
+
+  function loadDock() {
+    try {
+      const raw = root.dockFile.text()
+      const parsed = JSON.parse(raw || "{}")
+      if (parsed && Array.isArray(parsed.pinned)) root.pinned = parsed.pinned.map(String)
+    } catch (e) {}
+  }
+
+  property FileView dockFile: FileView {
+    path: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/anixie/dock.json"
+    printErrors: false
+    blockLoading: true
+    Component.onCompleted: root.loadDock()
+  }
+
   // A backstop between events, and only while the dock is on screen. Events
   // make it responsive; this is what covers the changes Hyprland does not
   // announce.
@@ -121,10 +170,35 @@ QtObject {
       byClass[c.klass].windows.push(c)
     }
 
-    return order.map(function (klass) { return byClass[klass] })
+    // Pinned apps that are not currently running still get a tile, so they
+    // can be launched from the dock. They carry an empty window list.
+    const result = []
+    const seen = {}
+    for (let i = 0; i < root.pinned.length; i++) {
+      const klass = String(root.pinned[i])
+      if (klass === "" || seen[klass]) continue
+      seen[klass] = true
+      const entry = byClass[klass]
+      result.push(entry ? entry : { klass: klass, windows: [] })
+    }
+    for (let i = 0; i < order.length; i++) {
+      const klass = order[i]
+      if (seen[klass]) continue
+      seen[klass] = true
+      result.push(byClass[klass])
+    }
+    return result
   }
 
   readonly property bool anyApps: root.apps.length > 0
+
+  readonly property bool hasWindowsOnActiveWorkspace: {
+    for (let i = 0; i < root.clients.length; i++) {
+      const c = root.clients[i]
+      if (c.mapped && c.workspace === root.activeWorkspace) return true
+    }
+    return false
+  }
 
   // The workspace the user is looking at, so a click can prefer a window that is
   // already in front of them.
@@ -259,6 +333,7 @@ QtObject {
   }
 
   onShownChanged: if (root.shown) root.refresh()
+  onHasWindowsOnActiveWorkspaceChanged: if (root.autoHide && root.shown && !root.hasWindowsOnActiveWorkspace) root.autoHideTimer.restart()
 
   property Connections hyprlandEvents: Connections {
     target: Hyprland
@@ -277,6 +352,16 @@ QtObject {
     running: root.shown
     repeat: true
     onTriggered: root.refresh()
+  }
+
+  // Auto-hide: when enabled and the dock is open on an empty workspace, hide
+  // it after a short delay so a glance does not flicker it away. The dock window
+  // stays mapped (see the bar's rule) and the keybind can bring it back.
+  property Timer autoHideTimer: Timer {
+    interval: 1500
+    running: root.autoHide && root.shown && !root.hasWindowsOnActiveWorkspace
+    repeat: false
+    onTriggered: root.shown = false
   }
 
   // Nothing here: the dock is hidden at startup, and the first refresh is

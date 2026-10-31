@@ -104,6 +104,18 @@ Item {
 
   property bool queryPending: false
 
+  // Hot-plug: re-read the list when an output arrives or leaves, rather than
+  // waiting for the next manual refresh or the eight-second fallback.
+  property Connections hotplug: Connections {
+    target: Hyprland
+
+    function onRawEvent(event) {
+      if (event && (event.name === "monitoradded" || event.name === "monitorremoved")) {
+        root.query()
+      }
+    }
+  }
+
   function query() {
     // A read already in flight will be followed by one more, rather than being
     // killed and restarted: stopping it would surface as a spurious failure.
@@ -676,6 +688,52 @@ Item {
               placeholder: "unknown"
               currentIndex: root.indexOf(root.transforms, block.modelData.transform)
               onActivated: function (index) { root.set(block.name, "transform", root.transforms[index].value) }
+            }
+          }
+
+          PanelRow {
+            id: sdrBrightnessRow
+            width: parent.width
+            hasControl: true
+            label: "SDR brightness"
+
+            Dropdown {
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              width: sdrBrightnessRow.controlWidth
+              model: ["0.8", "1.0", "1.2", "1.5"]
+              placeholder: "1.0"
+              currentIndex: {
+                const v = String(block.modelData.sdrBrightness || "1")
+                const idx = ["0.8", "1.0", "1.2", "1.5"].indexOf(v)
+                return idx >= 0 ? idx : 1
+              }
+              onActivated: function (index) {
+                root.set(block.name, "sdrbrightness", ["0.8", "1.0", "1.2", "1.5"][index])
+              }
+            }
+          }
+
+          PanelRow {
+            id: sdrSaturationRow
+            width: parent.width
+            hasControl: true
+            label: "SDR saturation"
+
+            Dropdown {
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              width: sdrSaturationRow.controlWidth
+              model: ["0.8", "1.0", "1.2", "1.5"]
+              placeholder: "1.0"
+              currentIndex: {
+                const v = String(block.modelData.sdrSaturation || "1")
+                const idx = ["0.8", "1.0", "1.2", "1.5"].indexOf(v)
+                return idx >= 0 ? idx : 1
+              }
+              onActivated: function (index) {
+                root.set(block.name, "sdrsaturation", ["0.8", "1.0", "1.2", "1.5"][index])
+              }
             }
           }
 

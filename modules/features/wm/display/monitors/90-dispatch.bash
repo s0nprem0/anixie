@@ -67,6 +67,10 @@ case "${1:-}" in
     shift
     identify_action
     ;;
+  identities)
+    shift
+    "$jq" 'map({ (.name): { make, model, serial, description } }) | add' <<<"$(all_monitors_json)"
+    ;;
   status)
     status_action
     ;;

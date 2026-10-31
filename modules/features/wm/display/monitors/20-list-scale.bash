@@ -48,7 +48,7 @@ save_field() {
   mkdir -p "$state_dir" || die "could not create $state_dir"
 
   state=$(read_state "$name") || die "no output called \"$name\""
-  read -r scale transform disabled mirror position mode <<<"$state"
+  read -r scale transform disabled mirror position mode sdrbrightness sdrsaturation <<<"$state"
 
   case "$key" in
     scale) scale="$value" ;;
@@ -57,6 +57,8 @@ save_field() {
     mirror) mirror="${value:-none}" ;;
     position) position="${value:-auto}" ;;
     mode) mode="${value:-preferred}" ;;
+    sdrbrightness) sdrbrightness="$value" ;;
+    sdrsaturation) sdrsaturation="$value" ;;
     *) die "unknown monitor setting \"$key\"" ;;
   esac
 
@@ -64,7 +66,7 @@ save_field() {
   if [ -f "$state_file" ]; then
     awk -v n="$name" '$1 != n' "$state_file" >"$tmp"
   fi
-  printf '%s %s %s %s %s %s %s\n' "$name" "$scale" "$transform" "$disabled" "$mirror" "$position" "$mode" >>"$tmp"
+  printf '%s %s %s %s %s %s %s %s %s\n' "$name" "$scale" "$transform" "$disabled" "$mirror" "$position" "$mode" "$sdrbrightness" "$sdrsaturation" >>"$tmp"
   mv "$tmp" "$state_file"
 }
 

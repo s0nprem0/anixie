@@ -16,6 +16,9 @@ Item {
     function toggle(): void { DockHost.toggle() }
     function show(): void { DockHost.show() }
     function hide(): void { DockHost.hide() }
+    function autohideOn(): string { DockHost.autoHide = true; return "ok" }
+    function autohideOff(): string { DockHost.autoHide = false; return "ok" }
+    function autohideStatus(): string { return DockHost.autoHide ? "on" : "off" }
   }
 
   // The bar itself: hide and show it without touching the shell, so panels and
@@ -40,14 +43,16 @@ Item {
 
     // Rearranging from a script, which is what a drag persists and what makes
     // the saved layout testable without a pointer.
-    function move(id: string, section: string, index: string): void {
-      BarConfig.move(id, section, Number(index))
+    function move(id: string, section: string, index: string): string {
+      return BarConfig.move(id, section, Number(index)) ? "ok" : "no widget called \"" + id + "\" on the bar"
     }
     function reset(): void {
       PanelHost.closeAll()
       BarConfig.reset()
     }
-    function background(mode: string): void { BarConfig.setBackground(mode) }
+    function background(mode: string): string {
+      return BarConfig.setBackground(mode) ? "ok" : "background must be clear, glassy or opaque"
+    }
     function position(value: string): string {
       const changed = BarContext.position !== value
       if (!BarConfig.setPosition(value)) {
@@ -91,7 +96,7 @@ Item {
     // The widget catalog, for `anixie bar modules`: known widgets with their
     // current section and state, one tab-separated row each.
     function modules(): string {
-      const ids = BarConfig.knownModules()
+      const ids = BarConfig.knownModules
       return ids.map(function (id) {
         return id + "\t" + BarConfig.sectionFor(id) + "\t"
           + (BarConfig.isEnabled(id) ? "on" : "off")
@@ -101,8 +106,12 @@ Item {
     // Taking a widget off the bar and putting it back. The place it came from is
     // remembered, so `enable` restores rather than appends; a widget that was
     // never on the bar goes where modules.json says.
-    function enable(id: string): void { BarConfig.enable(id) }
-    function disable(id: string): void { BarConfig.disable(id) }
+    function enable(id: string): string {
+      return BarConfig.enable(id) ? "ok" : (BarConfig.isEnabled(id) ? "already on the bar" : "unknown module \"" + id + "\"")
+    }
+    function disable(id: string): string {
+      return BarConfig.disable(id) ? "ok" : "not on the bar"
+    }
 
     // The tray drawer, for a script or a key: what a click on the parked count
     // opens.
@@ -188,7 +197,14 @@ Item {
   IpcHandler {
     target: "indicator"
 
-    function nightlight(temperature: string): void { IndicatorHost.setNightlight(temperature) }
+    function nightlight(temperature: string): void {
+      IndicatorHost.setNightlight(temperature)
+      const n = parseInt(temperature, 10)
+      if (isFinite(n) && n > 0 && n < 6000)
+        OsdHost.show("nightlight", "Night light " + n + " K", "", "", "", 1500)
+      else
+        OsdHost.show("nightlight", "Night light off", "", "", "", 1500)
+    }
     function idle(state: string): void { IndicatorHost.setIdle(state) }
     function stayawake(state: string): void { IndicatorHost.setStayAwake(state) }
     function reminders(count: string): void { IndicatorHost.setReminders(count) }
@@ -220,6 +236,12 @@ Item {
 
     function sourceSwitch(): void { MediaHost.next() }
     function sourceSwitchPrevious(): void { MediaHost.previous() }
+
+    function osd(state: string): string {
+      if (state === "on") { MediaHost.trackChangeOsd = true; return "ok" }
+      if (state === "off") { MediaHost.trackChangeOsd = false; return "ok" }
+      return MediaHost.trackChangeOsd ? "on" : "off"
+    }
   }
 
   // The OSD as a service: anything that can run `quickshell ipc` can ask for a

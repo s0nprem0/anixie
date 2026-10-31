@@ -29,6 +29,10 @@ QtObject {
   property int maxValue: 100
   property int duration: 1200
 
+  // The output the OSD should appear on. Empty means the focused screen,
+  // which is the default for keyboard-driven changes.
+  property string screenName: ""
+
   // Media readouts are allowed to be wider than a percentage: the message is a
   // track title rather than "42%".
   readonly property bool mediaOsd: root.iconKey.indexOf("media") === 0
@@ -83,7 +87,8 @@ QtObject {
     return Math.min(4000, Math.max(1400, 700 + length * 35))
   }
 
-  function show(iconName, rawMessage, rawValue, rawMax, rawProgressText, rawDuration) {
+  function show(iconName, rawMessage, rawValue, rawMax, rawProgressText, rawDuration, rawScreen) {
+    root.screenName = (rawScreen === undefined || rawScreen === null) ? "" : String(rawScreen)
     const raw = String(rawValue === undefined ? "" : rawValue)
     const parsed = parseInt(raw, 10)
     const max = Math.max(1, parseInt(String(rawMax === undefined ? "100" : rawMax), 10))

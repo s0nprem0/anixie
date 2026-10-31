@@ -64,6 +64,16 @@ set_action() {
       apply_change "$output" mode "$value"
       save_field "$output" mode "$value"
       ;;
+    sdrbrightness)
+      [[ "$value" =~ ^[0-9.]+$ ]] || die "sdrbrightness must be a number"
+      apply_change "$output" sdrbrightness "$value"
+      save_field "$output" sdrbrightness "$value"
+      ;;
+    sdrsaturation)
+      [[ "$value" =~ ^[0-9.]+$ ]] || die "sdrsaturation must be a number"
+      apply_change "$output" sdrsaturation "$value"
+      save_field "$output" sdrsaturation "$value"
+      ;;
     mirror)
       case "$value" in
         none | off | "") value=none ;;

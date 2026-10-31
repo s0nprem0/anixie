@@ -69,6 +69,8 @@ read_state() {
   [ -n "$live" ] || return 1
   read -r scale transform disabled mirror position <<<"$live"
   mode=preferred
+  sdrbrightness=1
+  sdrsaturation=1
 
   case "$scale" in "" | 0 | 0.0 | null) scale=1 ;; esac
   case "$transform" in "" | null) transform=0 ;; esac
@@ -81,19 +83,21 @@ read_state() {
   [ "$disabled" = 1 ] && position=auto
 
   if [ -f "$state_file" ]; then
-    saved=$(awk -v n="$name" '$1 == n { print $2, $3, $4, $5, $6, $7 }' "$state_file")
+    saved=$(awk -v n="$name" '$1 == n { print $2, $3, $4, $5, $6, $7, $8, $9 }' "$state_file")
     if [ -n "$saved" ]; then
-      read -r s_scale s_transform s_disabled s_mirror s_position s_mode <<<"$saved"
+      read -r s_scale s_transform s_disabled s_mirror s_position s_mode s_sdrbrightness s_sdrsaturation <<<"$saved"
       [ -n "$s_scale" ] && scale="$s_scale"
       [ -n "$s_transform" ] && transform="$s_transform"
       [ -n "$s_disabled" ] && disabled="$s_disabled"
       [ -n "$s_mirror" ] && mirror="$s_mirror"
       [ -n "$s_position" ] && position="$s_position"
       [ -n "$s_mode" ] && mode="$s_mode"
+      [ -n "$s_sdrbrightness" ] && sdrbrightness="$s_sdrbrightness"
+      [ -n "$s_sdrsaturation" ] && sdrsaturation="$s_sdrsaturation"
     fi
   fi
 
-  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$scale" "$transform" "$disabled" "$mirror" "$position" "$mode"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$scale" "$transform" "$disabled" "$mirror" "$position" "$mode" "$sdrbrightness" "$sdrsaturation"
 }
 
 # Apply one change while keeping the rest of the output's rule. A monitor rule
@@ -107,7 +111,7 @@ apply_change() {
   local output="$1" key="$2" value="$3" state scale transform disabled mirror position mode rule
 
   state=$(read_state "$output") || die "no output called \"$output\""
-  read -r scale transform disabled mirror position mode <<<"$state"
+  read -r scale transform disabled mirror position mode sdrbrightness sdrsaturation <<<"$state"
   case "$disabled" in 1 | true) disabled=true ;; *) disabled=false ;; esac
 
   case "$key" in
@@ -117,11 +121,13 @@ apply_change() {
     mirror) mirror="$value" ;;
     position) position="$value" ;;
     mode) mode="$value" ;;
+    sdrbrightness) sdrbrightness="$value" ;;
+    sdrsaturation) sdrsaturation="$value" ;;
     *) die "unknown monitor setting \"$key\"" ;;
   esac
 
   [ "$mirror" = none ] && mirror=""
-  rule="hl.monitor({ output = \"$output\", mode = \"$mode\", position = \"$position\", scale = $scale, transform = $transform, disabled = $disabled, mirror = \"$mirror\" })"
+  rule="hl.monitor({ output = \"$output\", mode = \"$mode\", position = \"$position\", scale = $scale, transform = $transform, disabled = $disabled, mirror = \"$mirror\", sdrbrightness = $sdrbrightness, sdrsaturation = $sdrsaturation })"
   "$hyprctl" eval "$rule" >/dev/null
 }
 

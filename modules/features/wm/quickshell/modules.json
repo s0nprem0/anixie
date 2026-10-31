@@ -1,18 +1,122 @@
 {
-  "bar.active-window": { "section": "left", "source": "components/ActiveWindow.qml" },
-  "bar.media": { "section": "centerEnd", "source": "components/Media.qml" },
-  "bar.microphone": { "section": "right", "source": "components/Microphone.qml" },
-  "bar.weather": { "section": "centerEnd", "source": "components/Weather.qml" },
-  "bar.world-clock": { "section": "center", "source": "components/WorldClock.qml" },
-  "bar.update": { "section": "centerEnd", "source": "components/UpdateBadge.qml" },
-  "bar.keyboard-layout": { "section": "right", "source": "components/KeyboardLayout.qml" },
-  "bar.layoutmode": { "section": "left", "source": "components/LayoutMode.qml" },
-  "bar.agents": { "section": "right", "source": "components/Agents.qml" },
-  "bar.tailscale": { "section": "right", "source": "components/Tailscale.qml" },
-  "bar.dropbox": { "section": "right", "source": "components/Dropbox.qml" },
-  "bar.model-usage": { "section": "centerEnd", "source": "components/ModelUsage.qml" },
-  "bar.meet": { "section": "right", "source": "components/Meet.qml" },
-  "bar.system-stats": { "section": "right", "source": "components/SystemStats.qml" },
-  "bar.screentime": { "section": "centerEnd", "source": "components/ScreenTime.qml" },
-  "bar.appearance": { "section": "right", "source": "components/Appearance.qml" }
+  "bar.active-window": {
+    "section": "left",
+    "source": "components/ActiveWindow.qml"
+  },
+  "bar.agents": {
+    "section": "right",
+    "source": "components/Agents.qml"
+  },
+  "bar.appearance": {
+    "section": "right",
+    "source": "components/Appearance.qml"
+  },
+  "bar.audio": {
+    "section": "right",
+    "source": "components/Volume.qml"
+  },
+  "bar.bell": {
+    "section": "right",
+    "source": "components/Bell.qml"
+  },
+  "bar.bluetooth": {
+    "section": "right",
+    "source": "components/Bluetooth.qml"
+  },
+  "bar.clock": {
+    "section": "center",
+    "source": "components/Clock.qml"
+  },
+  "bar.dropbox": {
+    "section": "right",
+    "source": "components/Dropbox.qml"
+  },
+  "bar.indicators": {
+    "section": "centerBegin",
+    "source": "components/Indicators.qml"
+  },
+  "bar.keyboard-layout": {
+    "section": "right",
+    "source": "components/KeyboardLayout.qml"
+  },
+  "bar.layoutmode": {
+    "section": "left",
+    "source": "components/LayoutMode.qml"
+  },
+  "bar.media": {
+    "section": "centerEnd",
+    "source": "components/Media.qml"
+  },
+  "bar.meet": {
+    "section": "right",
+    "source": "components/Meet.qml"
+  },
+  "bar.menu": {
+    "section": "left",
+    "source": "components/Menu.qml"
+  },
+  "bar.microphone": {
+    "section": "right",
+    "source": "components/Microphone.qml"
+  },
+  "bar.model-usage": {
+    "section": "centerEnd",
+    "source": "components/ModelUsage.qml"
+  },
+  "bar.monitor": {
+    "section": "right",
+    "source": "components/Monitor.qml"
+  },
+  "bar.passwordless-sudo": {
+    "section": "right",
+    "source": "components/PasswordlessSudo.qml"
+  },
+  "bar.power": {
+    "section": "right",
+    "source": "components/Battery.qml"
+  },
+  "bar.remote-session": {
+    "section": "right",
+    "source": "components/RemoteSession.qml"
+  },
+  "bar.screentime": {
+    "section": "centerEnd",
+    "source": "components/ScreenTime.qml"
+  },
+  "bar.spacer": {
+    "section": "right",
+    "source": "components/Spacer.qml"
+  },
+  "bar.system-stats": {
+    "section": "right",
+    "source": "components/SystemStats.qml"
+  },
+  "bar.tailscale": {
+    "section": "right",
+    "source": "components/Tailscale.qml"
+  },
+  "bar.tray": {
+    "section": "right",
+    "source": "components/Tray.qml"
+  },
+  "bar.update": {
+    "section": "centerEnd",
+    "source": "components/UpdateBadge.qml"
+  },
+  "bar.weather": {
+    "section": "centerEnd",
+    "source": "components/Weather.qml"
+  },
+  "bar.wifi": {
+    "section": "right",
+    "source": "components/Wifi.qml"
+  },
+  "bar.workspaces": {
+    "section": "left",
+    "source": "components/Workspaces.qml"
+  },
+  "bar.world-clock": {
+    "section": "center",
+    "source": "components/WorldClock.qml"
+  }
 }

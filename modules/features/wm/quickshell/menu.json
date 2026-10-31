@@ -278,7 +278,7 @@
               "state": "bar-background-clear"
             },
             {
-              "label": "Manage bar modules",
+              "label": "Bar modules",
               "run": "quickshell ipc call bar manage"
             },
             {

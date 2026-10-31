@@ -49,8 +49,8 @@ Item {
       Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         visible: root.hasProgress
-        width: Style.space(120)
-        height: Style.space(4)
+        width: Style.space(140)
+        height: Style.space(6)
         // A tint of the foreground rather than the background: on a palette
         // where those two are close, the track disappeared and the level read
         // as a floating fill with no extent.

@@ -50,7 +50,7 @@ Item {
   // clicks across the whole width of the screen.
   PanelWindow {
     id: osdWindow
-    screen: Screens.focused
+    screen: OsdHost.screenName !== "" ? (Screens.byName(OsdHost.screenName) || Screens.focused) : Screens.focused
 
     anchors.bottom: true
     margins.bottom: Style.space(90)
@@ -79,7 +79,11 @@ Item {
       mediaOsd: OsdHost.mediaOsd
 
       opacity: OsdHost.opened ? 1 : 0
+      scale: OsdHost.opened ? 1 : 0.96
       Behavior on opacity {
+        NumberAnimation { duration: Style.duration(Style.motion.fast); easing.type: Easing.OutCubic }
+      }
+      Behavior on scale {
         NumberAnimation { duration: Style.duration(Style.motion.fast); easing.type: Easing.OutCubic }
       }
     }

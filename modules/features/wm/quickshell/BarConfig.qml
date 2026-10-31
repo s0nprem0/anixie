@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "Ui/State.js" as State
+import "Ui/BarLayout.js" as BarLayout
 
 // The bar's layout: which module sits in which section, and in what order.
 //
@@ -107,9 +108,15 @@ QtObject {
         // A file written before versioning existed is upgraded in memory and
         // rewritten once, so the next reader does not have to guess again.
         if (legacy) root.save(root.state)
+      } else {
+        console.warn("quickshell bar: the saved layout is not an object, using bar.json")
+        root.state = null
+        root.savedText = ""
       }
     } catch (e) {
       console.warn("quickshell bar: the saved layout is not valid JSON, using bar.json")
+      root.state = null
+      root.savedText = ""
     }
   }
 
@@ -128,40 +135,10 @@ QtObject {
   // by one — otherwise dragging a widget one place to the right lands it back
   // where it started.
   function move(id, toSection, index) {
-    if (!id || !toSection) return
-
-    const next = JSON.parse(JSON.stringify(root.config))
-    next.layout = next.layout || {}
-
-    let fromSection = ""
-    let fromIndex = -1
-    let entry = null
-
-    for (const name in next.layout) {
-      const list = next.layout[name]
-      for (let i = 0; i < list.length; i++) {
-        if (list[i] && list[i].id === id) {
-          fromSection = name
-          fromIndex = i
-          entry = list[i]
-          list.splice(i, 1)
-          break
-        }
-      }
-      if (entry) break
-    }
-
-    if (!entry) return
-    if (!next.layout[toSection]) next.layout[toSection] = []
-
-    const target = next.layout[toSection]
-    let at = Number(index)
-    if (!isFinite(at) || at < 0) at = target.length
-    if (fromSection === toSection && fromIndex >= 0 && fromIndex < at) at -= 1
-    at = Math.max(0, Math.min(target.length, at))
-    target.splice(at, 0, entry)
-
+    const next = BarLayout.move(root.config, id, toSection, index)
+    if (!next) return false
     root.save(next)
+    return true
   }
 
   // ---- the manifest ----
@@ -196,96 +173,44 @@ QtObject {
 
   // Where a widget belongs, from either manifest shape — a bare section name or
   // the object with one.
+  function setScreens(id, value) {
+    const next = BarLayout.setScreens(root.config, id, value)
+    if (!next) return false
+    root.save(next)
+    return true
+  }
+
   function sectionOf(id) {
-    const entry = root.defaults[id]
-    if (typeof entry === "string") return entry
-    if (entry && typeof entry === "object" && entry.section) return String(entry.section)
-    return "right"
+    return BarLayout.sectionOf(id, root.defaults)
   }
 
   function isEnabled(id) {
-    const layout = root.config.layout || {}
-    for (const name in layout) {
-      const list = layout[name]
-      for (let i = 0; i < list.length; i++) {
-        if (list[i] && list[i].id === id) return true
-      }
-    }
-    return false
+    return BarLayout.isEnabled(root.config, id)
   }
 
   // Off the bar, remembered with the place it came from so enabling it puts it
   // back there rather than at the end of a section.
   function disable(id) {
-    if (!id || !root.isEnabled(id)) return
-
-    const next = JSON.parse(JSON.stringify(root.config))
-    next.layout = next.layout || {}
-
-    let entry = null
-    let from = ""
-    let at = -1
-
-    for (const name in next.layout) {
-      const list = next.layout[name]
-      for (let i = 0; i < list.length; i++) {
-        if (list[i] && list[i].id === id) {
-          entry = list[i]
-          from = name
-          at = i
-          list.splice(i, 1)
-          break
-        }
-      }
-      if (entry) break
-    }
-
-    if (!entry) return
-    next.disabled = next.disabled || []
-    next.disabled.push({ section: from, index: at, entry: entry })
+    const next = BarLayout.disable(root.config, id)
+    if (!next) return false
     root.save(next)
+    return true
   }
 
   // Back on the bar: where it was if it was put away, otherwise where the
   // manifest says.
   function enable(id) {
-    if (!id || root.isEnabled(id)) return
-
-    const next = JSON.parse(JSON.stringify(root.config))
-    next.layout = next.layout || {}
-
-    const parked = next.disabled || []
-    let found = -1
-    for (let i = 0; i < parked.length; i++) {
-      if (parked[i] && parked[i].entry && parked[i].entry.id === id) {
-        found = i
-        break
-      }
-    }
-
-    if (found >= 0) {
-      const slot = parked[found]
-      parked.splice(found, 1)
-      next.disabled = parked
-
-      const section = slot.section || "right"
-      next.layout[section] = next.layout[section] || []
-      const list = next.layout[section]
-      list.splice(Math.max(0, Math.min(slot.index, list.length)), 0, slot.entry)
-    } else {
-      const section = root.sectionOf(id)
-      next.layout[section] = next.layout[section] || []
-      next.layout[section].push({ id: id })
-    }
-
+    const next = BarLayout.enable(root.config, id, root.defaults)
+    if (!next) return false
     root.save(next)
+    return true
   }
 
   function setBackground(mode) {
-    if (!mode) return
-    const next = JSON.parse(JSON.stringify(root.config))
-    next.background = String(mode)
+    const next = BarLayout.setBackground(root.config, mode)
+    if (!next) return false
     root.save(next)
+    return true
   }
 
   // The edge the bar is on. `position` lives beside `background` in the saved
@@ -293,11 +218,8 @@ QtObject {
   // rebuild. BarContext reads it live; the shell recreates its bar windows when
   // it changes, since a mapped layer surface cannot be re-anchored reliably.
   function setPosition(value) {
-    const position = String(value || "")
-    if (["top", "bottom", "left", "right"].indexOf(position) === -1) return false
-
-    const next = JSON.parse(JSON.stringify(root.config))
-    next.position = position
+    const next = BarLayout.setPosition(root.config, value)
+    if (!next) return false
     root.save(next)
     return true
   }
@@ -321,102 +243,32 @@ QtObject {
   // as strings from `bar set`; the caller decides whether a value is a number,
   // a boolean or text (see the IPC handler in shell.qml).
   function setSetting(id, key, value) {
-    if (!id || !key) return false
-
-    const next = JSON.parse(JSON.stringify(root.config))
-    next.layout = next.layout || {}
-
-    for (const name in next.layout) {
-      const list = next.layout[name]
-      if (!Array.isArray(list)) continue
-      for (let i = 0; i < list.length; i++) {
-        const entry = list[i]
-        if (entry && entry.id === id) {
-          entry[key] = value
-          root.save(next)
-          return true
-        }
-      }
-    }
-
-    return false
+    const next = BarLayout.setSetting(root.config, id, key, value)
+    if (!next) return false
+    root.save(next)
+    return true
   }
 
   // Every widget this shell can draw: the registry's built-ins, the manifest's
   // drop-ins, and anything already parked in the saved layout. Keeping the
   // registry in the list matters because a built-in such as `bar.menu` can be
   // disabled too, and then it has to appear in the enable list again.
-  function knownModules() {
-    const out = []
-    function add(id) {
-      id = String(id || "")
-      if (id !== "" && out.indexOf(id) === -1) out.push(id)
-    }
-
-    for (const id in ModuleRegistry.registry) add(id)
-    for (const id in root.defaults) add(id)
-
-    const layout = root.config.layout || {}
-    for (const name in layout) {
-      const list = layout[name]
-      if (!Array.isArray(list)) continue
-      for (let i = 0; i < list.length; i++) {
-        if (list[i]) add(list[i].id)
-      }
-    }
-
-    const parked = root.config.disabled || []
-    for (let i = 0; i < parked.length; i++) {
-      if (parked[i] && parked[i].entry) add(parked[i].entry.id)
-    }
-
-    out.sort()
-    return out
-  }
+  readonly property var knownModules: BarLayout.knownModules(
+    root.config, root.defaults, Object.keys(ModuleRegistry.registry || {}))
 
   // The widgets that are not currently on the bar. Used by the menu's plugin
   // catalog: the id is both the label and the argument to `bar enable`.
-  function availableModules() {
-    return root.knownModules().filter(function (id) { return !root.isEnabled(id) })
-  }
+  readonly property var availableModules: BarLayout.availableModules(
+    root.config, root.defaults, Object.keys(ModuleRegistry.registry || {}))
 
   // Every widget currently in a layout section, including the tray. Sorted so
   // the two catalog lists are stable.
-  function enabledModules() {
-    const out = []
-    const layout = root.config.layout || {}
-    for (const name in layout) {
-      const list = layout[name]
-      if (!Array.isArray(list)) continue
-      for (let i = 0; i < list.length; i++) {
-        const entry = list[i]
-        if (entry && entry.id && out.indexOf(String(entry.id)) === -1) out.push(String(entry.id))
-      }
-    }
-    out.sort()
-    return out
-  }
+  readonly property var enabledModules: BarLayout.enabledModules(root.config)
 
   // Where a widget is now, for the `bar modules` readout. Falls back to the
   // manifest's default section for a widget that is parked.
   function sectionFor(id) {
-    const layout = root.config.layout || {}
-    for (const name in layout) {
-      const list = layout[name]
-      if (!Array.isArray(list)) continue
-      for (let i = 0; i < list.length; i++) {
-        if (list[i] && list[i].id === id) return name
-      }
-    }
-
-    const parked = root.config.disabled || []
-    for (let i = 0; i < parked.length; i++) {
-      if (parked[i] && parked[i].entry && parked[i].entry.id === id) {
-        return String(parked[i].section || root.sectionOf(id))
-      }
-    }
-
-    return root.sectionOf(id)
+    return BarLayout.sectionFor(root.config, id, root.defaults)
   }
 
   function save(next) {
@@ -428,6 +280,7 @@ QtObject {
     // widgets into the same section kept only the second.
     root.state = next
     root.savedText = JSON.stringify(next, null, 2) + "\n"
+    root.lastError = ""
 
     // The directory is made first: a write into a directory that does not exist
     // yet is a drop that silently does nothing.
@@ -439,6 +292,7 @@ QtObject {
   function reset() {
     root.state = null
     root.savedText = ""
+    root.lastError = ""
     rm.running = false
     rm.running = true
   }
@@ -447,18 +301,37 @@ QtObject {
   // exists without losing a later change.
   property string savedText: ""
 
+  // The last persistence error, if any. Empty when the saved layout is in sync
+  // with disk.
+  property string lastError: ""
+
   property Process mkdir: Process {
     command: ["mkdir", "-p", root.stateDir]
     running: false
-    onExited: {
-      if (root.savedText !== "") root.savedFile.setText(root.savedText)
+    onExited: function (exitCode) {
+      if (exitCode !== 0) {
+        root.lastError = "could not create the bar state directory"
+        return
+      }
+      if (root.savedText !== "") {
+        try {
+          root.savedFile.setText(root.savedText)
+          root.lastError = ""
+        } catch (e) {
+          root.lastError = String(e)
+        }
+      }
     }
   }
 
   property Process rm: Process {
     command: ["rm", "-f", root.savedPath]
     running: false
-    onExited: root.savedText = ""
+    onExited: function (exitCode) {
+      if (exitCode !== 0) root.lastError = "could not remove the saved bar layout"
+      else root.lastError = ""
+      root.savedText = ""
+    }
   }
 
   // A FileView held as a property rather than a child: a QtObject has no

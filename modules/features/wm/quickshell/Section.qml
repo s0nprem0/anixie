@@ -20,6 +20,7 @@ Item {
   // Which bar.json section this is, so a module can be told which edge of itself
   // stays put when it grows. Set by shell.qml.
   property string name: ""
+  property string screenName: ""
 
   readonly property bool vertical: BarContext.vertical
 
@@ -60,6 +61,7 @@ Item {
       // the polling, and two identical buttons racing for the one shared tooltip.
       modules: !root.vertical ? root.entries : []
       sectionName: root.name
+      screenName: root.screenName
     }
   }
 
@@ -72,6 +74,7 @@ Item {
     ModuleRepeater {
       modules: root.vertical ? root.entries : []
       sectionName: root.name
+      screenName: root.screenName
     }
   }
 }

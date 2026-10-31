@@ -25,6 +25,10 @@ Item {
 
   height: Style.space(34)
 
+  scale: hover.containsMouse ? 1.05 : 1.0
+  transformOrigin: Item.Left
+  Behavior on scale { NumberAnimation { duration: Style.duration(120) } }
+
   Rectangle {
     anchors.fill: parent
     radius: Theme.cornerRadius
@@ -47,8 +51,11 @@ Item {
     cursorShape: Qt.PointingHandCursor
     acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
     onClicked: {
-      if (mouse.button === Qt.RightButton) DockHost.activate(root.app)
-      else DockHost.activate(root.app)
+      if (!root.app || root.windows.length === 0) {
+        Commands.app(root.app ? root.app.klass : "")
+        return
+      }
+      DockHost.activate(root.app)
     }
   }
 
@@ -144,6 +151,39 @@ Item {
     radius: width / 2
     visible: root.anyMinimized
     color: Theme.accent
+  }
+
+  // Pin toggle, shown on hover. Pinned apps stay in the dock with no window.
+  Rectangle {
+    id: pinButton
+
+    anchors.right: closeButton.left
+    anchors.rightMargin: Style.space(4)
+    anchors.verticalCenter: parent.verticalCenter
+    width: Style.space(20)
+    height: Style.space(20)
+    radius: width / 2
+    visible: hover.containsMouse
+    color: pinMouse.containsMouse ? Theme.bg : "transparent"
+
+    Text {
+      anchors.centerIn: parent
+      text: DockHost.isPinned(root.app ? root.app.klass : "") ? "📌" : "📍"
+      font.pixelSize: Style.font.caption
+    }
+
+    MouseArea {
+      id: pinMouse
+      anchors.fill: parent
+      hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
+      acceptedButtons: Qt.LeftButton
+      onClicked: {
+        if (!root.app) return
+        if (DockHost.isPinned(root.app.klass)) DockHost.unpin(root.app.klass)
+        else DockHost.pin(root.app.klass)
+      }
+    }
   }
 
   // Only on hover, and only for the tile under the pointer, so a dock full of

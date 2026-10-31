@@ -16,6 +16,11 @@ QtObject {
 
   property var chosen: null
 
+  // Show an OSD when the active player changes track on its own. Off by
+  // default: an automatic readout on every song change is not what everyone
+  // wants on screen.
+  property bool trackChangeOsd: false
+
   readonly property var players: Mpris.players ? Mpris.players.values : []
 
   // The player the widget is showing, and therefore the one the keys act on:
@@ -117,5 +122,23 @@ QtObject {
     interval: 350
     repeat: false
     onTriggered: root.showOsd(root.pendingIcon, root.pendingPlayer)
+  }
+
+  // Automatic now-playing readout. Only fires when opted in, and only when the
+  // title actually changes, so a paused/playing toggle does not duplicate it.
+  property string lastTrackTitle: ""
+
+  property Connections trackChangeConnections: Connections {
+    target: root.active
+
+    function onTrackTitleChanged() {
+      if (!root.trackChangeOsd) return
+      const player = root.active
+      if (!player) return
+      const title = String(player.trackTitle || "")
+      if (title === "" || title === root.lastTrackTitle) return
+      root.lastTrackTitle = title
+      root.showOsd("media", player)
+    }
   }
 }

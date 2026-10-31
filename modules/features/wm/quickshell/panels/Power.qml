@@ -62,6 +62,7 @@ Item {
   // power-profiles-daemon may simply not be running, in which case no profile
   // is selected and nothing on screen would explain why.
   property bool profileFailed: false
+  property string pendingProfile: ""
 
   // What powerprofilesctl said when it failed, for the message below.
   property string profileError: ""
@@ -87,6 +88,10 @@ Item {
     }
     onExited: function (exitCode) {
       root.profileFailed = exitCode !== 0
+      if (exitCode === 0 && root.pendingProfile !== "") {
+        OsdHost.show("power-profile", "Power profile: " + root.pendingProfile, "", "", "", 1500)
+      }
+      root.pendingProfile = ""
     }
   }
 
@@ -104,6 +109,7 @@ Item {
   }
 
   function setProfile(name) {
+    root.pendingProfile = String(name || "")
     profileSet.command = ["powerprofilesctl", "set", name]
     profileSet.running = true
   }

@@ -92,6 +92,8 @@ Item {
   // and this is the same connection seen from the network layer.
   property var vpns: []
   property bool vpnBusy: false
+  property string pendingVpnName: ""
+  property bool pendingVpnUp: false
   property bool restarting: false
 
   Connections {
@@ -306,6 +308,8 @@ Item {
 
     root.actionError = ""
     root.vpnBusy = true
+    root.pendingVpnName = String(vpn.name || "")
+    root.pendingVpnUp = !vpn.active
     vpnAction.command = ["nmcli", "connection", vpn.active ? "down" : "up", vpn.name]
     vpnAction.running = false
     vpnAction.running = true
@@ -353,6 +357,11 @@ Item {
         const message = String(vpnError.text || "").trim().split("\n")[0]
         root.actionError = message !== "" ? message : "Could not change the VPN"
       }
+
+      if (exitCode === 0 && root.pendingVpnName !== "") {
+        OsdHost.show("vpn", root.pendingVpnUp ? "VPN connected: " + root.pendingVpnName : "VPN disconnected: " + root.pendingVpnName, "", "", "", 1500)
+      }
+      root.pendingVpnName = ""
 
       root.refreshVpns()
       root.refreshDetails()

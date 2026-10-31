@@ -16,6 +16,58 @@ Item {
     return Array.isArray(list) ? list : []
   }
 
+  function sectionLabel(name) {
+    switch (String(name)) {
+    case "left": return "Left"
+    case "centerBegin": return "Center begin"
+    case "center": return "Center"
+    case "centerEnd": return "Center end"
+    case "tray": return "Tray (parked)"
+    case "right": return "Right"
+    default: return String(name)
+    }
+  }
+
+  function prettyId(id) {
+    let s = String(id || "")
+    // Strip the "bar." prefix and turn separators into spaces, then title-case.
+    s = s.replace(/^bar\./, "")
+    s = s.replace(/[-_.]/g, " ")
+    s = s.replace(/\s+/g, " ").trim()
+    if (s === "") return String(id)
+    return s.replace(/\b\w/g, function (c) { return c.toUpperCase() })
+  }
+
+  property string filterText: ""
+
+  function matchesFilter(id) {
+    if (root.filterText.trim() === "") return true
+    const q = root.filterText.toLowerCase()
+    return String(id).toLowerCase().indexOf(q) !== -1
+      || root.prettyId(id).toLowerCase().indexOf(q) !== -1
+  }
+
+  function filteredEntries(name) {
+    return root.entriesOf(name).filter(function (entry) {
+      return entry && entry.id && root.matchesFilter(entry.id)
+    })
+  }
+
+  function filteredAvailable() {
+    return BarConfig.availableModules.filter(function (id) {
+      return root.matchesFilter(id)
+    })
+  }
+
+  property bool confirmReset: false
+
+  Timer {
+    id: resetTimer
+    interval: 3000
+    repeat: false
+    onTriggered: root.confirmReset = false
+  }
+
   implicitWidth: Style.space(400)
   implicitHeight: card.implicitHeight
 
@@ -43,7 +95,9 @@ Item {
       model: ["top", "bottom", "left", "right"]
       currentIndex: ["top", "bottom", "left", "right"].indexOf(BarContext.position)
       onActivated: function (index) {
-        BarConfig.setPosition(["top", "bottom", "left", "right"][index])
+        const next = ["top", "bottom", "left", "right"][index]
+        const changed = BarContext.position !== next
+        if (BarConfig.setPosition(next) && changed) PanelHost.closeAll()
       }
     }
 
@@ -66,8 +120,24 @@ Item {
     PanelSectionHeader {
       width: card.contentWidth
       label: "Modules"
-      action: "Reset"
-      onActionTriggered: BarConfig.reset()
+      action: root.confirmReset ? "Confirm reset" : "Reset"
+      onActionTriggered: {
+        if (root.confirmReset) {
+          BarConfig.reset()
+          root.confirmReset = false
+          resetTimer.stop()
+        } else {
+          root.confirmReset = true
+          resetTimer.restart()
+        }
+      }
+    }
+
+    TextField {
+      width: card.contentWidth
+      placeholderText: "Filter modules"
+      text: root.filterText
+      onTextChanged: root.filterText = text
     }
 
     Repeater {
@@ -78,6 +148,7 @@ Item {
         required property string modelData
         width: card.contentWidth
         height: sectionColumn.implicitHeight
+        visible: root.filteredEntries(sectionItem.modelData).length > 0 || root.filterText.trim() === ""
 
         readonly property string sectionName: sectionItem.modelData
 
@@ -88,11 +159,11 @@ Item {
 
           PanelSectionHeader {
             width: parent.width
-            label: sectionItem.sectionName
+            label: root.sectionLabel(sectionItem.sectionName)
           }
 
           Repeater {
-            model: root.entriesOf(sectionItem.sectionName)
+            model: root.filteredEntries(sectionItem.sectionName)
 
             delegate: Row {
               id: moduleRow
@@ -105,8 +176,8 @@ Item {
 
               Text {
                 anchors.verticalCenter: parent.verticalCenter
-                width: Style.space(150)
-                text: moduleRow.moduleId
+                width: Style.space(120)
+                text: root.prettyId(moduleRow.moduleId)
                 color: Theme.fg
                 font.family: Style.font.family
                 font.pixelSize: Style.font.body
@@ -115,8 +186,8 @@ Item {
               }
 
               Dropdown {
-                width: Style.space(110)
-                model: root.sections
+                width: Style.space(90)
+                model: root.sections.map(root.sectionLabel)
                 currentIndex: root.sections.indexOf(sectionItem.sectionName)
                 onActivated: function (i) {
                   const target = root.sections[i]
@@ -125,31 +196,60 @@ Item {
                 }
               }
 
+              Dropdown {
+                width: Style.space(100)
+                model: (["All screens"]).concat(Quickshell.screens.map(function (s) { return String(s.name) }))
+                currentIndex: {
+                  const screens = moduleRow.modelData.screens
+                  if (!Array.isArray(screens) || screens.length === 0 || screens.indexOf("all") !== -1)
+                    return 0
+                  const idx = Quickshell.screens.map(function (s) { return String(s.name) }).indexOf(String(screens[0]))
+                  return idx >= 0 ? idx + 1 : 0
+                }
+                onActivated: function (i) {
+                  if (i === 0) BarConfig.setScreens(moduleRow.moduleId, null)
+                  else BarConfig.setScreens(moduleRow.moduleId, Quickshell.screens[i - 1].name)
+                }
+              }
+
               TextButton {
                 label: "↑"
+                available: root.filterText.trim() === ""
                 onClicked: {
-                  if (moduleRow.index > 0)
+                  if (root.filterText.trim() === "" && moduleRow.index > 0)
                     BarConfig.move(moduleRow.moduleId, sectionItem.sectionName, moduleRow.index - 1)
                 }
               }
 
               TextButton {
                 label: "↓"
+                available: root.filterText.trim() === ""
                 onClicked: {
-                  const list = root.entriesOf(sectionItem.sectionName)
-                  if (moduleRow.index < list.length - 1)
+                  const full = root.entriesOf(sectionItem.sectionName)
+                  if (root.filterText.trim() === "" && moduleRow.index < full.length - 1)
                     BarConfig.move(moduleRow.moduleId, sectionItem.sectionName, moduleRow.index + 2)
                 }
               }
 
               TextButton {
-                label: "×"
+                label: "Park"
                 onClicked: BarConfig.disable(moduleRow.moduleId)
               }
             }
           }
         }
       }
+    }
+
+    Text {
+      width: card.contentWidth
+      visible: String(BarConfig.lastError || "") !== ""
+      text: String(BarConfig.lastError || "")
+      color: Theme.error
+      font.family: Style.font.family
+      font.pixelSize: Style.font.body
+      wrapMode: Text.WordWrap
+      renderType: Text.NativeRendering
     }
 
     PanelSeparator {}
@@ -160,7 +260,7 @@ Item {
     }
 
     Repeater {
-      model: BarConfig.availableModules()
+      model: root.filteredAvailable()
 
       delegate: Row {
         required property string modelData
@@ -170,7 +270,7 @@ Item {
         Text {
           anchors.verticalCenter: parent.verticalCenter
           width: Style.space(260)
-          text: modelData
+          text: root.prettyId(modelData)
           color: Theme.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.body

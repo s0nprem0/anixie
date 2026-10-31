@@ -15,6 +15,7 @@ Repeater {
   // The bar.json section these modules came from, which is what decides the edge
   // a module keeps fixed when it grows. Set by Section.
   property string sectionName: ""
+  property string screenName: ""
 
   model: repeater.modules
 
@@ -41,6 +42,20 @@ Repeater {
     if (name === "right" || name === "centerBegin") return "end"
 
     return "center"
+  }
+
+  function moduleVisible(entry, screenName) {
+    if (!entry) return true
+    const screens = entry.screens
+    if (screens === undefined || screens === null) return true
+    if (typeof screens === "string") {
+      if (screens === "" || screens === "all") return true
+      return screens === screenName
+    }
+    if (!Array.isArray(screens) || screens.length === 0) return true
+    if (screens.indexOf("all") !== -1) return true
+    if (screenName === "") return true
+    return screens.indexOf(screenName) !== -1
   }
 
   // Resolve a `type: "qml"` entry to a file URL. An explicit `source` wins and
@@ -85,7 +100,7 @@ Repeater {
     // with nothing in it, the sudo key on a machine that asks for a password, an
     // indicator that is off, the weather before its first reading) used to leave
     // a gap exactly the size of itself on the bar.
-    visible: item ? item.wantsSlot : false
+    visible: item ? item.wantsSlot && repeater.moduleVisible(modelData, repeater.screenName) : false
 
     Component {
       id: commandFactory

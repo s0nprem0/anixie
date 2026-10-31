@@ -375,8 +375,13 @@ QtObject {
       const network = root.actionNetwork
       if (!network) return
 
-      if (root.actionKind === "connect" && network.connected) root.finishAction()
-      else if (root.actionKind === "disconnect" && !network.connected) root.finishAction()
+      if (root.actionKind === "connect" && network.connected) {
+        OsdHost.show("wifi", "Connected to " + ssid, "", "", "", 1500)
+        root.finishAction()
+      } else if (root.actionKind === "disconnect" && !network.connected) {
+        OsdHost.show("wifi", "Disconnected from " + ssid, "", "", "", 1500)
+        root.finishAction()
+      }
     }
   }
 }

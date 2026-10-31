@@ -280,6 +280,7 @@ Item {
         anchors.topMargin: BarContext.vertical ? bar.gap : undefined
         anchors.leftMargin: BarContext.vertical ? undefined : bar.gap
         name: "left"
+        screenName: targetScreen ? targetScreen.name : ""
         entries: BarConfig.section("left")
       }
 
@@ -289,6 +290,7 @@ Item {
         anchors.horizontalCenter: BarContext.vertical ? undefined : parent.horizontalCenter
         anchors.verticalCenter: BarContext.vertical ? parent.verticalCenter : undefined
         name: "center"
+        screenName: targetScreen ? targetScreen.name : ""
         entries: BarConfig.section("center")
       }
 
@@ -300,6 +302,7 @@ Item {
         anchors.rightMargin: BarContext.vertical ? undefined : bar.gap
         anchors.bottomMargin: BarContext.vertical ? bar.gap : undefined
         name: "centerBegin"
+        screenName: targetScreen ? targetScreen.name : ""
         entries: BarConfig.section("centerBegin")
       }
 
@@ -311,6 +314,7 @@ Item {
         anchors.leftMargin: BarContext.vertical ? undefined : bar.gap
         anchors.topMargin: BarContext.vertical ? bar.gap : undefined
         name: "centerEnd"
+        screenName: targetScreen ? targetScreen.name : ""
         entries: BarConfig.section("centerEnd")
       }
 
@@ -322,6 +326,7 @@ Item {
         anchors.bottomMargin: BarContext.vertical ? bar.gap : undefined
         anchors.rightMargin: BarContext.vertical ? undefined : bar.gap
         name: "right"
+        screenName: targetScreen ? targetScreen.name : ""
         entries: BarConfig.section("right")
       }
 
