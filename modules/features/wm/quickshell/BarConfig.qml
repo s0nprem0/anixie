@@ -190,6 +190,13 @@ QtObject {
 
   // Off the bar, remembered with the place it came from so enabling it puts it
   // back there rather than at the end of a section.
+  function remove(id) {
+    const next = BarLayout.remove(root.config, id)
+    if (!next) return false
+    root.save(next)
+    return true
+  }
+
   function disable(id) {
     const next = BarLayout.disable(root.config, id)
     if (!next) return false

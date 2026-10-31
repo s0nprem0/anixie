@@ -80,6 +80,30 @@ function move(config, id, toSection, index) {
   return next
 }
 
+function remove(config, id) {
+  if (!id) return null
+  if (!isEnabled(config, id)) return null
+
+  const next = clone(config || {})
+  next.layout = next.layout || {}
+
+  let found = false
+  for (const name in next.layout) {
+    const list = next.layout[name]
+    if (!Array.isArray(list)) continue
+    for (let i = 0; i < list.length; i++) {
+      if (list[i] && list[i].id === id) {
+        list.splice(i, 1)
+        found = true
+        break
+      }
+    }
+    if (found) break
+  }
+  if (!found) return null
+  return next
+}
+
 function disable(config, id) {
   if (!id) return null
   if (!isEnabled(config, id)) return null
@@ -303,6 +327,7 @@ if (typeof module !== "undefined") {
     sectionOf: sectionOf,
     move: move,
     disable: disable,
+    remove: remove,
     enable: enable,
     setBackground: setBackground,
     setPosition: setPosition,
