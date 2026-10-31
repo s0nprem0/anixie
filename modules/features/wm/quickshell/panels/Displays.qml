@@ -286,7 +286,7 @@ Item {
   // 59.94 and 60.00 both round to 60, and the list is not guaranteed to put the
   // one actually in use first.
   function modeIndex(block, modes) {
-    if (block.savedMode === "preferred") return 0
+    if (block.savedMode === "preferred" || block.mode === "preferred") return 0
     const width = Number(block.width || 0)
     const height = Number(block.height || 0)
     const rate = Number(block.refreshRate || 0)
@@ -307,7 +307,7 @@ Item {
         best = i
       }
     }
-    return best >= 0 && bestDelta <= 0.5 ? best : -1
+    return best >= 0 && bestDelta <= 0.8 ? best : -1
   }
 
   // ---- names and arrangement ----
