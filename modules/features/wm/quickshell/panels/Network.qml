@@ -1054,51 +1054,6 @@ Item {
       onActionTriggered: root.rescan()
     }
 
-    Column {
-      width: card.contentWidth
-      spacing: Style.space(6)
-      visible: root.askingSsid !== ""
-
-      onVisibleChanged: {
-        if (!visible) return
-        secretField.text = ""
-        Qt.callLater(function () { secretField.forceActiveFocus() })
-      }
-
-      Text {
-        width: parent.width
-        text: "Password for " + root.askingSsid
-        color: Theme.fg
-        font.family: Style.font.family
-        font.pixelSize: Style.font.body
-        elide: Text.ElideRight
-        renderType: Text.NativeRendering
-      }
-
-      TextField {
-        id: secretField
-        width: parent.width
-        echoMode: TextInput.Password
-        placeholderText: "network password"
-        Keys.onEscapePressed: root.askingSsid = ""
-        onAccepted: root.connectSecret(secretField.text)
-      }
-
-      PanelActionButton {
-        width: parent.width
-        label: "Connect"
-        navigational: false
-        available: secretField.text !== ""
-        onClicked: root.connectSecret(secretField.text)
-      }
-
-      PanelActionButton {
-        width: parent.width
-        label: "Cancel"
-        navigational: false
-        onClicked: root.askingSsid = ""
-      }
-
       PanelSeparator {}
     }
 
@@ -1187,6 +1142,52 @@ Item {
             spacing: Style.space(2)
             visible: netRow.expanded
 
+            Column {
+              width: parent.width
+              spacing: Style.space(6)
+              visible: root.askingSsid === netRow.modelData.ssid
+
+              onVisibleChanged: {
+                if (!visible) return
+                inlineSecretField.text = ""
+                Qt.callLater(function () { inlineSecretField.forceActiveFocus() })
+              }
+
+              Text {
+                width: parent.width
+                text: "Password for " + netRow.modelData.ssid
+                color: Theme.fg
+                font.family: Style.font.family
+                font.pixelSize: Style.font.body
+                elide: Text.ElideRight
+                renderType: Text.NativeRendering
+              }
+
+              TextField {
+                id: inlineSecretField
+                width: parent.width
+                echoMode: TextInput.Password
+                placeholderText: "network password"
+                Keys.onEscapePressed: root.askingSsid = ""
+                onAccepted: root.connectSecret(inlineSecretField.text)
+              }
+
+              PanelActionButton {
+                width: parent.width
+                label: "Connect"
+                navigational: false
+                available: inlineSecretField.text !== ""
+                onClicked: root.connectSecret(inlineSecretField.text)
+              }
+
+              PanelActionButton {
+                width: parent.width
+                label: "Cancel"
+                navigational: false
+                onClicked: root.askingSsid = ""
+              }
+            }
+
             Row {
               anchors.horizontalCenter: parent.horizontalCenter
               spacing: Style.space(4)
@@ -1196,9 +1197,13 @@ Item {
                 active: netRow.modelData.inUse
                 available: !root.busy
                 onClicked: {
-                  root.expandedSsid = ""
-                  if (netRow.modelData.inUse) root.disconnect(netRow.modelData.ssid)
-                  else root.connect(netRow.modelData.ssid)
+                  if (netRow.modelData.inUse) {
+                    root.expandedSsid = ""
+                    root.disconnect(netRow.modelData.ssid)
+                  } else {
+                    root.expandedSsid = netRow.modelData.ssid
+                    root.connect(netRow.modelData.ssid)
+                  }
                 }
               }
 
