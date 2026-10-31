@@ -108,8 +108,14 @@ BarWidget {
     }
   }
 
-  Process { id: displaySet }
-  Process { id: keyboardSet }
+  Process {
+    id: displaySet
+    onExited: function () { displayValueView.reload() }
+  }
+  Process {
+    id: keyboardSet
+    onExited: function () { keyboardValueView.reload() }
+  }
 
   FileView {
     id: displayValueView
