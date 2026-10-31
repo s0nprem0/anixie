@@ -172,7 +172,69 @@ Item {
               width: parent.width
               spacing: Style.space(4)
 
+              // Drag-and-drop reordering handle. Only active when no filter
+              // is applied, so indices stay aligned with the saved layout.
+              Drag.source: moduleRow
+              property string dragId: String(moduleRow.modelData.id || "")
+
               readonly property string moduleId: String(moduleRow.modelData.id || "")
+
+              Rectangle {
+                id: grip
+                anchors.verticalCenter: parent.verticalCenter
+                width: Style.space(16)
+                height: Style.space(20)
+                radius: Theme.cornerRadius
+                color: dragHandle.containsMouse ? Theme.bg : "transparent"
+                visible: root.filterText.trim() === ""
+
+                Text {
+                  anchors.centerIn: parent
+                  text: "≡"
+                  color: Theme.muted
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.body
+                  renderType: Text.NativeRendering
+                }
+
+                DragHandler {
+                  id: dragHandle
+                  target: null
+                  enabled: root.filterText.trim() === ""
+                  onActiveChanged: {
+                    if (active) moduleRow.Drag.active = true
+                    else moduleRow.Drag.active = false
+                  }
+                }
+              }
+
+              DropArea {
+                id: dropTarget
+                anchors.fill: parent
+                enabled: root.filterText.trim() === ""
+
+                onEntered: function (drag) {
+                  dropTarget.highlight = true
+                }
+                onExited: dropTarget.highlight = false
+                onDropped: function (drop) {
+                  dropTarget.highlight = false
+                  const source = drop.source
+                  if (!source || source === moduleRow) return
+                  const id = String(source.dragId || "")
+                  if (id === "") return
+                  BarConfig.move(id, sectionItem.sectionName, moduleRow.index)
+                }
+
+                property bool highlight: false
+              }
+
+              Rectangle {
+                anchors.fill: parent
+                color: dropTarget.highlight ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
+                radius: Theme.cornerRadius
+                z: -1
+              }
 
               Text {
                 anchors.verticalCenter: parent.verticalCenter
