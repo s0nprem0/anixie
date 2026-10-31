@@ -33,6 +33,10 @@ QtObject {
   // which is the default for keyboard-driven changes.
   property string screenName: ""
 
+  // A user-chosen preferred screen for OSDs that have no clear origin.
+  // Empty falls back to the focused screen.
+  property string preferredScreen: ""
+
   // Media readouts are allowed to be wider than a percentage: the message is a
   // track title rather than "42%".
   readonly property bool mediaOsd: root.iconKey.indexOf("media") === 0
@@ -131,7 +135,8 @@ QtObject {
         payload.value === undefined ? "" : String(payload.value),
         payload.max === undefined ? "100" : String(payload.max),
         payload.progressText || "",
-        payload.duration === undefined ? "" : String(payload.duration)
+        payload.duration === undefined ? "" : String(payload.duration),
+        payload.screen === undefined ? root.preferredScreen : String(payload.screen || "")
       )
     } catch (e) {
       console.warn("osd: could not parse payload: " + e)
@@ -152,7 +157,7 @@ QtObject {
       ? "volume-muted"
       : (percent > 66 ? "volume-high" : "volume-low")
 
-    root.show(icon, "", percent, 100, muted ? "Muted" : percent + "%", 1200)
+    root.show(icon, "", percent, 100, muted ? "Muted" : percent + "%", 1200, root.preferredScreen)
   }
 
   function showMicrophone() {
@@ -164,7 +169,7 @@ QtObject {
     // The mic glyph already says which device this is; "Muted" says what
     // changed, and a live mic is more useful as a level than as "on".
     root.show(muted ? "microphone-muted" : "microphone", "", percent, 100,
-      muted ? "Muted" : percent + "%", 1200)
+      muted ? "Muted" : percent + "%", 1200, root.preferredScreen)
   }
 
   // The watched file is only a trigger: the reading itself is taken through
@@ -230,7 +235,7 @@ QtObject {
     stdout: StdioCollector {
       onStreamFinished: {
         const percent = parseInt(String(this.text.trim().split(",")[3] || "").replace("%", ""), 10)
-        if (isFinite(percent)) root.show("brightness", "", percent, 100, percent + "%", 1200)
+        if (isFinite(percent)) root.show("brightness", "", percent, 100, percent + "%", 1200, root.preferredScreen)
       }
     }
   }

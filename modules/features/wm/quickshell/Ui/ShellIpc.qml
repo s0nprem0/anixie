@@ -266,6 +266,7 @@ Item {
     // alias; the direct function stays for anything that speaks the socket.
     function payload(payload: string): string { OsdHost.showPayload(payload); return "ok" }
     function close(): string { OsdHost.hide(); return "ok" }
+    function screen(name: string): string { OsdHost.preferredScreen = String(name || ""); return "ok" }
     function state(): string { return OsdHost.opened ? "open" : "closed" }
   }
 
