@@ -186,6 +186,17 @@ Item {
               readonly property string moduleId: String(modelData.id || "")
               property string dragId: String(modelData.id || "")
 
+              focus: true
+              Keys.onUpPressed: {
+                if (root.filterText.trim() === "" && index > 0)
+                  BarConfig.move(moduleId, sectionItem.sectionName, index - 1)
+              }
+              Keys.onDownPressed: {
+                const full = root.entriesOf(sectionItem.sectionName)
+                if (root.filterText.trim() === "" && index < full.length - 1)
+                  BarConfig.move(moduleId, sectionItem.sectionName, index + 2)
+              }
+
               Row {
                 id: row
                 anchors.fill: parent
@@ -438,7 +449,10 @@ Item {
         onEditingFinished: {
           const n = parseInt(text, 10)
           if (isFinite(n)) BarConfig.setSetting(parent.selectedId, "interval", n)
-          TextField {
+        }
+      }
+
+      TextField {
         width: parent.width
         visible: parent.selectedId.indexOf("world-clock") !== -1
         placeholderText: "World clock zones (comma-separated)"
@@ -455,8 +469,6 @@ Item {
           const n = parseInt(text, 10)
           if (isFinite(n)) BarConfig.setSetting(parent.selectedId, "interval", n)
         }
-      }
-    }
       }
     }
 
@@ -521,4 +533,3 @@ Item {
       }
     }
   }
-}
