@@ -17,7 +17,7 @@ list_action() {
     | ($all | map({ key: (.id | tostring), value: .name }) | from_entries) as $names
     | $all | map({
         name, description, width, height, scale, transform, disabled, focused,
-        x, y, refreshRate,
+        x, y, refreshRate, colorManagementPreset,
         mirrorOf: (if (.mirrorOf // "none") == "none" or (.mirrorOf // "") == ""
           then "none" else ($names[.mirrorOf] // .mirrorOf) end),
         savedPosition: ($saved[.name].position // "auto"),

@@ -71,6 +71,12 @@ case "${1:-}" in
     shift
     "$jq" 'map({ (.name): { make, model, serial, description } }) | add' <<<"$(all_monitors_json)"
     ;;
+  sync-identities)
+    shift
+    mkdir -p "$state_dir"
+    "$jq" 'map({ (.name): { make, model, serial, description } }) | add' <<<"$(all_monitors_json)" > "$state_dir/monitor_identities.json"
+    printf 'identities saved\n'
+    ;;
   status)
     status_action
     ;;

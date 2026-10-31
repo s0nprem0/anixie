@@ -740,6 +740,23 @@ Item {
           }
 
           PanelRow {
+            id: colorMgmtRow
+            width: parent.width
+            hasControl: false
+            label: "Color management"
+
+            Text {
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              text: String(block.modelData.colorManagementPreset || "—")
+              color: Theme.muted
+              font.family: Style.font.family
+              font.pixelSize: Style.font.body
+              renderType: Text.NativeRendering
+            }
+          }
+
+          PanelRow {
             id: modeRow
             width: parent.width
             hasControl: true
