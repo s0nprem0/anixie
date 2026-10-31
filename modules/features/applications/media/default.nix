@@ -24,6 +24,11 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ pkgs.mpv ] ++ lib.optionals cfg.obs [ pkgs.obs-studio ];
+    home.packages = [
+      pkgs.mpv
+    ]
+    ++ lib.optionals cfg.obs [
+      (pkgs.obs-studio.withPlugins (plugins: with plugins; [ distroav ]))
+    ];
   };
 }

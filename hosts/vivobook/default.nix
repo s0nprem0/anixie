@@ -14,6 +14,7 @@ in
     ./hardware-configuration.nix
 
     ../../modules/system
+    ../../modules/system/ndi.nix
   ];
 
   home-manager.users.${user}.anixie.theme.wallpaper = {

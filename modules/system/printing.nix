@@ -8,4 +8,16 @@
   # scanners with `uaccess`, so the logged-in seat gets access without adding
   # the user to the `scanner` group.
   hardware.sane.enable = true;
+
+  # mDNS for network printers/scanners and NDI discovery
+  services.avahi = {
+    enable = true;
+    nssmdns4 = true;
+    openFirewall = true;
+    publish = {
+      enable = true;
+      addresses = true;
+      userServices = true;
+    };
+  };
 }
