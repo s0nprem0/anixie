@@ -17,14 +17,9 @@ Item {
   property string subtitle: ""
   property string glyph: ""
 
-  // An image to stand in for the glyph: the cover of what is playing, rather
-  // than an icon for the fact that something is. Same slot, same job — it is
-  // what the panel is about — and drawn larger, because a record sleeve in the
-  // bar's sixteen pixels is a grey square.
   property string art: ""
 
-  // Reserved width for a control on the right. Zero when the caller has none, so
-  // the title takes the whole row.
+  // Reserved width for a control on the right.
   property int controlWidth: 0
 
   readonly property int glyphSlot: Style.bar.iconSlot
@@ -34,15 +29,13 @@ Item {
   readonly property int leadSlot: root.hasArt ? root.artSize : (root.hasGlyph ? root.glyphSlot : 0)
   readonly property bool hasSubtitle: root.subtitle !== ""
 
-  // Keep a long title or subtitle from forcing a panel wider than its content
-  // needs to be. The text is elided inside the available space instead.
-  readonly property real textContribution: Math.min(Style.space(220),
-    Math.max(titleText.implicitWidth, subtitleText.implicitWidth))
+  readonly property real horizontalPadding: Style.space(2)
+  readonly property real gap: Style.space(10)
 
-  implicitWidth: root.leadSlot
-    + (root.leadSlot > 0 ? Style.space(10) : 0)
-    + root.textContribution
-    + (root.controlWidth > 0 ? Style.space(10) + root.controlWidth : 0)
+  implicitWidth: parent ? parent.width : (root.leadSlot
+    + (root.leadSlot > 0 ? root.gap : 0)
+    + Math.min(Style.space(240), Math.max(titleText.implicitWidth, subtitleText.implicitWidth))
+    + (root.controlWidth > 0 ? root.gap + root.controlWidth : 0))
   implicitHeight: Math.max(root.textGroupHeight, root.leadSlot)
   height: implicitHeight
 
@@ -55,6 +48,7 @@ Item {
   Item {
     id: leadItem
     anchors.left: parent.left
+    anchors.leftMargin: root.horizontalPadding
     anchors.verticalCenter: parent.verticalCenter
     width: root.leadSlot
     height: root.leadSlot
@@ -86,12 +80,10 @@ Item {
     }
   }
 
-  // The title and subtitle as one vertically centred group. The title keeps its
-  // visual dominance; the subtitle sits a consistent step below it.
   Item {
     id: textGroup
-    x: root.leadSlot > 0 ? leadItem.x + leadItem.width + Style.space(10) : 0
-    width: Math.max(0, (root.controlWidth > 0 ? controlSlot.x - Style.space(10) : root.width) - x)
+    x: root.leadSlot > 0 ? leadItem.x + leadItem.width + root.gap : root.horizontalPadding
+    width: Math.max(0, (root.controlWidth > 0 ? controlSlot.x - root.gap : root.width - root.horizontalPadding) - x)
     y: Math.round((root.height - height) / 2)
     height: root.textGroupHeight
 
@@ -107,6 +99,7 @@ Item {
       font.weight: Font.DemiBold
       renderType: Text.NativeRendering
       elide: Text.ElideRight
+      maximumLineCount: 1
     }
 
     Text {
@@ -122,15 +115,14 @@ Item {
       font.pixelSize: Style.font.caption
       renderType: Text.NativeRendering
       elide: Text.ElideRight
+      maximumLineCount: 1
     }
   }
 
-  // Marks the slot a hero control anchors into, so the title can be placed to
-  // its left. Invisible and empty; the control itself is declared by whoever
-  // uses the hero. It stays in the layout so callers can anchor to it.
   Item {
     id: controlSlot
     anchors.right: parent.right
+    anchors.rightMargin: root.horizontalPadding
     anchors.verticalCenter: parent.verticalCenter
     width: root.controlWidth
     height: root.height

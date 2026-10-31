@@ -39,44 +39,31 @@ FocusScope {
   // exclusive focus routes the keys here, but an item still has to be the one
   // they land on, and a freshly mapped surface has none. The picker refocuses its
   // search field the same way, for the same reason.
-  //
-  // Only on creation: grabbing it back whenever it is lost would take it from a
-  // dropdown's open list, which is the one thing in a panel that needs the
-  // keyboard more than the panel itself.
   Component.onCompleted: Qt.callLater(function () { root.forceActiveFocus() })
 
-  // The panel's width, stated rather than measured.
-  //
-  // It used to be `min(maxWidth, content + padding)`, which is circular: the
-  // rows inside a panel set their width from `contentWidth`, which comes from
-  // this card's width, which was coming from the content. Qt resolved the loop
-  // to nothing and the panels that use this card as their root — the brightness
-  // one, Bluetooth, the media popup — came up collapsed, with their labels
-  // drawn on top of their own controls. A panel is a fixed-width card; the
-  // content is laid out inside it, not the other way round.
+  // The panel's width, stated rather than measured. Keep consistent with host.
   property int maxWidth: Style.space(340)
+  property int minWidth: Style.space(280)
 
   // How tall the card may get before its contents start to scroll.
-  //
-  // A panel's height is its content's height, and a panel's content is however
-  // much of it there is: twenty entries of notification history, a dozen audio
-  // applications. Left unclamped the window simply runs off the bottom of the
-  // screen, and the rows past the edge cannot be read or reached. The screen's
-  // own height is the ceiling, less the bar and a margin, so the cap follows
-  // the machine rather than a number guessed for one of them.
-  readonly property int maxHeight: Math.max(Style.space(200),
-    PanelHost.maxHeightFor(root.Screen ? root.Screen.height : 1080))
+  readonly property int maxHeight: {
+    const screenH = (root.Screen && root.Screen.height) ? root.Screen.height : 1080
+    // Use PanelHost's calculation which accounts for bar/usable area
+    const hostMax = PanelHost.maxHeightFor ? PanelHost.maxHeightFor(screenH) : (screenH - Style.bar.sizeHorizontal - Style.space(32))
+    const capped = Math.min(hostMax - Style.space(4), Math.round(screenH * 0.85))
+    return Math.max(Style.space(200), capped)
+  }
 
-  readonly property bool scrollable: body.implicitHeight > root.maxHeight
+  readonly property bool scrollable: body.implicitHeight > Math.max(0, root.maxHeight - padding * 2)
 
-  implicitWidth: root.maxWidth
-  implicitHeight: padding * 2 + Math.min(body.implicitHeight, root.maxHeight)
+  // Fixed width card - content lays out inside it
+  implicitWidth: Math.max(root.minWidth, Math.min(root.maxWidth, root.maxWidth))
+  implicitHeight: padding * 2 + Math.min(body.implicitHeight, Math.max(Style.space(80), root.maxHeight - padding * 2))
 
-  // Row width for panel contents. Exposed as a property because `body` is an id
-  // local to this file and is not reachable from the panels that use it.
-  readonly property real contentWidth: width - padding * 2
+  // Row width for panel contents - actual available width inside scroller after padding/gutters
+  readonly property real contentWidth: Math.max(1, scroller.width - Style.space(2))
 
-  readonly property int padding: Style.space(14)
+  readonly property int padding: Style.space(12)
 
   // Whether Tab/Shift+Tab wrap around the control list. Kept configurable so a
   // future panel can opt out without changing the rest of the navigation model.
@@ -579,46 +566,45 @@ FocusScope {
   // The scrolling. A panel that fits is not clipped and cannot be dragged; one
   // that does not scrolls, with the shell's own scrollbar rather than a stock
   // one that would draw a trough across the card.
-  //
-  // The wheel is left on deliberately. Every panel is read by scrolling or by
-  // dragging, and a panel full of rows that silently swallowed the wheel reads
-  // as broken on the first try.
   Flickable {
     id: scroller
-    anchors.top: parent.top
-    anchors.left: parent.left
-    anchors.right: parent.right
-    anchors.bottom: parent.bottom
-    anchors.topMargin: root.padding
-    anchors.leftMargin: root.padding
-    // Keep the scrollbar gutter reserved in both states so the content width
-    // does not change the moment scrolling becomes necessary.
-    anchors.rightMargin: root.padding + Style.space(6)
-    anchors.bottomMargin: root.padding
+    anchors.fill: parent
+    anchors.margins: root.padding
+    // Reserve gutter for scrollbar to prevent width jumps
+    anchors.rightMargin: root.padding + Style.space(8)
 
-    contentWidth: width
+    contentWidth: Math.max(1, width - Style.space(4))
     contentHeight: body.implicitHeight
     clip: true
     boundsBehavior: Flickable.StopAtBounds
     flickableDirection: Flickable.VerticalFlick
-    // Nothing to drag when everything fits, so the panel does not steal the
-    // pointer from the controls inside it for a gesture that would do nothing.
-    interactive: root.scrollable
+    interactive: root.scrollable || body.implicitHeight > 0
+    pixelAligned: true
 
-    // The ring is placed against this, so it has to follow when the content
-    // moves under it.
+    // Ensure wheel/trackpad/drag all work
+    pressDelay: 0
+
     onContentYChanged: root.updateRing()
 
     ScrollBar.vertical: ScrollBar {
+      policy: root.scrollable ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
       padding: 0
+      anchors.right: parent.right
+      anchors.rightMargin: -Style.space(6)
     }
 
     Column {
       id: body
-      width: scroller.width
-      spacing: Style.space(8)
-      onChildrenChanged: root.invalidateStops()
-      onVisibleChanged: root.invalidateStops()
+      width: Math.max(1, scroller.width - Style.space(4))
+      spacing: Style.space(6)
+      onChildrenChanged: {
+        root.invalidateStops()
+        Qt.callLater(root.updateRing)
+      }
+      onVisibleChanged: {
+        root.invalidateStops()
+        Qt.callLater(root.updateRing)
+      }
     }
   }
 
@@ -627,6 +613,7 @@ FocusScope {
   // on its edge.
   Item {
     anchors.fill: scroller
+    anchors.margins: 0
     clip: true
     opacity: (root.keyboard && !root.pointerInside && root.ringWidth > 0
               && root.isAvailable(root.focusedItem)) ? 1 : 0
@@ -638,8 +625,8 @@ FocusScope {
     Rectangle {
       x: root.ringX
       y: root.ringY
-      width: root.ringWidth
-      height: root.ringHeight
+      width: Math.max(0, root.ringWidth)
+      height: Math.max(0, root.ringHeight)
       radius: Theme.cornerRadius
       color: "transparent"
       border.color: Theme.primary

@@ -21,17 +21,7 @@ Item {
   property string glyph: ""
   property bool danger: false
   property bool navigational: true
-
-  // Outlined rather than filled, for the one or two rows that do something to
-  // the world rather than open something in it: "Disconnect", "Forget". A row
-  // that only tints on hover looks like a label until the pointer is on it, and
-  // the destructive actions are exactly the ones that should look like buttons
-  // before anyone reaches for them.
   property bool outlined: false
-
-  // Whether the row does anything at all. Greyed rather than removed, so a
-  // thing that is not available right now still occupies the row it is in and
-  // the list does not reshuffle under the pointer.
   property bool available: true
 
   signal clicked()
@@ -40,7 +30,6 @@ Item {
   Accessible.name: root.label
   Accessible.description: root.value !== "" ? root.value : root.label
 
-  // ---- the keyboard ----
   readonly property bool panelFocusable: root.available
 
   function activate() {
@@ -53,18 +42,17 @@ Item {
   }
 
   readonly property color foreground: root.danger ? Theme.danger : Theme.fg
+  readonly property real horizontalPadding: Style.space(6)
+  readonly property real verticalPadding: Style.space(4)
 
-  implicitWidth: labelText.implicitWidth + Style.space(12)
-    + Math.min(valueText.implicitWidth, Style.space(140))
-    + Style.space(10) + (root.navigational ? chevronText.implicitWidth : 0)
-  implicitHeight: Math.max(labelText.implicitHeight, valueText.implicitHeight, Style.space(20))
+  implicitWidth: parent ? parent.width : (labelText.implicitWidth + valueText.implicitWidth + chevronText.implicitWidth + Style.space(20))
+  implicitHeight: Math.max(labelText.implicitHeight, valueText.implicitHeight, Style.space(26))
 
-  // A Panel is a Column, which positions children by height rather than implicit
-  // height. Without this the row takes no space and every row stacks on one line.
   height: implicitHeight
 
   Rectangle {
     anchors.fill: parent
+    anchors.margins: 1
     radius: Theme.cornerRadius
     color: mouse.pressed && root.available
       ? Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b,
@@ -82,12 +70,13 @@ Item {
   Text {
     id: labelText
     anchors.left: parent.left
+    anchors.leftMargin: root.horizontalPadding + 2
     anchors.right: valueText.visible
       ? valueText.left
       : (root.navigational ? chevron.left : parent.right)
     anchors.rightMargin: valueText.visible
       ? Style.space(6)
-      : (root.navigational ? Style.space(6) : 0)
+      : (root.navigational ? Style.space(4) : root.horizontalPadding + 2)
     anchors.verticalCenter: parent.verticalCenter
     text: root.label
     color: root.foreground
@@ -95,28 +84,29 @@ Item {
     font.pixelSize: Style.font.body
     renderType: Text.NativeRendering
     elide: Text.ElideRight
+    maximumLineCount: 1
   }
 
   Text {
     id: valueText
     anchors.right: root.navigational ? chevron.left : parent.right
-    anchors.rightMargin: root.navigational ? Style.space(6) : 0
+    anchors.rightMargin: root.navigational ? Style.space(4) : root.horizontalPadding + 2
     anchors.verticalCenter: parent.verticalCenter
     visible: root.value !== ""
-    width: Math.min(implicitWidth, Style.space(80))
+    width: Math.min(implicitWidth, Math.max(40, parent.width * 0.4))
     text: root.value
     color: Theme.muted
     font.family: Style.font.family
     font.pixelSize: Style.font.bodySmall
     renderType: Text.NativeRendering
     elide: Text.ElideRight
+    maximumLineCount: 1
   }
 
-  // Invisible rather than absent: the value anchors to its left edge whether or
-  // not the chevron is drawn, so a row with one keeps the same right margin.
   Item {
     id: chevron
     anchors.right: parent.right
+    anchors.rightMargin: root.horizontalPadding + 2
     anchors.verticalCenter: parent.verticalCenter
     width: root.navigational ? chevronText.implicitWidth : 0
     height: chevronText.implicitHeight
@@ -124,7 +114,7 @@ Item {
 
   Text {
     id: chevronText
-    anchors.centerIn: parent
+    anchors.centerIn: chevron
     visible: root.navigational
     text: "›"
     color: mouse.pressed && root.available
@@ -133,7 +123,7 @@ Item {
     font.family: Style.font.family
     font.pixelSize: Style.font.body
     renderType: Text.NativeRendering
-    Behavior on color { NumberAnimation { duration: Style.duration(120) } }
+    Behavior on color { ColorAnimation { duration: Style.duration(120) } }
   }
 
   MouseArea {

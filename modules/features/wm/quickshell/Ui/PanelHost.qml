@@ -413,11 +413,7 @@ QtObject {
 
   // Centred on the owning button, then pulled back inside its screen so a
   // button near either edge still opens a fully visible panel rather than one
-  // clipped by the output.
-  //
-  // Two axes because the bar has two: a top or bottom bar spreads its modules
-  // across x, a left or right bar spreads them down y. The anchor's own screen
-  // supplies both the coordinate space and the size to clamp against.
+  // clipped by the output. Clamp to usable screen area.
   function panelX(anchor, width, screenName) {
     const host = root.barFor(screenName)
     if (!anchor || !host || !root.isAlive(anchor)) return Style.space(8)
@@ -432,8 +428,10 @@ QtObject {
 
     const margin = Style.space(8)
     const screenWidth = Math.max(0, Screens.widthOf(screenName) || 0)
-    const maxLeft = Math.max(margin, screenWidth - width - margin)
-    return Math.max(margin, Math.min(Math.round(centre - width / 2), maxLeft))
+    const panelW = Math.max(1, width || 0)
+    const maxLeft = Math.max(margin, screenWidth - panelW - margin)
+    const pos = Math.round(centre - panelW / 2)
+    return Math.max(margin, Math.min(pos, maxLeft))
   }
 
   function panelY(anchor, height, screenName) {
@@ -450,8 +448,10 @@ QtObject {
 
     const margin = Style.space(8)
     const screenHeight = Math.max(0, Screens.heightOf(screenName) || 0)
-    const maxTop = Math.max(margin, screenHeight - height - margin)
-    return Math.max(margin, Math.min(Math.round(centre - height / 2), maxTop))
+    const panelH = Math.max(1, height || 0)
+    const maxTop = Math.max(margin, screenHeight - panelH - margin)
+    const pos = Math.round(centre - panelH / 2)
+    return Math.max(margin, Math.min(pos, maxTop))
   }
 
   // The invisible surfaces that dismiss everything.
@@ -561,17 +561,20 @@ QtObject {
         anchors.left: !panelWindow.onRight
         anchors.right: panelWindow.onRight
 
+        readonly property int screenW: panelWindow.screenInfo ? (Screens.widthOf(panelWindow.screenName) || panelWindow.screenInfo.width) : 1920
+        readonly property int screenH: panelWindow.screenInfo ? (Screens.heightOf(panelWindow.screenName) || panelWindow.screenInfo.height) : 1080
+
         margins.top: panelWindow.onBottom
           ? 0
           : (root.vertical
-            ? root.panelY(panelWindow.entry.anchor, panelWindow.implicitHeight, panelWindow.screenName)
+            ? root.panelY(panelWindow.entry.anchor, panelWindow.implicitHeight || 400, panelWindow.screenName)
             : root.barExtent)
         margins.bottom: panelWindow.onBottom ? root.barExtent : 0
         margins.left: panelWindow.onRight
           ? 0
           : (root.vertical
             ? root.barExtent
-            : root.panelX(panelWindow.entry.anchor, panelWindow.implicitWidth, panelWindow.screenName))
+            : root.panelX(panelWindow.entry.anchor, panelWindow.implicitWidth || 340, panelWindow.screenName))
         margins.right: panelWindow.onRight ? root.barExtent : 0
 
         // The focused panel is raised above the others. Only one is open per
@@ -581,20 +584,19 @@ QtObject {
           ? WlrLayer.Overlay
           : WlrLayer.Top
         WlrLayershell.namespace: "quickshell-panel"
-        // Exclusive only for the panel the keys are on. None for the rest, which
-        // is what hands the keyboard to the next one when Tab moves.
+        // Exclusive only for the panel the keys are on. None for the rest
         WlrLayershell.keyboardFocus: root.focused === panelWindow.key
           ? WlrKeyboardFocus.Exclusive
           : WlrKeyboardFocus.None
 
-        readonly property real _maxPanelWidth: Math.max(Style.space(120),
-          (panelWindow.screenInfo ? Screens.widthOf(panelWindow.screenName) : 0) - Style.space(16))
+        readonly property real _maxPanelWidth: Math.max(Style.space(240),
+          screenW - Style.space(32))
         implicitWidth: Math.min(_maxPanelWidth,
           (loader.item && Number.isFinite(loader.item.implicitWidth))
             ? Math.max(1, loader.item.implicitWidth)
-            : 320)
+            : Style.space(340))
         implicitHeight: Math.min(
-          root.maxHeightFor(panelWindow.screenInfo ? panelWindow.screenInfo.height : 1080),
+          root.maxHeightFor(screenH),
           (loader.item && Number.isFinite(loader.item.implicitHeight))
             ? Math.max(1, loader.item.implicitHeight)
             : 0)

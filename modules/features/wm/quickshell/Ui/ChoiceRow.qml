@@ -19,39 +19,20 @@ Item {
   property string label: ""
   property string detail: ""
 
-  // A glyph to the right of the name — the lock on a secured network, the state
-  // of a device. Drawn as text, sized like the rest of the shell's glyphs.
   property string glyph: ""
   property color glyphColor: Theme.muted
 
-  // Trailing content of the panel's own: signal bars, a percentage. Placed in a
-  // slot of its own so the label can be elided against it rather than drawn
-  // underneath it.
   default property alias trailing: trailingRow.data
 
-  // Whether this is the entry currently in use. The shell's own rule for that:
-  // the same soft fill over the foreground the bar uses for an active module, and
-  // no outline. An accent-tinted block with a frame around it was the loudest
-  // thing in the panel and the only outlined one anywhere in the shell, which
-  // reads as a different control rather than as the chosen entry.
   property bool selected: false
-
-  // Whether the row does anything. A list you cannot act on right now — the
-  // radio is off — is dimmed rather than hidden: the entries are still what is
-  // nearby, and the reason nothing happens is shown by the control that caused
-  // it.
   property bool available: true
 
   signal clicked()
 
-  // ---- the keyboard ----
-  //
-  // Being walked to by the panel's keys, and what a key does when it lands here.
-  // A row is a choice, so Return is a click and the sideways keys mean nothing.
   readonly property bool panelFocusable: root.available
 
   function activate() {
-    root.clicked()
+    if (root.available) root.clicked()
   }
 
   function keyStep(direction) {
@@ -60,21 +41,16 @@ Item {
 
   readonly property bool hasDetail: root.detail !== ""
   readonly property bool hasGlyph: root.glyph !== ""
+  readonly property real horizontalPadding: Style.space(6)
 
-  implicitWidth: parent ? parent.width : (labelText.implicitWidth + trailingRow.implicitWidth + Style.space(32))
-  implicitHeight: Math.max(textColumn.height, trailingRow.implicitHeight, Style.space(24))
+  implicitWidth: parent ? parent.width : (labelText.implicitWidth + trailingRow.implicitWidth + Style.space(40))
+  implicitHeight: Math.max(textColumn.height, trailingRow.implicitHeight, Style.space(26))
   height: implicitHeight
 
   Rectangle {
     anchors.fill: parent
+    anchors.margins: 1
     radius: Theme.cornerRadius
-    // Selected before hover, as elsewhere: pointing at the row you are already
-    // on should not repaint it as though it were somewhere else.
-    // The alphas are the point. 0.08 of the foreground is invisible on a dark
-    // surface, and selected-versus-hovered was 0.18 against 0.22 — a step nobody
-    // can see, animated or not. These are spaced far enough to read: a row under
-    // the pointer is clearly lighter, and a selected row under it is lighter
-    // again without losing its selection.
     color: mouse.pressed && root.available
       ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.pressedFillAlpha)
       : (root.selected
@@ -86,8 +62,6 @@ Item {
           ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.rowHoverAlpha)
           : "transparent"))
 
-    // Short but eased, so the fill arrives rather than snaps. Reduce-motion
-    // collapses it to zero like every other duration in the shell.
     Behavior on color {
       ColorAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic }
     }
@@ -95,15 +69,11 @@ Item {
 
   Item {
     id: textColumn
-    // Flush with the panel's own rows and section headers. The 8px inset made
-    // every list sit a little to the right of the heading that named it.
     anchors.left: parent.left
+    anchors.leftMargin: root.horizontalPadding
     anchors.right: trailingRow.left
     anchors.rightMargin: Style.space(6)
     anchors.verticalCenter: parent.verticalCenter
-    // Counted explicitly: `childrenRect` includes the detail line whether or not
-    // it is shown, so a row without one was two pixels taller than its text and
-    // pushed the label up out of the middle of its own row.
     height: labelText.height + (root.hasDetail ? Style.space(2) + detailText.height : 0)
     opacity: root.available ? 1 : Style.disabledOpacity
 
@@ -111,15 +81,13 @@ Item {
       id: labelText
       width: parent.width - (root.hasGlyph ? glyphText.implicitWidth + Style.space(6) : 0)
       text: root.label
-      // The accent is for the label of the entry in use, which is what accent
-      // means everywhere else here — a bar module's active glyph, a switch that
-      // is on. The fill says chosen; this says which one, without a frame.
       color: root.selected ? Theme.accent : Theme.fg
       font.family: Style.font.family
       font.pixelSize: Style.font.body
       font.weight: root.selected ? Font.DemiBold : Font.Normal
       elide: Text.ElideRight
       renderType: Text.NativeRendering
+      maximumLineCount: 1
     }
 
     Text {
@@ -146,13 +114,16 @@ Item {
       font.pixelSize: Style.font.caption
       elide: Text.ElideRight
       renderType: Text.NativeRendering
+      maximumLineCount: 1
     }
   }
 
   Row {
     id: trailingRow
     anchors.right: parent.right
+    anchors.rightMargin: root.horizontalPadding
     anchors.verticalCenter: parent.verticalCenter
+    spacing: Style.space(4)
     height: implicitHeight
     opacity: root.available ? 1 : Style.disabledOpacity
   }
