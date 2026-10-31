@@ -402,6 +402,15 @@ Item {
     function close(): void { ClipboardHost.dismiss() }
   }
 
+  IpcHandler {
+    target: "workspace-overview"
+
+    function toggle(): void { WorkspaceOverviewHost.toggle() }
+    function show(): void { WorkspaceOverviewHost.show() }
+    function hide(): void { WorkspaceOverviewHost.hide() }
+    function status(): string { return WorkspaceOverviewHost.shown ? "open" : "closed" }
+  }
+
   // The menu, for scripts and for checking it without a picker on screen.
   // `open` and `only` rather than one function with an optional group, because
   // `ipc call` passes every argument a function declares.

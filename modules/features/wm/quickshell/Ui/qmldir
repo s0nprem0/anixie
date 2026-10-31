@@ -84,3 +84,6 @@ DisplayMap 1.0 DisplayMap.qml
 ConfirmDialog 1.0 ConfirmDialog.qml
 singleton SettingsHost 1.0 SettingsHost.qml
 singleton NightLightHost 1.0 NightLightHost.qml
+singleton WorkspaceOverviewHost 1.0 WorkspaceOverviewHost.qml
+singleton WorkspaceOverviewHost 1.0 WorkspaceOverviewHost.qml
+WorkspaceOverview 1.0 WorkspaceOverview.qml

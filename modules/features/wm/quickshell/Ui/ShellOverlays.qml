@@ -159,6 +159,35 @@ Item {
     }
   }
 
+  // Workspace overview. A full-screen overlay listing workspaces and their
+  // windows. Hyprland-only for now (gated by CompositorHost).
+  PanelWindow {
+    id: workspaceOverviewWindow
+    screen: Screens.focused
+
+    anchors.top: true
+    anchors.bottom: true
+    anchors.left: true
+    anchors.right: true
+
+    color: "transparent"
+    exclusionMode: ExclusionMode.Ignore
+    visible: CompositorHost.supportsWorkspaceOverview && WorkspaceOverviewHost.shown
+
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.namespace: "quickshell-workspace-overview"
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+
+    WorkspaceOverview {
+      anchors.fill: parent
+    }
+
+    MouseArea {
+      anchors.fill: parent
+      onClicked: WorkspaceOverviewHost.hide()
+    }
+  }
+
   // The screenshot preview. Bottom right, over the desktop, gone on its own after
   // ten seconds unless it is pinned.
   //
