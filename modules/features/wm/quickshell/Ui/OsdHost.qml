@@ -74,6 +74,7 @@ QtObject {
 
     if (key === "brightness" || key === "display") return Util.sun
     if (key === "keyboard") return Util.keyboard
+    if (key === "nightlight") return Util.moon
 
     // The global tiling/floating switch, read back from LayoutModeHost.
     if (key === "layout-tiling" || key === "tiling") return Util.tiling

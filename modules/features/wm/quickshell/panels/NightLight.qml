@@ -118,5 +118,3 @@ Item {
     command: ["gammastep", "-x"]
   }
 }
-EOF
-echo done
