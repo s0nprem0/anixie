@@ -103,7 +103,7 @@ BarWidget {
 
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
-  wantsSlot: root.temperature !== ""
+  wantsSlot: root.temperature !== "" && !root.vertical
 
   // A plain button rather than a BarIconButton: that one draws its `text`
   // through OpticalGlyph, which fits whatever it is given into the glyph canvas

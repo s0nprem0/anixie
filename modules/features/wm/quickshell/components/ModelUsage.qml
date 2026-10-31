@@ -70,7 +70,7 @@ BarWidget {
     }
   }
 
-  wantsSlot: root.hasData
+  wantsSlot: root.hasData && !root.vertical
   implicitWidth: readout.implicitWidth
   implicitHeight: readout.implicitHeight
 
