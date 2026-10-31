@@ -472,11 +472,22 @@ Item {
 
         Text {
           anchors.verticalCenter: parent.verticalCenter
-          width: Style.space(260)
+          width: Style.space(180)
           text: root.prettyId(modelData)
           color: Theme.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.body
+          elide: Text.ElideRight
+          renderType: Text.NativeRendering
+        }
+
+        Text {
+          anchors.verticalCenter: parent.verticalCenter
+          width: Style.space(90)
+          text: root.sectionLabel(BarConfig.sectionFor(modelData)) + " · off"
+          color: Theme.muted
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
           elide: Text.ElideRight
           renderType: Text.NativeRendering
         }
