@@ -11,6 +11,7 @@ Item {
     { label: "Bar", icon: Util.chart, source: "BarModules.qml" },
     { label: "Displays", icon: Util.laptop, source: "Displays.qml" },
     { label: "Network", icon: Util.globe, source: "Network.qml" },
+    { label: "Night light", icon: Util.moon, source: "NightLight.qml" },
     { label: "Notifications", icon: Util.bell, source: "Notifications.qml" },
     { label: "Power", icon: Util.bolt, source: "Power.qml" },
     { label: "Screentime", icon: Util.clock, source: "Screentime.qml" },

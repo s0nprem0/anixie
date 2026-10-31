@@ -166,6 +166,14 @@ Item {
   }
 
   IpcHandler {
+    target: "nightlight"
+
+    function toggle(): void { NightLightHost.toggle() }
+    function open(): void { NightLightHost.open() }
+    function close(): void { NightLightHost.close() }
+  }
+
+  IpcHandler {
     target: "settings"
 
     function toggle(): void { SettingsHost.toggle() }
