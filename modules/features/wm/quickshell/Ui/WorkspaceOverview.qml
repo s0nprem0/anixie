@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 import ".."
 import "../components"
 
@@ -10,6 +11,56 @@ Item {
   id: root
 
   readonly property var workspaces: Hyprland.workspaces ? Hyprland.workspaces.values : []
+
+  property string previewPath: ""
+  property bool previewVisible: false
+
+  // Best-effort transactional move state. Hyprland does not report success, so
+  // we retry once if the window is still on its source workspace.
+  property var pendingMove: null
+
+  property Timer moveRetryTimer: Timer {
+    interval: 600
+    repeat: false
+    onTriggered: {
+      const pm = root.pendingMove
+      if (!pm) return
+      let stillThere = false
+      const clients = HyprlandAdapter.clients || []
+      for (let i = 0; i < clients.length; i++) {
+        if (clients[i].address === pm.address && clients[i].workspace === pm.from) {
+          stillThere = true
+          break
+        }
+      }
+      if (stillThere) {
+        Commands.run("hyprctl dispatch movetoworkspace " + pm.to + ",address:" + pm.address)
+      }
+      root.pendingMove = null
+    }
+  }
+
+  property Process captureProc: Process {
+    running: false
+    stdout: StdioCollector { }
+    onExited: function (code) {
+      if (code === 0) root.previewVisible = true
+    }
+  }
+
+  function captureWindow(win) {
+    if (!win || !win.at || !win.size) return
+    const x = win.at[0]
+    const y = win.at[1]
+    const w = win.size[0]
+    const h = win.size[1]
+    if (w <= 0 || h <= 0) return
+    root.previewPath = "/tmp/quickshell-ws-preview.png"
+    root.previewVisible = false
+    root.captureProc.command = ["grim", "-g", x + "," + y + " " + w + "x" + h, root.previewPath]
+    root.captureProc.running = false
+    root.captureProc.running = true
+  }
 
   Rectangle {
     anchors.fill: parent
@@ -105,14 +156,36 @@ Item {
               onDropped: function (drop) {
                 const source = drop.source
                 const addr = source && source.address ? source.address : ""
-                if (addr !== "") {
-                  Commands.run("hyprctl dispatch movetoworkspace " + modelData.id + ",address:" + addr)
+                if (addr === "") return
+
+                // Record the source workspace for a best-effort retry.
+                let from = -1
+                const clients = HyprlandAdapter.clients || []
+                for (let i = 0; i < clients.length; i++) {
+                  if (clients[i].address === addr) { from = clients[i].workspace; break }
                 }
+                root.pendingMove = { address: addr, from: from, to: modelData.id }
+                root.moveRetryTimer.restart()
+
+                Commands.run("hyprctl dispatch movetoworkspace " + modelData.id + ",address:" + addr)
               }
             }
           }
         }
       }
+    }
+
+    Image {
+      anchors.bottom: parent.bottom
+      anchors.horizontalCenter: parent.horizontalCenter
+      anchors.bottomMargin: Style.space(20)
+      width: Style.space(320)
+      height: Style.space(180)
+      visible: root.previewVisible && root.previewPath !== ""
+      source: root.previewPath !== "" ? "file://" + root.previewPath : ""
+      fillMode: Image.PreserveAspectFit
+      cache: false
+      smooth: true
     }
   }
 }
