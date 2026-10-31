@@ -223,6 +223,7 @@ BarWidget {
       ? root.stamp.split(" ").pop()
       : (root.zone === "" ? root.stamp : root.stamp + "  " + root.zoneLabel)
     fontSize: root.vertical ? Style.font.bodySmall : Style.font.body
+    labelRotation: root.vertical ? 90 : 0
     centerFigures: false
     active: true
     useActiveColor: false

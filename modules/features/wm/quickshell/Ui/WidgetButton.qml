@@ -30,6 +30,7 @@ Item {
   property real fixedWidth: -1
   property real fixedHeight: -1
   property real textRotation: 0
+  property real labelRotation: 0
 
   property bool keepSpace: false
   property bool dimmed: false
@@ -135,6 +136,12 @@ Item {
     renderType: Text.NativeRendering
     horizontalAlignment: Text.AlignHCenter
     verticalAlignment: Text.AlignVCenter
+
+    transform: Rotation {
+      origin.x: label.width / 2
+      origin.y: label.height / 2
+      angle: root.labelRotation
+    }
 
     Behavior on color {
       ColorAnimation { duration: Style.duration(160) }
