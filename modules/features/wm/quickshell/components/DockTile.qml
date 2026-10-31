@@ -56,7 +56,12 @@ Item {
     acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
     onClicked: {
       if (!root.app || root.windows.length === 0) {
-        Commands.app(root.app ? root.app.klass : "")
+        const klass = root.app ? String(root.app.klass || "") : ""
+        if (klass === "") return
+        // Best-effort launch: gtk-launch by desktop id, then the UWSM app
+        // helper by class. Either may fail for apps whose desktop file name
+        // differs from their class; the bar's app launcher is the fallback.
+        Commands.run("gtk-launch " + Util.shellQuote(klass.toLowerCase()) + " 2>/dev/null || app-launch " + Util.shellQuote(klass))
         return
       }
       DockHost.activate(root.app)
