@@ -77,6 +77,10 @@ FocusScope {
 
   readonly property int padding: Style.space(14)
 
+  // Whether Tab/Shift+Tab wrap around the control list. Kept configurable so a
+  // future panel can opt out without changing the rest of the navigation model.
+  property bool wrapNavigation: true
+
   // ---- the keyboard ----
   //
   // Which control the keys are on, and whether the keys have been used at all.
@@ -95,6 +99,67 @@ FocusScope {
   property real ringWidth: 0
   property real ringHeight: 0
 
+  // ---- helpers ----
+
+  function isAlive(item) {
+    if (!item) return false
+    try {
+      const value = item.visible
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
+  function isAvailable(item) {
+    if (!isAlive(item)) return false
+    try {
+      if (item.visible === false) return false
+      if (item.enabled === false) return false
+      if (item.panelFocusable !== true) return false
+    } catch (e) {
+      return false
+    }
+    return true
+  }
+
+  function isDescendant(item, ancestor) {
+    let node = item
+    while (node) {
+      if (node === ancestor) return true
+      try {
+        node = node.parent
+      } catch (e) {
+        return false
+      }
+    }
+    return false
+  }
+
+  function windowActiveFocusItem() {
+    try {
+      const win = root.Window && root.Window.window ? root.Window.window : null
+      return win ? win.activeFocusItem : null
+    } catch (e) {
+      return null
+    }
+  }
+
+  function isTextInput(item) {
+    if (!isAlive(item)) return false
+    try {
+      return typeof item.cursorPosition !== "undefined"
+        && typeof item.text !== "undefined"
+        && typeof item.select === "function"
+    } catch (e) {
+      return false
+    }
+  }
+
+  function activeFocusIsTextInput() {
+    return isTextInput(root.windowActiveFocusItem())
+  }
+
   // Every control in the panel, in the order it is written.
   //
   // Walked every time the keys move rather than held: the lists inside a panel
@@ -103,8 +168,18 @@ FocusScope {
   // no longer on screen.
   function stops() {
     const found = []
-    collect(body, found)
-    return found
+    try {
+      root.collect(body, found)
+    } catch (e) {
+    }
+
+    const out = []
+    for (let i = 0; i < found.length; i++) {
+      const item = found[i]
+      if (!root.isAvailable(item)) continue
+      if (out.indexOf(item) < 0) out.push(item)
+    }
+    return out
   }
 
   // A control is anything that says it is one. `panelFocusable` is the whole
@@ -116,26 +191,53 @@ FocusScope {
   // choosing happens, and a panel whose up and down do nothing inside it would
   // be a keyboard panel with the middle missing.
   function collect(item, found) {
-    const children = item.children
+    if (!item) return
+    let children = []
+    try {
+      children = item.children || []
+    } catch (e) {
+      children = []
+    }
 
     for (let i = 0; i < children.length; i++) {
       const child = children[i]
-      if (!child || child.visible === false) continue
+      if (!child || !root.isAlive(child)) continue
 
-      if (child.panelFocusable === true) {
-        // A row inside a hidden section is still "visible" as far as its own
-        // property goes; what matters is whether it is drawn, all the way up.
-        if (root.drawn(child)) found.push(child)
+      let visible = true
+      try {
+        visible = child.visible !== false
+      } catch (e) {
+        visible = false
+      }
+      if (!visible) continue
+
+      let panelFocusable = false
+      try {
+        panelFocusable = child.panelFocusable === true
+      } catch (e) {
+        panelFocusable = false
+      }
+
+      if (panelFocusable) {
+        // A focusable control owns its own descendants: the row is one stop
+        // even when it contains a switch or a stepper inside it.
+        if (root.drawn(child) && found.indexOf(child) < 0) found.push(child)
         continue
       }
 
       // A list holds its delegates in its content item, not in itself.
-      if (child.contentItem && child.contentItem !== child) {
-        collect(child.contentItem, found)
+      let contentItem = null
+      try {
+        contentItem = child.contentItem
+      } catch (e) {
+        contentItem = null
+      }
+      if (contentItem && contentItem !== child) {
+        root.collect(contentItem, found)
         continue
       }
 
-      collect(child, found)
+      root.collect(child, found)
     }
   }
 
@@ -145,10 +247,18 @@ FocusScope {
   function drawn(item) {
     let node = item
     while (node && node !== root) {
-      if (node.visible === false) return false
-      node = node.parent
+      try {
+        if (node.visible === false) return false
+      } catch (e) {
+        return false
+      }
+      try {
+        node = node.parent
+      } catch (e) {
+        return false
+      }
     }
-    return true
+    return node === root
   }
 
   function moveCursor(delta) {
@@ -156,12 +266,15 @@ FocusScope {
     if (list.length === 0) return
 
     let index = list.indexOf(root.focusedItem)
-    // Nothing focused yet: either end of the list is the right way in.
     if (index < 0) index = delta > 0 ? -1 : 0
 
-    // Wrapping, so that arrow-down from the last row is not a dead key.
-    index = (index + delta + list.length) % list.length
-    root.focusStop(list[index])
+    if (root.wrapNavigation) {
+      index = (index + delta + list.length) % list.length
+    } else {
+      index = Math.max(0, Math.min(list.length - 1, index + delta))
+    }
+
+    if (list.length > 0) root.focusStop(list[index])
   }
 
   function firstStop() {
@@ -175,8 +288,13 @@ FocusScope {
   }
 
   function focusStop(item) {
+    if (!root.isAvailable(item)) return
     root.focusedItem = item
     root.keyboard = true
+    try {
+      item.forceActiveFocus()
+    } catch (e) {
+    }
     root.ensureVisible(item)
     root.updateRing()
   }
@@ -184,47 +302,176 @@ FocusScope {
   // Bring the focused control into view before the ring is drawn around it — an
   // off-screen focus is a panel where the keys seem to have stopped working.
   function ensureVisible(item) {
-    const top = item.mapToItem(body, 0, 0).y
-    const bottom = top + item.height
-    const margin = Style.space(8)
+    if (!item || !root.isAlive(item)) return
+    let top = 0
+    let itemHeight = 0
+    try {
+      const origin = item.mapToItem(body, 0, 0)
+      top = origin.y
+      itemHeight = item.height
+    } catch (e) {
+      return
+    }
 
-    if (top - margin < scroller.contentY) {
-      scroller.contentY = Math.max(0, top - margin)
-    } else if (bottom + margin > scroller.contentY + scroller.height) {
-      scroller.contentY = Math.min(
-        Math.max(0, scroller.contentHeight - scroller.height),
-        bottom + margin - scroller.height)
+    const bottom = top + itemHeight
+    const margin = Style.space(8)
+    const maxContentY = Math.max(0, scroller.contentHeight - scroller.height)
+
+    if (itemHeight >= scroller.height) {
+      if (top < scroller.contentY || bottom > scroller.contentY + scroller.height) {
+        scroller.contentY = Math.max(0, Math.min(maxContentY, top - margin))
+      }
+    } else {
+      if (top - margin < scroller.contentY) {
+        scroller.contentY = Math.max(0, top - margin)
+      } else if (bottom + margin > scroller.contentY + scroller.height) {
+        scroller.contentY = Math.min(maxContentY, bottom + margin - scroller.height)
+      }
     }
   }
 
   function updateRing() {
     const item = root.focusedItem
-    if (!item) {
+    if (!item || !root.isAvailable(item)) {
       root.ringWidth = 0
       root.ringHeight = 0
       return
     }
-
-    // Mapped into the scroller, whose coordinate space is the viewport: the
-    // content item is positioned at the scroll offset, so this already accounts
-    // for it.
-    const origin = item.mapToItem(scroller, 0, 0)
-    root.ringX = origin.x - Style.space(2)
-    root.ringY = origin.y - Style.space(2)
-    root.ringWidth = item.width + Style.space(4)
-    root.ringHeight = item.height + Style.space(4)
+    try {
+      const origin = item.mapToItem(scroller, 0, 0)
+      root.ringX = origin.x - Style.space(2)
+      root.ringY = origin.y - Style.space(2)
+      root.ringWidth = item.width + Style.space(4)
+      root.ringHeight = item.height + Style.space(4)
+    } catch (e) {
+      root.ringWidth = 0
+      root.ringHeight = 0
+    }
   }
 
   function activateFocused() {
-    if (root.focusedItem) root.focusedItem.activate()
+    const item = root.focusedItem
+    if (!item || !root.isAvailable(item)) {
+      root.focusedItem = null
+      return
+    }
+    if (typeof item.activate === "function") {
+      try {
+        item.activate()
+      } catch (e) {
+      }
+    }
   }
 
   function stepFocused(direction) {
-    if (root.focusedItem) return root.focusedItem.keyStep(direction)
+    const item = root.focusedItem
+    if (!item || !root.isAvailable(item)) {
+      root.focusedItem = null
+      return false
+    }
+    if (typeof item.keyStep === "function") {
+      try {
+        return !!item.keyStep(direction)
+      } catch (e) {
+        return false
+      }
+    }
     return false
   }
 
+  // Keep the custom cursor honest about Qt's own focus. A clicked control or a
+  // restored focus from a popup should become the panel's focused control, and
+  // a destroyed or hidden one should be dropped instead of lingering.
+  onActiveFocusChanged: {
+    if (!root.activeFocus) return
+    Qt.callLater(function () {
+      if (!root.activeFocus) return
+      const active = root.windowActiveFocusItem()
+      if (active && active !== root && root.isDescendant(active, root)) {
+        const list = root.stops()
+        const index = list.indexOf(active)
+        if (index >= 0) {
+          root.focusedItem = active
+        } else {
+          let node = active
+          let found = null
+          while (node && node !== root) {
+            if (list.indexOf(node) >= 0) {
+              found = node
+              break
+            }
+            try {
+              node = node.parent
+            } catch (e) {
+              node = null
+            }
+          }
+          if (found) root.focusedItem = found
+        }
+      } else if (root.focusedItem && root.isAvailable(root.focusedItem)) {
+        try {
+          root.focusedItem.forceActiveFocus()
+        } catch (e) {
+        }
+      }
+      root.updateRing()
+    })
+  }
+
+  onFocusedItemChanged: {
+    root.updateRing()
+  }
+
+  onWidthChanged: root.updateRing()
+  onHeightChanged: root.updateRing()
+
+  // Clear the cursor when the control it points at disappears, is disabled, or
+  // is destroyed, so navigation recovers instead of holding a dead reference.
+  Connections {
+    target: root.focusedItem
+    enabled: root.focusedItem !== null
+    function onVisibleChanged() {
+      if (target && target.visible === false) root.focusedItem = null
+    }
+    function onEnabledChanged() {
+      if (target && target.enabled === false) root.focusedItem = null
+    }
+    function onPanelFocusableChanged() {
+      if (target && target.panelFocusable !== true) root.focusedItem = null
+    }
+    function onParentChanged() {
+      if (!target || target.parent === null) root.focusedItem = null
+    }
+    function onDestroyed() {
+      root.focusedItem = null
+    }
+    function onXChanged() { root.updateRing() }
+    function onYChanged() { root.updateRing() }
+    function onWidthChanged() { root.updateRing() }
+    function onHeightChanged() { root.updateRing() }
+  }
+
+  Connections {
+    target: scroller
+    function onContentYChanged() { root.updateRing() }
+    function onWidthChanged() { root.updateRing() }
+    function onHeightChanged() { root.updateRing() }
+  }
+
   Keys.onPressed: function (event) {
+    // Text fields own their editing keys; do not walk the panel while one is
+    // being edited.
+    if (root.activeFocusIsTextInput()) {
+      if (event.key === Qt.Key_Escape) {
+        if (root.closeHandler) root.closeHandler()
+        else PanelHost.closeFocused()
+        event.accepted = true
+      }
+      return
+    }
+
+    const autoRepeat = !!event.isAutoRepeat
+
     switch (event.key) {
     case Qt.Key_Down:
       root.moveCursor(1)
@@ -258,6 +505,10 @@ FocusScope {
     case Qt.Key_Return:
     case Qt.Key_Enter:
     case Qt.Key_Space:
+      if (autoRepeat) {
+        event.accepted = true
+        break
+      }
       root.activateFocused()
       event.accepted = true
       break
@@ -313,11 +564,9 @@ FocusScope {
     anchors.bottom: parent.bottom
     anchors.topMargin: root.padding
     anchors.leftMargin: root.padding
-    // The scrollbar sits inside the flickable's right edge, so the gap it takes
-    // is taken off the content rather than off the card: a panel that scrolls
-    // must not lay its text under its own scrollbar, and must not jump sideways
-    // when it starts to.
-    anchors.rightMargin: root.padding + (root.scrollable ? Style.space(8) : 0)
+    // Keep the scrollbar gutter reserved in both states so the content width
+    // does not change the moment scrolling becomes necessary.
+    anchors.rightMargin: root.padding + Style.space(8)
     anchors.bottomMargin: root.padding
 
     contentWidth: width
@@ -348,7 +597,12 @@ FocusScope {
   Item {
     anchors.fill: scroller
     clip: true
-    visible: root.keyboard && root.ringWidth > 0
+    opacity: (root.keyboard && !root.pointerInside && root.ringWidth > 0
+              && root.isAvailable(root.focusedItem)) ? 1 : 0
+    visible: opacity > 0
+    Behavior on opacity {
+      NumberAnimation { duration: Style.duration(Style.motion.fast); easing.type: Easing.OutCubic }
+    }
 
     Rectangle {
       x: root.ringX

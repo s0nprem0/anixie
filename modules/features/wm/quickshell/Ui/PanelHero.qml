@@ -32,92 +32,106 @@ Item {
   readonly property bool hasArt: root.art !== ""
   readonly property int artSize: Style.space(48)
   readonly property int leadSlot: root.hasArt ? root.artSize : (root.hasGlyph ? root.glyphSlot : 0)
+  readonly property bool hasSubtitle: root.subtitle !== ""
 
-  implicitWidth: Math.max(titleText.implicitWidth, subtitleText.implicitWidth) + Style.space(12)
-    + (root.leadSlot > 0 ? root.leadSlot + Style.space(10) : 0)
-    + root.controlWidth
-  implicitHeight: Math.max(titleText.implicitHeight + (root.hasSubtitle ? subtitleText.implicitHeight + Style.space(2) : 0), root.leadSlot)
+  // Keep a long title or subtitle from forcing a panel wider than its content
+  // needs to be. The text is elided inside the available space instead.
+  readonly property real textContribution: Math.min(Style.space(220),
+    Math.max(titleText.implicitWidth, subtitleText.implicitWidth))
+
+  implicitWidth: root.leadSlot
+    + (root.leadSlot > 0 ? Style.space(10) : 0)
+    + root.textContribution
+    + (root.controlWidth > 0 ? Style.space(10) + root.controlWidth : 0)
+  implicitHeight: Math.max(root.textGroupHeight, root.leadSlot)
   height: implicitHeight
 
-  readonly property bool hasSubtitle: root.subtitle !== ""
+  readonly property int textGroupHeight: titleText.implicitHeight
+    + (root.hasSubtitle ? Style.space(2) + subtitleText.implicitHeight : 0)
 
   // Whichever of the two the caller asked for; both sit in the same slot on the
   // left, so a panel has one leading element rather than a glyph that moves when
   // the artwork arrives.
-  OpticalGlyph {
-    id: glyphLoader
-    anchors.left: parent.left
-    anchors.verticalCenter: parent.verticalCenter
-    visible: root.hasGlyph && !root.hasArt
-    width: root.hasGlyph && !root.hasArt ? Style.bar.iconCanvas : 0
-    height: root.hasGlyph && !root.hasArt ? Style.bar.iconCanvas : 0
-    text: root.glyph
-    fontSize: Style.bar.iconFont
-    paintedSize: Style.bar.iconSize
-    color: Theme.primary
-  }
-
-  SizedImage {
-    id: artImage
-    anchors.left: parent.left
-    anchors.verticalCenter: parent.verticalCenter
-    visible: root.hasArt
-    width: root.hasArt ? root.artSize : 0
-    height: root.hasArt ? root.artSize : 0
-    source: root.art
-    fillMode: Image.PreserveAspectCrop
-  }
-
-  Text {
-    id: titleText
-    anchors.left: root.leadSlot > 0 ? leadItem.right : parent.left
-    anchors.leftMargin: root.leadSlot > 0 ? Style.space(10) : 0
-    anchors.top: parent.top
-    anchors.right: controlSlot.left
-    anchors.rightMargin: root.controlWidth > 0 ? Style.space(10) : 0
-    text: root.title
-    color: Theme.fg
-    font.family: Style.font.family
-    font.pixelSize: Style.font.subtitle
-    font.weight: Font.DemiBold
-    renderType: Text.NativeRendering
-    elide: Text.ElideRight
-    width: Math.max(0, parent.width - x - (root.controlWidth > 0 ? controlSlot.width + Style.space(10) : 0))
-  }
-
-  Text {
-    id: subtitleText
-    anchors.left: titleText.left
-    anchors.top: titleText.bottom
-    anchors.topMargin: Style.space(2)
-    text: root.subtitle
-    visible: root.hasSubtitle
-    color: Theme.muted
-    font.family: Style.font.family
-    font.pixelSize: Style.font.caption
-    renderType: Text.NativeRendering
-    elide: Text.ElideRight
-    width: titleText.width
-  }
-
-  // Whichever leading element is in play, as one anchorable edge: the title
-  // hangs off the right of it whether that is a glyph or a sleeve.
   Item {
     id: leadItem
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
     width: root.leadSlot
     height: root.leadSlot
-    visible: width > 0
+
+    OpticalGlyph {
+      anchors.centerIn: parent
+      visible: root.hasGlyph && !root.hasArt
+      width: root.hasGlyph && !root.hasArt ? Style.bar.iconCanvas : 0
+      height: root.hasGlyph && !root.hasArt ? Style.bar.iconCanvas : 0
+      text: root.glyph
+      fontSize: Style.bar.iconFont
+      paintedSize: Style.bar.iconSize
+      color: Theme.primary
+    }
+
+    Rectangle {
+      anchors.fill: parent
+      visible: root.hasArt
+      radius: Theme.cornerRadius
+      color: "transparent"
+      clip: true
+
+      SizedImage {
+        anchors.fill: parent
+        source: root.art
+        fillMode: Image.PreserveAspectFit
+        smoothing: true
+      }
+    }
   }
 
-  // Marks the slot a hero control anchors into, so the title can be placed to its
-  // left. Invisible and empty; the control itself is declared by whoever uses the
-  // hero.
+  // The title and subtitle as one vertically centred group. The title keeps its
+  // visual dominance; the subtitle sits a consistent step below it.
+  Item {
+    id: textGroup
+    x: root.leadSlot > 0 ? leadItem.x + leadItem.width + Style.space(10) : 0
+    width: Math.max(0, (root.controlWidth > 0 ? controlSlot.x - Style.space(10) : root.width) - x)
+    y: Math.round((root.height - height) / 2)
+    height: root.textGroupHeight
+
+    Text {
+      id: titleText
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.top: parent.top
+      text: root.title
+      color: Theme.fg
+      font.family: Style.font.family
+      font.pixelSize: Style.font.subtitle
+      font.weight: Font.DemiBold
+      renderType: Text.NativeRendering
+      elide: Text.ElideRight
+    }
+
+    Text {
+      id: subtitleText
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.top: titleText.bottom
+      anchors.topMargin: Style.space(2)
+      visible: root.hasSubtitle
+      text: root.subtitle
+      color: Theme.muted
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      renderType: Text.NativeRendering
+      elide: Text.ElideRight
+    }
+  }
+
+  // Marks the slot a hero control anchors into, so the title can be placed to
+  // its left. Invisible and empty; the control itself is declared by whoever
+  // uses the hero. It stays in the layout so callers can anchor to it.
   Item {
     id: controlSlot
     anchors.right: parent.right
-    anchors.top: parent.top
+    anchors.verticalCenter: parent.verticalCenter
     width: root.controlWidth
     height: root.height
     visible: false

@@ -36,10 +36,15 @@ Item {
 
   signal clicked()
 
+  Accessible.role: Accessible.Button
+  Accessible.name: root.label
+  Accessible.description: root.value !== "" ? root.value : root.label
+
   // ---- the keyboard ----
   readonly property bool panelFocusable: root.available
 
   function activate() {
+    if (!root.available) return
     root.clicked()
   }
 
@@ -49,9 +54,10 @@ Item {
 
   readonly property color foreground: root.danger ? Theme.danger : Theme.fg
 
-  implicitWidth: labelText.implicitWidth + Style.space(12) + valueText.implicitWidth
-    + Style.space(10) + (root.navigational ? chevron.implicitWidth : 0)
-  implicitHeight: Math.max(labelText.implicitHeight, valueText.implicitHeight, 20)
+  implicitWidth: labelText.implicitWidth + Style.space(12)
+    + Math.min(valueText.implicitWidth, Style.space(140))
+    + Style.space(10) + (root.navigational ? chevronText.implicitWidth : 0)
+  implicitHeight: Math.max(labelText.implicitHeight, valueText.implicitHeight, Style.space(20))
 
   // A Panel is a Column, which positions children by height rather than implicit
   // height. Without this the row takes no space and every row stacks on one line.
@@ -76,8 +82,12 @@ Item {
   Text {
     id: labelText
     anchors.left: parent.left
-    anchors.right: valueText.visible ? valueText.left : parent.right
-    anchors.rightMargin: valueText.visible ? Style.space(12) : 0
+    anchors.right: valueText.visible
+      ? valueText.left
+      : (root.navigational ? chevron.left : parent.right)
+    anchors.rightMargin: valueText.visible
+      ? Style.space(12)
+      : (root.navigational ? Style.space(10) : 0)
     anchors.verticalCenter: parent.verticalCenter
     text: root.label
     color: root.foreground
@@ -89,10 +99,11 @@ Item {
 
   Text {
     id: valueText
-    anchors.right: chevron.left
+    anchors.right: root.navigational ? chevron.left : parent.right
     anchors.rightMargin: Style.space(10)
     anchors.verticalCenter: parent.verticalCenter
     visible: root.value !== ""
+    width: Math.min(implicitWidth, Style.space(140))
     text: root.value
     color: Theme.muted
     font.family: Style.font.family
@@ -116,7 +127,9 @@ Item {
     anchors.centerIn: parent
     visible: root.navigational
     text: "›"
-    color: mouse.containsMouse && root.available ? root.foreground : Theme.muted
+    color: mouse.pressed && root.available
+      ? root.foreground
+      : (mouse.containsMouse && root.available ? root.foreground : Theme.muted)
     font.family: Style.font.family
     font.pixelSize: Style.font.body
     renderType: Text.NativeRendering
@@ -129,6 +142,9 @@ Item {
     enabled: root.available
     hoverEnabled: true
     cursorShape: root.available ? Qt.PointingHandCursor : Qt.ArrowCursor
-    onClicked: root.clicked()
+    onClicked: {
+      if (!root.available) return
+      root.clicked()
+    }
   }
 }
