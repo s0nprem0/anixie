@@ -218,7 +218,7 @@ Item {
                 row.modelData.imagePath !== "" ? "file://" + row.modelData.imagePath : ""
 
               width: list.width - list.rightMargin
-              height: row.modelData.image ? Style.space(40) : Style.space(30)
+              height: row.modelData.image ? Style.space(48) : Style.space(34)
 
               Rectangle {
                 anchors.fill: parent
@@ -235,8 +235,8 @@ Item {
                 id: imageSlot
 
                 visible: row.modelData.image
-                width: Style.space(44)
-                height: Style.space(30)
+                width: Style.space(52)
+                height: Style.space(36)
                 anchors.left: parent.left
                 anchors.leftMargin: Style.space(4)
                 anchors.verticalCenter: parent.verticalCenter
@@ -271,7 +271,7 @@ Item {
                 text: row.modelData.label
                 color: row.chosen ? Theme.accent : Theme.fg
                 font.family: Style.font.family
-                font.pixelSize: Style.font.bodySmall
+                font.pixelSize: Style.font.body
                 font.weight: row.chosen ? Font.DemiBold : Font.Normal
                 elide: Text.ElideRight
                 renderType: Text.NativeRendering
