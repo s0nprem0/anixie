@@ -175,7 +175,10 @@ QtObject {
   // the object with one.
   function setScreens(id, value) {
     const next = BarLayout.setScreens(root.config, id, value)
-    if (!next) return false
+    if (!next) {
+      console.warn("quickshell bar: setScreens could not find module " + id)
+      return false
+    }
     root.save(next)
     return true
   }
