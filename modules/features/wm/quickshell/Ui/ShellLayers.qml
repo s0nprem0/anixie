@@ -281,7 +281,12 @@ Item {
         anchors.leftMargin: BarContext.vertical ? undefined : bar.gap
         name: "left"
         screenName: targetScreen ? targetScreen.name : ""
-        entries: BarConfig.section("left")
+        entries: {
+          const cfg = BarConfig.config
+          const layout = cfg && cfg.layout ? cfg.layout : {}
+          const list = layout["left"]
+          return Array.isArray(list) ? list : []
+        }
       }
 
       // ---- centre ----
@@ -291,7 +296,12 @@ Item {
         anchors.verticalCenter: BarContext.vertical ? parent.verticalCenter : undefined
         name: "center"
         screenName: targetScreen ? targetScreen.name : ""
-        entries: BarConfig.section("center")
+        entries: {
+          const cfg = BarConfig.config
+          const layout = cfg && cfg.layout ? cfg.layout : {}
+          const list = layout["center"]
+          return Array.isArray(list) ? list : []
+        }
       }
 
       // ---- centerBegin: grows away from the centre group ----
@@ -303,7 +313,12 @@ Item {
         anchors.bottomMargin: BarContext.vertical ? bar.gap : undefined
         name: "centerBegin"
         screenName: targetScreen ? targetScreen.name : ""
-        entries: BarConfig.section("centerBegin")
+        entries: {
+          const cfg = BarConfig.config
+          const layout = cfg && cfg.layout ? cfg.layout : {}
+          const list = layout["centerBegin"]
+          return Array.isArray(list) ? list : []
+        }
       }
 
       // ---- centerEnd ----
@@ -315,7 +330,12 @@ Item {
         anchors.topMargin: BarContext.vertical ? bar.gap : undefined
         name: "centerEnd"
         screenName: targetScreen ? targetScreen.name : ""
-        entries: BarConfig.section("centerEnd")
+        entries: {
+          const cfg = BarConfig.config
+          const layout = cfg && cfg.layout ? cfg.layout : {}
+          const list = layout["centerEnd"]
+          return Array.isArray(list) ? list : []
+        }
       }
 
       // ---- end (right, or bottom when vertical) ----
@@ -327,7 +347,12 @@ Item {
         anchors.rightMargin: BarContext.vertical ? undefined : bar.gap
         name: "right"
         screenName: targetScreen ? targetScreen.name : ""
-        entries: BarConfig.section("right")
+        entries: {
+          const cfg = BarConfig.config
+          const layout = cfg && cfg.layout ? cfg.layout : {}
+          const list = layout["right"]
+          return Array.isArray(list) ? list : []
+        }
       }
 
       // The gap a release would fill. Full thickness of the bar so it reads as a
