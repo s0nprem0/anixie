@@ -52,14 +52,37 @@ Item {
     id: osdWindow
     screen: OsdHost.screenName !== "" ? (Screens.byName(OsdHost.screenName) || Screens.focused) : Screens.focused
 
-    anchors.top: OsdHost.position === "top" || (OsdHost.position === "bar" && BarContext.position === "top")
-    anchors.bottom: !(OsdHost.position === "top" || (OsdHost.position === "bar" && BarContext.position === "top"))
-    margins.top: (OsdHost.position === "top" || (OsdHost.position === "bar" && BarContext.position === "top"))
-      ? (BarContext.vertical ? Style.bar.sizeVertical + Style.space(24) : Style.space(90))
-      : 0
-    margins.bottom: (OsdHost.position === "top" || (OsdHost.position === "bar" && BarContext.position === "top"))
-      ? 0
-      : (BarContext.vertical ? Style.bar.sizeVertical + Style.space(24) : Style.space(90))
+    // Bar geometry is resolved for this output rather than assumed from the
+    // global bar context. The fallback keeps the previous behaviour when a bar
+    // has not registered yet.
+    readonly property var osdBar: PanelHost.barFor(osdWindow.screen ? osdWindow.screen.name : "")
+    readonly property string osdBarPosition: {
+      const bar = osdWindow.osdBar
+      const screen = osdWindow.screen
+      if (bar && screen) {
+        try {
+          const window = bar.Window && bar.Window.window ? bar.Window.window : null
+          if (window) {
+            if (window.y <= screen.y + 1) return "top"
+            if (window.y + window.height >= screen.y + screen.height - 1) return "bottom"
+            if (window.x <= screen.x + 1) return "left"
+            if (window.x + window.width >= screen.x + screen.width - 1) return "right"
+          }
+        } catch (e) {
+        }
+      }
+      return BarContext.position
+    }
+    readonly property bool osdOnTop: OsdHost.position === "top"
+      || (OsdHost.position === "bar" && osdWindow.osdBarPosition === "top")
+    readonly property real osdBarExtent: (osdWindow.osdBarPosition === "left" || osdWindow.osdBarPosition === "right")
+      ? Style.bar.sizeVertical
+      : Style.bar.sizeHorizontal
+
+    anchors.top: osdWindow.osdOnTop
+    anchors.bottom: !osdWindow.osdOnTop
+    margins.top: osdWindow.osdOnTop ? osdWindow.osdBarExtent + Style.space(24) : 0
+    margins.bottom: osdWindow.osdOnTop ? 0 : osdWindow.osdBarExtent + Style.space(24)
     implicitWidth: osdCard.implicitWidth
     implicitHeight: osdCard.implicitHeight
 
@@ -85,7 +108,7 @@ Item {
       mediaOsd: OsdHost.mediaOsd
 
       opacity: OsdHost.opened ? 1 : 0
-      scale: (OsdHost.opened ? 1 : 0.96) * (osdWindow.screen ? Math.min(2, Math.max(1, osdWindow.screen.devicePixelRatio)) : 1)
+      scale: OsdHost.opened ? 1 : 0.96
       transformOrigin: Item.Center
       Behavior on opacity {
         NumberAnimation { duration: Style.duration(Style.motion.fast); easing.type: Easing.OutCubic }
@@ -104,7 +127,7 @@ Item {
   // windows around.
   PanelWindow {
     id: dockEdgeReveal
-    screen: Screens.focused
+    screen: dockScreen
 
     anchors.top: true
     anchors.bottom: true
@@ -133,6 +156,7 @@ Item {
   // not cost screen space when it is closed, so the zone follows `shown`.
   PanelWindow {
     id: dockWindow
+    screen: dockScreen
 
     anchors.top: true
     anchors.bottom: true
@@ -178,6 +202,14 @@ Item {
     WlrLayershell.namespace: "quickshell-workspace-overview"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
+    // Declared behind the overview so interactive rows and controls keep their
+    // own clicks; only clicks on empty overview background dismiss it.
+    MouseArea {
+      anchors.fill: parent
+      z: -1
+      onClicked: WorkspaceOverviewHost.hide()
+    }
+
     WorkspaceOverview {
       id: workspaceOverviewContent
       anchors.fill: parent
@@ -190,11 +222,6 @@ Item {
       Behavior on scale {
         NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.InOutCubic }
       }
-    }
-
-    MouseArea {
-      anchors.fill: parent
-      onClicked: WorkspaceOverviewHost.hide()
     }
   }
 
@@ -209,13 +236,32 @@ Item {
     id: capturePreviewWindow
     screen: Screens.focused
 
+    readonly property var captureBar: PanelHost.barFor(capturePreviewWindow.screen ? capturePreviewWindow.screen.name : "")
+    readonly property string captureBarPosition: {
+      const bar = capturePreviewWindow.captureBar
+      const screen = capturePreviewWindow.screen
+      if (bar && screen) {
+        try {
+          const window = bar.Window && bar.Window.window ? bar.Window.window : null
+          if (window) {
+            if (window.y <= screen.y + 1) return "top"
+            if (window.y + window.height >= screen.y + screen.height - 1) return "bottom"
+            if (window.x <= screen.x + 1) return "left"
+            if (window.x + window.width >= screen.x + screen.width - 1) return "right"
+          }
+        } catch (e) {
+        }
+      }
+      return BarContext.position
+    }
+
     anchors.right: true
     anchors.bottom: true
     // The same clearance the notifications get, from the other corner.
-    margins.right: BarContext.position === "right"
+    margins.right: capturePreviewWindow.captureBarPosition === "right"
       ? Style.bar.sizeVertical + Style.space(24)
       : Style.space(24)
-    margins.bottom: BarContext.position === "bottom"
+    margins.bottom: capturePreviewWindow.captureBarPosition === "bottom"
       ? Style.bar.sizeHorizontal + Style.space(24)
       : Style.space(24)
     implicitWidth: previewCard.implicitWidth
@@ -235,10 +281,16 @@ Item {
       source: CapturePreview.path
       revision: CapturePreview.revision
       pinned: CapturePreview.pinned
-      onOpened: Commands.app("xdg-open", [CapturePreview.path])
+      onOpened: {
+        const path = CapturePreview.path
+        if (path !== "") Commands.run("if [ -f " + Util.shellQuote(path) + " ]; then xdg-open " + Util.shellQuote(path) + "; fi")
+      }
       onAnnotated: {
-        Commands.run("wl-copy --type image/png < " + Util.shellQuote(CapturePreview.path))
-        CapturePreview.reveal(CapturePreview.path)
+        const path = CapturePreview.path
+        if (path !== "") {
+          Commands.run("if [ -f " + Util.shellQuote(path) + " ]; then wl-copy --type image/png < " + Util.shellQuote(path) + "; fi")
+          CapturePreview.reveal(path)
+        }
       }
       onPinToggled: CapturePreview.togglePin()
       onDismissed: CapturePreview.hide()

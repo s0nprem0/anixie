@@ -221,7 +221,7 @@ Item {
   // also what makes the refresh in the shell a one-liner.
   Process {
     id: annotate
-    command: ["satty", "--filename", root.source, "--output-filename", root.source, "--initial-tool", "crop"]
+    command: ["sh", "-c", "test -f \"$1\" && exec satty --filename \"$1\" --output-filename \"$1\" --initial-tool crop", "sh", root.source]
     onExited: function (exitCode) {
       if (exitCode === 0) root.annotated()
     }
