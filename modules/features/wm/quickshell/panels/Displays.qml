@@ -763,7 +763,7 @@ Item {
             label: "Mode"
             // A resolution and its rate are wider than the standard 140px slot,
             // and "1280×1024 · 60.01" was losing the rate it exists to show.
-            controlWidth: Style.space(160)
+            controlWidth: Style.space(200)
 
             Dropdown {
               anchors.right: parent.right
