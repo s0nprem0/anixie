@@ -112,6 +112,9 @@ Item {
     function disable(id: string): string {
       return BarConfig.disable(id) ? "ok" : "not on the bar"
     }
+    function screens(id: string, value: string): string {
+      return BarConfig.setScreens(id, value) ? "ok" : "failed"
+    }
 
     // The tray drawer, for a script or a key: what a click on the parked count
     // opens.
