@@ -58,7 +58,20 @@ Item {
                 font.pixelSize: Style.font.bodySmall
                 elide: Text.ElideRight
                 renderType: Text.NativeRendering
+
+                MouseArea {
+                  anchors.fill: parent
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: {
+                    if (modelData.address) Commands.run("hyprctl dispatch 'hl.dsp.focus({window = \"" + modelData.address + "\"})'")
+                  }
+                }
               }
+            }
+
+            MouseArea {
+              anchors.fill: parent
+              onClicked: Commands.run("hyprctl dispatch 'hl.dsp.focus({workspace = " + modelData.id + "})'")
             }
           }
         }
