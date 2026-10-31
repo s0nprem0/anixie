@@ -30,7 +30,6 @@ Item {
 
   function prettyId(id) {
     let s = String(id || "")
-    // Strip the "bar." prefix and turn separators into spaces, then title-case.
     s = s.replace(/^bar\./, "")
     s = s.replace(/[-_.]/g, " ")
     s = s.replace(/\s+/g, " ").trim()
@@ -151,6 +150,18 @@ Item {
       }
     }
 
+    Text {
+      width: card.contentWidth
+      visible: root.sections.every(function (name) { return root.filteredEntries(name).length === 0 })
+        && root.filterText.trim() !== ""
+      text: "No modules match the filter"
+      color: Theme.muted
+      font.family: Style.font.family
+      font.pixelSize: Style.font.body
+      wrapMode: Text.WordWrap
+      renderType: Text.NativeRendering
+    }
+
     Repeater {
       model: root.sections
 
@@ -159,14 +170,15 @@ Item {
         required property string modelData
         width: card.contentWidth
         height: sectionColumn.implicitHeight
-        visible: root.filteredEntries(sectionItem.modelData).length > 0 || root.filterText.trim() === ""
+        visible: root.filteredEntries(sectionItem.modelData).length > 0
+          || root.filterText.trim() !== ""
 
         readonly property string sectionName: sectionItem.modelData
 
         Column {
           id: sectionColumn
           width: parent.width
-          spacing: Style.space(2)
+          spacing: Style.space(6)
 
           PanelSectionHeader {
             width: parent.width
@@ -181,130 +193,142 @@ Item {
               required property var modelData
               required property int index
               width: card.contentWidth
-              height: Style.space(32)
+              height: moduleColumn.implicitHeight
 
               readonly property string moduleId: String(modelData.id || "")
               property string dragId: String(modelData.id || "")
 
-              focus: true
-              Keys.onUpPressed: {
-                if (root.filterText.trim() === "" && index > 0)
-                  BarConfig.move(moduleId, sectionItem.sectionName, index - 1)
-              }
-              Keys.onDownPressed: {
-                const full = root.entriesOf(sectionItem.sectionName)
-                if (root.filterText.trim() === "" && index < full.length - 1)
-                  BarConfig.move(moduleId, sectionItem.sectionName, index + 2)
-              }
+              Drag.active: dragHandle.active
+              Drag.source: moduleRow
+              Drag.hotSpot.x: width / 2
+              Drag.hotSpot.y: height / 2
+              Drag.keys: ["bar-module"]
 
-              Row {
-                id: row
-                anchors.fill: parent
-                spacing: Style.space(4)
+              Column {
+                id: moduleColumn
+                width: parent.width
+                spacing: Style.space(2)
 
-                Rectangle {
-                  id: grip
-                  anchors.verticalCenter: parent.verticalCenter
-                  width: Style.space(16)
-                  height: Style.space(20)
-                  radius: Theme.cornerRadius
-                  color: dragHandle.containsMouse ? Theme.bg : "transparent"
-                  visible: root.filterText.trim() === ""
+                Row {
+                  id: identityRow
+                  width: parent.width
+                  spacing: Style.space(4)
+                  z: 1
+
+                  Rectangle {
+                    id: grip
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Style.space(16)
+                    height: Style.space(20)
+                    radius: Theme.cornerRadius
+                    color: dragHandle.containsMouse ? Theme.bg : "transparent"
+                    visible: root.filterText.trim() === ""
+
+                    Text {
+                      anchors.centerIn: parent
+                      text: "≡"
+                      color: Theme.muted
+                      font.family: Style.font.family
+                      font.pixelSize: Style.font.body
+                      renderType: Text.NativeRendering
+                    }
+
+                    DragHandler {
+                      id: dragHandle
+                      target: null
+                      enabled: root.filterText.trim() === ""
+                    }
+                  }
 
                   Text {
-                    anchors.centerIn: parent
-                    text: "≡"
-                    color: Theme.muted
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.max(Style.space(80), parent.width - Style.space(212))
+                    text: root.prettyId(moduleRow.moduleId)
+                    color: Theme.fg
                     font.family: Style.font.family
                     font.pixelSize: Style.font.body
+                    elide: Text.ElideRight
                     renderType: Text.NativeRendering
                   }
 
-                  DragHandler {
-                    id: dragHandle
-                    target: null
-                    enabled: root.filterText.trim() === ""
-                    onActiveChanged: {
-                      if (active) moduleRow.Drag.active = true
-                      else moduleRow.Drag.active = false
+                  Dropdown {
+                    width: Style.space(88)
+                    model: root.sections.map(root.sectionLabel)
+                    currentIndex: root.sections.indexOf(sectionItem.sectionName)
+                    onActivated: function (i) {
+                      const target = root.sections[i]
+                      if (target !== sectionItem.sectionName)
+                        BarConfig.move(moduleRow.moduleId, target, 0)
+                    }
+                  }
+
+                  Dropdown {
+                    width: Style.space(96)
+                    model: (["All screens"]).concat(Quickshell.screens.map(function (s) { return String(s.name) }))
+                    currentIndex: {
+                      const screens = moduleRow.modelData.screens
+                      if (!Array.isArray(screens) || screens.length === 0 || screens.indexOf("all") !== -1)
+                        return 0
+                      const idx = Quickshell.screens.map(function (s) { return String(s.name) }).indexOf(String(screens[0]))
+                      return idx >= 0 ? idx + 1 : 0
+                    }
+                    onActivated: function (i) {
+                      if (i === 0) BarConfig.setScreens(moduleRow.moduleId, null)
+                      else BarConfig.setScreens(moduleRow.moduleId, Quickshell.screens[i - 1].name)
                     }
                   }
                 }
 
-                Text {
-                  anchors.verticalCenter: parent.verticalCenter
-                  width: Style.space(120)
-                  text: root.prettyId(moduleRow.moduleId)
-                  color: Theme.fg
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.body
-                  elide: Text.ElideRight
-                  renderType: Text.NativeRendering
-                }
+                Row {
+                  id: actionRow
+                  width: parent.width
+                  spacing: Style.space(4)
+                  z: 1
 
-                Dropdown {
-                  width: Style.space(90)
-                  model: root.sections.map(root.sectionLabel)
-                  currentIndex: root.sections.indexOf(sectionItem.sectionName)
-                  onActivated: function (i) {
-                    const target = root.sections[i]
-                    if (target !== sectionItem.sectionName)
-                      BarConfig.move(moduleRow.moduleId, target, 0)
+                  Item {
+                    width: Math.max(0, parent.width - Style.space(168))
+                    height: 1
                   }
-                }
 
-                Dropdown {
-                  width: Style.space(100)
-                  model: (["All screens"]).concat(Quickshell.screens.map(function (s) { return String(s.name) }))
-                  currentIndex: {
-                    const screens = moduleRow.modelData.screens
-                    if (!Array.isArray(screens) || screens.length === 0 || screens.indexOf("all") !== -1)
-                      return 0
-                    const idx = Quickshell.screens.map(function (s) { return String(s.name) }).indexOf(String(screens[0]))
-                    return idx >= 0 ? idx + 1 : 0
+                  TextButton {
+                    label: "↑"
+                    tooltipText: "Move up"
+                    available: root.filterText.trim() === ""
+                    onClicked: {
+                      if (root.filterText.trim() === "" && moduleRow.index > 0)
+                        BarConfig.move(moduleRow.moduleId, sectionItem.sectionName, moduleRow.index - 1)
+                    }
                   }
-                  onActivated: function (i) {
-                    if (i === 0) BarConfig.setScreens(moduleRow.moduleId, null)
-                    else BarConfig.setScreens(moduleRow.moduleId, Quickshell.screens[i - 1].name)
+
+                  TextButton {
+                    label: "↓"
+                    tooltipText: "Move down"
+                    available: root.filterText.trim() === ""
+                    onClicked: {
+                      const full = root.entriesOf(sectionItem.sectionName)
+                      if (root.filterText.trim() === "" && moduleRow.index < full.length - 1)
+                        BarConfig.move(moduleRow.moduleId, sectionItem.sectionName, moduleRow.index + 2)
+                    }
                   }
-                }
 
-                TextButton {
-                  label: "↑"
-                  tooltipText: "Move up"
-                  available: root.filterText.trim() === ""
-                  onClicked: {
-                    if (root.filterText.trim() === "" && moduleRow.index > 0)
-                      BarConfig.move(moduleRow.moduleId, sectionItem.sectionName, moduleRow.index - 1)
+                  TextButton {
+                    label: "Park"
+                    tooltipText: "Park in the tray (remembers original place)"
+                    onClicked: BarConfig.disable(moduleRow.moduleId)
                   }
-                }
 
-                TextButton {
-                  label: "↓"
-                  tooltipText: "Move down"
-                  available: root.filterText.trim() === ""
-                  onClicked: {
-                    const full = root.entriesOf(sectionItem.sectionName)
-                    if (root.filterText.trim() === "" && moduleRow.index < full.length - 1)
-                      BarConfig.move(moduleRow.moduleId, sectionItem.sectionName, moduleRow.index + 2)
+                  TextButton {
+                    label: "Remove"
+                    tooltipText: "Fully remove (no tray, re-enable goes to default section)"
+                    onClicked: BarConfig.remove(moduleRow.moduleId)
                   }
-                }
-
-                TextButton {
-                  label: "Park"
-                  tooltipText: "Park in the tray (remembers original place)"
-                  onClicked: BarConfig.disable(moduleRow.moduleId)
-                }
-
-                TextButton {
-                  label: "Remove"
-                  tooltipText: "Fully remove (no tray, re-enable goes to default section)"
-                  onClicked: BarConfig.remove(moduleRow.moduleId)
                 }
               }
 
               DropArea {
                 anchors.fill: parent
+                z: 0
+                keys: ["bar-module"]
                 enabled: root.filterText.trim() === ""
 
                 onEntered: function (drag) {
@@ -321,7 +345,9 @@ Item {
                   if (!source || source === moduleRow) return
                   const id = String(source.dragId || "")
                   if (id === "") return
-                  BarConfig.move(id, sectionItem.sectionName, moduleRow.index)
+                  const lowerHalf = dropTarget.dropY >= (moduleRow.height / 2)
+                  const insertAt = moduleRow.index + (lowerHalf ? 1 : 0)
+                  BarConfig.move(id, sectionItem.sectionName, insertAt)
                 }
 
                 property bool highlight: false
@@ -335,10 +361,10 @@ Item {
                 height: dropTarget.highlight ? Style.space(2) : 0
                 color: Theme.primary
                 radius: 0
-                z: 1
+                z: 2
                 visible: dropTarget.highlight
               }
-            }            }
+            }
           }
         }
       }
@@ -362,6 +388,16 @@ Item {
       label: "Parked (disabled)"
     }
 
+    Text {
+      width: card.contentWidth
+      visible: !(root.config && Array.isArray(root.config.disabled)) || root.config.disabled.length === 0
+      text: "No parked modules"
+      color: Theme.muted
+      font.family: Style.font.family
+      font.pixelSize: Style.font.body
+      renderType: Text.NativeRendering
+    }
+
     Repeater {
       model: (root.config && Array.isArray(root.config.disabled)) ? root.config.disabled : []
 
@@ -372,7 +408,7 @@ Item {
 
         Text {
           anchors.verticalCenter: parent.verticalCenter
-          width: Style.space(200)
+          width: Math.max(Style.space(120), parent.width - Style.space(92))
           text: root.prettyId(String(modelData.entry ? modelData.entry.id : ""))
           color: Theme.muted
           font.family: Style.font.family
@@ -381,93 +417,21 @@ Item {
           renderType: Text.NativeRendering
         }
 
+        Text {
+          anchors.verticalCenter: parent.verticalCenter
+          width: Style.space(60)
+          visible: String(modelData.section || "") !== ""
+          text: root.sectionLabel(String(modelData.section || ""))
+          color: Theme.muted
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+          elide: Text.ElideRight
+          renderType: Text.NativeRendering
+        }
+
         TextButton {
           label: "Restore"
           onClicked: BarConfig.enable(String(modelData.entry ? modelData.entry.id : ""))
-        }
-      }
-    }
-
-    PanelSeparator {}
-
-    PanelSectionHeader {
-      width: card.contentWidth
-      label: "Widget settings"
-    }
-
-    Column {
-      width: card.contentWidth
-      spacing: Style.space(6)
-
-      readonly property var enabledIds: BarConfig.enabledModules
-      property string selected: enabledIds.length > 0 ? enabledIds[0] : ""
-
-      Dropdown {
-        id: widgetSelect
-        width: parent.width
-        model: parent.enabledIds
-        currentIndex: 0
-        onActivated: function (i) {
-          const ids = parent.enabledIds
-          if (i >= 0 && i < ids.length) parent.selected = ids[i]
-        }
-      }
-
-      readonly property string selectedId: parent.selected
-
-      Text {
-        width: parent.width
-        visible: parent.enabledIds.length === 0
-        text: "No enabled widgets"
-        color: Theme.muted
-        font.family: Style.font.family
-        font.pixelSize: Style.font.body
-        renderType: Text.NativeRendering
-      }
-
-      TextField {
-        width: parent.width
-        visible: parent.selectedId.indexOf("clock") !== -1
-        placeholderText: "Clock format (e.g. dddd HH:mm)"
-        text: BarConfig.settingOf(parent.selectedId, "format") || ""
-        onEditingFinished: BarConfig.setSetting(parent.selectedId, "format", text)
-      }
-
-      TextField {
-        width: parent.width
-        visible: parent.selectedId.indexOf("weather") !== -1
-        placeholderText: "Weather location"
-        text: BarConfig.settingOf(parent.selectedId, "location") || ""
-        onEditingFinished: BarConfig.setSetting(parent.selectedId, "location", text)
-      }
-
-      TextField {
-        width: parent.width
-        visible: parent.selectedId.indexOf("weather") !== -1
-        placeholderText: "Weather interval (seconds)"
-        text: String(BarConfig.settingOf(parent.selectedId, "interval") || "")
-        onEditingFinished: {
-          const n = parseInt(text, 10)
-          if (isFinite(n)) BarConfig.setSetting(parent.selectedId, "interval", n)
-        }
-      }
-
-      TextField {
-        width: parent.width
-        visible: parent.selectedId.indexOf("world-clock") !== -1
-        placeholderText: "World clock zones (comma-separated)"
-        text: BarConfig.settingOf(parent.selectedId, "zones") || ""
-        onEditingFinished: BarConfig.setSetting(parent.selectedId, "zones", text)
-      }
-
-      TextField {
-        width: parent.width
-        visible: parent.selectedId.indexOf("model-usage") !== -1
-        placeholderText: "Model usage interval (seconds)"
-        text: String(BarConfig.settingOf(parent.selectedId, "interval") || "")
-        onEditingFinished: {
-          const n = parseInt(text, 10)
-          if (isFinite(n)) BarConfig.setSetting(parent.selectedId, "interval", n)
         }
       }
     }
@@ -493,7 +457,129 @@ Item {
 
     PanelSectionHeader {
       width: card.contentWidth
+      label: "Widget settings"
+    }
+
+    Column {
+      width: card.contentWidth
+      spacing: Style.space(6)
+
+      readonly property var enabledIds: BarConfig.enabledModules
+      property string selected: enabledIds.length > 0 ? enabledIds[0] : ""
+
+      onEnabledIdsChanged: {
+        if (enabledIds.indexOf(selected) === -1)
+          selected = enabledIds.length > 0 ? enabledIds[0] : ""
+      }
+
+      Dropdown {
+        id: widgetSelect
+        width: parent.width
+        model: parent.enabledIds.map(root.prettyId)
+        currentIndex: {
+          const ids = parent.enabledIds
+          const i = ids.indexOf(parent.selected)
+          return i >= 0 ? i : 0
+        }
+        onActivated: function (i) {
+          const ids = parent.enabledIds
+          if (i >= 0 && i < ids.length) parent.selected = ids[i]
+        }
+      }
+
+      readonly property string selectedId: selected
+
+      Text {
+        width: parent.width
+        visible: parent.enabledIds.length === 0
+        text: "No enabled widgets"
+        color: Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        renderType: Text.NativeRendering
+      }
+
+      TextField {
+        width: parent.width
+        visible: parent.selectedId === "bar.clock"
+        placeholderText: "Clock format (e.g. dddd HH:mm)"
+        text: BarConfig.settingOf(parent.selectedId, "format") || ""
+        onEditingFinished: BarConfig.setSetting(parent.selectedId, "format", text)
+      }
+
+      TextField {
+        width: parent.width
+        visible: parent.selectedId === "bar.clock"
+        placeholderText: "Clock alternate format"
+        text: BarConfig.settingOf(parent.selectedId, "formatAlt") || ""
+        onEditingFinished: BarConfig.setSetting(parent.selectedId, "formatAlt", text)
+      }
+
+      TextField {
+        width: parent.width
+        visible: parent.selectedId === "bar.weather"
+        placeholderText: "Weather location"
+        text: BarConfig.settingOf(parent.selectedId, "location") || ""
+        onEditingFinished: BarConfig.setSetting(parent.selectedId, "location", text)
+      }
+
+      TextField {
+        width: parent.width
+        visible: parent.selectedId === "bar.weather"
+        placeholderText: "Weather interval (seconds)"
+        text: String(BarConfig.settingOf(parent.selectedId, "interval") || "")
+        onEditingFinished: {
+          const n = parseInt(text, 10)
+          if (isFinite(n)) BarConfig.setSetting(parent.selectedId, "interval", n)
+        }
+      }
+
+      TextField {
+        width: parent.width
+        visible: parent.selectedId === "bar.world-clock"
+        placeholderText: "World clock zones (comma-separated)"
+        text: BarConfig.settingOf(parent.selectedId, "zones") || ""
+        onEditingFinished: BarConfig.setSetting(parent.selectedId, "zones", text)
+      }
+
+      TextField {
+        width: parent.width
+        visible: parent.selectedId === "bar.model-usage"
+        placeholderText: "Model usage interval (seconds)"
+        text: String(BarConfig.settingOf(parent.selectedId, "interval") || "")
+        onEditingFinished: {
+          const n = parseInt(text, 10)
+          if (isFinite(n)) BarConfig.setSetting(parent.selectedId, "interval", n)
+        }
+      }
+
+      TextField {
+        width: parent.width
+        visible: parent.selectedId === "bar.model-usage"
+        placeholderText: "Model usage days"
+        text: String(BarConfig.settingOf(parent.selectedId, "days") || "")
+        onEditingFinished: {
+          const n = parseInt(text, 10)
+          if (isFinite(n)) BarConfig.setSetting(parent.selectedId, "days", n)
+        }
+      }
+    }
+
+    PanelSeparator {}
+
+    PanelSectionHeader {
+      width: card.contentWidth
       label: "Available"
+    }
+
+    Text {
+      width: card.contentWidth
+      visible: root.filteredAvailable().length === 0
+      text: root.filterText.trim() === "" ? "All modules are enabled" : "No modules match the filter"
+      color: Theme.muted
+      font.family: Style.font.family
+      font.pixelSize: Style.font.body
+      renderType: Text.NativeRendering
     }
 
     Repeater {
@@ -506,7 +592,7 @@ Item {
 
         Text {
           anchors.verticalCenter: parent.verticalCenter
-          width: Style.space(180)
+          width: Math.max(Style.space(120), parent.width - Style.space(164))
           text: root.prettyId(modelData)
           color: Theme.muted
           font.family: Style.font.family
@@ -533,3 +619,4 @@ Item {
       }
     }
   }
+}
