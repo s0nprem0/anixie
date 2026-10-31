@@ -143,10 +143,14 @@ Item {
     }
 
     function choose() {
-      if (list.highlighted >= 0 && list.highlighted < root.model.length) {
-        root.activated(list.highlighted)
-      }
+      // Close before reporting the choice: the caller may rebuild the model
+      // this dropdown is part of (a module moving sections, a screen change),
+      // which would destroy the popup and leave `list` undefined below.
+      const chosen = list.highlighted
       list.close()
+      if (chosen >= 0 && chosen < root.model.length) {
+        root.activated(chosen)
+      }
     }
 
     // The list can be longer than the popup — nineteen modes on one monitor —
@@ -252,8 +256,9 @@ Item {
             // Writing it here would replace whatever binding put it there, and the
             // dropdown would then stop following the value it was meant to be
             // showing — the same trap a stepper falls into.
-            root.activated(row.index)
+            // Close first: the caller may rebuild this dropdown's model.
             list.close()
+            root.activated(row.index)
           }
         }
       }
