@@ -207,12 +207,14 @@ BarWidget {
     onRunningChanged: if (!running) root.refreshLayout()
   }
 
-  implicitWidth: row.implicitWidth
-  implicitHeight: Style.bar.sizeHorizontal
+  implicitWidth: root.vertical ? Style.bar.sizeVertical : row.implicitWidth
+  implicitHeight: root.vertical ? column.implicitHeight : Style.bar.sizeHorizontal
 
   Row {
     id: row
     anchors.centerIn: parent
+    visible: !root.vertical
+    spacing: Style.space(2)
 
     Repeater {
       model: root.workspaceIds()
@@ -226,9 +228,6 @@ BarWidget {
 
         text: button.slot === 10 ? "0" : String(button.slot > 0 ? button.slot : button.modelData)
         active: button.focused
-        // The active workspace is a brighter number, not a filled block: the
-        // reference bar uses the block for hover and mode switches, not for the
-        // workspace you are merely on.
         activeColor: Theme.accent
         selected: false
         dimmed: !button.focused && !root.occupied(button.modelData)
@@ -244,6 +243,47 @@ BarWidget {
           if (button_ !== Qt.LeftButton) return
           if (button.focused) root.cycleLayout()
           else root.focusWorkspace(button.modelData)
+        }
+        onWheelMoved: function (delta) {
+          root.scroll(delta)
+        }
+      }
+    }
+  }
+
+  Column {
+    id: column
+    anchors.centerIn: parent
+    visible: root.vertical
+    spacing: Style.space(2)
+
+    Repeater {
+      model: root.workspaceIds()
+
+      delegate: WidgetButton {
+        id: vbutton
+        required property int modelData
+
+        readonly property bool focused: root.focusedId === modelData
+        readonly property int slot: vbutton.modelData - root.base + 1
+
+        text: vbutton.slot === 10 ? "0" : String(vbutton.slot > 0 ? vbutton.slot : vbutton.modelData)
+        active: vbutton.focused
+        activeColor: Theme.accent
+        selected: false
+        dimmed: !vbutton.focused && !root.occupied(vbutton.modelData)
+        horizontalMargin: 6
+        verticalPadding: 6
+        fixedWidth: Style.bar.sizeVertical
+        fixedHeight: Style.space(20)
+        tooltipText: vbutton.focused
+          ? "Workspace " + vbutton.modelData + " · " + root.layout + " layout · click to cycle"
+          : "Workspace " + vbutton.modelData + " · click to focus"
+
+        onPressed: function (button_) {
+          if (button_ !== Qt.LeftButton) return
+          if (vbutton.focused) root.cycleLayout()
+          else root.focusWorkspace(vbutton.modelData)
         }
         onWheelMoved: function (delta) {
           root.scroll(delta)
