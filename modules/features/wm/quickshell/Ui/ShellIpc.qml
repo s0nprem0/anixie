@@ -32,6 +32,12 @@ Item {
     function on(): void { BarContext.shown = true }
     function off(): void { BarContext.shown = false }
 
+    // The management surface for the bar's modules, position and background.
+    // Everything here used to be CLI-only; this opens the same controls in a
+    // panel so they can be reached without leaving the desktop.
+    function manage(): void { BarHost.toggle() }
+    function open(): void { BarHost.open() }
+
     // Rearranging from a script, which is what a drag persists and what makes
     // the saved layout testable without a pointer.
     function move(id: string, section: string, index: string): void {

@@ -53,6 +53,7 @@ bind(mod .. " + SHIFT + SPACE", "Toggle bar", "quickshell ipc call bar toggle")
 -- in muscle memory.
 bind_global(mod .. " + CTRL + SHIFT + SPACE", "Appearance", "appearance")
 bind_global(mod .. " + CTRL + T", "Appearance", "appearance")
+bind_global(mod .. " + CTRL + SHIFT + B", "Bar modules", "bar-manage")
 
 -- The background picker, next to the theme picker. `wallpaper` with no argument
 -- lists the generated background and the pictures for the current theme; it is

@@ -30,6 +30,12 @@ Item {
   }
 
   GlobalShortcut {
+    name: "bar-manage"
+    description: "Open the bar management panel"
+    onPressed: BarHost.toggle()
+  }
+
+  GlobalShortcut {
     name: "menu-capture"
     description: "Open the capture menu"
     onPressed: MenuHost.open("Capture")

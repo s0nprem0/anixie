@@ -90,7 +90,8 @@ anixie bar toggle|on|off          # hide the bar, keeping panels and hotkeys
 Position is saved with the layout, so changing it needs no rebuild;
 `anixie.wm.quickshell.position` is only the default for fresh state. After a
 hand edit, run `anixie bar reload`; the shipped `bar.json` changes only with a
-rebuild. The same controls live in **Menu → Setup → Bar**.
+rebuild. The same controls live in **Menu → Setup → Bar**, and the whole thing is also
+available as a panel via `anixie bar manage` (or the **Bar modules** shortcut).
 
 Widgets resolve through `ModuleRegistry` and `modules.json`: a section, a source
 file and optional settings, so showing one the default layout omits is a

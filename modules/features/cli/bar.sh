@@ -12,8 +12,10 @@
 #   bar set ID KEY VALUE   one widget's setting
 #   bar get ID KEY         read it back (JSON)
 #   bar modules            the catalog: id, section, on/off
+#   bar manage             open the management panel
 #   bar reload             re-read the saved layout from disk
 #   bar reset              back to the shipped layout
+#   bar manage             open the bar management panel
 #   bar tray               open the parked-widget drawer
 #
 # The bar is QML inside the running shell, so every one of these is one
@@ -26,7 +28,7 @@ set -eu
 
 case "${1:-}" in
   -h | --help | "") usage; exit 0 ;;
-  toggle | on | off | reset | reload | move | enable | disable | background | position | get | set | modules | tray) ;;
+  toggle | on | off | reset | reload | move | enable | disable | background | position | get | set | modules | manage | tray) ;;
   *)
     printf 'bar: unknown argument "%s" (try --help)\n' "$1" >&2
     exit 2

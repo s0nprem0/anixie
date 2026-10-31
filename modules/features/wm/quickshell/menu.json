@@ -278,6 +278,10 @@
               "state": "bar-background-clear"
             },
             {
+              "label": "Manage bar modules",
+              "run": "quickshell ipc call bar manage"
+            },
+            {
               "label": "Reset bar layout",
               "run": "quickshell ipc call bar reset"
             }
