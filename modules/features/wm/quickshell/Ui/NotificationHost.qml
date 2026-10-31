@@ -109,7 +109,9 @@ QtObject {
   function closeReplay() { if (history) history.closeReplay() }
   function dismissReplay(entry) { history.dismissReplay(entry) }
 
-  Component.onCompleted: root.restoreFromStore()
+  Component.onCompleted: {
+    if (NotificationStore.ready) root.restoreFromStore()
+  }
 
   // ---- click routing ----
 
@@ -134,7 +136,7 @@ QtObject {
   // order, so a conversation stays beside itself.
   readonly property var groups: {
     const out = []
-    const byApp = ({})
+    const byApp = Object.create(null)
 
     for (const item of root.stacked) {
       const key = NotificationText.sourceKey(item)
@@ -207,7 +209,7 @@ QtObject {
   function invokeNotification(notification) {
     if (!notification) return "none"
 
-    const exec = NotificationText.execArgv(root.hint(notification, "anixie-exec"))
+    const exec = root.trustedExec(notification)
     if (exec) {
       Quickshell.execDetached(exec)
       notification.dismiss()
@@ -232,6 +234,23 @@ QtObject {
     return item ? root.invokeNotification(item) : "none"
   }
 
+  function trustedSender(notification) {
+    const app = String(notification && (notification.appName || notification.app)
+      ? (notification.appName || notification.app)
+      : "").toLowerCase()
+    return root.quiet.ownApps.indexOf(app) !== -1
+  }
+
+  function trustedExec(notification) {
+    if (!root.trustedSender(notification)) return null
+    return NotificationText.execArgv(root.hint(notification, "anixie-exec"))
+  }
+
+  function trustedExecActions(notification) {
+    if (!root.trustedSender(notification)) return null
+    return NotificationText.execActions(root.hint(notification, "anixie-actions"))
+  }
+
   function sameNotification(a, b) {
     return String(a.appName || "").toLowerCase() === String(b.appName || "").toLowerCase()
       && String(a.summary || "") === String(b.summary || "")
@@ -239,6 +258,9 @@ QtObject {
   }
 
   function sweepNow() {
+    if (!NotificationStore.ready) return
+    if (root.history && root.history.restoring) return
+
     const ids = []
     for (const notification of root.tracked) ids.push(notification.id)
     NotificationStore.sweep(ids)
@@ -285,12 +307,28 @@ QtObject {
       NotificationStore.begin(notification, quiet, reason)
       if (quiet) return
 
-      notification.closed.connect(function (closeReason) {
-        const label = closeReason === 1 ? "expired"
-          : closeReason === 2 ? "dismissed"
-          : "closed"
-        NotificationStore.noteClose(notification.id, label)
-      })
+      const closeKey = notification
+      if (root.closeConnected.indexOf(closeKey) < 0) {
+        root.closeConnected.push(closeKey)
+        notification.closed.connect(function (closeReason) {
+          const label = closeReason === 1 ? "expired"
+            : closeReason === 2 ? "dismissed"
+            : "closed"
+
+          const id = String(notification.id)
+          const liveName = root.live[id]
+          NotificationStore.noteClose(liveName ? liveName : id, label)
+
+          // Archive the specific entry rather than waiting for a full sweep.
+          // This keeps an immediate close from being lost and avoids sweeping
+          // the whole store for one notification.
+          if (liveName) {
+            delete root.live[id]
+            delete root.watched[id]
+            NotificationStore.enqueue(NotificationStore.archiveCommand(liveName, label))
+          }
+        })
+      }
       notification.tracked = true
     }
   }
@@ -315,6 +353,8 @@ QtObject {
   // not survive, and is archived now rather than left for the reaper.
   property Connections storeReady: Connections {
     target: NotificationStore
-    function onReadyChanged() { root.restoreFromStore() }
+    function onReadyChanged() {
+      if (NotificationStore.ready) root.restoreFromStore()
+    }
   }
 }

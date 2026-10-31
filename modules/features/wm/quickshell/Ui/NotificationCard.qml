@@ -81,8 +81,7 @@ Item {
 
   readonly property string glyph: root.hint("anixie-glyph", "glyph")
   readonly property var execArgv: {
-    const raw = root.hint("anixie-exec", "execArgv")
-    return NotificationText.execArgv(raw)
+    return NotificationHost.trustedExec(root.notification)
   }
   readonly property string link: NotificationText.link(root.summary + "\n" + root.body)
   readonly property var codes: NotificationText.codes(root.summary + "\n" + root.body)
@@ -172,8 +171,7 @@ Item {
   // Commands the sender asked the shell to keep. Unlike protocol actions these
   // are argv arrays, so they can be stored with the history row and run after
   // the sender is gone.
-  readonly property var execActions: NotificationText.execActions(
-    root.hint("anixie-actions", "execActions")) || []
+  readonly property var execActions: NotificationHost.trustedExecActions(root.notification) || []
 
   // One bar for both kinds of action. The cap keeps a hostile or careless
   // sender from pushing the card taller than the screen.
@@ -263,7 +261,7 @@ Item {
     expiry.stop()
     root.remainingMs = Math.round(root.displaySeconds * 1000)
 
-    if (root.replay || !root.autoExpire || root.displaySeconds <= 0 || hover.hovered) return
+    if (!root.visible || root.replay || !root.autoExpire || root.displaySeconds <= 0 || hover.hovered) return
 
     expiry.interval = root.remainingMs
     expiry.start()
@@ -293,6 +291,7 @@ Item {
   onDisplaySecondsChanged: root.armExpiry()
   onReplayChanged: root.armExpiry()
   onAutoExpireChanged: root.armExpiry()
+  onVisibleChanged: root.visible ? root.resumeExpiry() : root.pauseExpiry()
 
   HoverHandler {
     id: hover

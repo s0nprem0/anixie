@@ -456,8 +456,8 @@ QtObject {
       // No handler: this command's output is `ls` and `rm`, not history.
       // Parsing it as JSON would replace the list with nothing every time a
       // notification expired.
-      const reason = root.closes[id] || ""
-      delete root.closes[id]
+      const reason = root.closes[gone[id]] || ""
+      delete root.closes[gone[id]]
       root.enqueue(root.archiveCommand(gone[id], reason))
     }
   }
@@ -523,8 +523,11 @@ QtObject {
     return out
   }
 
-  function noteClose(id, reason) {
-    const key = String(id)
+  // Keyed by the live file name when one is available. Ids are reused by later
+  // notifications, so keying by id alone could attach an old close reason to a
+  // newer notification.
+  function noteClose(name, reason) {
+    const key = String(name || "")
     if (key === "") return
     root.closes[key] = String(reason || "")
   }

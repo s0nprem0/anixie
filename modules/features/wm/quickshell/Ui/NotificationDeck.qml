@@ -21,9 +21,10 @@ Item {
   // panel would be dismissed from behind them.
   property bool paused: false
 
-  readonly property int count: root.items.length
-  readonly property int peekCount: Math.min(2, Math.max(0, root.count - 1))
-  readonly property bool expanded: root.forceExpanded || root.items.length <= 1 || hover.hovered
+  readonly property int count: root.items ? root.items.length : 0
+  readonly property bool empty: root.count === 0
+  readonly property int peekCount: root.empty ? 0 : Math.min(2, Math.max(0, root.count - 1))
+  readonly property bool expanded: !root.empty && (root.forceExpanded || root.count <= 1 || hover.hovered)
 
   // One number, one animation: the peeks recede and the full column fades in
   // from the same clock rather than each item inventing its own duration.
@@ -33,9 +34,21 @@ Item {
   }
 
   implicitWidth: Style.space(380)
-  implicitHeight: root.expanded
-    ? deckColumn.implicitHeight
-    : front.implicitHeight + root.peekCount * Style.space(6)
+  implicitHeight: root.empty
+    ? 0
+    : (root.expanded
+        ? deckColumn.implicitHeight
+        : front.implicitHeight + root.peekCount * Style.space(6))
+  height: implicitHeight
+  visible: !root.empty
+
+  // Keep the preferred width while allowing a constrained parent to shrink the
+  // deck. The cards then wrap or elide according to their own width handling.
+  width: parent ? Math.min(root.implicitWidth, Math.max(0, parent.width)) : root.implicitWidth
+
+  Behavior on implicitHeight {
+    NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic }
+  }
 
   HoverHandler {
     id: hover
@@ -50,7 +63,7 @@ Item {
     delegate: Rectangle {
       required property int index
 
-      width: parent.width - (index + 1) * Style.space(8)
+      width: Math.max(0, parent.width - (index + 1) * Style.space(8))
       height: front.implicitHeight
       x: (index + 1) * Style.space(4)
       y: (index + 1) * Style.space(6)
@@ -68,12 +81,14 @@ Item {
 
     width: parent.width
     height: implicitHeight
-    visible: !root.expanded
+    visible: !root.empty && !root.expanded
     opacity: 1 - root.progress
     notification: root.count > 0 ? root.items[0] : null
     group: root.items
     replay: root.replay
-    autoExpire: !root.paused
+    // The collapsed front card represents the whole group; expanded cards below
+    // each represent one item.
+    autoExpire: !root.paused && !root.expanded
   }
 
   Column {
@@ -81,7 +96,7 @@ Item {
 
     width: parent.width
     spacing: Style.space(8)
-    visible: root.expanded
+    visible: !root.empty && root.expanded
     opacity: root.progress
 
     Repeater {
@@ -95,9 +110,11 @@ Item {
         // without this the opened deck drew every card at zero height.
         height: implicitHeight
         notification: modelData
+        // Each expanded card dismisses only itself. Keeping the full group here
+        // would make every expanded card dismiss the whole group.
         group: [modelData]
         replay: root.replay
-        autoExpire: !root.paused
+        autoExpire: !root.paused && root.expanded
       }
     }
   }

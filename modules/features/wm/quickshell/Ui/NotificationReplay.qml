@@ -22,6 +22,7 @@ QtObject {
   // — which an update performs — does not silently swallow them.
   property var restoredEntries: []
   property bool restoring: false
+  property bool _restored: false
 
   property Timer restoreTimer: Timer {
     interval: 20000
@@ -44,7 +45,9 @@ QtObject {
   }
 
   function restoreFromStore() {
+    if (history._restored) return
     if (!NotificationStore.ready) return
+    history._restored = true
 
     // A config reload re-emits the notifications the server still holds; those
     // are already live and must not be duplicated from disk. A full restart has
@@ -55,7 +58,6 @@ QtObject {
       return liveIds[String(entry.id)] !== true
     })
     history.restoreLive(restored)
-    history.host.sweepNow()
   }
 
 
