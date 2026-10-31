@@ -852,7 +852,7 @@ Item {
     return 1
   }
 
-  implicitWidth: Style.space(320)
+  implicitWidth: Style.space(340)
   implicitHeight: card.implicitHeight
 
   Panel {
@@ -1032,7 +1032,7 @@ Item {
             onClicked: root.expandedSsid = netRow.expanded ? "" : netRow.modelData.ssid
 
             Row {
-              spacing: Style.space(6)
+              spacing: Style.space(4)
               anchors.verticalCenter: parent.verticalCenter
 
               Text {
@@ -1046,16 +1046,16 @@ Item {
               }
 
               Row {
-                spacing: 2
+                spacing: 1
                 anchors.verticalCenter: parent.verticalCenter
 
                 Repeater {
                   model: 4
                   delegate: Rectangle {
                     required property int index
-                    width: 3
-                    height: 4 + index * 3
-                    radius: Theme.cornerRadius
+                    width: 2
+                    height: 3 + index * 2
+                    radius: 1
                     anchors.bottom: parent.bottom
                     color: index < root.signalLevel(netRow.modelData.signal)
                       ? (netRow.modelData.inUse ? Theme.accent : Theme.muted)
@@ -1066,6 +1066,7 @@ Item {
 
               Text {
                 anchors.verticalCenter: parent.verticalCenter
+                width: implicitWidth
                 text: netRow.expanded ? "⌄" : "›"
                 color: Theme.muted
                 font.family: Style.font.family
@@ -1107,11 +1108,11 @@ Item {
 
               Row {
                 width: parent.width
-                spacing: Style.space(6)
+                spacing: Style.space(4)
 
                 TextField {
                   id: inlineSecretField
-                  width: parent.width - showPasswordButton.implicitWidth - Style.space(6)
+                  width: Math.max(0, parent.width - showPasswordButton.implicitWidth - Style.space(4))
                   echoMode: netRow.passwordVisible ? TextInput.Normal : TextInput.Password
                   placeholderText: "network password"
                   Keys.onEscapePressed: {

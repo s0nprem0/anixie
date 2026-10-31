@@ -593,7 +593,7 @@ FocusScope {
     anchors.leftMargin: root.padding
     // Keep the scrollbar gutter reserved in both states so the content width
     // does not change the moment scrolling becomes necessary.
-    anchors.rightMargin: root.padding + Style.space(8)
+    anchors.rightMargin: root.padding + Style.space(6)
     anchors.bottomMargin: root.padding
 
     contentWidth: width

@@ -44,11 +44,12 @@ Item {
 
   readonly property bool hasAction: root.action !== ""
 
-  implicitWidth: Math.max(labelText.implicitWidth, actionHit.implicitWidth)
+  implicitWidth: parent ? parent.width : Math.max(labelText.implicitWidth, actionHit.implicitWidth)
   implicitHeight: Math.max(labelText.implicitHeight, actionLabel.implicitHeight)
   // An Item's implicit size is 0 unless it says otherwise, and this one has to
   // say it: a Panel is a Column, which positions children by height.
   height: implicitHeight
+  clip: true
 
   Text {
     id: labelText
@@ -64,7 +65,6 @@ Item {
     font.weight: Font.DemiBold
     renderType: Text.NativeRendering
     elide: Text.ElideRight
-    width: Math.max(0, parent.width - x - (root.hasAction ? actionHit.width + Style.space(8) : 0))
 
     // Glyphs paint above the box Text reserves for them: the Nerd Font's outlines
     // run past its own ascent, and a header at the top of a clipping list loses
@@ -78,7 +78,7 @@ Item {
     anchors.right: parent.right
     anchors.verticalCenter: parent.verticalCenter
     visible: root.hasAction
-    width: actionLabel.implicitWidth + Style.space(8)
+    width: actionLabel.implicitWidth + Style.space(4)
     height: labelText.implicitHeight
     opacity: root.actionEnabled ? 1 : Style.disabledOpacity
 
@@ -95,6 +95,7 @@ Item {
       font.pixelSize: Style.font.bodySmall
       font.weight: Font.DemiBold
       renderType: Text.NativeRendering
+      elide: Text.ElideRight
       Behavior on color { ColorAnimation { duration: Style.duration(Style.motion.fast) } }
     }
 

@@ -99,7 +99,7 @@ Item {
     // every list sit a little to the right of the heading that named it.
     anchors.left: parent.left
     anchors.right: trailingRow.left
-    anchors.rightMargin: Style.space(8)
+    anchors.rightMargin: Style.space(6)
     anchors.verticalCenter: parent.verticalCenter
     // Counted explicitly: `childrenRect` includes the detail line whether or not
     // it is shown, so a row without one was two pixels taller than its text and

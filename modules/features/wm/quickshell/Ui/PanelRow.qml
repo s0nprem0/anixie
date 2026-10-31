@@ -19,22 +19,21 @@ Item {
 
   readonly property real controlGap: Style.space(8)
 
-  implicitWidth: labelText.implicitWidth + Style.space(12) + Math.max(valueText.implicitWidth, controlWidth)
+  implicitWidth: parent ? parent.width : (labelText.implicitWidth + Style.space(12) + Math.max(valueText.implicitWidth, controlWidth))
   implicitHeight: Math.max(labelText.implicitHeight, valueText.implicitHeight, 20)
 
   // A Panel is a Column, and a Column positions children by their height rather
   // than their implicit height. Without this the row would take no space at all
   // and every row would stack on the same line.
   height: implicitHeight
+  clip: true
 
   Text {
     id: labelText
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
-    // Everything up to the value, less the gap between them. Without a bound the
-    // label runs under the value and on out of the card, which is what a long
-    // application name or a long state did to the power panel's own rows.
-    width: Math.max(0, valueText.x - Style.space(8))
+    anchors.right: valueText.visible ? valueText.left : (root.hasControl ? controlSlot.left : parent.right)
+    anchors.rightMargin: valueText.visible ? Style.space(8) : (root.hasControl ? root.controlGap : 0)
     text: root.label
     color: Theme.fg
     font.family: Style.font.family
@@ -53,6 +52,7 @@ Item {
     anchors.rightMargin: root.hasControl ? root.controlGap : 0
     anchors.verticalCenter: parent.verticalCenter
     visible: root.value !== ""
+    width: Math.min(implicitWidth, parent.width * 0.6)
     text: root.value
     color: Theme.muted
     font.family: Style.font.family
