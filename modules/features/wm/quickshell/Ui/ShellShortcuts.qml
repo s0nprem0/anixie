@@ -30,6 +30,12 @@ Item {
   }
 
   GlobalShortcut {
+    name: "settings"
+    description: "Open the settings dashboard"
+    onPressed: SettingsHost.toggle()
+  }
+
+  GlobalShortcut {
     name: "bar-manage"
     description: "Open the bar management panel"
     onPressed: BarHost.toggle()

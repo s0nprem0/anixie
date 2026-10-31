@@ -80,3 +80,4 @@ NumberField 1.0 NumberField.qml
 Dropdown 1.0 Dropdown.qml
 DisplayMap 1.0 DisplayMap.qml
 ConfirmDialog 1.0 ConfirmDialog.qml
+singleton SettingsHost 1.0 SettingsHost.qml

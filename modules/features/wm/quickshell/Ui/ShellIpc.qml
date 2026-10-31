@@ -166,6 +166,14 @@ Item {
   }
 
   IpcHandler {
+    target: "settings"
+
+    function toggle(): void { SettingsHost.toggle() }
+    function open(): void { SettingsHost.open() }
+    function close(): void { SettingsHost.close() }
+  }
+
+  IpcHandler {
     target: "theme"
 
     function set(name: string): void { Theme.set(name) }
