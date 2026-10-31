@@ -63,6 +63,28 @@ Item {
 
   property string filterText: ""
 
+  function isBarScreenEnabled(name) {
+    const configured = root.config && root.config.barScreens
+    if (!Array.isArray(configured) || configured.length === 0) return true
+    return configured.indexOf(String(name)) !== -1
+  }
+
+  function toggleBarScreen(name) {
+    const configured = root.config && root.config.barScreens
+    const allNames = Quickshell.screens.map(function (s) { return String(s.name) })
+    let current = (Array.isArray(configured) && configured.length > 0)
+      ? configured.map(String)
+      : allNames.slice()
+    const idx = current.indexOf(String(name))
+    if (idx === -1) {
+      current = current.concat([String(name)])
+    } else {
+      if (current.length <= 1) return
+      current.splice(idx, 1)
+    }
+    BarConfig.setBarScreens(current)
+  }
+
   function matchesFilter(id) {
     if (root.filterText.trim() === "") return true
     const q = root.filterText.toLowerCase()
@@ -135,6 +157,40 @@ Item {
       currentIndex: ["clear", "glassy", "opaque"].indexOf(String(BarConfig.config.background || "clear"))
       onActivated: function (index) {
         BarConfig.setBackground(["clear", "glassy", "opaque"][index])
+      }
+    }
+
+    PanelSeparator {}
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      label: "Bar displays"
+    }
+
+    Repeater {
+      model: Quickshell.screens
+
+      delegate: Row {
+        required property var modelData
+        width: card.contentWidth
+        spacing: Style.space(6)
+
+        Text {
+          anchors.verticalCenter: parent.verticalCenter
+          width: Math.max(Style.space(120), parent.width - Style.space(60))
+          text: String(modelData.name)
+          color: Theme.fg
+          font.family: Style.font.family
+          font.pixelSize: Style.font.body
+          elide: Text.ElideRight
+          renderType: Text.NativeRendering
+        }
+
+        ToggleSwitch {
+          anchors.verticalCenter: parent.verticalCenter
+          checked: root.isBarScreenEnabled(String(modelData.name))
+          onToggled: root.toggleBarScreen(String(modelData.name))
+        }
       }
     }
 

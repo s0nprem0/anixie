@@ -55,6 +55,8 @@ QtObject {
 
   readonly property var config: root.state !== null ? root.state : root.builtin
 
+  readonly property var barScreens: BarLayout.barScreens(root.config)
+
   readonly property var layout: root.config.layout ? root.config.layout : {}
 
   // The layout entries of a section. The bar.json section names are the ones the
@@ -179,6 +181,13 @@ QtObject {
       console.warn("quickshell bar: setScreens could not find module " + id)
       return false
     }
+    root.save(next)
+    return true
+  }
+
+  function setBarScreens(value) {
+    const next = BarLayout.setBarScreens(root.config, value)
+    if (!next) return false
     root.save(next)
     return true
   }

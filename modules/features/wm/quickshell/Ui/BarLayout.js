@@ -236,6 +236,28 @@ function setScreens(config, id, screens) {
   return next
 }
 
+function setBarScreens(config, screens) {
+  if (screens === undefined) return null
+  const next = clone(config || {})
+  if (screens === null || screens === "all"
+      || (Array.isArray(screens) && screens.length === 0)) {
+    delete next.barScreens
+  } else if (typeof screens === "string") {
+    next.barScreens = [screens]
+  } else {
+    next.barScreens = Array.isArray(screens) ? screens.slice() : [String(screens)]
+  }
+  return next
+}
+
+function barScreens(config) {
+  const value = config && config.barScreens
+  if (value === undefined || value === null) return null
+  if (typeof value === "string") return [value]
+  if (Array.isArray(value)) return value.slice()
+  return [String(value)]
+}
+
 function visibleOnScreens(entry, screenName) {
   if (!entry) return true
   const screens = entry.screens
@@ -334,6 +356,8 @@ if (typeof module !== "undefined") {
     setSetting: setSetting,
     sectionFor: sectionFor,
     setScreens: setScreens,
+    setBarScreens: setBarScreens,
+    barScreens: barScreens,
     visibleOnScreens: visibleOnScreens,
     knownModules: knownModules,
     enabledModules: enabledModules,

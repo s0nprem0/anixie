@@ -15,9 +15,15 @@ Item {
   // position in the model makes Variants destroy and rebuild each per-screen bar.
   readonly property var barSurfaces: {
     const out = []
-    const screens = Quickshell.screens
-    for (let i = 0; i < screens.length; i++) {
-      out.push({ screen: screens[i], position: BarContext.position })
+    const configured = BarConfig.barScreens
+    const screens = (Array.isArray(configured) && configured.length > 0)
+      ? Quickshell.screens.filter(function (screen) {
+          return configured.indexOf(String(screen.name)) !== -1
+        })
+      : Quickshell.screens
+    const chosen = screens.length > 0 ? screens : Quickshell.screens
+    for (let i = 0; i < chosen.length; i++) {
+      out.push({ screen: chosen[i], position: BarContext.position })
     }
     return out
   }
