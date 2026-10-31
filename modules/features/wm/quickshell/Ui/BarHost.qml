@@ -27,7 +27,8 @@ QtObject {
     if (!anchor) return
     const component = root.panelBuilder()
     if (!component || component.status !== Component.Ready) {
-      console.warn("bar: the bar panel could not load")
+      console.warn("bar: the bar panel could not load: "
+        + (component ? component.errorString() : "no component"))
       return
     }
     PanelHost.toggleNamed("bar", anchor, component)
