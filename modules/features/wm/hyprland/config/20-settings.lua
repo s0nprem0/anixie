@@ -161,11 +161,6 @@ hl.config({
     -- normally does this itself; these cover a DPMS state set by anything else.
     key_press_enables_dpms = true;
     mouse_move_enables_dpms = true;
-
-    -- Variable frame rate saves power on the desktop, but it makes the
-    -- compositor hold frames back, which reads as stutter in a game. Keep
-    -- the frame clock steady while gaming; the cost is a few watts at idle.
-    vfr = false;
   };
 })
 
