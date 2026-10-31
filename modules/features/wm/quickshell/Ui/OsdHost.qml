@@ -37,6 +37,9 @@ QtObject {
   // Empty falls back to the focused screen.
   property string preferredScreen: ""
 
+  // Where the OSD sits on the screen: "bottom" (default) or "top".
+  property string position: "bottom"
+
   // Media readouts are allowed to be wider than a percentage: the message is a
   // track title rather than "42%".
   readonly property bool mediaOsd: root.iconKey.indexOf("media") === 0

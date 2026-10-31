@@ -52,7 +52,8 @@ Item {
     id: osdWindow
     screen: OsdHost.screenName !== "" ? (Screens.byName(OsdHost.screenName) || Screens.focused) : Screens.focused
 
-    anchors.bottom: true
+    anchors.top: OsdHost.position === "top"
+    anchors.bottom: OsdHost.position !== "top"
     margins.bottom: Style.space(90)
     implicitWidth: osdCard.implicitWidth
     implicitHeight: osdCard.implicitHeight

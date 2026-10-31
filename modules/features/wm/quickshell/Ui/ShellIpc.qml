@@ -270,6 +270,11 @@ Item {
     function payload(payload: string): string { OsdHost.showPayload(payload); return "ok" }
     function close(): string { OsdHost.hide(); return "ok" }
     function screen(name: string): string { OsdHost.preferredScreen = String(name || ""); return "ok" }
+    function position(value: string): string {
+      if (value !== "top" && value !== "bottom") return "position must be top or bottom"
+      OsdHost.position = value
+      return "ok"
+    }
     function state(): string { return OsdHost.opened ? "open" : "closed" }
   }
 
