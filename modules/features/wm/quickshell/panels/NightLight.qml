@@ -9,6 +9,9 @@ Item {
 
   property int temperature: 4000
   property bool enabled: false
+  property bool scheduleEnabled: false
+  property string onTime: "19:00"
+  property string offTime: "07:00"
 
   implicitWidth: Style.space(360)
   implicitHeight: card.implicitHeight
@@ -56,6 +59,40 @@ Item {
 
     PanelSeparator {}
 
+    ToggleSwitch {
+      width: card.contentWidth
+      label: "Schedule"
+      checked: root.scheduleEnabled
+      onToggled: function (value) {
+        root.scheduleEnabled = value
+        root.checkSchedule()
+      }
+    }
+
+    Row {
+      width: card.contentWidth
+      spacing: Style.space(6)
+      visible: root.scheduleEnabled
+
+      TextField {
+        width: (parent.width - Style.space(6)) / 2
+        placeholderText: "On (HH:MM)"
+        text: root.onTime
+        onEditingFinished: root.onTime = text
+      }
+
+      TextField {
+        width: (parent.width - Style.space(6)) / 2
+        placeholderText: "Off (HH:MM)"
+        text: root.offTime
+        onEditingFinished: root.offTime = text
+      }
+    }
+
+    PanelSeparator {}
+
+    PanelSeparator {}
+
     Row {
       width: card.contentWidth
       spacing: Style.space(6)
@@ -82,6 +119,42 @@ Item {
       }
     }
   }
+
+  function parseMinutes(t) {
+    const parts = String(t || "").split(":")
+    if (parts.length !== 2) return -1
+    const h = parseInt(parts[0], 10)
+    const m = parseInt(parts[1], 10)
+    if (!isFinite(h) || !isFinite(m)) return -1
+    return h * 60 + m
+  }
+
+  function checkSchedule() {
+    if (!root.scheduleEnabled) return
+    const now = new Date()
+    const cur = now.getHours() * 60 + now.getMinutes()
+    const on = root.parseMinutes(root.onTime)
+    const off = root.parseMinutes(root.offTime)
+    if (on < 0 || off < 0) return
+
+    let inRange = false
+    if (on < off) inRange = cur >= on && cur < off
+    else inRange = cur >= on || cur < off
+
+    if (inRange !== root.enabled) {
+      root.enabled = inRange
+      root.apply()
+    }
+  }
+
+  property Timer scheduleTimer: Timer {
+    interval: 60000
+    running: root.scheduleEnabled
+    repeat: true
+    onTriggered: root.checkSchedule()
+  }
+
+  Component.onCompleted: root.checkSchedule()
 
   function apply() {
     if (root.enabled) {
