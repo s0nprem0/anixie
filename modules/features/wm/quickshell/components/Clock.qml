@@ -220,10 +220,10 @@ BarWidget {
     }
     anchors.centerIn: parent
     text: root.vertical
-      ? root.stamp
+      ? root.stamp.replace(/\s+/g, "\n")
       : (root.zone === "" ? root.stamp : root.stamp + "  " + root.zoneLabel)
     fontSize: root.vertical ? Style.font.bodySmall : Style.font.body
-    labelRotation: root.vertical ? 90 : 0
+    labelRotation: 0
     centerFigures: false
     active: true
     useActiveColor: false
