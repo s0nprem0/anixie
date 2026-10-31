@@ -159,6 +159,10 @@ QtObject {
     root.run(["theme", "wallpaper-mode", mode])
   }
 
+  function setRotation(minutes) {
+    root.run(["wallpaper", "rotation", String(minutes)])
+  }
+
   function toggleGlass() {
     root.run(["glass-toggle"])
   }
@@ -247,6 +251,17 @@ QtObject {
       if (value === "auto" || value === "light" || value === "dark") root.wallpaperMode = value
     }
     onFileChanged: root.modeFile.reload()
+  }
+
+  // Rotation belongs to the shell rather than a systemd timer: the interval is
+  // editable from the panel, and the shell is already running for the wallpaper
+  // to exist. `running` stops while an action is in flight, so a rotation cannot
+  // race a choice the user just made.
+  property Timer rotationTimer: Timer {
+    interval: Math.max(1, root.rotationMinutes) * 60000
+    repeat: true
+    running: root.rotationMinutes > 0 && !root.busy
+    onTriggered: root.run(["wallpaper", "rotate"])
   }
 
   property FileView glassFile: FileView {

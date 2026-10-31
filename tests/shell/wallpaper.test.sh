@@ -127,6 +127,17 @@ wait "$second"
   | has("eDP-1") and has("HDMI-A-1")
 ' "$tmp/state/wallpapers.json" >/dev/null
 
+# Rotation is a persisted interval in minutes; zero turns it off. The shell
+# reads the file, so the command only has to write and report it.
+[ "$(HOME="$tmp/home" sh "$tmp/wallpaper" rotation)" = 0 ]
+HOME="$tmp/home" sh "$tmp/wallpaper" rotation 30 >/dev/null
+[ "$(cat "$tmp/state/rotation")" = 30 ]
+[ "$(HOME="$tmp/home" sh "$tmp/wallpaper" rotation)" = 30 ]
+if HOME="$tmp/home" sh "$tmp/wallpaper" rotation soon >/dev/null 2>&1; then exit 1; fi
+if HOME="$tmp/home" sh "$tmp/wallpaper" rotation 1441 >/dev/null 2>&1; then exit 1; fi
+HOME="$tmp/home" sh "$tmp/wallpaper" rotation 0 >/dev/null
+[ "$(HOME="$tmp/home" sh "$tmp/wallpaper" rotation)" = 0 ]
+
 # Caches only collect what is referenced or recent. A stale entry goes, while
 # the thumbnail and poster in use survive even with an ancient mtime.
 old='2020-01-01 00:00:00'

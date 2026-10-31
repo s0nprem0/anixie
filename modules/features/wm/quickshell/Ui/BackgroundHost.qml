@@ -208,6 +208,38 @@ QtObject {
     running: false
   }
 
+  // ---- automatic rotation ----
+  // The interval lives in a file so the panel and the command line agree, and
+  // so the choice survives a restart. The shell owns the timer because it is
+  // already the thing that applies a wallpaper.
+  readonly property string rotationPath: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state")
+    + "/anixie/theme/rotation"
+  property int rotationMinutes: 0
+
+  property FileView rotationFile: FileView {
+    path: Qt.resolvedUrl(root.rotationPath)
+    printErrors: false
+    blockLoading: true
+    watchChanges: true
+    onLoaded: {
+      const value = parseInt(String(root.rotationFile.text() || "0").trim(), 10)
+      root.rotationMinutes = isNaN(value) || value < 0 ? 0 : value
+    }
+    onFileChanged: root.rotationFile.reload()
+  }
+
+  property Timer rotationTimer: Timer {
+    interval: Math.max(1, root.rotationMinutes) * 60000
+    repeat: true
+    running: root.rotationMinutes > 0 && !root.rotation.running
+    onTriggered: root.rotation.running = true
+  }
+
+  property Process rotation: Process {
+    command: ["wallpaper", "rotate"]
+    running: false
+  }
+
   property Timer settle: Timer {
     interval: 500
     repeat: true

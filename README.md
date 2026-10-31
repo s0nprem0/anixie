@@ -271,6 +271,7 @@ anixie wallpaper library [--json]  # pictures found in the configured folders
 anixie wallpaper set FILE       # add a picture and use it
 anixie wallpaper use FILE [--output NAME]  # choose for one output or all
 anixie wallpaper next|prev [--random] | rotate
+anixie wallpaper rotation [MINUTES]  # random wallpaper every N minutes (0 = off)
 anixie wallpaper pause|resume|status  # live video wallpapers
 ```
 

@@ -15,6 +15,16 @@ Item {
     return ["auto", "light", "dark"].indexOf(AppearanceHost.wallpaperMode)
   }
 
+  // The panel offers four useful intervals; a value set from the command line
+  // that falls between them lights the nearest one instead of "Off".
+  function rotationIndex() {
+    const minutes = BackgroundHost.rotationMinutes
+    if (minutes <= 0) return 0
+    if (minutes <= 30) return 1
+    if (minutes <= 120) return 2
+    return 3
+  }
+
   function barBackgroundIndex() {
     const mode = String(BarConfig.config.background || "clear")
     return ["clear", "glassy", "opaque"].indexOf(mode)
@@ -53,7 +63,7 @@ Item {
 
     PanelSectionHeader {
       width: card.contentWidth
-      label: "Wallpaper"
+      label: Theme.name === "wallpaper" ? "Wallpaper" : "Wallpaper · " + Theme.name
       action: "Next"
       onActionTriggered: AppearanceHost.nextWallpaper()
     }
@@ -149,6 +159,15 @@ Item {
         }
       }
 
+      WheelHandler {
+        onWheel: function (event) {
+          const delta = event.angleDelta.x !== 0 ? event.angleDelta.x : -event.angleDelta.y
+          const max = Math.max(0, wallpapers.contentWidth - wallpapers.width)
+          wallpapers.contentX = Math.max(0, Math.min(max, wallpapers.contentX - delta / 2))
+          event.accepted = true
+        }
+      }
+
       Text {
         visible: AppearanceHost.library.length === 0
         anchors.centerIn: parent
@@ -236,6 +255,20 @@ Item {
       currentIndex: root.wallpaperModeIndex()
       onActivated: function (index) {
         AppearanceHost.setWallpaperMode(["auto", "light", "dark"][index])
+      }
+    }
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      label: "Rotate wallpapers"
+    }
+
+    SegmentedControl {
+      width: card.contentWidth
+      model: ["Off", "30m", "2h", "6h"]
+      currentIndex: root.rotationIndex()
+      onActivated: function (index) {
+        AppearanceHost.setRotation([0, 30, 120, 360][index])
       }
     }
 

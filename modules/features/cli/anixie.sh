@@ -38,7 +38,7 @@ ANIXIE_GROUPS='
 theme|theme||list current set wallpaper wallpaper-mode state migrate auto favorite pin unpin export doctor cursor-size next prev apply|palettes: list, set, wallpaper FILE, state, migrate, auto, favorite, pin, export, doctor, cursor-size
 appearance|appearance||toggle open close state|appearance panel
 textsize|textsize|text|up down show set reset apply|global text size: up, down, set N, reset
-wallpaper|wallpaper||list library set add next prev rotate generated pause resume status apply current|desktop background: set FILE, library, next, rotate, current
+wallpaper|wallpaper||list library set add next prev rotate rotation generated pause resume status apply current|desktop background: set FILE, library, next, rotate, current
 display|monitors|monitors|scale internal lid mirror brightness recover wake workspace workspace-step move-window workspaces list set try keep revert identify status|monitors: scale, internal, mirror, status
 power|powerprofile|powerprofile|set apply show status automation set-automation|power profiles per source: set ac|battery PROFILE
 wifi|wifi||band dns password qr|Wi-Fi: band, DNS, password, QR

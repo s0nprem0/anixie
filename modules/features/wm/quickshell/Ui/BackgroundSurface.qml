@@ -118,7 +118,7 @@ Item {
       property: "reveal"
       from: 0
       to: 1
-      duration: 420
+      duration: Style.duration(420)
       easing.type: Easing.OutCubic
     }
 

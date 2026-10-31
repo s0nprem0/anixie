@@ -19,6 +19,8 @@
 #                             save a choice without applying it (theme.sh)
 #   wallpaper next|prev [--random]
 #   wallpaper rotate          rotate to a random wallpaper
+#   wallpaper rotation [MINUTES]
+#                             rotate to a random one every N minutes (0 = off)
 #   wallpaper generated       go back to the palette gradient
 #   wallpaper apply           re-apply the saved choice (run at login)
 #   wallpaper current [--json]
@@ -61,6 +63,7 @@ LIBRARY_STAMP="$STATE/library.stamp"
 THUMBS="$STATE/thumbs"
 POSTERS="$STATE/posters"
 GENERATED_DIR="$STATE/wallpapers"
+ROTATION="$STATE/rotation"
 
 # Thumbnails and poster frames are keyed by path, mtime and size, so editing a
 # picture or changing a video leaves the old entry behind. Prune what is both
@@ -211,6 +214,35 @@ chosen() {
 remember() {
   theme=$(current_theme)
   printf '%s\n' "$1" >"$STATE/wallpaper.$theme"
+}
+
+# How often the shell should rotate, in whole minutes. The file is the source of
+# truth so the choice survives a restart; the shell owns the timer.
+rotation_minutes() {
+  value=""
+  if [ -f "$ROTATION" ]; then
+    value=$(tr -dc '0-9' <"$ROTATION" 2>/dev/null || true)
+  fi
+  printf '%s' "${value:-0}"
+}
+
+set_rotation() {
+  value="${1-}"
+  if [ -z "$value" ]; then
+    rotation_minutes
+    return 0
+  fi
+  case "$value" in
+    *[!0-9]*)
+      printf 'wallpaper: rotation needs whole minutes (0 turns it off)\n' >&2
+      return 1
+      ;;
+  esac
+  if [ "$value" -gt 1440 ]; then
+    printf 'wallpaper: rotation must be at most 1440 minutes\n' >&2
+    return 1
+  fi
+  printf '%s\n' "$value" | write_atomic "$ROTATION"
 }
 
 save_selection() {
@@ -851,6 +883,7 @@ case "${1:-}" in
   next) shift; step next "${1:-}" ;;
   prev | previous) shift; step prev "${1:-}" ;;
   rotate) step next --random ;;
+  rotation) shift; set_rotation "${1:-}" ;;
   generated | theme | default) use generated ;;
   current)
     if [ "${2:-}" = "--json" ]; then
