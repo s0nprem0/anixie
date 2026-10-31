@@ -12,7 +12,15 @@ end
 -- Held so the one-shot timer survives until it fires.
 local display_timer = nil
 local function schedule_sync()
-  display_timer = hl.timer(sync_displays, { timeout = 500, type = "oneshot" })
+  display_timer = hl.timer(function()
+    sync_displays()
+    -- The shell watches its screen list and re-applies the wallpaper for a new
+    -- or resized output. Only fill in when it is not reachable (restart,
+    -- crash): a second apply would restart a video wallpaper for no reason.
+    -- `quickshell ipc` answers only while the shell is actually running, which
+    -- a process-name check cannot promise.
+    hl.exec_cmd("sh -c 'quickshell ipc call background current >/dev/null 2>&1 || wallpaper apply >/dev/null'")
+  end, { timeout = 500, type = "oneshot" })
 end
 
 hl.on("hyprland.start", function()

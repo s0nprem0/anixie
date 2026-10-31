@@ -555,7 +555,7 @@ wallpaper_theme() {
   # output only), so it sets ANIXIE_WALLPAPER_RECORDED to keep this from
   # replacing that with a global one.
   if [ -n "$wp" ] && [ "${ANIXIE_WALLPAPER_RECORDED:-}" != "1" ]; then
-    "$wallpaper" record "$wp" >/dev/null 2>&1 \
+    "$wallpaper" record "$wp" >/dev/null \
       || printf 'theme: could not record the wallpaper choice\n' >&2
   fi
   tell_apps wallpaper

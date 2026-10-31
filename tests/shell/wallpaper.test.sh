@@ -21,10 +21,11 @@ cat >"$tmp/bin/magick" <<'EOF'
 for last; do :; done
 printf 'image' >"$last"
 EOF
-cat >"$tmp/bin/ffmpeg" <<'EOF'
+cat >"$tmp/bin/ffmpeg" <<EOF
 #!/bin/sh
+printf '%s\n' "\$*" >>"$tmp/ffmpeg.log"
 for last; do :; done
-printf 'frame' >"$last"
+printf 'frame' >"\$last"
 EOF
 chmod +x "$tmp/bin/"*
 
@@ -87,6 +88,8 @@ HOME="$tmp/home" sh "$tmp/wallpaper" use "$tmp/lib/a.png" --output eDP-1 >/dev/n
 HOME="$tmp/home" sh "$tmp/wallpaper" use "$tmp/lib/v.mp4" --output HDMI-A-1 >/dev/null
 "$JQ" -e '.outputs["HDMI-A-1"].video == true and (.outputs["HDMI-A-1"].poster | length > 0)' "$tmp/state/background.json" >/dev/null
 grep -q 'HDMI-A-1' "$tmp/mpvpaper.log"
+# The poster is sampled a second in rather than taken from a fade-in.
+grep -q -- '-ss 1' "$tmp/ffmpeg.log"
 
 HOME="$tmp/home" sh "$tmp/wallpaper" generated >/dev/null
 "$JQ" -e '.outputs["eDP-1"].video == false and .outputs["HDMI-A-1"].video == false
@@ -123,3 +126,27 @@ wait "$second"
   .themes["tokyo-night"].outputs
   | has("eDP-1") and has("HDMI-A-1")
 ' "$tmp/state/wallpapers.json" >/dev/null
+
+# Caches only collect what is referenced or recent. A stale entry goes, while
+# the thumbnail and poster in use survive even with an ancient mtime.
+old='2020-01-01 00:00:00'
+thumb=$("$JQ" -r '[.[] | .thumb | select(length > 0)][0]' "$tmp/state/library.json")
+[ -s "$thumb" ]
+printf 'stale\n' >"$tmp/state/thumbs/stale.jpg"
+touch -d "$old" "$tmp/state/thumbs/stale.jpg" "$thumb"
+HOME="$tmp/home" sh "$tmp/wallpaper" library --json --refresh >/dev/null
+[ ! -e "$tmp/state/thumbs/stale.jpg" ]
+[ -s "$thumb" ]
+
+poster=$("$JQ" -r '.outputs["HDMI-A-1"].poster' "$tmp/state/background.json")
+[ -s "$poster" ]
+printf 'stale\n' >"$tmp/state/posters/stale.jpg"
+printf 'stale\n' >"$tmp/state/wallpapers/tokyo-night-GONE.png"
+printf '1920x1080\n' >"$tmp/state/wallpapers/tokyo-night-GONE.png.size"
+touch -d "$old" "$tmp/state/posters/stale.jpg" "$poster" \
+  "$tmp/state/wallpapers/tokyo-night-GONE.png" "$tmp/state/wallpapers/tokyo-night-GONE.png.size"
+HOME="$tmp/home" sh "$tmp/wallpaper" apply >/dev/null
+[ ! -e "$tmp/state/posters/stale.jpg" ]
+[ -s "$poster" ]
+[ ! -e "$tmp/state/wallpapers/tokyo-night-GONE.png" ]
+[ ! -e "$tmp/state/wallpapers/tokyo-night-GONE.png.size" ]

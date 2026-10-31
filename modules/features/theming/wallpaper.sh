@@ -62,6 +62,14 @@ THUMBS="$STATE/thumbs"
 POSTERS="$STATE/posters"
 GENERATED_DIR="$STATE/wallpapers"
 
+# Thumbnails and poster frames are keyed by path, mtime and size, so editing a
+# picture or changing a video leaves the old entry behind. Prune what is both
+# unreferenced and old enough that the user is unlikely to come straight back to
+# it: a disconnected output or a theme not visited this week still regenerates
+# in a second, while yesterday's choices stay instant.
+CACHE_AGE_DAYS=7
+TAB=$(printf '\t')
+
 mkdir -p "$STATE" "$THUMBS" "$POSTERS" "$GENERATED_DIR"
 
 # Selections are read-modify-write, and the rotation timer, the panel and the
@@ -86,6 +94,24 @@ write_atomic() {
     rm -f "$tmp"
     return 1
   fi
+}
+
+# Remove files in DIR that are not listed in KEEP and have not been touched in
+# CACHE_AGE_DAYS. KEEP holds absolute paths, one per line; it is allowed to be
+# missing. Used for the three caches whose entries are content-addressed and
+# therefore accumulate.
+prune_cache() {
+  dir="$1"
+  keep="$2"
+  [ -d "$dir" ] || return 0
+  find "$dir" -maxdepth 1 -type f -mtime +"$CACHE_AGE_DAYS" -print |
+    awk -v keep="$keep" '
+      BEGIN { while ((getline line < keep) > 0) seen[line] = 1 }
+      !($0 in seen) { print }
+    ' |
+    while IFS= read -r file; do
+      [ -n "$file" ] && rm -f "$file"
+    done
 }
 
 current_theme() {
@@ -229,10 +255,12 @@ save_selection() {
 
 thumb_for() {
   path="$1"
+  mtime="${2-}"
+  size="${3-}"
   [ -f "$path" ] || return 0
 
-  mtime=$("$STAT" -Lc %Y "$path" 2>/dev/null || printf '0')
-  size=$("$STAT" -Lc %s "$path" 2>/dev/null || printf '0')
+  [ -n "$mtime" ] || mtime=$("$STAT" -Lc %Y "$path" 2>/dev/null || printf '0')
+  [ -n "$size" ] || size=$("$STAT" -Lc %s "$path" 2>/dev/null || printf '0')
   key=$(printf '%s\n%s\n%s\n' "$path" "$mtime" "$size" | "$SHA256SUM")
   key=${key%% *}
   thumb="$THUMBS/$key.jpg"
@@ -262,6 +290,23 @@ thumb_for() {
   printf '%s' "$thumb"
 }
 
+# Grab one frame scaled and cropped for the output. A second in, where there is
+# something to see: first frames are often a fade from black. Clips shorter
+# than that fall back to the start.
+poster_frame() {
+  path="$1"
+  w="$2"
+  h="$3"
+  out="$4"
+  for seek in 1 0; do
+    "$FFMPEG" -y -loglevel error -ss "$seek" -i "$path" -frames:v 1 \
+      -vf "scale=$w:$h:force_original_aspect_ratio=increase,crop=$w:$h" \
+      -q:v 2 "$out" >/dev/null 2>&1 || continue
+    [ -s "$out" ] && return 0
+  done
+  return 1
+}
+
 # A still from a video, for surfaces that cannot play it — the lock screen, and
 # anything else that reads background.json. Keyed by path, mtime, size and the
 # output's dimensions, so a changed video or a new resolution gets a new frame.
@@ -282,9 +327,7 @@ poster_for() {
 
   if [ ! -f "$poster" ]; then
     tmp=$(mktemp "$POSTERS/.poster.XXXXXX.jpg") || return 0
-    if "$FFMPEG" -y -loglevel error -i "$path" -frames:v 1 \
-      -vf "scale=$w:$h:force_original_aspect_ratio=increase,crop=$w:$h" \
-      -q:v 2 "$tmp" >/dev/null 2>&1 && [ -s "$tmp" ]; then
+    if poster_frame "$path" "$w" "$h" "$tmp"; then
       mv "$tmp" "$poster" || rm -f "$tmp"
     else
       rm -f "$tmp"
@@ -306,6 +349,21 @@ scan_dir() {
   done
 }
 
+# The same files with the mtime and size the fingerprint and the thumbnails
+# need. `find` collects them in one process, so opening the panel does not fork
+# a `stat` for every picture.
+scan_dir_meta() {
+  dir="$1"
+  [ -d "$dir" ] || return 0
+  if [ "$WALLPAPER_RECURSIVE" = "true" ]; then
+    find "$dir" -type f -printf 'file\t%p\t%T@\t%s\n' 2>/dev/null
+  else
+    find "$dir" -maxdepth 1 -type f -printf 'file\t%p\t%T@\t%s\n' 2>/dev/null
+  fi | while IFS="$TAB" read -r _ file mtime size; do
+    is_media "$file" && printf '%s\t%s\t%s\n' "$file" "$mtime" "$size"
+  done
+}
+
 library_paths() {
   {
     echo generated
@@ -319,39 +377,55 @@ library_paths() {
   } | awk '!seen[$0]++'
 }
 
-# The cache is only as good as the inputs it was built from. Every file's path,
-# mtime and size goes into the fingerprint, so adding, removing or editing a
-# picture (or changing the generated gradient) is noticed without throwing away
-# the thumbnails that are still valid.
+# One listing for the whole library: each line is PATH, mtime and size. Both the
+# cache fingerprint and the entries are built from it, so a rebuild scans the
+# folders once rather than once per purpose.
+library_scan() {
+  {
+    if [ -f "$GENERATED" ]; then
+      "$STAT" -Lc "generated${TAB}%Y${TAB}%s" "$GENERATED" 2>/dev/null
+    else
+      printf 'generated\t0\t0\n'
+    fi
+    if [ -n "$DEFAULT_WALLPAPER" ] && [ -f "$DEFAULT_WALLPAPER" ]; then
+      "$STAT" -Lc "%n${TAB}%Y${TAB}%s" "$DEFAULT_WALLPAPER" 2>/dev/null
+    fi
+    scan_dir_meta "$BACKGROUNDS/$(current_theme)"
+    printf '%s\n' "$WALLPAPER_DIRS" | while IFS= read -r dir; do
+      [ -n "$dir" ] && scan_dir_meta "$dir"
+    done
+  } | awk -F '\t' '!seen[$1]++'
+}
+
+# The cache is only as good as the inputs it was built from: theme, the
+# configured default, the recursion setting, missing folders, and the path,
+# mtime and size of every file. Editing a picture (or the generated gradient) is
+# noticed without throwing away thumbnails that are still valid.
 library_fingerprint() {
+  scan=${1-}
+  if [ -z "$scan" ]; then
+    scan=$(library_scan)
+  fi
+
   {
     printf 'theme\t%s\n' "$(current_theme)"
     printf 'default\t%s\n' "$DEFAULT_WALLPAPER"
-    if [ -n "$DEFAULT_WALLPAPER" ] && [ -f "$DEFAULT_WALLPAPER" ]; then
-      "$STAT" -Lc 'file\t%n\t%Y\t%s' "$DEFAULT_WALLPAPER" 2>/dev/null || true
-    fi
-    if [ -f "$GENERATED" ]; then
-      "$STAT" -Lc 'generated\t%n\t%Y\t%s' "$GENERATED" 2>/dev/null || true
-    fi
+    printf 'recursive\t%s\n' "$WALLPAPER_RECURSIVE"
     {
       printf '%s\n' "$BACKGROUNDS/$(current_theme)"
       printf '%s\n' "$WALLPAPER_DIRS"
     } | while IFS= read -r dir; do
       [ -n "$dir" ] || continue
-      if [ ! -d "$dir" ]; then
-        printf 'missing\t%s\n' "$dir"
-      elif [ "$WALLPAPER_RECURSIVE" = "true" ]; then
-        find "$dir" -type f -printf 'file\t%p\t%T@\t%s\n' 2>/dev/null | sort
-      else
-        find "$dir" -maxdepth 1 -type f -printf 'file\t%p\t%T@\t%s\n' 2>/dev/null | sort
-      fi
+      [ -d "$dir" ] || printf 'missing\t%s\n' "$dir"
     done
+    printf '%s\n' "$scan"
   } | "$SHA256SUM" | cut -d ' ' -f 1
 }
 
 library_json() {
   refresh="${1:-}"
-  stamp=$(library_fingerprint)
+  scan=$(library_scan)
+  stamp=$(library_fingerprint "$scan")
   if [ "$refresh" != "--refresh" ] && [ -s "$LIBRARY_CACHE" ] &&
     [ -f "$LIBRARY_STAMP" ] && [ "$(cat "$LIBRARY_STAMP" 2>/dev/null || true)" = "$stamp" ]; then
     cat "$LIBRARY_CACHE"
@@ -361,10 +435,10 @@ library_json() {
   json=$(
     {
       printf 'Generated\tgenerated\t%s\t0\t1\n' "$(thumb_for "$GENERATED")"
-      library_paths | while IFS= read -r path; do
+      printf '%s\n' "$scan" | while IFS="$TAB" read -r path mtime size; do
         [ "$path" = generated ] && continue
         if is_video "$path"; then video=1; else video=0; fi
-        printf '%s\t%s\t%s\t%s\t0\n' "$(basename "$path")" "$path" "$(thumb_for "$path")" "$video"
+        printf '%s\t%s\t%s\t%s\t0\n' "$(basename "$path")" "$path" "$(thumb_for "$path" "$mtime" "$size")" "$video"
       done
     } | "$JQ" -R -s '
       split("\n")
@@ -380,7 +454,29 @@ library_json() {
 
   printf '%s\n' "$json" | write_atomic "$LIBRARY_CACHE" || true
   printf '%s\n' "$stamp" | write_atomic "$LIBRARY_STAMP" || true
+  prune_thumb_cache
   printf '%s\n' "$json"
+}
+
+# Thumbnails referenced by the library just built stay, however old; the rest
+# are what an edited or deleted picture leaves behind.
+prune_thumb_cache() {
+  [ -s "$LIBRARY_CACHE" ] || return 0
+  keep=$(mktemp "$STATE/.keep.XXXXXX") || return 0
+  "$JQ" -r '.[] | .thumb | select(length > 0)' "$LIBRARY_CACHE" >"$keep" 2>/dev/null || true
+  prune_cache "$THUMBS" "$keep"
+  rm -f "$keep"
+}
+
+# Posters referenced by the background map stay; the rest belong to videos or
+# resolutions that have not been used for a while.
+prune_poster_cache() {
+  [ -f "$BACKGROUND_JSON" ] || return 0
+  keep=$(mktemp "$STATE/.keep.XXXXXX") || return 0
+  "$JQ" -r '([(.outputs // {})[] | .poster] + [(.fallback // {}) | .poster])
+    | .[] | select(type == "string" and length > 0)' "$BACKGROUND_JSON" >"$keep" 2>/dev/null || true
+  prune_cache "$POSTERS" "$keep"
+  rm -f "$keep"
 }
 
 generated_file() {
@@ -449,6 +545,29 @@ output_names() {
   "$HYPRCTL" monitors -j 2>/dev/null | "$JQ" -r '.[].name' 2>/dev/null || true
 }
 
+# Generated gradients for outputs that are gone, or for a theme that is no
+# longer current, stop being referenced. Keep the ones in use and let the age
+# rule collect the rest; drop the size markers immediately once their picture
+# has gone.
+prune_generated() {
+  outputs="${1-}"
+  [ -n "$outputs" ] || outputs=$(output_names)
+  [ -d "$GENERATED_DIR" ] || return 0
+
+  keep=$(mktemp "$STATE/.keep.XXXXXX") || return 0
+  for output in $outputs; do
+    file=$(generated_file "$output")
+    printf '%s\n%s.size\n' "$file" "$file" >>"$keep"
+  done
+  prune_cache "$GENERATED_DIR" "$keep"
+  rm -f "$keep"
+
+  find "$GENERATED_DIR" -maxdepth 1 -name '*.png.size' -print |
+    while IFS= read -r marker; do
+      [ -f "${marker%.size}" ] || rm -f "$marker"
+    done
+}
+
 apply() {
   wallpapers_ensure
   theme=$(current_theme)
@@ -510,6 +629,9 @@ apply() {
     }
   ' "$rows" | write_atomic "$BACKGROUND_JSON"
   rm -f "$rows"
+
+  prune_poster_cache
+  prune_generated "$outputs"
 
   if [ "$fallback_video" = 1 ]; then
     printf 'video\n%s\n' "$fallback_path" >"$STATE/background"
