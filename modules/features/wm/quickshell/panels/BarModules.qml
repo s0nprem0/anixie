@@ -91,17 +91,17 @@ Item {
     onTriggered: root.confirmReset = false
   }
 
-  implicitWidth: Style.space(400)
+  implicitWidth: Style.space(460)
   implicitHeight: card.implicitHeight
 
   Panel {
     id: card
     anchors.fill: parent
-    maxWidth: Style.space(400)
+    maxWidth: Style.space(460)
 
     PanelHero {
       width: card.contentWidth
-      glyph: ""
+      glyph: Util.chart
       title: "Bar"
       subtitle: "Modules, position and background"
     }
@@ -171,6 +171,12 @@ Item {
         label: "Undo"
         available: BarConfig.hasPrevious
         onClicked: BarConfig.undo()
+      }
+
+      TextButton {
+        label: "Clear filter"
+        available: root.filterText.trim() !== ""
+        onClicked: root.filterText = ""
       }
     }
 
