@@ -356,6 +356,7 @@ Item {
               }
 
               DropArea {
+                id: dropTarget
                 anchors.fill: parent
                 z: 0
                 keys: ["bar-module"]
