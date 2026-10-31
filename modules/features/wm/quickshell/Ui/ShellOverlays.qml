@@ -52,9 +52,14 @@ Item {
     id: osdWindow
     screen: OsdHost.screenName !== "" ? (Screens.byName(OsdHost.screenName) || Screens.focused) : Screens.focused
 
-    anchors.top: OsdHost.position === "top"
-    anchors.bottom: OsdHost.position !== "top"
-    margins.bottom: Style.space(90)
+    anchors.top: OsdHost.position === "top" || (OsdHost.position === "bar" && BarContext.position === "top")
+    anchors.bottom: !(OsdHost.position === "top" || (OsdHost.position === "bar" && BarContext.position === "top"))
+    margins.top: (OsdHost.position === "top" || (OsdHost.position === "bar" && BarContext.position === "top"))
+      ? (BarContext.vertical ? Style.bar.sizeVertical + Style.space(24) : Style.space(90))
+      : 0
+    margins.bottom: (OsdHost.position === "top" || (OsdHost.position === "bar" && BarContext.position === "top"))
+      ? 0
+      : (BarContext.vertical ? Style.bar.sizeVertical + Style.space(24) : Style.space(90))
     implicitWidth: osdCard.implicitWidth
     implicitHeight: osdCard.implicitHeight
 
@@ -80,7 +85,8 @@ Item {
       mediaOsd: OsdHost.mediaOsd
 
       opacity: OsdHost.opened ? 1 : 0
-      scale: OsdHost.opened ? 1 : 0.96
+      scale: (OsdHost.opened ? 1 : 0.96) * (osdWindow.screen ? Math.min(2, Math.max(1, osdWindow.screen.devicePixelRatio)) : 1)
+      transformOrigin: Item.Center
       Behavior on opacity {
         NumberAnimation { duration: Style.duration(Style.motion.fast); easing.type: Easing.OutCubic }
       }

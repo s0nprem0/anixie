@@ -271,9 +271,14 @@ Item {
     function close(): string { OsdHost.hide(); return "ok" }
     function screen(name: string): string { OsdHost.preferredScreen = String(name || ""); return "ok" }
     function position(value: string): string {
-      if (value !== "top" && value !== "bottom") return "position must be top or bottom"
+      if (value !== "top" && value !== "bottom" && value !== "bar") return "position must be top, bottom or bar"
       OsdHost.position = value
       return "ok"
+    }
+    function autoDuration(state: string): string {
+      if (state === "on") { OsdHost.autoDuration = true; return "ok" }
+      if (state === "off") { OsdHost.autoDuration = false; return "ok" }
+      return OsdHost.autoDuration ? "on" : "off"
     }
     function state(): string { return OsdHost.opened ? "open" : "closed" }
   }

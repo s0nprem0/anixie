@@ -37,8 +37,13 @@ QtObject {
   // Empty falls back to the focused screen.
   property string preferredScreen: ""
 
-  // Where the OSD sits on the screen: "bottom" (default) or "top".
+  // Where the OSD sits on the screen: "bottom" (default), "top", or "bar"
+  // (follow the bar's edge).
   property string position: "bottom"
+
+  // Auto-scale duration by screen size. When off, durationScale is used.
+  property bool autoDuration: true
+  property real durationScale: 1.0
 
   // Media readouts are allowed to be wider than a percentage: the message is a
   // track title rather than "42%".
@@ -111,9 +116,18 @@ QtObject {
     // wins. Otherwise the readout stays long enough for its own text.
     const requested = String(rawDuration === undefined ? "" : rawDuration).trim()
     const explicit = parseInt(requested, 10)
+
+    const screen = root.screenName !== ""
+      ? (Screens.byName(root.screenName) || Screens.focused)
+      : Screens.focused
+    const autoScale = root.autoDuration
+      ? (screen && screen.width >= 2560 ? 1.25 : (screen && screen.width <= 1600 ? 0.9 : 1.0))
+      : root.durationScale
+
+    const baseDuration = progress ? 1200 : root.readableDuration(message)
     const duration = requested !== "" && !isNaN(explicit)
       ? Math.max(0, explicit)
-      : (progress ? 1200 : root.readableDuration(message))
+      : Math.round(baseDuration * autoScale)
 
     root.iconKey = String(iconName || "").toLowerCase()
     root.icon = root.glyphFor(iconName, percent)
