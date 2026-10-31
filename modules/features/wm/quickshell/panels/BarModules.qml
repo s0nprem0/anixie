@@ -261,6 +261,87 @@ Item {
 
     PanelSectionHeader {
       width: card.contentWidth
+      label: "Parked (disabled)"
+    }
+
+    Repeater {
+      model: (root.config && Array.isArray(root.config.disabled)) ? root.config.disabled : []
+
+      delegate: Row {
+        required property var modelData
+        width: card.contentWidth
+        spacing: Style.space(4)
+
+        Text {
+          anchors.verticalCenter: parent.verticalCenter
+          width: Style.space(200)
+          text: root.prettyId(String(modelData.entry ? modelData.entry.id : ""))
+          color: Theme.muted
+          font.family: Style.font.family
+          font.pixelSize: Style.font.body
+          elide: Text.ElideRight
+          renderType: Text.NativeRendering
+        }
+
+        TextButton {
+          label: "Restore"
+          onClicked: BarConfig.enable(String(modelData.entry ? modelData.entry.id : ""))
+        }
+      }
+    }
+
+    PanelSeparator {}
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      label: "Widget settings"
+    }
+
+    Column {
+      width: card.contentWidth
+      spacing: Style.space(6)
+
+      readonly property var enabledIds: BarConfig.enabledModules
+
+      Dropdown {
+        id: widgetSelect
+        width: parent.width
+        model: parent.enabledIds
+        currentIndex: 0
+      }
+
+      TextField {
+        width: parent.width
+        visible: String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || "").indexOf("clock") !== -1
+        placeholderText: "Clock format (e.g. dddd HH:mm)"
+        text: BarConfig.settingOf(String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || ""), "format") || ""
+        onEditingFinished: BarConfig.setSetting(String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || ""), "format", text)
+      }
+
+      TextField {
+        width: parent.width
+        visible: String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || "").indexOf("weather") !== -1
+        placeholderText: "Weather location"
+        text: BarConfig.settingOf(String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || ""), "location") || ""
+        onEditingFinished: BarConfig.setSetting(String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || ""), "location", text)
+      }
+
+      TextField {
+        width: parent.width
+        visible: String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || "").indexOf("weather") !== -1
+        placeholderText: "Weather interval (seconds)"
+        text: String(BarConfig.settingOf(String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || ""), "interval") || "")
+        onEditingFinished: {
+          const n = parseInt(text, 10)
+          if (isFinite(n)) BarConfig.setSetting(String((widgetSelect.model && widgetSelect.model[widgetSelect.currentIndex]) || ""), "interval", n)
+        }
+      }
+    }
+
+    PanelSeparator {}
+
+    PanelSectionHeader {
+      width: card.contentWidth
       label: "Available"
     }
 
