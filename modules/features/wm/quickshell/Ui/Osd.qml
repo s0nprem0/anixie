@@ -39,6 +39,8 @@ Item {
 
       Text {
         anchors.verticalCenter: parent.verticalCenter
+        width: Style.space(24)
+        horizontalAlignment: Text.AlignHCenter
         text: root.icon
         color: Theme.fg
         font.family: Style.font.family
