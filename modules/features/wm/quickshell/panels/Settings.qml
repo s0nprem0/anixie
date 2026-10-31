@@ -7,14 +7,14 @@ Item {
   id: root
 
   readonly property var allTabs: [
-    { label: "Appearance", source: "Appearance.qml" },
-    { label: "Bar", source: "BarModules.qml" },
-    { label: "Displays", source: "Displays.qml" },
-    { label: "Network", source: "Network.qml" },
-    { label: "Notifications", source: "Notifications.qml" },
-    { label: "Power", source: "Power.qml" },
-    { label: "Screentime", source: "Screentime.qml" },
-    { label: "Session", source: "Session.qml" }
+    { label: "Appearance", icon: Util.palette, source: "Appearance.qml" },
+    { label: "Bar", icon: Util.chart, source: "BarModules.qml" },
+    { label: "Displays", icon: Util.laptop, source: "Displays.qml" },
+    { label: "Network", icon: Util.globe, source: "Network.qml" },
+    { label: "Notifications", icon: Util.bell, source: "Notifications.qml" },
+    { label: "Power", icon: Util.bolt, source: "Power.qml" },
+    { label: "Screentime", icon: Util.clock, source: "Screentime.qml" },
+    { label: "Session", icon: Util.lock, source: "Session.qml" }
   ]
 
   property string searchText: ""
@@ -28,7 +28,6 @@ Item {
     })
   }
 
-  // Honor deep-link requests from the host.
   Connections {
     target: SettingsHost
     function onRequestedTabChanged() {
@@ -44,13 +43,13 @@ Item {
     }
   }
 
-  implicitWidth: Style.space(520)
+  implicitWidth: Style.space(760)
   implicitHeight: card.implicitHeight
 
   Panel {
     id: card
     anchors.fill: parent
-    maxWidth: Style.space(520)
+    maxWidth: Style.space(760)
 
     PanelHero {
       width: card.contentWidth
@@ -59,53 +58,99 @@ Item {
       subtitle: "System and shell preferences"
     }
 
-    PanelSeparator {}
-
-    TextField {
+    Row {
       width: card.contentWidth
-      placeholderText: "Search settings"
-      text: root.searchText
-      onTextChanged: root.searchText = text
-    }
+      spacing: Style.space(12)
 
-    PanelSeparator {}
+      Column {
+        id: sidebar
+        width: Style.space(160)
+        spacing: Style.space(4)
+        focus: true
 
-    Dropdown {
-      width: card.contentWidth
-      model: root.filteredTabs.map(function (t) { return t.label })
-      currentIndex: {
-        const tabs = root.filteredTabs
-        for (let i = 0; i < tabs.length; i++) {
-          if (tabs[i].label === root.allTabs[root.currentTab].label) return i
+        Keys.onDownPressed: root.currentTab = Math.min(root.currentTab + 1, root.allTabs.length - 1)
+        Keys.onUpPressed: root.currentTab = Math.max(root.currentTab - 1, 0)
+
+        TextField {
+          width: parent.width
+          placeholderText: "Search"
+          text: root.searchText
+          onTextChanged: root.searchText = text
         }
-        return 0
-      }
-      onActivated: function (i) {
-        const tabs = root.filteredTabs
-        if (i < 0 || i >= tabs.length) return
-        for (let j = 0; j < root.allTabs.length; j++) {
-          if (root.allTabs[j].label === tabs[i].label) { root.currentTab = j; break }
+
+        Repeater {
+          model: root.filteredTabs
+
+          delegate: Rectangle {
+            id: tabButton
+            required property var modelData
+            required property int index
+            width: sidebar.width
+            height: Style.space(32)
+            radius: Theme.cornerRadius
+            color: tabButton.active ? Theme.primary : (tabMouse.containsMouse ? Theme.bg : "transparent")
+            border.width: Style.strokeWidth
+            border.color: tabButton.active ? Theme.primary : Theme.border
+
+            readonly property bool active: root.allTabs[root.currentTab].label === tabButton.modelData.label
+
+            Row {
+              anchors.centerIn: parent
+              spacing: Style.space(6)
+
+              Text {
+                text: tabButton.modelData.icon
+                color: tabButton.active ? Theme.bg : Theme.fg
+                font.family: "JetBrainsMono Nerd Font"
+                font.pixelSize: Style.font.body
+                renderType: Text.NativeRendering
+              }
+
+              Text {
+                text: tabButton.modelData.label
+                color: tabButton.active ? Theme.bg : Theme.fg
+                font.family: Style.font.family
+                font.pixelSize: Style.font.body
+                renderType: Text.NativeRendering
+              }
+            }
+
+            MouseArea {
+              id: tabMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: {
+                for (let i = 0; i < root.allTabs.length; i++) {
+                  if (root.allTabs[i].label === tabButton.modelData.label) { root.currentTab = i; break }
+                }
+              }
+            }
+          }
         }
       }
-    }
 
-    PanelSeparator {}
+      Column {
+        width: card.contentWidth - sidebar.width - Style.space(12)
+        spacing: Style.space(8)
 
-    Loader {
-      id: tabLoader
-      width: card.contentWidth
-      source: Qt.resolvedUrl(root.allTabs[root.currentTab].source)
-    }
+        Loader {
+          id: tabLoader
+          width: parent.width
+          source: Qt.resolvedUrl(root.allTabs[root.currentTab].source)
+        }
 
-    Text {
-      width: card.contentWidth
-      visible: tabLoader.status !== Loader.Ready
-      text: "Loading…"
-      color: Theme.muted
-      font.family: Style.font.family
-      font.pixelSize: Style.font.body
-      horizontalAlignment: Text.AlignHCenter
-      renderType: Text.NativeRendering
+        Text {
+          width: parent.width
+          visible: tabLoader.status === Loader.Error
+          text: "No settings here"
+          color: Theme.muted
+          font.family: Style.font.family
+          font.pixelSize: Style.font.body
+          horizontalAlignment: Text.AlignHCenter
+          renderType: Text.NativeRendering
+        }
+      }
     }
   }
 }

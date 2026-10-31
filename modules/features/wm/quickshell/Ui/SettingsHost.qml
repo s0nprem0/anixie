@@ -27,7 +27,7 @@ QtObject {
     if (!anchor) return
     const component = root.panelBuilder()
     if (!component || component.status !== Component.Ready) {
-      console.warn("settings: panel could not load; status=" + (component ? component.status : "null"))
+      console.warn("settings: panel could not load; status=" + (component ? component.status : "null") + " " + (component && typeof component.errorString === "function" ? component.errorString() : ""))
       root.panelComponent = null
       return
     }
