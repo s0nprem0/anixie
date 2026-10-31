@@ -1190,6 +1190,17 @@ Item {
               }
             }
 
+            Text {
+              width: parent.width
+              visible: root.actionError !== "" && netRow.expanded
+              text: root.actionError
+              color: Theme.danger
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              wrapMode: Text.WordWrap
+              renderType: Text.NativeRendering
+            }
+
             Row {
               anchors.horizontalCenter: parent.horizontalCenter
               spacing: Style.space(4)

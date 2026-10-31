@@ -279,6 +279,7 @@ BarWidget {
         verticalPadding: 6
         fixedWidth: Style.bar.sizeVertical
         fixedHeight: Style.space(20)
+        fontSize: Style.font.caption
         tooltipText: vbutton.focused
           ? "Workspace " + vbutton.modelData + " · " + root.layout + " layout · click to cycle"
           : "Workspace " + vbutton.modelData + " · click to focus"
