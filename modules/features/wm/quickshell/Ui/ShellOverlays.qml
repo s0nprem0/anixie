@@ -172,14 +172,24 @@ Item {
 
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
-    visible: CompositorHost.supportsWorkspaceOverview && WorkspaceOverviewHost.shown
+    visible: CompositorHost.supportsWorkspaceOverview && (WorkspaceOverviewHost.shown || workspaceOverviewContent.opacity > 0)
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "quickshell-workspace-overview"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
     WorkspaceOverview {
+      id: workspaceOverviewContent
       anchors.fill: parent
+
+      opacity: WorkspaceOverviewHost.shown ? 1 : 0
+      scale: WorkspaceOverviewHost.shown ? 1 : 0.97
+      Behavior on opacity {
+        NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic }
+      }
+      Behavior on scale {
+        NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic }
+      }
     }
 
     MouseArea {
