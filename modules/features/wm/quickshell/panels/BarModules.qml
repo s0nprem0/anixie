@@ -416,6 +416,41 @@ Item {
         onEditingFinished: {
           const n = parseInt(text, 10)
           if (isFinite(n)) BarConfig.setSetting(parent.selectedId, "interval", n)
+          TextField {
+        width: parent.width
+        visible: parent.selectedId.indexOf("world-clock") !== -1
+        placeholderText: "World clock zones (comma-separated)"
+        text: BarConfig.settingOf(parent.selectedId, "zones") || ""
+        onEditingFinished: BarConfig.setSetting(parent.selectedId, "zones", text)
+      }
+
+      TextField {
+        width: parent.width
+        visible: parent.selectedId.indexOf("model-usage") !== -1
+        placeholderText: "Model usage interval (seconds)"
+        text: String(BarConfig.settingOf(parent.selectedId, "interval") || "")
+        onEditingFinished: {
+          const n = parseInt(text, 10)
+          if (isFinite(n)) BarConfig.setSetting(parent.selectedId, "interval", n)
+        }
+      }
+    }
+      }
+    }
+
+    Row {
+      width: card.contentWidth
+      spacing: Style.space(6)
+      visible: (root.config && Array.isArray(root.config.disabled)) && root.config.disabled.length > 0
+
+      TextButton {
+        label: "Restore all"
+        onClicked: {
+          const disabled = (root.config && Array.isArray(root.config.disabled)) ? root.config.disabled : []
+          for (let i = 0; i < disabled.length; i++) {
+            const entry = disabled[i] && disabled[i].entry ? disabled[i].entry : null
+            if (entry && entry.id) BarConfig.enable(String(entry.id))
+          }
         }
       }
     }
