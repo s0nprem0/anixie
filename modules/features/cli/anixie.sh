@@ -40,7 +40,7 @@ appearance|appearance||toggle open close state|appearance panel
 textsize|textsize|text|up down show set reset apply|global text size: up, down, set N, reset
 wallpaper|wallpaper||list library set add next prev rotate rotation generated pause resume status apply current|desktop background: set FILE, library, next, rotate, current
 display|monitors|monitors|scale internal lid mirror brightness recover wake workspace workspace-step move-window workspaces list set try keep revert identify status|monitors: scale, internal, mirror, status
-power|powerprofile|powerprofile|set apply show status automation set-automation|power profiles per source: set ac|battery PROFILE
+power|powerprofile|powerprofile|set apply show status automation set-automation charge|power profiles per source and charge ceiling: set ac|battery PROFILE, charge full|limit N
 wifi|wifi||band dns password qr|Wi-Fi: band, DNS, password, QR
 audio|audio-output|audio-output|set switch|audio output: set, switch
 shot|shot|screenshot|smart region windows fullscreen window scroll copy save annotate preview redact text|screenshots: smart, region, windows, fullscreen

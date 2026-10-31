@@ -359,7 +359,7 @@ anixie focus start 25 | stop | extend 15 | status
 anixie screentime [show|json|reset|path|panel]
 notify -G f017 SUMMARY [BODY] --exec COMMAND [ARG...]   # a toast with a glyph and a click action
 notify SUMMARY [BODY] --action LABEL CMD [ARG...]... --with DATA...  # up to three persistent buttons
-anixie power …                      # profile for AC or battery
+anixie power …                      # profile for AC or battery, charge ceiling
 anixie snapshot create|list|restore|prune
 anixie webapp add NAME URL          # a site as an application
 ```
@@ -405,8 +405,16 @@ The watcher coalesces the battery's udev event stream and acts only when the
 source, charge state or percentage actually changes. UPower still polls the
 battery every 30 seconds, which is enough for the thresholds.
 
-Charging is left to the firmware: there is no charge ceiling or threshold
-service to keep in sync, so the battery charges normally to 100%.
+On mains the charge controller is held at 80%. `anixie power charge full` lifts
+it to 100% for a trip; `anixie power charge limit N` caps it again. The helper
+reads the controller back after every write, so a firmware that rejects or
+clamps a value is reported instead of being recorded as success. The choice is
+saved in `/var/lib/anixie/charge-limit` and re-applied at boot, on resume, on
+either cable movement and by a 15-minute timer.
+
+UPower's own charge-threshold automation is turned off. Since 1.90 it re-applies
+the hwdb default (75/80) at every boot, which would otherwise overwrite a `full`
+or custom ceiling; `charge-limit` is the single writer here.
 
 ## Gaming
 
