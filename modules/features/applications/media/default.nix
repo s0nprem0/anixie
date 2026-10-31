@@ -28,7 +28,9 @@ in
       pkgs.mpv
     ]
     ++ lib.optionals cfg.obs [
-      (pkgs.obs-studio.withPlugins (plugins: with plugins; [ distroav ]))
+      (pkgs.wrapOBS {
+        plugins = with pkgs.obs-studio-plugins; [ distroav ];
+      })
     ];
   };
 }
