@@ -88,10 +88,6 @@ Item {
     }
     onExited: function (exitCode) {
       root.profileFailed = exitCode !== 0
-      if (exitCode === 0 && root.pendingProfile !== "") {
-        OsdHost.show("power-profile", "Power profile: " + root.pendingProfile, "", "", "", 1500)
-      }
-      root.pendingProfile = ""
     }
   }
 
@@ -105,6 +101,12 @@ Item {
         profileGet.running = false
         profileGet.running = true
       }
+    }
+    onExited: function (exitCode) {
+      if (exitCode === 0 && root.pendingProfile !== "") {
+        OsdHost.show("power-profile", "Power profile: " + root.pendingProfile, "", "", "", 1500)
+      }
+      root.pendingProfile = ""
     }
   }
 
