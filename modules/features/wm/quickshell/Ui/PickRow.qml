@@ -34,6 +34,7 @@ Item {
   property bool showIcon: true
 
   implicitHeight: Style.space(32)
+  clip: true
 
   // The label cut into runs of matched and unmatched characters.
   //

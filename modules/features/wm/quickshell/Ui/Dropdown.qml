@@ -128,6 +128,37 @@ Item {
     modal: false
     focus: true
 
+    property bool flipped: false
+
+    function updatePosition() {
+      const spacing = Style.space(4)
+      const maxH = Style.space(260)
+      const popupH = Math.min(listContent.implicitHeight, maxH)
+      let pos = root.height + spacing
+      let flip = false
+
+      try {
+        const rootPos = root.mapToItem(null, 0, root.height)
+        const screenH = (root.Window && root.Window.window ? root.Window.window.height : 0)
+        if (screenH > 0 && rootPos.y + popupH > screenH - spacing) {
+          if (popupH < root.height + rootPos.y - spacing) {
+            pos = -(popupH + spacing)
+            flip = true
+          }
+        }
+      } catch (e) {
+      }
+
+      list.y = pos
+      list.flipped = flip
+    }
+
+    onAboutToShow: updatePosition()
+    Connections {
+      target: listContent
+      function onImplicitHeightChanged() { if (list.opened) list.updatePosition() }
+    }
+
     // Which row the keyboard is on while the popup is up. Kept separate from
     // `root.currentIndex`: that one belongs to the caller's binding, and
     // writing it from here would replace the binding and stop the control

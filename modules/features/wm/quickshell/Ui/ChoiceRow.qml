@@ -61,7 +61,7 @@ Item {
   readonly property bool hasDetail: root.detail !== ""
   readonly property bool hasGlyph: root.glyph !== ""
 
-  implicitWidth: trailingRow.implicitWidth + Style.space(12) + labelText.implicitWidth
+  implicitWidth: Math.max(0, textColumn.width + trailingRow.width + Style.space(8))
   implicitHeight: Math.max(textColumn.height, trailingRow.implicitHeight, Style.space(24))
   height: implicitHeight
 
@@ -118,7 +118,7 @@ Item {
       font.family: Style.font.family
       font.pixelSize: Style.font.body
       font.weight: root.selected ? Font.DemiBold : Font.Normal
-      elide: Text.ElideMiddle
+      elide: Text.ElideRight
       renderType: Text.NativeRendering
     }
 

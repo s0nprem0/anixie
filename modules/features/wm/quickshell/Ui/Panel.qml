@@ -162,11 +162,16 @@ FocusScope {
 
   // Every control in the panel, in the order it is written.
   //
-  // Walked every time the keys move rather than held: the lists inside a panel
-  // are rebuilt as what they list changes — networks arrive and go, applications
-  // start and stop — and a stop held from before the rebuild is an item that is
-  // no longer on screen.
-  function stops() {
+  // Cached to avoid rebuilding the whole tree on every key repeat/move; rebuilt
+  // when the structure changes or focus state shifts.
+  property var _stopsCache: []
+  property bool _stopsDirty: true
+
+  function invalidateStops() {
+    root._stopsDirty = true
+  }
+
+  function rebuildStops() {
     const found = []
     try {
       root.collect(body, found)
@@ -179,7 +184,14 @@ FocusScope {
       if (!root.isAvailable(item)) continue
       if (out.indexOf(item) < 0) out.push(item)
     }
+    root._stopsCache = out
+    root._stopsDirty = false
     return out
+  }
+
+  function stops() {
+    if (root._stopsDirty) return root.rebuildStops()
+    return root._stopsCache
   }
 
   // A control is anything that says it is one. `panelFocusable` is the whole
@@ -384,6 +396,7 @@ FocusScope {
   // a destroyed or hidden one should be dropped instead of lingering.
   onActiveFocusChanged: {
     if (!root.activeFocus) return
+    root.invalidateStops()
     Qt.callLater(function () {
       if (!root.activeFocus) return
       const active = root.windowActiveFocusItem()
@@ -589,6 +602,8 @@ FocusScope {
       id: body
       width: scroller.width
       spacing: Style.space(8)
+      onChildrenChanged: root.invalidateStops()
+      onVisibleChanged: root.invalidateStops()
     }
   }
 
