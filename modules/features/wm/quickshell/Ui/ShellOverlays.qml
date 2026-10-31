@@ -92,6 +92,33 @@ Item {
   // The dock. Left edge, reserving a strip like the bar does, so windows are laid
   // out beside it rather than running underneath — a dock that windows slide
   // under would be worse than no dock at all.
+  // Edge reveal for the auto-hidden dock: a thin strip on the left that brings
+  // the dock back on hover. It costs no exclusive zone, so it never pushes
+  // windows around.
+  PanelWindow {
+    id: dockEdgeReveal
+    screen: Screens.focused
+
+    anchors.top: true
+    anchors.bottom: true
+    anchors.left: true
+
+    implicitWidth: Style.space(6)
+    color: "transparent"
+    exclusionMode: ExclusionMode.Ignore
+    visible: !DockHost.shown && DockHost.autoHide
+
+    WlrLayershell.layer: WlrLayer.Top
+    WlrLayershell.namespace: "quickshell-dock-edge"
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+
+    MouseArea {
+      anchors.fill: parent
+      hoverEnabled: true
+      onEntered: DockHost.show()
+    }
+  }
+
   //
   // `Ignore` is not used here, unlike the popups. The bar had to state its zone
   // as a size because exclusionMode left hyprctl reporting no reservation at
