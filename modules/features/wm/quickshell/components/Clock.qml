@@ -91,7 +91,11 @@ BarWidget {
   // promptness for a sixtieth of the wakeups.
   function schedule() {
     const now = new Date()
-    tick.interval = Math.max(50, (60 - now.getSeconds()) * 1000 - now.getMilliseconds())
+    if (String(root.activeFormat).indexOf("ss") !== -1) {
+      tick.interval = 1000
+    } else {
+      tick.interval = Math.max(50, (60 - now.getSeconds()) * 1000 - now.getMilliseconds())
+    }
     tick.restart()
   }
 
@@ -103,7 +107,7 @@ BarWidget {
     const day = root.dayNames[now.getDay()]
     const month = root.monthNames[now.getMonth()]
 
-    return String(format).replace(/dddd|ddd|dd|MMMM|MMM|yyyy|HH|mm|W/g, function (token) {
+    return String(format).replace(/dddd|ddd|dd|MMMM|MMM|yyyy|HH|mm|ss|W/g, function (token) {
       if (token === "dddd") return day
       if (token === "ddd") return day.slice(0, 3)
       if (token === "dd") return pad(now.getDate())
@@ -112,6 +116,7 @@ BarWidget {
       if (token === "yyyy") return String(now.getFullYear())
       if (token === "HH") return pad(now.getHours())
       if (token === "mm") return pad(now.getMinutes())
+      if (token === "ss") return pad(now.getSeconds())
       if (token === "W") return pad(root.isoWeek(now))
       return token
     })
@@ -122,7 +127,7 @@ BarWidget {
   // through date rather than becoming an unknown conversion.
   function dateFormat(format) {
     return String(format).replace(/%/g, "%%")
-      .replace(/dddd|ddd|dd|MMMM|MMM|yyyy|HH|mm|W/g, function (token) {
+      .replace(/dddd|ddd|dd|MMMM|MMM|yyyy|HH|mm|ss|W/g, function (token) {
         if (token === "dddd") return "%A"
         if (token === "ddd") return "%a"
         if (token === "dd") return "%d"
@@ -131,6 +136,7 @@ BarWidget {
         if (token === "yyyy") return "%Y"
         if (token === "HH") return "%H"
         if (token === "mm") return "%M"
+        if (token === "ss") return "%S"
         if (token === "W") return "%V"
         return token
       })
@@ -154,6 +160,15 @@ BarWidget {
 
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
     return Math.ceil(((d - yearStart) / 86400000 + 1) / 7)
+  }
+
+  function timeColor() {
+    const now = new Date()
+    const h = now.getHours()
+    if (h >= 22 || h < 6) return Theme.muted
+    if (h < 12) return Theme.accent
+    if (h < 18) return Theme.fg
+    return Theme.accent
   }
 
   wantsSlot: stamp !== ""
@@ -220,13 +235,15 @@ BarWidget {
     }
     anchors.centerIn: parent
     text: root.vertical
-      ? root.stamp
+      ? root.stamp.replace(/\s+(\S+)$/, "\n$1")
       : (root.zone === "" ? root.stamp : root.stamp + "  " + root.zoneLabel)
     fontSize: root.vertical ? Style.font.bodySmall : Style.font.body
-    labelRotation: root.vertical ? 90 : 0
+    labelRotation: 0
+
     centerFigures: false
     active: true
     useActiveColor: false
+    foreground: root.timeColor()
     tooltipText: "Calendar · left-click for the month · right-click for menu"
       + " · middle-click for the timezone"
       + (root.zone === "" ? "" : " · " + root.zone)
