@@ -134,6 +134,23 @@ hl.window_rule({
   float = true,
 })
 
+-- Minecraft runs under GLFW with its own frame loop, so the compositor
+-- should get out of its way: no animations, no blur, no shadows, no dimming,
+-- and tearing allowed via `immediate` (needs `general.allow_tearing` above).
+-- The class carries the version ("Minecraft 1.20.4"), so match on the prefix.
+hl.window_rule({
+  name = "minecraft-gamemode",
+  match = {
+    class = "^Minecraft",
+  },
+  no_anim = true,
+  no_blur = true,
+  no_shadow = true,
+  no_dim = true,
+  immediate = true,
+  idle_inhibit = "focus",
+})
+
 hl.on("layer.closed", function(layer)
   -- namespace is read off the layer rather than assumed: indexing nil raises
   -- inside the callback, and an event handler that dies silently is worse

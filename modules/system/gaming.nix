@@ -1,4 +1,4 @@
-{ config, lib, ... }:
+{ config, lib, pkgs, ... }:
 
 let
   cfg = config.anixie.gaming;
@@ -45,7 +45,32 @@ in
     # why Steam is a system-level package rather than a user one.
     hardware.graphics.enable32Bit = true;
 
-    programs.gamemode.enable = cfg.gamemode;
+    programs.gamemode = {
+      enable = cfg.gamemode;
+
+      # Make GameMode actually do something useful for a game like Minecraft:
+      # raise the game's niceness window, hand it the performance CPU governor
+      # and the high GPU DPM level, and stop the screen from blanking mid-match.
+      # Renice needs the user in the `gamemode` group (see users.nix).
+      settings = lib.mkIf cfg.gamemode {
+        general = {
+          renice = 10;
+          ioprio = 0;
+          inhibit_screensaver = 1;
+        };
+
+        gpu = {
+          apply_gpu_optimisations = "accept-responsibility";
+          gpu_device = 0;
+          amd_performance_level = "high";
+        };
+
+        custom = {
+          start = "${pkgs.libnotify}/bin/notify-send 'GameMode started'";
+          end = "${pkgs.libnotify}/bin/notify-send 'GameMode ended'";
+        };
+      };
+    };
 
     programs.steam = lib.mkIf cfg.steam.enable {
       enable = true;

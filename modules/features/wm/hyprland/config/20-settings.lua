@@ -71,6 +71,11 @@ hl.config({
     border_size = 1,
     resize_on_border = true,
 
+    -- Tearing is off by default. Minecraft (and other games) opt in per window
+    -- through the `immediate` window rule below, which is what lets them bypass
+    -- the compositor and present on the next vblank.
+    allow_tearing = true,
+
     ["col.active_border"] = theme_colour("primary", "@PRIMARY_RGBA_FF@"),
     ["col.inactive_border"] = theme_colour("muted", "@MUTED_RGBA_AA@"),
   },
@@ -156,6 +161,11 @@ hl.config({
     -- normally does this itself; these cover a DPMS state set by anything else.
     key_press_enables_dpms = true;
     mouse_move_enables_dpms = true;
+
+    -- Variable frame rate saves power on the desktop, but it makes the
+    -- compositor hold frames back, which reads as stutter in a game. Keep
+    -- the frame clock steady while gaming; the cost is a few watts at idle.
+    vfr = false;
   };
 })
 

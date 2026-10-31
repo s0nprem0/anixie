@@ -1,4 +1,6 @@
 {
+  config,
+  lib,
   pkgs,
   user,
   ...
@@ -30,6 +32,8 @@
       "podman"
       "libvirtd"
       "kvm"
-    ];
+    ]
+    # GameMode's renice needs the user in the `gamemode` group.
+    ++ lib.optionals ((config.anixie.gaming.enable or false) && (config.anixie.gaming.gamemode or false)) [ "gamemode" ];
   };
 }
