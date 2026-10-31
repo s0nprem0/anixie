@@ -70,7 +70,10 @@ Item {
   readonly property int activeCount: {
     const list = Array.isArray(root.outputs) ? root.outputs : []
     let count = 0
-    for (let i = 0; i < list.length; i++) if (list[i].disabled !== true) count += 1
+    for (let i = 0; i < list.length; i++) {
+      const item = list[i]
+      if (item && item.disabled !== true) count += 1
+    }
     return count
   }
 
@@ -78,7 +81,10 @@ Item {
     const text = String(raw || "").trim()
     // An empty read is a failure, not an empty desktop: keep the last list
     // rather than blanking the panel on a transient hyprctl error.
-    if (text === "") return
+    if (text === "") {
+      root.listError = "could not read the display list"
+      return
+    }
 
     try {
       const list = JSON.parse(text)
@@ -97,24 +103,15 @@ Item {
       root.snapshot = next
       root.outputs = list
       root.listError = ""
+      // A fresh list supersedes any state tracked while the previous one was in
+      // flight.
+      root.pendingStates = ({})
     } catch (e) {
       root.listError = "could not read the display list"
     }
   }
 
   property bool queryPending: false
-
-  // Hot-plug: re-read the list when an output arrives or leaves, rather than
-  // waiting for the next manual refresh or the eight-second fallback.
-  property Connections hotplug: Connections {
-    target: Hyprland
-
-    function onRawEvent(event) {
-      if (event && (event.name === "monitoradded" || event.name === "monitorremoved")) {
-        root.query()
-      }
-    }
-  }
 
   function query() {
     // A read already in flight will be followed by one more, rather than being
@@ -135,24 +132,66 @@ Item {
     return key === "scale" || key === "transform" || key === "mode"
   }
 
-  function isOff(name) {
+  function baseDisabled(name) {
     const list = Array.isArray(root.outputs) ? root.outputs : []
     for (let i = 0; i < list.length; i++) {
-      if (list[i].name === name) return list[i].disabled === true
+      const item = list[i]
+      if (item && item.name === name) return item.disabled === true
     }
     return false
+  }
+
+  function baseMirrorOf(name) {
+    const list = Array.isArray(root.outputs) ? root.outputs : []
+    for (let i = 0; i < list.length; i++) {
+      const item = list[i]
+      if (item && item.name === name) return String(item.mirrorOf || "none")
+    }
+    return "none"
+  }
+
+  function isOff(name) {
+    const state = root.pendingStates[name]
+    if (state && state.disabled !== undefined) return state.disabled === true
+    return root.baseDisabled(name)
+  }
+
+  function effectiveMirrorOf(name) {
+    const state = root.pendingStates[name]
+    if (state && state.mirrorOf !== undefined) return String(state.mirrorOf)
+    return root.baseMirrorOf(name)
   }
 
   function set(output, key, value) {
     if (root.confirming) return
     root.setError = ""
-    // An off screen cannot go unreadable, and a try there would revert before
-    // anyone turned it back on. Save those changes straight away; they take
-    // effect when the screen comes up.
-    root.pending.push({
-      mode: root.disruptive(key) && !root.isOff(output) ? "try" : "set",
-      args: [output, key, String(value)]
-    })
+
+    const off = root.isOff(output)
+    const mode = root.disruptive(key) && !off ? "try" : "set"
+    const request = { mode: mode, args: [output, key, String(value)] }
+
+    // Coalesce only an identical pending set. A try, mirror, or power operation
+    // is a boundary and must keep its place in the queue.
+    const last = root.pending.length > 0 ? root.pending[root.pending.length - 1] : null
+    if (last && last.mode === "set" && last.args[0] === output && last.args[1] === key) {
+      last.args[2] = String(value)
+    } else {
+      root.pending.push(request)
+    }
+
+    // Track state-dependent decisions for later queued operations. A try does
+    // not change whether the output is off; disabled and mirror are direct sets.
+    if (key === "disabled" || key === "mirror") {
+      if (!root.pendingStates[output]) {
+        root.pendingStates[output] = {
+          disabled: off,
+          mirrorOf: root.effectiveMirrorOf(output)
+        }
+      }
+      if (key === "disabled") root.pendingStates[output].disabled = String(value) === "yes"
+      if (key === "mirror") root.pendingStates[output].mirrorOf = String(value)
+    }
+
     root.startSet()
   }
 
@@ -188,10 +227,15 @@ Item {
   // ---- modes ----
 
   function parseMode(value) {
-    const match = /^(\d+)x(\d+)@([\d.]+)/.exec(String(value))
-    return match
-      ? { width: Number(match[1]), height: Number(match[2]), rate: Number(match[3]) }
-      : null
+    const match = /^(\d+)x(\d+)@(\d+(?:\.\d+)?)$/.exec(String(value || "").trim())
+    if (!match) return null
+    const width = Number(match[1])
+    const height = Number(match[2])
+    const rate = Number(match[3])
+    if (!Number.isFinite(width) || width <= 0) return null
+    if (!Number.isFinite(height) || height <= 0) return null
+    if (!Number.isFinite(rate) || rate <= 0) return null
+    return { width: width, height: height, rate: rate }
   }
 
   function rateLabel(rate) {
@@ -242,17 +286,24 @@ Item {
     const width = Number(block.width || 0)
     const height = Number(block.height || 0)
     const rate = Number(block.refreshRate || 0)
+    if (!Number.isFinite(width) || width <= 0) return -1
+    if (!Number.isFinite(height) || height <= 0) return -1
+    if (!Number.isFinite(rate) || rate < 0) return -1
+
     let best = -1
     let bestDelta = Infinity
     for (let i = 1; i < modes.length; i++) {
-      if (modes[i].width !== width || modes[i].height !== height) continue
-      const delta = Math.abs(modes[i].rate - rate)
+      const candidate = modes[i]
+      if (!candidate || !Number.isFinite(candidate.width) || !Number.isFinite(candidate.height)
+          || !Number.isFinite(candidate.rate)) continue
+      if (candidate.width !== width || candidate.height !== height) continue
+      const delta = Math.abs(candidate.rate - rate)
       if (delta < bestDelta) {
         bestDelta = delta
         best = i
       }
     }
-    return bestDelta <= 0.5 ? best : -1
+    return best >= 0 && bestDelta <= 0.5 ? best : -1
   }
 
   // ---- names and arrangement ----
@@ -274,12 +325,12 @@ Item {
   // 1.25x screen is treated as 1920 wide when the compositor is using 1536.
   function logicalWidth(output) {
     const scale = Number(output.scale || 1)
-    return Number(output.width || 0) / (scale > 0 ? scale : 1)
+    return Math.round(Number(output.width || 0) / (scale > 0 ? scale : 1))
   }
 
   function logicalHeight(output) {
     const scale = Number(output.scale || 1)
-    return Number(output.height || 0) / (scale > 0 ? scale : 1)
+    return Math.round(Number(output.height || 0) / (scale > 0 ? scale : 1))
   }
 
   // The other screens this one can be placed against or mirror onto. A screen
@@ -290,8 +341,8 @@ Item {
     for (let i = 0; i < list.length; i++) {
       const other = list[i]
       if (other.name === block.name) continue
-      if (other.disabled === true) continue
-      if (String(other.mirrorOf || "none") !== "none") continue
+      if (root.isOff(other.name)) continue
+      if (root.effectiveMirrorOf(other.name) !== "none") continue
       out.push(other)
     }
     return out
@@ -333,10 +384,10 @@ Item {
     for (let i = 0; i < others.length; i++) {
       const other = others[i]
       const label = root.shortName(other)
-      if (other.x + root.logicalWidth(other) === x && other.y === y) return "left of " + label
-      if (x + width === other.x && other.y === y) return "right of " + label
-      if (other.y + root.logicalHeight(other) === y && other.x === x) return "above " + label
-      if (y + height === other.y && other.x === x) return "below " + label
+      if (Math.abs(other.x + root.logicalWidth(other) - x) <= 1 && Math.abs(other.y - y) <= 1) return "left of " + label
+      if (Math.abs(x + width - other.x) <= 1 && Math.abs(other.y - y) <= 1) return "right of " + label
+      if (Math.abs(other.y + root.logicalHeight(other) - y) <= 1 && Math.abs(other.x - x) <= 1) return "above " + label
+      if (Math.abs(y + height - other.y) <= 1 && Math.abs(other.x - x) <= 1) return "below " + label
     }
     return x + ", " + y
   }
@@ -419,6 +470,14 @@ Item {
       if (code !== 0) {
         const message = String(actionErrorOutput.text || "").trim()
         root.setError = message !== "" ? message : "could not settle the display change"
+
+        // A failed Keep or Revert does not settle the display. Preserve the
+        // pending change, report the failure, and re-read the actual state. The
+        // queue stays parked until the operation is retried or cancelled.
+        root.action = ""
+        root.query()
+        applyDialog.open()
+        return
       }
 
       // Keep and Revert both end the try, including a timer that already fired
@@ -529,9 +588,9 @@ Item {
         height: body.implicitHeight
 
         readonly property string name: block.modelData.name
-        readonly property bool off: block.modelData.disabled === true
+        readonly property bool off: root.isOff(block.name)
         readonly property bool focused: block.modelData.focused === true
-        readonly property bool mirroring: String(block.modelData.mirrorOf || "none") !== "none"
+        readonly property bool mirroring: root.effectiveMirrorOf(block.name) !== "none"
         readonly property var modes: root.modeOptions(block.modelData)
         readonly property var placements: root.placementOptions(block)
 
@@ -543,8 +602,8 @@ Item {
           const outputs = Array.isArray(root.outputs) ? root.outputs : []
           for (let i = 0; i < outputs.length; i++) {
             const other = outputs[i]
-            if (other.name !== block.name && other.disabled !== true
-                && String(other.mirrorOf || "none") === "none") {
+            if (other.name !== block.name && !root.isOff(other.name)
+                && root.effectiveMirrorOf(other.name) === "none") {
               options.push({ label: "Mirror of " + root.shortName(other), value: other.name })
             }
           }
@@ -704,11 +763,7 @@ Item {
               width: sdrBrightnessRow.controlWidth
               model: ["0.8", "1.0", "1.2", "1.5"]
               placeholder: "1.0"
-              currentIndex: {
-                const v = String(block.modelData.sdrBrightness || "1")
-                const idx = ["0.8", "1.0", "1.2", "1.5"].indexOf(v)
-                return idx >= 0 ? idx : 1
-              }
+              currentIndex: ["0.8", "1.0", "1.2", "1.5"].indexOf(String(block.modelData.sdrBrightness || ""))
               onActivated: function (index) {
                 root.set(block.name, "sdrbrightness", ["0.8", "1.0", "1.2", "1.5"][index])
               }
@@ -728,11 +783,7 @@ Item {
               width: sdrSaturationRow.controlWidth
               model: ["0.8", "1.0", "1.2", "1.5"]
               placeholder: "1.0"
-              currentIndex: {
-                const v = String(block.modelData.sdrSaturation || "1")
-                const idx = ["0.8", "1.0", "1.2", "1.5"].indexOf(v)
-                return idx >= 0 ? idx : 1
-              }
+              currentIndex: ["0.8", "1.0", "1.2", "1.5"].indexOf(String(block.modelData.sdrSaturation || ""))
               onActivated: function (index) {
                 root.set(block.name, "sdrsaturation", ["0.8", "1.0", "1.2", "1.5"][index])
               }
