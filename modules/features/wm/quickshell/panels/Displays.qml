@@ -419,7 +419,8 @@ Item {
       id: listErrorOutput
     }
     onExited: function (code) {
-      if (code !== 0) {
+      if (code === 0) root.listError = ""
+      else {
         const message = String(listErrorOutput.text || "").trim()
         root.listError = message !== "" ? message : "could not read the display list"
       }
@@ -443,6 +444,8 @@ Item {
         const message = String(setErrorOutput.text || "").trim()
         root.setError = message !== "" ? message : "could not change the display"
         root.pendingChange = null
+      } else {
+        root.setError = ""
       }
 
       // A try that landed is not decided yet: the dialog owns the next step,
@@ -482,6 +485,7 @@ Item {
 
       // Keep and Revert both end the try, including a timer that already fired
       // before the button was pressed.
+      root.setError = ""
       root.action = ""
       root.confirming = false
       root.pendingChange = null
