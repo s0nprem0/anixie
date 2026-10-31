@@ -9,8 +9,8 @@
 #   clipboard-watch          watch text and images
 #   clipboard-watch store    the child mode run once per new selection
 #
-# wl-paste runs --watch commands through a shell, so the child mode is this
-# script again rather than a function that would not exist in that shell.
+# wl-paste runs the watched command directly, so the child mode is this script
+# again with an explicit "store" argument.
 
 set -u
 
@@ -38,12 +38,11 @@ case "${1:-watch}" in
     exec "$cliphist" store
     ;;
   watch)
-    # The path is quoted for the shell wl-paste starts, not for this one. A Nix
-    # store path has no quotes or spaces, so this is safe to build by hand.
-    watch_child="'$0' store"
-    "$wl_paste" --type text --watch "$watch_child" &
+    # wl-paste execs the watched command directly (it does not invoke a shell),
+    # so pass the script and its "store" argument as separate argv entries.
+    "$wl_paste" --type text --watch "$0" store &
     text_watcher=$!
-    "$wl_paste" --type image --watch "$watch_child" &
+    "$wl_paste" --type image --watch "$0" store &
     image_watcher=$!
 
     trap 'kill "$text_watcher" "$image_watcher" 2>/dev/null' TERM INT
