@@ -30,13 +30,13 @@ Item {
     return ["clear", "glassy", "opaque"].indexOf(mode)
   }
 
-  implicitWidth: Style.space(360)
+  implicitWidth: Style.space(340)
   implicitHeight: card.implicitHeight
 
   Panel {
     id: card
     anchors.fill: parent
-    maxWidth: Style.space(360)
+    maxWidth: Style.space(340)
 
     PanelHero {
       width: card.contentWidth

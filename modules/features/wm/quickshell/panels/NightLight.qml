@@ -13,13 +13,13 @@ Item {
   property string onTime: "19:00"
   property string offTime: "07:00"
 
-  implicitWidth: Style.space(360)
+  implicitWidth: Style.space(340)
   implicitHeight: card.implicitHeight
 
   Panel {
     id: card
     anchors.fill: parent
-    maxWidth: Style.space(360)
+    maxWidth: Style.space(340)
 
     PanelHero {
       width: card.contentWidth

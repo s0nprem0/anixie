@@ -30,7 +30,7 @@ Item {
     confirm.open()
   }
 
-  implicitWidth: Style.space(320)
+  implicitWidth: Style.space(340)
   implicitHeight: card.implicitHeight
 
   Panel {
