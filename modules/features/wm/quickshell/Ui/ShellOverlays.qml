@@ -103,7 +103,7 @@ Item {
     anchors.bottom: true
     anchors.left: true
 
-    implicitWidth: Style.space(6)
+    implicitWidth: Style.space(12)
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     visible: !DockHost.shown && DockHost.autoHide

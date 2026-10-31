@@ -25,8 +25,8 @@ Item {
 
   height: Style.space(34)
 
-  scale: hover.containsMouse ? 1.05 : 1.0
-  transformOrigin: Item.Left
+  scale: hover.containsMouse ? 1.06 : 1.0
+  transformOrigin: Item.Center
   Behavior on scale { NumberAnimation { duration: Style.duration(120) } }
 
   Rectangle {
