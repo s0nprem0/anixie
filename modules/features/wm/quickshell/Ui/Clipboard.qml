@@ -277,12 +277,38 @@ Item {
                 renderType: Text.NativeRendering
               }
 
+              Text {
+                id: deleteButton
+
+                anchors.right: parent.right
+                anchors.rightMargin: Style.space(4)
+                anchors.verticalCenter: parent.verticalCenter
+
+                visible: rowMouse.containsMouse
+                text: "×"
+                color: deleteMouse.containsMouse ? Theme.danger : Theme.muted
+                font.family: Style.font.family
+                font.pixelSize: Style.font.body
+                renderType: Text.NativeRendering
+
+                MouseArea {
+                  id: deleteMouse
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: {
+                    ClipboardHost.select(row.index)
+                    ClipboardHost.deleteCurrent()
+                  }
+                }
+              }
+
               // The reference marks the entries that have more to show. The
               // marker is the same promise the second pane keeps.
               Text {
                 id: indicator
 
-                anchors.right: parent.right
+                anchors.right: deleteButton.left
                 anchors.rightMargin: Style.space(4)
                 anchors.verticalCenter: parent.verticalCenter
 
