@@ -60,10 +60,63 @@ QtObject {
   readonly property var source: Pipewire.defaultAudioSource
   readonly property var inputAudio: source ? source.audio : null
 
+  // ---- validation helpers ----
+
+  function parseInteger(text) {
+    const s = String(text === undefined || text === null ? "" : text).trim()
+    if (s === "") return null
+    if (!/^[+-]?\d+$/.test(s)) return null
+    const n = Number(s)
+    if (!Number.isFinite(n)) return null
+    return n
+  }
+
+  function parseDuration(text) {
+    const s = String(text === undefined || text === null ? "" : text).trim()
+    if (s === "") return null
+    if (!/^[+-]?\d+$/.test(s)) return null
+    const n = Number(s)
+    if (!Number.isFinite(n) || n < 0) return null
+    return n
+  }
+
+  function safeDurationScale(scale) {
+    const n = Number(scale)
+    if (!Number.isFinite(n)) return 1
+    return Math.max(0.25, Math.min(4, n))
+  }
+
+  function safeAutoScale(screen) {
+    if (!screen) return 1
+    const width = Number(screen.width)
+    if (!Number.isFinite(width) || width <= 0) return 1
+    if (width >= 2560) return 1.25
+    if (width <= 1600) return 0.9
+    return 1.0
+  }
+
+  function resolveScreen(requested) {
+    const name = String(requested === undefined || requested === null ? "" : requested).trim()
+    if (name !== "") {
+      const found = Screens.byName(name)
+      if (found) return found
+    }
+
+    const preferred = String(root.preferredScreen || "").trim()
+    if (preferred !== "") {
+      const found = Screens.byName(preferred)
+      if (found) return found
+    }
+
+    return Screens.focused
+  }
+
   // The names Omarchy's OSD accepts, plus the literal glyph fallback. Keeping
   // the names means a script written for one shell reads the same here.
   function glyphFor(name, percent) {
-    const key = String(name || "").toLowerCase()
+    const key = String(name === undefined || name === null ? "" : name).toLowerCase()
+
+    if (key === "") return ""
 
     if (key === "volume-muted" || key === "volume-mute" || key === "muted" || key === "mute") return Util.volumeMute
     if (key === "volume-low" || key === "volume-medium") return Util.volumeLow
@@ -87,74 +140,102 @@ QtObject {
     if (key === "media-previous" || key === "player-previous") return Util.mediaPrevious
 
     if (key.length > 0) return name
-    if (percent <= 0) return Util.volumeMute
-    if (percent <= 66) return Util.volumeLow
-    return Util.volumeHigh
+    return ""
   }
 
   // A level is read at a glance; a message is read as a sentence. One and a
   // half seconds could hold "42%" but not a track title, and a notice that
   // leaves before it is finished is not a readout.
   function readableDuration(message) {
-    const length = String(message || "").length
-    return Math.min(4000, Math.max(1400, 700 + length * 35))
+    const text = String(message === undefined || message === null ? "" : message)
+    const length = text.length
+    const duration = 700 + length * 35
+    return Math.min(4000, Math.max(1400, duration))
   }
 
   function show(iconName, rawMessage, rawValue, rawMax, rawProgressText, rawDuration, rawScreen) {
-    root.screenName = (rawScreen === undefined || rawScreen === null) ? "" : String(rawScreen)
-    const raw = String(rawValue === undefined ? "" : rawValue)
-    const parsed = parseInt(raw, 10)
-    const max = Math.max(1, parseInt(String(rawMax === undefined ? "100" : rawMax), 10))
+    root.hideTimer.stop()
+
+    const requestedScreen = (rawScreen === undefined || rawScreen === null)
+      ? ""
+      : String(rawScreen).trim()
+    // Keep the public property clean: an invalid or empty request does not leave
+    // a stale screen name behind.
+    root.screenName = requestedScreen !== "" && Screens.byName(requestedScreen)
+      ? requestedScreen
+      : ""
+
+    const message = String(rawMessage === undefined || rawMessage === null ? "" : rawMessage)
+    const raw = String(rawValue === undefined || rawValue === null ? "" : rawValue)
+    const parsedValue = root.parseInteger(raw)
+    const parsedMax = root.parseInteger(rawMax === undefined ? "100" : rawMax)
+    const max = parsedMax === null ? 100 : Math.max(1, parsedMax)
 
     // A value with no message is a level; a message with no value is a notice.
     // The message itself wins when both are supplied.
-    const progress = raw !== "" && !isNaN(parsed) && String(rawMessage || "") === ""
-    const value = progress ? Math.max(0, Math.min(max, parsed)) : 0
+    const progress = raw !== "" && parsedValue !== null && message === ""
+    const value = progress ? Math.max(0, Math.min(max, parsedValue)) : 0
     const percent = progress ? Math.round(value * 100 / max) : -1
-    const message = String(rawMessage || (progress ? (rawProgressText || percent + "%") : ""))
 
-    // An explicit duration — including zero, which means "until dismissed" —
-    // wins. Otherwise the readout stays long enough for its own text.
-    const requested = String(rawDuration === undefined ? "" : rawDuration).trim()
-    const explicit = parseInt(requested, 10)
+    const progressText = (rawProgressText === undefined || rawProgressText === null)
+      ? ""
+      : String(rawProgressText)
+    const progressMessage = progress
+      ? (progressText !== "" ? progressText : (percent + "%"))
+      : ""
+    const finalMessage = message !== "" ? message : progressMessage
 
-    const screen = root.screenName !== ""
-      ? (Screens.byName(root.screenName) || Screens.focused)
-      : Screens.focused
+    const requested = String(rawDuration === undefined || rawDuration === null ? "" : rawDuration).trim()
+    const explicit = requested === "" ? null : root.parseDuration(requested)
+    const screen = root.resolveScreen(requestedScreen)
     const autoScale = root.autoDuration
-      ? (screen && screen.width >= 2560 ? 1.25 : (screen && screen.width <= 1600 ? 0.9 : 1.0))
-      : root.durationScale
+      ? root.safeAutoScale(screen)
+      : root.safeDurationScale(root.durationScale)
 
-    const baseDuration = progress ? 1200 : root.readableDuration(message)
-    const duration = requested !== "" && !isNaN(explicit)
-      ? Math.max(0, explicit)
+    const baseDuration = progress ? 1200 : root.readableDuration(finalMessage)
+    let duration = explicit !== null
+      ? explicit
       : Math.round(baseDuration * autoScale)
 
-    root.iconKey = String(iconName || "").toLowerCase()
-    root.icon = root.glyphFor(iconName, percent)
+    if (!Number.isFinite(duration) || duration < 0) duration = baseDuration
+    if (!Number.isFinite(duration) || duration < 0) duration = 1200
+
+    const iconKey = String(iconName === undefined || iconName === null ? "" : iconName).toLowerCase()
+
+    root.iconKey = iconKey
+    if (iconKey === "") {
+      root.icon = progress
+        ? (percent <= 0 ? Util.volumeMute : (percent <= 66 ? Util.volumeLow : Util.volumeHigh))
+        : ""
+    } else {
+      root.icon = root.glyphFor(iconName, percent)
+    }
+
     root.hasProgress = progress
     root.value = value
     root.maxValue = max
-    root.message = message
+    root.message = finalMessage
     root.duration = duration
     root.opened = true
 
     // A zero duration is a readout that stays until something closes it.
-    if (root.duration > 0) hideTimer.restart()
-    else hideTimer.stop()
+    if (root.duration > 0) root.hideTimer.restart()
+    else root.hideTimer.stop()
   }
 
   function showPayload(raw) {
     try {
-      const payload = JSON.parse(String(raw || "{}"))
+      const payload = JSON.parse(String(raw === undefined || raw === null ? "{}" : raw))
       root.show(
-        payload.icon || "",
-        payload.message || "",
+        payload.icon === undefined ? "" : payload.icon,
+        payload.message === undefined ? "" : payload.message,
         payload.value === undefined ? "" : String(payload.value),
         payload.max === undefined ? "100" : String(payload.max),
-        payload.progressText || "",
+        payload.progressText === undefined ? "" : payload.progressText,
         payload.duration === undefined ? "" : String(payload.duration),
-        payload.screen === undefined ? root.preferredScreen : String(payload.screen || "")
+        payload.screen === undefined
+          ? (payload.screen === null ? "" : (root.preferredScreen || ""))
+          : String(payload.screen || "")
       )
     } catch (e) {
       console.warn("osd: could not parse payload: " + e)
@@ -163,7 +244,7 @@ QtObject {
 
   function hide() {
     root.opened = false
-    hideTimer.stop()
+    root.hideTimer.stop()
   }
 
   function showVolume() {
@@ -195,21 +276,26 @@ QtObject {
   // reloaded contents do and reading then reports the value before it.
   function showBrightness() {
     if (!root.armed || root.backlightDir === "") return
-    brightnessProbe.running = true
+
+    if (root.brightnessProbe.running) root.brightnessProbe.running = false
+
+    root.brightnessToken += 1
+    root.brightnessActiveToken = root.brightnessToken
+    root.brightnessProbe.running = true
   }
 
   // Volume arrives through the sink's volume and mute, either of which can
   // change on its own; both end up reporting the same readout.
   property Connections audioWatch: Connections {
     target: root.audio
-    function onVolumesChanged() { root.showVolume() }
-    function onMutedChanged() { root.showVolume() }
+    function onVolumesChanged() { root.volumeNotifyTimer.restart() }
+    function onMutedChanged() { root.volumeNotifyTimer.restart() }
   }
 
   property Connections microphoneWatch: Connections {
     target: root.inputAudio
-    function onVolumesChanged() { root.showMicrophone() }
-    function onMutedChanged() { root.showMicrophone() }
+    function onVolumesChanged() { root.microphoneNotifyTimer.restart() }
+    function onMutedChanged() { root.microphoneNotifyTimer.restart() }
   }
 
   // Track both default nodes so their audio properties stay available as
@@ -223,17 +309,31 @@ QtObject {
     }
   }
 
+  property Timer volumeNotifyTimer: Timer {
+    interval: 50
+    onTriggered: root.showVolume()
+  }
+
+  property Timer microphoneNotifyTimer: Timer {
+    interval: 50
+    onTriggered: root.showMicrophone()
+  }
+
   // The backlight device is discovered rather than named: the old hardcoded
   // `amdgpu_bl1` was true only on one machine. As with the reading itself, the
   // file is only a trigger and the value comes from brightnessctl.
   property string backlightDir: ""
 
   property Process backlightFind: Process {
-    running: true
-    command: ["sh", "-c", "ls -d /sys/class/backlight/* 2>/dev/null | head -n 1"]
+    running: false
+    command: ["sh", "-c", "ls -d /sys/class/backlight/* 2>/dev/null | sort | head -n 1"]
 
     stdout: StdioCollector {
-      onStreamFinished: root.backlightDir = String(this.text).trim()
+      onStreamFinished: root.backlightDir = String(this.text || "").trim()
+    }
+
+    onExited: function (exitCode, exitStatus) {
+      if (exitCode !== 0) root.backlightDir = ""
     }
   }
 
@@ -243,29 +343,64 @@ QtObject {
     watchChanges: true
     blockLoading: true
     onFileChanged: root.showBrightness()
+    onLoadFailed: function (error) {
+      root.backlightDir = ""
+      root.backlightFind.running = true
+    }
   }
 
   // Machine readable, so one call carries both the reading and its scale:
   // device,class,current,percent%,max
+  property int brightnessToken: 0
+  property int brightnessActiveToken: 0
+  property int brightnessProcessedToken: 0
+  property string brightnessOutput: ""
+
   property Process brightnessProbe: Process {
     command: ["brightnessctl", "--machine-readable"]
 
     stdout: StdioCollector {
-      onStreamFinished: {
-        const percent = parseInt(String(this.text.trim().split(",")[3] || "").replace("%", ""), 10)
-        if (isFinite(percent)) root.show("brightness", "", percent, 100, percent + "%", 1200, root.preferredScreen)
-      }
+      onStreamFinished: root.brightnessOutput = String(this.text || "")
     }
+
+    onExited: function (exitCode, exitStatus) {
+      if (root.brightnessToken !== root.brightnessActiveToken) return
+      if (root.brightnessProcessedToken === root.brightnessActiveToken) return
+      root.brightnessProcessedToken = root.brightnessActiveToken
+
+      if (exitCode !== 0) return
+
+      const lines = String(root.brightnessOutput || "").trim().split(/\r?\n/)
+      const raw = lines.length > 0 ? lines[0].trim() : ""
+      if (raw === "") return
+
+      const parts = raw.split(",")
+      if (parts.length < 4) return
+
+      const percentText = String(parts[3] || "").trim().replace("%", "")
+      const percent = root.parseInteger(percentText)
+      if (percent === null) return
+
+      const clamped = Math.max(0, Math.min(100, percent))
+      root.show("brightness", "", clamped, 100, clamped + "%", 1200, root.preferredScreen)
+    }
+
   }
 
-  property Timer armTimer: Timer {
-    interval: 1500
-    running: true
-    onTriggered: root.armed = true
+  property Connections pipewireReady: Connections {
+    target: Pipewire
+    function onReadyChanged() {
+      if (Pipewire.ready) root.armed = true
+    }
   }
 
   property Timer hideTimer: Timer {
     interval: root.duration
     onTriggered: root.opened = false
+  }
+
+  Component.onCompleted: {
+    root.backlightFind.running = true
+    if (Pipewire.ready) root.armed = true
   }
 }

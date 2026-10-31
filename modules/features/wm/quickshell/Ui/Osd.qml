@@ -19,10 +19,32 @@ Item {
     ? Math.max(0, Math.min(1, root.value / root.maxValue))
     : 0
 
+  Accessible.role: root.hasProgress ? Accessible.ProgressBar : Accessible.StaticText
+  Accessible.name: root.message !== ""
+    ? root.message
+    : (root.hasProgress ? (root.value + " of " + root.maxValue) : root.icon)
+  Accessible.description: root.hasProgress
+    ? (root.message !== "" ? root.message : (root.value + " of " + root.maxValue))
+    : root.message
+
+  readonly property real _maxWidth: Math.min(
+    Style.space(root.mediaOsd ? 360 : 240),
+    (root.Screen ? root.Screen.width : 1920) - Style.space(40))
+  readonly property real _preferredTrackWidth: Style.space(140)
+  readonly property real _minimumTrackWidth: Style.space(60)
+
   // A notice with two words should still look like the OSD, not like a tiny
   // label that happened to float in. Levels are already wider than this.
-  implicitWidth: Math.max(Style.space(180), content.implicitWidth + Style.space(28))
+  implicitWidth: Math.min(_maxWidth, Math.max(Style.space(180),
+    root.hasProgress
+      ? (Style.space(24) + Style.space(10) + _preferredTrackWidth
+         + Style.space(10) + Style.space(44) + Style.space(28))
+      : (Style.space(24) + Style.space(10)
+         + Math.min(messageMetrics.advanceWidth, Style.space(root.mediaOsd ? 320 : 220))
+         + Style.space(28))))
   implicitHeight: Style.space(36)
+
+  width: Math.min(implicitWidth, root.parent ? root.parent.width : implicitWidth)
 
   Rectangle {
     anchors.fill: parent
@@ -51,16 +73,18 @@ Item {
       Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         visible: root.hasProgress
-        width: Style.space(140)
+        width: Math.max(root._minimumTrackWidth,
+          (root.width - Style.space(24) - Style.space(10) - Style.space(44)
+           - Style.space(10) - Style.space(28)))
         height: Style.space(6)
-        // A tint of the foreground rather than the background: on a palette
-        // where those two are close, the track disappeared and the level read
-        // as a floating fill with no extent.
+        radius: height / 2
         color: Theme.separator
+        clip: true
 
         Rectangle {
-          width: parent.width * root.ratio
+          width: Math.max(0, Math.min(parent.width, parent.width * root.ratio))
           height: parent.height
+          radius: parent.radius
           color: Theme.primary
 
           Behavior on width {

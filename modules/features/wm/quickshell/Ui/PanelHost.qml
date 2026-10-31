@@ -39,8 +39,34 @@ QtObject {
   // is unset; keying it then put every bar on the focused output.
   property var bars: []
 
+  onBarsChanged: root.pruneBars()
+
+  function isAlive(item) {
+    if (!item) return false
+    try {
+      const value = item.visible
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
+  function pruneBars() {
+    const next = []
+    let changed = false
+    for (let i = 0; i < root.bars.length; i++) {
+      const bar = root.bars[i]
+      if (!root.isAlive(bar)) {
+        changed = true
+        continue
+      }
+      next.push(bar)
+    }
+    if (changed) root.bars = next
+  }
+
   function registerBar(item) {
-    if (!item) return
+    if (!item || !root.isAlive(item)) return
 
     const next = []
     for (let i = 0; i < root.bars.length; i++) {
@@ -48,6 +74,7 @@ QtObject {
     }
     next.push(item)
     root.bars = next
+    root.pruneBars()
   }
 
   function unregisterBar(item) {
@@ -63,6 +90,7 @@ QtObject {
       next.push(root.bars[i])
     }
     if (removed) root.bars = next
+    root.pruneBars()
   }
 
   // The bar on one exact output, or null. Curtains need this rather than
@@ -72,8 +100,14 @@ QtObject {
     const wanted = String(screenName || "")
     if (!wanted) return null
 
+    root.pruneBars()
     for (let i = root.bars.length - 1; i >= 0; i--) {
-      if (Screens.screenNameOf(root.bars[i]) === wanted) return root.bars[i]
+      const bar = root.bars[i]
+      if (!root.isAlive(bar)) continue
+      try {
+        if (Screens.screenNameOf(bar) === wanted) return bar
+      } catch (e) {
+      }
     }
     return null
   }
@@ -85,6 +119,7 @@ QtObject {
     const focused = root.barOn(Screens.focusedName)
     if (focused) return focused
 
+    root.pruneBars()
     return root.bars.length > 0 ? root.bars[root.bars.length - 1] : null
   }
 
@@ -104,6 +139,15 @@ QtObject {
 
   // The panel the keyboard is on, as a key. Empty when nothing is open.
   property string focused: ""
+
+  onFocusedChanged: {
+    if (root.focused === "") return
+    if (root.indexOfKey(root.focused) < 0) {
+      root.focused = root.openPanels.count > 0
+        ? root.openPanels.get(root.openPanels.count - 1).key
+        : ""
+    }
+  }
 
   readonly property bool shown: root.openPanels.count > 0
 
@@ -224,6 +268,7 @@ QtObject {
 
   function showNamed(name, anchor, builder) {
     if (!name || !anchor || !builder) return
+    if (!root.isAlive(anchor)) return
 
     const screenName = Screens.nameOf(anchor)
     if (root.isOpen(name, screenName)) {
@@ -248,16 +293,42 @@ QtObject {
   }
 
   // A name for a panel that has none: a module that only knows its anchor still
-  // needs one to be opened twice or closed by name. Kept on the anchor itself, so
-  // the same widget always names the same panel.
+  // needs one to be opened twice or closed by name. The name is kept in an
+  // internal table rather than attached to the anchor, so arbitrary objects are
+  // not mutated and destroyed anchors can be pruned.
   property int anonymousCount: 0
+  property var anonymousEntries: []
+
+  function pruneAnonymous() {
+    const next = []
+    for (let i = 0; i < root.anonymousEntries.length; i++) {
+      const entry = root.anonymousEntries[i]
+      if (entry && root.isAlive(entry.anchor)) next.push(entry)
+    }
+    root.anonymousEntries = next
+  }
 
   function nameFor(anchor) {
-    if (!anchor.__panelName) {
-      root.anonymousCount += 1
-      anchor.__panelName = "panel-" + root.anonymousCount
+    if (!anchor || !root.isAlive(anchor)) return ""
+
+    // Preserve compatibility with panels that already stored a name on their
+    // anchor before this mapping existed.
+    try {
+      if (anchor.__panelName) return anchor.__panelName
+    } catch (e) {
     }
-    return anchor.__panelName
+
+    root.pruneAnonymous()
+    for (let i = 0; i < root.anonymousEntries.length; i++) {
+      if (root.anonymousEntries[i].anchor === anchor) return root.anonymousEntries[i].name
+    }
+
+    root.anonymousCount += 1
+    const name = "panel-" + root.anonymousCount
+    const next = root.anonymousEntries.slice()
+    next.push({ anchor: anchor, name: name })
+    root.anonymousEntries = next
+    return name
   }
 
   function close(name, screenName) {
@@ -349,26 +420,38 @@ QtObject {
   // supplies both the coordinate space and the size to clamp against.
   function panelX(anchor, width, screenName) {
     const host = root.barFor(screenName)
-    if (!anchor || !host) return 0
+    if (!anchor || !host || !root.isAlive(anchor)) return Style.space(8)
 
-    const left = anchor.mapToItem(host, 0, 0).x
+    let left = 0
+    try {
+      left = anchor.mapToItem(host, 0, 0).x
+    } catch (e) {
+      return Style.space(8)
+    }
     const centre = left + anchor.width / 2
 
     const margin = Style.space(8)
-    return Math.max(margin, Math.min(Math.round(centre - width / 2),
-      Screens.widthOf(screenName) - width - margin))
+    const screenWidth = Math.max(0, Screens.widthOf(screenName) || 0)
+    const maxLeft = Math.max(margin, screenWidth - width - margin)
+    return Math.max(margin, Math.min(Math.round(centre - width / 2), maxLeft))
   }
 
   function panelY(anchor, height, screenName) {
     const host = root.barFor(screenName)
-    if (!anchor || !host) return 0
+    if (!anchor || !host || !root.isAlive(anchor)) return Style.space(8)
 
-    const top = anchor.mapToItem(host, 0, 0).y
+    let top = 0
+    try {
+      top = anchor.mapToItem(host, 0, 0).y
+    } catch (e) {
+      return Style.space(8)
+    }
     const centre = top + anchor.height / 2
 
     const margin = Style.space(8)
-    return Math.max(margin, Math.min(Math.round(centre - height / 2),
-      Screens.heightOf(screenName) - height - margin))
+    const screenHeight = Math.max(0, Screens.heightOf(screenName) || 0)
+    const maxTop = Math.max(margin, screenHeight - height - margin)
+    return Math.max(margin, Math.min(Math.round(centre - height / 2), maxTop))
   }
 
   // The invisible surfaces that dismiss everything.
@@ -420,7 +503,7 @@ QtObject {
 
         MouseArea {
           anchors.fill: parent
-          acceptedButtons: Qt.LeftButton | Qt.RightButton
+          acceptedButtons: Qt.LeftButton
           onPressed: {
             // A click on a screen that has no panel is outside every panel, so
             // it dismisses them all. On a screen with a panel it only closes
@@ -454,7 +537,18 @@ QtObject {
 
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
-        visible: true
+        // Avoid falling back to the primary output when a screen disappears;
+        // the panel is closed by the screen lifecycle handler below instead.
+        visible: panelWindow.screenInfo !== null
+
+        Connections {
+          target: Screens
+          function onNamesChanged() {
+            if (panelWindow.screenName !== "" && !Screens.byName(panelWindow.screenName)) {
+              root.close(panelWindow.name, panelWindow.screenName)
+            }
+          }
+        }
 
         // The bar's edge decides both anchors. A panel always keeps the edge
         // that faces the bar (clear of it by the bar's thickness) and the
@@ -493,15 +587,28 @@ QtObject {
           ? WlrKeyboardFocus.Exclusive
           : WlrKeyboardFocus.None
 
-        implicitWidth: loader.item ? loader.item.implicitWidth : 320
+        readonly property real _maxPanelWidth: Math.max(Style.space(120),
+          (panelWindow.screenInfo ? Screens.widthOf(panelWindow.screenName) : 0) - Style.space(16))
+        implicitWidth: Math.min(_maxPanelWidth,
+          (loader.item && Number.isFinite(loader.item.implicitWidth))
+            ? Math.max(1, loader.item.implicitWidth)
+            : 320)
         implicitHeight: Math.min(
           root.maxHeightFor(panelWindow.screenInfo ? panelWindow.screenInfo.height : 1080),
-          loader.item ? loader.item.implicitHeight : 0)
+          (loader.item && Number.isFinite(loader.item.implicitHeight))
+            ? Math.max(1, loader.item.implicitHeight)
+            : 0)
 
         Loader {
           id: loader
           anchors.fill: parent
           sourceComponent: panelWindow.entry.builder || null
+
+          onStatusChanged: {
+            if (loader.status === Loader.Error) {
+              root.close(panelWindow.name, panelWindow.screenName)
+            }
+          }
 
           // The surface appears the moment the panel opens, but a card that
           // fades in over a tenth of a second reads as a panel opening rather
