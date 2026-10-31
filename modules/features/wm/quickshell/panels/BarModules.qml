@@ -316,7 +316,7 @@ Item {
                   z: 1
 
                   Item {
-                    width: Math.max(0, parent.width - Style.space(168))
+                    width: Math.max(0, parent.width - Style.space(180))
                     height: 1
                   }
 
@@ -438,7 +438,7 @@ Item {
 
         Text {
           anchors.verticalCenter: parent.verticalCenter
-          width: Math.max(Style.space(120), parent.width - Style.space(92))
+          width: Math.max(Style.space(120), parent.width - Style.space(140))
           text: root.prettyId(String(modelData.entry ? modelData.entry.id : ""))
           color: Theme.muted
           font.family: Style.font.family
