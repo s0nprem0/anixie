@@ -28,6 +28,30 @@ Item {
     }
   }
 
+  function clockPreview(format) {
+    const now = new Date()
+    const pad = function (value) { return (value < 10 ? "0" : "") + value }
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    const monthNames = ["January", "February", "March", "April", "May", "June",
+                       "July", "August", "September", "October", "November", "December"]
+    const day = dayNames[now.getDay()]
+    const month = monthNames[now.getMonth()]
+
+    return String(format || "").replace(/dddd|ddd|dd|MMMM|MMM|yyyy|HH|mm|ss|W/g, function (token) {
+      if (token === "dddd") return day
+      if (token === "ddd") return day.slice(0, 3)
+      if (token === "dd") return pad(now.getDate())
+      if (token === "MMMM") return month
+      if (token === "MMM") return month.slice(0, 3)
+      if (token === "yyyy") return String(now.getFullYear())
+      if (token === "HH") return pad(now.getHours())
+      if (token === "mm") return pad(now.getMinutes())
+      if (token === "ss") return pad(now.getSeconds())
+      if (token === "W") return pad(1)
+      return token
+    })
+  }
+
   function prettyId(id) {
     let s = String(id || "")
     s = s.replace(/^bar\./, "")
@@ -500,11 +524,23 @@ Item {
       }
 
       TextField {
+        id: clockFormatInput
         width: parent.width
         visible: parent.selectedId === "bar.clock"
         placeholderText: "Clock format (e.g. dddd HH:mm)"
         text: BarConfig.settingOf(parent.selectedId, "format") || ""
         onEditingFinished: BarConfig.setSetting(parent.selectedId, "format", text)
+      }
+
+      Text {
+        width: parent.width
+        visible: parent.selectedId === "bar.clock"
+        text: "Preview: " + root.clockPreview(clockFormatInput.text || BarConfig.settingOf(parent.selectedId, "format") || "")
+        color: Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        wrapMode: Text.WordWrap
+        renderType: Text.NativeRendering
       }
 
       TextField {
