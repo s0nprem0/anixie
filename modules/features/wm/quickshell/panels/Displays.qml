@@ -151,13 +151,17 @@ Item {
   }
 
   function isOff(name) {
-    const state = root.pendingStates[name]
+    const states = root.pendingStates
+    if (!states) return root.baseDisabled(name)
+    const state = states[name]
     if (state && state.disabled !== undefined) return state.disabled === true
     return root.baseDisabled(name)
   }
 
   function effectiveMirrorOf(name) {
-    const state = root.pendingStates[name]
+    const states = root.pendingStates
+    if (!states) return root.baseMirrorOf(name)
+    const state = states[name]
     if (state && state.mirrorOf !== undefined) return String(state.mirrorOf)
     return root.baseMirrorOf(name)
   }
