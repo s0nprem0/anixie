@@ -1021,6 +1021,7 @@ Item {
             width: parent.width
             height: Style.space(28)
             available: root.radioEnabled && !root.busy
+            clip: true
 
             glyph: netRow.modelData.secured ? Util.lock : ""
             label: netRow.inFlight
@@ -1032,6 +1033,7 @@ Item {
 
             Row {
               spacing: Style.space(6)
+              anchors.verticalCenter: parent.verticalCenter
 
               Text {
                 anchors.verticalCenter: parent.verticalCenter
@@ -1045,6 +1047,7 @@ Item {
 
               Row {
                 spacing: 2
+                anchors.verticalCenter: parent.verticalCenter
 
                 Repeater {
                   model: 4

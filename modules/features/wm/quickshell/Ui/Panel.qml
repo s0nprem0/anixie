@@ -608,7 +608,9 @@ FocusScope {
     // moves under it.
     onContentYChanged: root.updateRing()
 
-    ScrollBar.vertical: ScrollBar {}
+    ScrollBar.vertical: ScrollBar {
+      padding: 0
+    }
 
     Column {
       id: body

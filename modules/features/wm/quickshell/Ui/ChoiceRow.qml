@@ -61,7 +61,7 @@ Item {
   readonly property bool hasDetail: root.detail !== ""
   readonly property bool hasGlyph: root.glyph !== ""
 
-  implicitWidth: Math.max(0, textColumn.width + trailingRow.width + Style.space(8))
+  implicitWidth: parent ? parent.width : (labelText.implicitWidth + trailingRow.implicitWidth + Style.space(32))
   implicitHeight: Math.max(textColumn.height, trailingRow.implicitHeight, Style.space(24))
   height: implicitHeight
 
