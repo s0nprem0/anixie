@@ -147,4 +147,6 @@ Item {
       root.clicked()
     }
   }
+
+  clip: true
 }

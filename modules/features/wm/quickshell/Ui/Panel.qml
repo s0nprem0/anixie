@@ -163,12 +163,21 @@ FocusScope {
   // Every control in the panel, in the order it is written.
   //
   // Cached to avoid rebuilding the whole tree on every key repeat/move; rebuilt
-  // when the structure changes or focus state shifts.
+  // when the structure changes or focus state shifts, debounced to a single
+  // rebuild per frame.
   property var _stopsCache: []
   property bool _stopsDirty: true
 
+  Timer {
+    id: stopsTimer
+    interval: 0
+    repeat: false
+    onTriggered: root.rebuildStops()
+  }
+
   function invalidateStops() {
     root._stopsDirty = true
+    stopsTimer.restart()
   }
 
   function rebuildStops() {
@@ -190,7 +199,10 @@ FocusScope {
   }
 
   function stops() {
-    if (root._stopsDirty) return root.rebuildStops()
+    if (root._stopsDirty) {
+      if (!stopsTimer.running) root.rebuildStops()
+      else return root._stopsCache
+    }
     return root._stopsCache
   }
 

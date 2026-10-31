@@ -76,4 +76,6 @@ Item {
     onExited: if (root.tooltipText !== "") TooltipHost.hide(root)
     onClicked: root.clicked()
   }
+
+  clip: true
 }

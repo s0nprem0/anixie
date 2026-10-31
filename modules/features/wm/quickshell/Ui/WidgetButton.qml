@@ -199,4 +199,6 @@ Item {
       root.wheelMoved(wheel.angleDelta.y)
     }
   }
+
+  clip: true
 }
