@@ -124,6 +124,16 @@ hl.window_rule({
   float = true,
 })
 
+-- Prism Launcher is a launcher, not a document: its windows (including the
+-- quick setup and settings dialogs) should float rather than tile.
+hl.window_rule({
+  name = "prism-launcher-float",
+  match = {
+    class = "^org\\.prismlauncher\\.PrismLauncher$",
+  },
+  float = true,
+})
+
 hl.on("layer.closed", function(layer)
   -- namespace is read off the layer rather than assumed: indexing nil raises
   -- inside the callback, and an event handler that dies silently is worse
