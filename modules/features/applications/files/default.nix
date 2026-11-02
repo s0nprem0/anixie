@@ -16,7 +16,10 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ pkgs.thunar pkgs.xfce4-exo ];
+    home.packages = [
+      pkgs.thunar
+      pkgs.xfce4-exo
+    ];
 
     # kitty and yazi both claim folders in their desktop entries, and with no
     # default the winner is whichever entry happens to be read first — a

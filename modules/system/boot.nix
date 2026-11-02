@@ -39,9 +39,13 @@
       let
         swapDevices = lib.filter (s: s.device != null) config.swapDevices;
         partitionSwaps = lib.filter (s: lib.hasPrefix "/dev/disk/by-uuid/" s.device) swapDevices;
-        fileSwaps = lib.filter (s: lib.hasSuffix ".swap" s.device || lib.hasInfix "/swapfile" s.device) swapDevices;
+        fileSwaps = lib.filter (
+          s: lib.hasSuffix ".swap" s.device || lib.hasInfix "/swapfile" s.device
+        ) swapDevices;
         # Never treat zram or swap files as resume partitions
-        valid = lib.filter (s: !(lib.elem s fileSwaps) && !(lib.hasPrefix "/dev/zram" s.device)) partitionSwaps;
+        valid = lib.filter (
+          s: !(lib.elem s fileSwaps) && !(lib.hasPrefix "/dev/zram" s.device)
+        ) partitionSwaps;
       in
       if valid == [ ] then
         lib.warn "boot.nix: no UUID-based swap partition found for hibernation resume; boot.resumeDevice left unset" null
