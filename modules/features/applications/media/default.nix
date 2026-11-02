@@ -54,6 +54,26 @@ in
     xdg.mimeApps = {
       enable = true;
       defaultApplications = {
+        # Images: mpv handles stills too, so xdg-open on a picture is not a dead end.
+        "image/png" = "mpv.desktop";
+        "image/jpeg" = "mpv.desktop";
+        "image/jpg" = "mpv.desktop";
+        "image/gif" = "mpv.desktop";
+        "image/webp" = "mpv.desktop";
+        "image/bmp" = "mpv.desktop";
+        "image/tiff" = "mpv.desktop";
+        "image/svg+xml" = "mpv.desktop";
+        "image/avif" = "mpv.desktop";
+        "image/heic" = "mpv.desktop";
+        # Audio
+        "audio/mpeg" = "mpv.desktop";
+        "audio/mp3" = "mpv.desktop";
+        "audio/flac" = "mpv.desktop";
+        "audio/ogg" = "mpv.desktop";
+        "audio/wav" = "mpv.desktop";
+        "audio/x-wav" = "mpv.desktop";
+        "audio/aac" = "mpv.desktop";
+        "audio/mp4" = "mpv.desktop";
         "video/mp4" = "mpv.desktop";
         "video/x-m4v" = "mpv.desktop";
         "video/quicktime" = "mpv.desktop";
