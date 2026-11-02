@@ -1,0 +1,95 @@
+singleton Style 1.0 Style.qml
+singleton Util 1.0 Util.qml
+singleton Screens 1.0 Screens.qml
+singleton Commands 1.0 Commands.qml
+singleton Bar 1.0 Bar.qml
+singleton BarDrag 1.0 BarDrag.qml
+singleton OsdHost 1.0 OsdHost.qml
+singleton IdentifyHost 1.0 IdentifyHost.qml
+singleton BackgroundHost 1.0 BackgroundHost.qml
+BackgroundSurface 1.0 BackgroundSurface.qml
+singleton LockHost 1.0 LockHost.qml
+singleton NetworkHost 1.0 NetworkHost.qml
+singleton IdleHost 1.0 IdleHost.qml
+singleton ContextMenuHost 1.0 ContextMenuHost.qml
+singleton FocusHost 1.0 FocusHost.qml
+singleton ScreentimeStore 1.0 ScreentimeStore.qml
+Screensaver 1.0 Screensaver.qml
+LockSurface 1.0 LockSurface.qml
+singleton CapturePreview 1.0 CapturePreview.qml
+singleton NotificationHost 1.0 NotificationHost.qml
+singleton NotificationStore 1.0 NotificationStore.qml
+NotificationQuiet 1.0 NotificationQuiet.qml
+NotificationSharing 1.0 NotificationSharing.qml
+NotificationReplay 1.0 NotificationReplay.qml
+NotificationFocus 1.0 NotificationFocus.qml
+NotificationPopups 1.0 NotificationPopups.qml
+ShellLayers 1.0 ShellLayers.qml
+ShellOverlays 1.0 ShellOverlays.qml
+PickerLayer 1.0 PickerLayer.qml
+ClipboardLayer 1.0 ClipboardLayer.qml
+ShellIpc 1.0 ShellIpc.qml
+ShellShortcuts 1.0 ShellShortcuts.qml
+singleton PolkitHost 1.0 PolkitHost.qml
+Osd 1.0 Osd.qml
+CapturePreviewCard 1.0 CapturePreviewCard.qml
+NotificationCard 1.0 NotificationCard.qml
+NotificationDeck 1.0 NotificationDeck.qml
+PolkitPrompt 1.0 PolkitPrompt.qml
+singleton TooltipHost 1.0 TooltipHost.qml
+singleton PanelHost 1.0 PanelHost.qml
+singleton PanelRegistry 1.0 PanelRegistry.qml
+singleton WorkspacesHost 1.0 WorkspacesHost.qml
+singleton CompositorHost 1.0 CompositorHost.qml
+singleton HyprlandAdapter 1.0 HyprlandAdapter.qml
+singleton HyprlandWorkspaceAdapter 1.0 HyprlandWorkspaceAdapter.qml
+singleton NiriWorkspaceAdapter 1.0 NiriWorkspaceAdapter.qml
+singleton MangoWorkspaceAdapter 1.0 MangoWorkspaceAdapter.qml
+singleton WorkspaceAdapter 1.0 WorkspaceAdapter.qml
+singleton DockHost 1.0 DockHost.qml
+singleton PickHost 1.0 PickHost.qml
+singleton ClipboardHost 1.0 ClipboardHost.qml
+singleton MenuHost 1.0 MenuHost.qml
+singleton AppearanceHost 1.0 AppearanceHost.qml
+singleton BarHost 1.0 BarHost.qml
+ThemeRow 1.0 ThemeRow.qml
+singleton MediaHost 1.0 MediaHost.qml
+singleton RecorderHost 1.0 RecorderHost.qml
+Picker 1.0 Picker.qml
+Clipboard 1.0 Clipboard.qml
+PickRow 1.0 PickRow.qml
+BarWidget 1.0 BarWidget.qml
+WidgetButton 1.0 WidgetButton.qml
+BarIconButton 1.0 BarIconButton.qml
+OpticalGlyph 1.0 OpticalGlyph.qml
+Panel 1.0 Panel.qml
+PanelRow 1.0 PanelRow.qml
+Slider 1.0 Slider.qml
+SliderField 1.0 SliderField.qml
+ChoiceRow 1.0 ChoiceRow.qml
+SegmentedControl 1.0 SegmentedControl.qml
+ScrollBar 1.0 ScrollBar.qml
+PanelSectionHeader 1.0 PanelSectionHeader.qml
+PanelSeparator 1.0 PanelSeparator.qml
+ToggleSwitch 1.0 ToggleSwitch.qml
+singleton IndicatorHost 1.0 IndicatorHost.qml
+singleton LayoutModeHost 1.0 LayoutModeHost.qml
+PowerAlert 1.0 PowerAlert.qml
+SizedImage 1.0 SizedImage.qml
+Toggle 1.0 Toggle.qml
+PanelHero 1.0 PanelHero.qml
+PanelActionButton 1.0 PanelActionButton.qml
+TextButton 1.0 TextButton.qml
+ContextMenuRow 1.0 ContextMenuRow.qml
+TextField 1.0 TextField.qml
+NumberField 1.0 NumberField.qml
+Dropdown 1.0 Dropdown.qml
+DisplayMap 1.0 DisplayMap.qml
+ConfirmDialog 1.0 ConfirmDialog.qml
+singleton SettingsHost 1.0 SettingsHost.qml
+singleton NightLightHost 1.0 NightLightHost.qml
+singleton WorkspaceOverviewHost 1.0 WorkspaceOverviewHost.qml
+WorkspaceOverview 1.0 WorkspaceOverview.qml
+
+singleton CaptureHistory 1.0 CaptureHistory.qml
+CaptureHistoryOverlay 1.0 CaptureHistoryOverlay.qml

@@ -1,0 +1,25 @@
+{
+  imports = [
+    ./bluetooth
+    ./calendar
+    ./capture
+    ./clipboard
+    ./display
+    ./emoji
+    ./focus
+    ./hyprland
+    ./hyprsunset
+    ./menu
+    ./mixer
+    ./network
+    ./notify
+    ./pick
+    ./quickshell
+    ./reminder
+    ./screentime
+    ./share-picker
+    ./shortcuts
+    ./toggles
+    ./webapps
+  ];
+}

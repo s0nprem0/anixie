@@ -1,0 +1,886 @@
+import QtQuick
+import ".."
+import "../Ui"
+import "../Ui/NotificationText.js" as NotificationText
+
+// Notification history: everything the daemon has seen since the last time it
+// was cleared, newest first.
+//
+// The rows are the entries NotificationStore parsed off disk, not live
+// notifications, so this is readable after the fact — which is the point of it.
+// A live notification is still on screen and its actions still work; a history
+// row is a record, and the client's actions died with it.
+Item {
+  id: root
+
+  // Read on open rather than kept up to date, so the panel costs nothing while
+  // it is closed and cannot show a stale list the moment it appears.
+  Component.onCompleted: NotificationStore.refresh()
+
+  readonly property var entries: NotificationStore.entries
+  // What is still on screen. The panel shows these too: opening history hides
+  // the toasts (they overlap this corner), so leaving them out made the panel
+  // say "nothing yet" while three live notifications sat behind it.
+  readonly property var liveEntries: NotificationHost.stacked
+
+  // Dismissing a live card archives it asynchronously. The store's in-memory
+  // entries are a snapshot, so re-read them when the live set changes instead
+  // of leaving the panel blank until it is closed and reopened.
+  onLiveEntriesChanged: NotificationStore.refresh()
+
+  // Quiet notifications are written straight to history. The panel lists those
+  // under their source instead of mixing them into the closed list.
+  readonly property var heldEntries: root.entries.filter(function (entry) { return entry.quiet === true })
+  readonly property var activeEntries: root.entries.filter(function (entry) { return entry.quiet !== true })
+  readonly property bool empty: root.liveEntries.length === 0
+    && root.activeEntries.length === 0
+    && root.heldEntries.length === 0
+
+  function groupBySource(list) {
+    const byApp = ({})
+    const order = []
+    for (const entry of list) {
+      const key = String(entry.sourceKey || entry.app || "unknown").toLowerCase()
+      const label = String(entry.source || entry.app || "Unknown")
+      if (!byApp[key]) {
+        byApp[key] = { key: key, app: label, entries: [] }
+        order.push(key)
+      }
+      byApp[key].entries.push(entry)
+    }
+    return order.map(function (app) { return byApp[app] })
+  }
+
+  // History grouped by sender, groups ordered by their newest entry. A run of
+  // fifty chat messages used to bury every other source in one flat list; the
+  // source header is what makes the list scannable again.
+  readonly property var entryGroups: root.groupBySource(root.activeEntries)
+  readonly property var heldGroups: root.groupBySource(root.heldEntries)
+
+  function openSnoozeMenu(group, anchor) {
+    const entries = []
+    const options = NotificationHost.snoozeOptions()
+    for (let i = 0; i < options.length; i++) {
+      const option = options[i]
+      entries.push({
+        label: option.label,
+        glyph: Util.clock,
+        action: function () { NotificationHost.snooze(group.key, option.seconds) }
+      })
+    }
+    entries.push({ separator: true })
+    entries.push({
+      label: "Snooze everything",
+      glyph: Util.clock,
+      action: function () { NotificationHost.snooze("*", NotificationHost.untilTomorrow()) }
+    })
+    ContextMenuHost.openAt(entries, anchor, 0, anchor.height)
+  }
+
+  readonly property var quietSources: {
+    NotificationHost.snoozes
+    NotificationHost.globalSnoozeUntil
+    return NotificationHost.quietSources()
+  }
+
+  readonly property var displayOptions: [
+    { label: "Focused monitor", value: "focused" },
+    { label: "All monitors", value: "all" },
+    { label: "Specific output", value: "specific" }
+  ]
+
+  readonly property int displayIndex: {
+    for (let i = 0; i < root.displayOptions.length; i++) {
+      if (root.displayOptions[i].value === NotificationHost.displayMode) return i
+    }
+    return 0
+  }
+
+  readonly property var screenOptions: {
+    const out = []
+    for (let i = 0; i < Screens.all.length; i++) {
+      const name = String(Screens.all[i].name || "")
+      if (name !== "") out.push({ label: name, value: name })
+    }
+    if (NotificationHost.displayName !== ""
+        && !out.some(function (entry) { return entry.value === NotificationHost.displayName })) {
+      out.push({ label: NotificationHost.displayName + " (disconnected)", value: NotificationHost.displayName })
+    }
+    return out
+  }
+
+  readonly property int screenIndex: {
+    for (let i = 0; i < root.screenOptions.length; i++) {
+      if (root.screenOptions[i].value === NotificationHost.displayName) return i
+    }
+    return -1
+  }
+
+  readonly property var retentionOptions: [
+    { label: "24 hours", value: 24 },
+    { label: "3 days", value: 72 },
+    { label: "7 days", value: 168 }
+  ]
+
+  readonly property int retentionIndex: {
+    for (let i = 0; i < root.retentionOptions.length; i++) {
+      if (root.retentionOptions[i].value === NotificationHost.historyHours) return i
+    }
+    return 0
+  }
+
+  function chooseDisplay(index) {
+    if (index < 0 || index >= root.displayOptions.length) return
+    const value = root.displayOptions[index].value
+    NotificationHost.setDisplayMode(value)
+    if (value === "specific" && NotificationHost.displayName === "" && Screens.all.length > 0) {
+      NotificationHost.setDisplayName(String(Screens.all[0].name || ""))
+    }
+  }
+
+  function chooseScreen(index) {
+    if (index < 0 || index >= root.screenOptions.length) return
+    NotificationHost.setDisplayName(root.screenOptions[index].value)
+  }
+
+  function chooseRetention(index) {
+    if (index < 0 || index >= root.retentionOptions.length) return
+    NotificationHost.setHistoryHours(root.retentionOptions[index].value)
+  }
+
+  function quietUntil(stamp) {
+    const date = new Date(Number(stamp || 0) * 1000)
+    return "until " + date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  }
+
+  function sourceLabel(value) {
+    const name = String(value || "")
+    if (name === "*") return "Everything"
+    if (name.indexOf(".") !== -1) return name
+    return name.charAt(0).toUpperCase() + name.slice(1)
+  }
+
+  // Every row is the same height, so the list states its own height outright.
+  //
+  // The panel is sized from the list rather than left to the card's implicit
+  // height, because a Repeater's delegates do not reliably feed a Panel's
+  // content column: with three entries in it the panel measured 56px — tall
+  // enough for the title and nothing else. Stating the height here removes that
+  // dependency. The floor is the card's own measurement, kept so an empty panel
+  // still gets its title.
+  readonly property int rowHeight: Style.space(64)
+  readonly property int groupHeaderHeight: Style.space(26)
+
+  implicitWidth: Style.space(340)
+  // The card sizes itself, and caps what it will show: a week of notifications
+  // is longer than a screen, and what will not fit scrolls rather than running
+  // off the bottom of the display.
+  implicitHeight: card.implicitHeight
+
+  // Reload when the panel is reopened on the same instance, which happens
+  // whenever another module's panel is closed and this one is opened again from
+  // a freshly built component.
+  onVisibleChanged: if (root.visible) NotificationStore.refresh()
+
+  function ago(stamp) {
+    const seconds = Math.max(0, Math.floor((Date.now() - stamp) / 1000))
+    if (seconds < 60) return "just now"
+
+    const minutes = Math.floor(seconds / 60)
+    if (minutes < 60) return minutes + "m ago"
+
+    const hours = Math.floor(minutes / 60)
+    if (hours < 24) return hours + "h ago"
+
+    const days = Math.floor(hours / 24)
+    if (days < 7) return days + "d ago"
+
+    const date = new Date(stamp)
+    return date.toLocaleDateString()
+  }
+
+  Panel {
+    id: card
+    anchors.fill: parent
+
+    PanelHero {
+      width: card.contentWidth
+      glyph: Util.bell
+      title: "Notifications"
+      subtitle: {
+        const parts = []
+        if (root.liveEntries.length > 0) parts.push(root.liveEntries.length + " live")
+        if (root.activeEntries.length > 0) parts.push(root.activeEntries.length + (root.activeEntries.length === 1 ? " entry" : " entries"))
+        if (root.heldEntries.length > 0) parts.push(root.heldEntries.length + " held")
+        if (root.quietSources.length > 0) parts.push(root.quietSources.length + " quiet")
+        return parts.join("  ·  ")
+      }
+    }
+
+    // The same cards the popup uses, so the panel is the whole notification
+    // surface: what is live, then what was missed. Closing a card here updates
+    // both views through NotificationHost.
+    PanelSeparator {
+      visible: root.liveEntries.length > 0
+    }
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      visible: root.liveEntries.length > 0
+      label: "Live"
+    }
+
+    Column {
+      width: card.contentWidth
+      visible: root.liveEntries.length > 0
+      spacing: Style.space(6)
+      bottomPadding: Style.space(4)
+
+      Repeater {
+        model: root.liveEntries
+
+        delegate: NotificationCard {
+          required property var modelData
+
+          width: parent.width
+          height: implicitHeight
+          notification: modelData
+          group: [modelData]
+          autoExpire: false
+        }
+      }
+    }
+
+    PanelSeparator {
+      visible: root.empty
+    }
+
+    Column {
+      width: card.contentWidth
+      visible: root.empty
+      spacing: Style.space(4)
+      topPadding: Style.space(10)
+      bottomPadding: Style.space(10)
+
+      Text {
+        width: parent.width
+        text: "No notifications yet"
+        color: Theme.fg
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        font.weight: Font.DemiBold
+        horizontalAlignment: Text.AlignHCenter
+        renderType: Text.NativeRendering
+      }
+
+      Text {
+        width: parent.width
+        text: "Dismissed notifications will appear here."
+        color: Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
+        horizontalAlignment: Text.AlignHCenter
+        renderType: Text.NativeRendering
+      }
+    }
+
+    PanelSeparator {
+      visible: root.activeEntries.length > 0
+    }
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      visible: root.activeEntries.length > 0
+      label: "Recent"
+    }
+
+    // Newest first, grouped by sender.
+    Column {
+      width: card.contentWidth
+      visible: root.activeEntries.length > 0
+      spacing: 0
+
+      Repeater {
+        model: root.entryGroups
+
+        delegate: Column {
+          id: groupDelegate
+          required property var modelData
+          required property int index
+
+          width: parent.width
+          spacing: 0
+
+          Item {
+            width: parent.width
+            height: root.groupHeaderHeight
+
+            Rectangle {
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.top: parent.top
+              height: 1
+              visible: groupDelegate.index > 0
+              color: Theme.muted
+              opacity: 0.3
+            }
+
+            Text {
+              anchors.left: parent.left
+              anchors.right: groupSnooze.left
+              anchors.rightMargin: Style.space(6)
+              anchors.verticalCenter: parent.verticalCenter
+              text: root.sourceLabel(modelData.app) + "  ·  " + modelData.entries.length
+              textFormat: Text.PlainText
+              color: Theme.muted
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              font.weight: Font.DemiBold
+              elide: Text.ElideRight
+              renderType: Text.NativeRendering
+            }
+
+            Item {
+              id: groupSnooze
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              width: Style.space(28)
+              height: Style.space(24)
+              anchors.rightMargin: Style.space(2)
+
+              readonly property bool panelFocusable: true
+              readonly property bool tooltipHovered: groupSnoozeArea.containsMouse || groupSnooze.activeFocus
+              function activate() { root.openSnoozeMenu(groupDelegate.modelData, groupSnooze) }
+              function keyStep(direction) { return false }
+
+              Rectangle {
+                anchors.fill: parent
+                radius: Theme.cornerRadius
+                color: groupSnoozeArea.containsMouse ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha) : "transparent"
+                border.width: groupSnooze.activeFocus ? Style.strokeWidth : 0
+                border.color: Theme.primary
+              }
+
+              Text {
+                anchors.centerIn: parent
+                text: Util.clock
+                color: groupSnoozeArea.containsMouse || groupSnooze.activeFocus ? Theme.fg : Theme.muted
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                renderType: Text.NativeRendering
+              }
+
+              MouseArea {
+                id: groupSnoozeArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: groupSnooze.activate()
+                onEntered: TooltipHost.show(
+                  "Snooze " + root.sourceLabel(groupDelegate.modelData.app), groupSnooze)
+                onExited: TooltipHost.hide(groupSnooze)
+              }
+            }
+          }
+
+          Repeater {
+            model: modelData.entries
+
+            delegate: Item {
+              id: row
+
+              required property var modelData
+
+              width: parent.width
+              implicitHeight: Math.max(root.rowHeight, rowBody.implicitHeight + Style.space(12))
+
+              // History rows are the panel's main content, so they are a
+              // keyboard stop too: arrows reach them and Return opens the same
+              // replay the pointer does.
+              readonly property bool panelFocusable: true
+              function activate() {
+                NotificationHost.replayEntry(row.modelData)
+                PanelHost.closeFocused()
+              }
+              function keyStep(direction) { return false }
+
+              Rectangle {
+                anchors.fill: parent
+                visible: rowMouse.containsMouse
+                radius: Theme.cornerRadius
+                color: Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.rowHoverAlpha)
+              }
+
+              Column {
+                id: rowBody
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.topMargin: Style.space(6)
+                anchors.bottomMargin: Style.space(6)
+                spacing: Style.space(2)
+
+                Row {
+                  width: parent.width
+                  height: implicitHeight
+                  spacing: Style.space(6)
+
+                  Text {
+                    width: Math.max(0, parent.width - timeText.width - Style.space(6))
+                    height: implicitHeight
+                    text: row.modelData.summary !== "" ? NotificationText.preview(row.modelData.summary) : "(no summary)"
+                    textFormat: Text.PlainText
+                    color: Theme.fg
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.body
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                    wrapMode: Text.NoWrap
+                  }
+
+                  Text {
+                    id: timeText
+
+                    width: Math.min(implicitWidth, parent.width * 0.4)
+                    height: implicitHeight
+                    horizontalAlignment: Text.AlignRight
+                    text: root.ago(row.modelData.timestamp)
+                    color: Theme.muted
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                    elide: Text.ElideRight
+                  }
+                }
+
+                Text {
+                  width: parent.width
+                  height: implicitHeight
+                  visible: row.modelData.body !== ""
+                  text: NotificationText.preview(row.modelData.body)
+                  textFormat: Text.PlainText
+                  color: Theme.muted
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.bodySmall
+                  wrapMode: Text.WordWrap
+                  maximumLineCount: 3
+                  elide: Text.ElideRight
+                }
+              }
+
+              // A separator rather than padding, so the rows read as a list instead of
+              // a stack of unrelated cards.
+              Rectangle {
+                anchors.bottom: parent.bottom
+                width: parent.width
+                height: 1
+                visible: row.index < groupDelegate.modelData.entries.length - 1
+                color: Theme.muted
+                opacity: 0.3
+              }
+
+              MouseArea {
+                id: rowMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: row.activate()
+              }
+            }
+          }
+        }
+      }
+    }
+
+    PanelSeparator {
+      visible: root.heldEntries.length > 0
+    }
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      visible: root.heldEntries.length > 0
+      label: "Held"
+    }
+
+    // Held notifications are ones quiet kept off the screen. They are still
+    // grouped by source, so the panel says what was missed and who it was from.
+    Column {
+      width: card.contentWidth
+      visible: root.heldEntries.length > 0
+      spacing: 0
+
+      Repeater {
+        model: root.heldGroups
+
+        delegate: Column {
+          id: heldDelegate
+          required property var modelData
+          required property int index
+
+          width: parent.width
+          spacing: 0
+
+          Item {
+            width: parent.width
+            height: root.groupHeaderHeight
+
+            Rectangle {
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.top: parent.top
+              height: 1
+              visible: heldDelegate.index > 0
+              color: Theme.muted
+              opacity: 0.3
+            }
+
+            Text {
+              anchors.left: parent.left
+              anchors.right: heldSnooze.left
+              anchors.rightMargin: Style.space(6)
+              anchors.verticalCenter: parent.verticalCenter
+              text: root.sourceLabel(modelData.app) + "  ·  " + modelData.entries.length
+              color: Theme.muted
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              font.weight: Font.DemiBold
+              elide: Text.ElideRight
+              renderType: Text.NativeRendering
+            }
+
+            Item {
+              id: heldSnooze
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              width: Style.space(28)
+              height: Style.space(24)
+              anchors.rightMargin: Style.space(2)
+
+              readonly property bool panelFocusable: true
+              readonly property bool tooltipHovered: heldSnoozeArea.containsMouse || heldSnooze.activeFocus
+              function activate() { root.openSnoozeMenu(heldDelegate.modelData, heldSnooze) }
+              function keyStep(direction) { return false }
+
+              Rectangle {
+                anchors.fill: parent
+                radius: Theme.cornerRadius
+                color: heldSnoozeArea.containsMouse ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, Style.control.hoverFillAlpha) : "transparent"
+                border.width: heldSnooze.activeFocus ? Style.strokeWidth : 0
+                border.color: Theme.primary
+              }
+
+              Text {
+                anchors.centerIn: parent
+                text: Util.clock
+                color: heldSnoozeArea.containsMouse || heldSnooze.activeFocus ? Theme.fg : Theme.muted
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                renderType: Text.NativeRendering
+              }
+
+              MouseArea {
+                id: heldSnoozeArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: heldSnooze.activate()
+                onEntered: TooltipHost.show(
+                  "Snooze " + root.sourceLabel(heldDelegate.modelData.app), heldSnooze)
+                onExited: TooltipHost.hide(heldSnooze)
+              }
+            }
+          }
+
+          Repeater {
+            model: modelData.entries
+
+            delegate: PanelActionButton {
+              required property var modelData
+
+              width: parent.width
+              height: implicitHeight
+              label: NotificationText.preview(modelData.summary)
+              value: (modelData.closedReason ? root.sourceLabel(modelData.closedReason) : "held")
+                + "  ·  " + root.ago(modelData.timestamp)
+              navigational: false
+              onClicked: {
+                NotificationHost.replayEntry(modelData)
+                PanelHost.closeFocused()
+              }
+            }
+          }
+        }
+      }
+    }
+
+    PanelActionButton {
+      width: card.contentWidth
+      visible: root.heldEntries.length > 0
+      height: implicitHeight
+      label: "Clear held"
+      navigational: false
+      onClicked: NotificationStore.clearHeld()
+    }
+
+    PanelSeparator {
+      visible: root.quietSources.length > 0
+    }
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      visible: root.quietSources.length > 0
+      label: "Quiet"
+    }
+
+    // The sources currently held back, with the time they come back. A snooze is
+    // not DND: it has an end, and the panel is where that end is visible.
+    Column {
+      width: card.contentWidth
+      visible: root.quietSources.length > 0
+      spacing: Style.space(2)
+
+      Repeater {
+        model: root.quietSources
+
+        delegate: PanelActionButton {
+          required property var modelData
+
+          width: card.contentWidth
+          height: implicitHeight
+          label: "Resume " + root.sourceLabel(modelData.label)
+          value: root.quietUntil(modelData.until)
+          navigational: false
+          onClicked: NotificationHost.unsnooze(modelData.key)
+        }
+      }
+    }
+
+    PanelSeparator {
+      visible: NotificationHost.sharingOfferPending
+    }
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      visible: NotificationHost.sharingOfferPending
+      label: "Screen sharing"
+    }
+
+    // The offer appears only while a portal video stream is live and nothing is
+    // already quiet. It is a suggestion, not an automatic mute.
+    Column {
+      width: card.contentWidth
+      visible: NotificationHost.sharingOfferPending
+      spacing: Style.space(2)
+
+      Text {
+        width: parent.width
+        height: implicitHeight
+        text: "Snooze notifications while you share?"
+        color: Theme.fg
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        wrapMode: Text.WordWrap
+        renderType: Text.NativeRendering
+      }
+
+      PanelActionButton {
+        width: card.contentWidth
+        height: implicitHeight
+        label: "For 30 minutes"
+        navigational: false
+        onClicked: NotificationHost.snoozeSharingOffer(1800)
+      }
+
+      PanelActionButton {
+        width: card.contentWidth
+        height: implicitHeight
+        label: "For 1 hour"
+        navigational: false
+        onClicked: NotificationHost.snoozeSharingOffer(3600)
+      }
+
+      PanelActionButton {
+        width: card.contentWidth
+        height: implicitHeight
+        label: "For 4 hours"
+        navigational: false
+        onClicked: NotificationHost.snoozeSharingOffer(14400)
+      }
+
+      PanelActionButton {
+        width: card.contentWidth
+        height: implicitHeight
+        label: "Not now"
+        navigational: false
+        onClicked: NotificationHost.dismissSharingOffer()
+      }
+    }
+
+    PanelSeparator {
+      visible: !root.empty
+    }
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      visible: !root.empty
+      label: "Actions"
+    }
+
+    // A source can be snoozed from its group header below, but this is the
+    // one-row way to quiet everything without waiting for a card.
+    PanelActionButton {
+      id: snoozeAll
+      width: card.contentWidth
+      visible: !root.empty
+      height: implicitHeight
+      label: "Snooze everything"
+      navigational: false
+      onClicked: root.openSnoozeMenu({ key: "*" }, snoozeAll)
+    }
+
+    // Live cards are already here, but this is the one action that clears a
+    // burst without closing each card.
+    PanelActionButton {
+      width: card.contentWidth
+      visible: root.liveEntries.length > 0
+      height: implicitHeight
+      label: "Dismiss live"
+      navigational: false
+      onClicked: NotificationHost.dismissAll()
+    }
+
+    // Replay the newest entries in the same cards used for live notifications.
+    // The popup is a separate window, so close the panel first rather than
+    // leaving it covering the desktop underneath the replay.
+    PanelActionButton {
+      width: card.contentWidth
+      visible: root.activeEntries.length > 0
+      height: implicitHeight
+      label: "Replay last 10"
+      navigational: false
+      onClicked: {
+        NotificationHost.replay()
+        PanelHost.closeFocused()
+      }
+    }
+
+    // Clear everything (live, restored, history) in one go.
+    PanelActionButton {
+      width: card.contentWidth
+      visible: root.liveEntries.length > 0 || root.heldEntries.length > 0 || root.activeEntries.length > 0 || NotificationHost.restoring
+      height: implicitHeight
+      label: "Clear all notifications"
+      navigational: false
+      onClicked: {
+        if (NotificationHost.clearAll) NotificationHost.clearAll()
+        else NotificationHost.dismissAll()
+      }
+    }
+
+    // Only offered when there is history to clear; live cards are not archived
+    // until they are dismissed.
+    PanelActionButton {
+      width: card.contentWidth
+      visible: root.activeEntries.length > 0 || root.heldEntries.length > 0
+      height: implicitHeight
+      label: "Clear history"
+      navigational: false
+      onClicked: confirmClear.open()
+    }
+
+    PanelSeparator {}
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      label: "Preferences"
+    }
+
+    Column {
+      width: card.contentWidth
+      spacing: Style.space(4)
+
+      Text {
+        width: parent.width
+        height: implicitHeight
+        text: "Show notifications on"
+        color: Theme.fg
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        renderType: Text.NativeRendering
+      }
+
+      Dropdown {
+        width: card.contentWidth
+        model: root.displayOptions
+        currentIndex: root.displayIndex
+        onActivated: function (index) { root.chooseDisplay(index) }
+      }
+
+      Dropdown {
+        width: card.contentWidth
+        visible: NotificationHost.displayMode === "specific"
+        model: root.screenOptions
+        currentIndex: root.screenIndex
+        onActivated: function (index) { root.chooseScreen(index) }
+      }
+
+      Toggle {
+        width: card.contentWidth
+        label: "Step aside over fullscreen"
+        description: "Leave the popup surface unmapped when a fullscreen window has nothing to announce."
+        checked: NotificationHost.fullscreenStepAside
+        onToggled: NotificationHost.setFullscreenStepAside(!NotificationHost.fullscreenStepAside)
+      }
+
+      Toggle {
+        width: card.contentWidth
+        label: "Offer snooze while sharing"
+        description: "Suggest a timed snooze when a portal screen share starts."
+        checked: NotificationHost.offerSnoozeWhenSharing
+        onToggled: NotificationHost.setOfferSnoozeWhenSharing(!NotificationHost.offerSnoozeWhenSharing)
+      }
+
+      Text {
+        width: parent.width
+        height: implicitHeight
+        text: "Keep history for"
+        color: Theme.fg
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        renderType: Text.NativeRendering
+      }
+
+      Dropdown {
+        width: card.contentWidth
+        model: root.retentionOptions
+        currentIndex: root.retentionIndex
+        onActivated: function (index) { root.chooseRetention(index) }
+      }
+
+      Toggle {
+        width: card.contentWidth
+        label: "Let codes through"
+        description: "Verification codes still appear while notifications are quiet."
+        checked: NotificationHost.codesBypassQuiet
+        onToggled: NotificationHost.setCodesBypass(!NotificationHost.codesBypassQuiet)
+      }
+    }
+
+  }
+
+  ConfirmDialog {
+    id: confirmClear
+    anchors.fill: parent
+    text: "Clear notification history?"
+    detail: "This removes every archived notification. The live popups are not affected."
+    confirmText: "Clear"
+    cancelText: "Keep"
+    danger: true
+    onConfirmed: NotificationStore.clear()
+  }
+}

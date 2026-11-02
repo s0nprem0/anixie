@@ -1,0 +1,70 @@
+import QtQuick
+import ".."
+import "../Ui"
+import "../panels"
+import Quickshell
+
+// A bell in the bar, which opens the notification history.
+//
+// It sits next to the silencing indicator rather than replacing it: silencing is
+// a switch, history is a record, and neither does the other's job. While
+// notifications are silenced the bell is dimmed rather than hidden, so the
+// reason the popups stopped appearing is visible from the bar.
+BarWidget {
+  id: root
+
+  // Reachable by hotkey as well as by click, like every other panel.
+  Component.onCompleted: root.registerPanel("notifications", readout, historyPanel)
+
+  readonly property bool silenced: NotificationHost.doNotDisturb || NotificationHost.hasSnoozes
+
+  implicitWidth: readout.implicitWidth
+  implicitHeight: readout.implicitHeight
+
+  // Declared as an id rather than built inline: `Component { ... }` is an object
+  // declaration, so it cannot be passed as a call argument.
+  Component {
+    id: historyPanel
+    Notifications {}
+  }
+
+  BarIconButton {
+    id: readout
+    contextMenu: function () {
+      return [
+        { label: "Notification history", glyph: Util.bell, action: function () { PanelRegistry.toggle("notifications", readout) } },
+        { label: "Replay last ten", action: function () { NotificationHost.replay() } },
+        { separator: true },
+        {
+          label: (NotificationHost.doNotDisturb || NotificationHost.hasSnoozes) ? "Allow notifications" : "Silence notifications",
+          action: function () {
+            const sources = NotificationHost.quietSources()
+            for (const source of sources) NotificationHost.unsnooze(source.key)
+            NotificationHost.setDnd(!root.silenced)
+          }
+        }
+      ]
+    }
+
+    anchors.centerIn: parent
+    text: Util.bell
+    // Dimmed rather than hidden: an absent bell would read as "no notifications
+    // feature" instead of "notifications are silenced".
+    dimmed: root.silenced
+    active: !root.silenced
+    tooltipText: root.silenced
+      ? "Notification history · notifications are silenced"
+      : "Notification history"
+
+    onPressed: function (button) {
+      if (button === Qt.LeftButton || button === Qt.MiddleButton) {
+        // Read the list before it is drawn, so the panel never appears empty and
+        // then fill itself in a moment later.
+        NotificationStore.refresh()
+        PanelRegistry.toggle("notifications", readout)
+      } else if (button === Qt.RightButton) {
+        NotificationHost.toggle()
+      }
+    }
+  }
+}

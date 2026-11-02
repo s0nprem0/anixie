@@ -1,0 +1,397 @@
+{
+  "entries": [
+    {
+      "label": "Applications",
+      "list": "apps"
+    },
+    {
+      "label": "Terminal",
+      "run": "app-launch kitty"
+    },
+    {
+      "label": "Files",
+      "run": "app-launch thunar"
+    },
+    {
+      "label": "Editor",
+      "run": "app-launch kitty -e ${EDITOR:-hx}"
+    },
+    {
+      "label": "Browser",
+      "app": "firefox"
+    },
+    {
+      "group": "Capture",
+      "entries": [
+        {
+          "label": "Screenshot \u2014 region",
+          "run": "shot region"
+        },
+        {
+          "label": "Screenshot \u2014 pick window",
+          "run": "shot windows"
+        },
+        {
+          "label": "Screenshot \u2014 focused window",
+          "run": "shot window"
+        },
+        {
+          "label": "Screenshot \u2014 fullscreen",
+          "run": "shot fullscreen"
+        },
+        {
+          "label": "Screenshot \u2014 scrolling",
+          "run": "shot scroll"
+        },
+        {
+          "label": "Screenshot \u2014 redact",
+          "run": "shot smart redact"
+        },
+        {
+          "label": "Screenshot \u2014 add text",
+          "run": "shot smart text"
+        },
+        {
+          "label": "Screenshot \u2014 to clipboard",
+          "run": "shot smart copy"
+        },
+        {
+          "label": "Annotate a screenshot",
+          "run": "shot smart annotate"
+        },
+        {
+          "label": "Extract text from a region",
+          "run": "capture-text"
+        },
+        {
+          "label": "Scan a QR code",
+          "run": "capture-qr"
+        },
+        {
+          "label": "Pick a colour",
+          "run": "hyprpicker -a"
+        },
+        {
+          "label": "Transcode a picture or video",
+          "run": "transcode"
+        },
+        {
+          "label": "Screen record",
+          "run": "record"
+        },
+        {
+          "label": "Screen record \u2014 no audio",
+          "run": "record --audio=none"
+        },
+        {
+          "label": "Screen record \u2014 desktop audio",
+          "run": "record --audio=desktop"
+        },
+        {
+          "label": "Screen record \u2014 desktop and microphone",
+          "run": "record --audio=desktop+mic"
+        },
+        {
+          "label": "Screen record \u2014 desktop, microphone and webcam",
+          "run": "record --audio=desktop+mic+webcam"
+        },
+        {
+          "label": "Stop screen recording",
+          "run": "record --stop",
+          "when": "recording"
+        }
+      ]
+    },
+    {
+      "group": "Style",
+      "entries": [
+        {
+          "label": "Appearance",
+          "run": "appearance"
+        },
+        {
+          "label": "Wallpaper",
+          "run": "wallpaper"
+        },
+        {
+          "label": "Next theme",
+          "run": "theme next"
+        },
+        {
+          "label": "Previous theme",
+          "run": "theme prev"
+        },
+        {
+          "label": "Dock",
+          "run": "quickshell ipc call dock toggle"
+        },
+        {
+          "label": "Glass effect",
+          "run": "glass-toggle"
+        },
+        {
+          "label": "Bar on or off",
+          "run": "quickshell ipc call bar toggle"
+        }
+      ]
+    },
+    {
+      "group": "Setup",
+      "entries": [
+        {
+          "label": "Displays",
+          "run": "quickshell ipc call panel toggle displays",
+          "when": "panel:displays"
+        },
+        {
+          "label": "Brightness & text size",
+          "run": "quickshell ipc call panel toggle display",
+          "when": "panel:display"
+        },
+        {
+          "label": "Audio",
+          "run": "quickshell ipc call panel toggle audio",
+          "when": "panel:audio"
+        },
+        {
+          "label": "Notifications",
+          "run": "quickshell ipc call panel toggle notifications",
+          "when": "panel:notifications"
+        },
+        {
+          "label": "Calendar",
+          "run": "quickshell ipc call panel toggle calendar",
+          "when": "panel:calendar"
+        },
+        {
+          "label": "Network & DNS",
+          "run": "quickshell ipc call panel toggle network",
+          "when": "panel:network"
+        },
+        {
+          "label": "Bluetooth",
+          "run": "quickshell ipc call panel toggle bluetooth",
+          "when": "panel:bluetooth"
+        },
+        {
+          "label": "Power profile",
+          "run": "quickshell ipc call panel toggle power",
+          "when": "panel:power"
+        },
+        {
+          "label": "Keyboard shortcuts",
+          "run": "shortcuts"
+        },
+        {
+          "label": "Settings",
+          "run": "quickshell ipc call settings open"
+        },
+        {
+          "group": "Plugins",
+          "entries": [
+            {
+              "label": "Enable a widget",
+              "list": "bar-modules",
+              "run": "quickshell ipc call bar enable {}"
+            },
+            {
+              "label": "Disable a widget",
+              "list": "bar-enabled",
+              "run": "quickshell ipc call bar disable {}"
+            }
+          ]
+        },
+        {
+          "group": "Text size",
+          "entries": [
+            {
+              "label": "Smaller",
+              "run": "textsize down"
+            },
+            {
+              "label": "Larger",
+              "run": "textsize up"
+            },
+            {
+              "label": "Reset to 100%",
+              "run": "textsize reset"
+            }
+          ]
+        },
+        {
+          "group": "Bar",
+          "entries": [
+            {
+              "group": "Position",
+              "entries": [
+                {
+                  "label": "Top",
+                  "run": "quickshell ipc call bar position top",
+                  "state": "bar-position-top"
+                },
+                {
+                  "label": "Bottom",
+                  "run": "quickshell ipc call bar position bottom",
+                  "state": "bar-position-bottom"
+                },
+                {
+                  "label": "Left",
+                  "run": "quickshell ipc call bar position left",
+                  "state": "bar-position-left"
+                },
+                {
+                  "label": "Right",
+                  "run": "quickshell ipc call bar position right",
+                  "state": "bar-position-right"
+                }
+              ]
+            },
+            {
+              "group": "Clock format",
+              "entries": [
+                {
+                  "label": "Friday 22:56",
+                  "run": "quickshell ipc call bar set bar.clock format 'dddd HH:mm'",
+                  "state": "bar-clock-format-friday"
+                },
+                {
+                  "label": "Fri 23 Oct 22:56",
+                  "run": "quickshell ipc call bar set bar.clock format 'ddd dd MMM  HH:mm'",
+                  "state": "bar-clock-format-date"
+                },
+                {
+                  "label": "22:56",
+                  "run": "quickshell ipc call bar set bar.clock format 'HH:mm'",
+                  "state": "bar-clock-format-time"
+                }
+              ]
+            },
+            {
+              "label": "Background \u2014 opaque",
+              "run": "quickshell ipc call bar background opaque",
+              "state": "bar-background-opaque"
+            },
+            {
+              "label": "Background \u2014 glassy",
+              "run": "quickshell ipc call bar background glassy",
+              "state": "bar-background-glassy"
+            },
+            {
+              "label": "Background \u2014 clear",
+              "run": "quickshell ipc call bar background clear",
+              "state": "bar-background-clear"
+            },
+            {
+              "label": "Bar modules",
+              "run": "quickshell ipc call bar manage"
+            },
+            {
+              "label": "Reset bar layout",
+              "run": "quickshell ipc call bar reset"
+            }
+          ]
+        },
+        {
+          "group": "Security",
+          "entries": [
+            {
+              "label": "Edit sudo setting",
+              "run": "passwordless-sudo edit"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Toggle",
+      "entries": [
+        {
+          "label": "Night light",
+          "run": "toggle nightlight",
+          "state": "nightlight"
+        },
+        {
+          "label": "Idle lock",
+          "run": "toggle idle",
+          "state": "idle"
+        },
+        {
+          "label": "Silence notifications",
+          "run": "toggle dnd",
+          "state": "dnd"
+        },
+        {
+          "label": "Focus for 25 minutes",
+          "run": "focus start 25"
+        },
+        {
+          "label": "Stop focus",
+          "run": "focus stop"
+        }
+      ]
+    },
+    {
+      "group": "Monitors",
+      "entries": [
+        {
+          "label": "Scale up",
+          "run": "monitors scale up"
+        },
+        {
+          "label": "Scale down",
+          "run": "monitors scale down"
+        },
+        {
+          "label": "Scale \u2014 back to 1x",
+          "run": "monitors scale reset"
+        },
+        {
+          "label": "Internal display on or off",
+          "run": "monitors internal toggle"
+        },
+        {
+          "label": "Mirror displays",
+          "run": "monitors mirror toggle"
+        }
+      ]
+    },
+    {
+      "group": "System",
+      "entries": [
+        {
+          "label": "Rebuild system\u2026",
+          "run": "app-launch kitty --hold -e anixie update"
+        },
+        {
+          "label": "Clean up generations\u2026",
+          "run": "app-launch kitty -e nh clean all --keep 5"
+        },
+        {
+          "label": "Screen time & focus\u2026",
+          "run": "screentime panel"
+        },
+        {
+          "label": "Power menu\u2026",
+          "run": "quickshell ipc call panel toggle session",
+          "when": "panel:session"
+        },
+        {
+          "label": "Clipboard history",
+          "run": "clipboard"
+        },
+        {
+          "label": "Reminder",
+          "run": "reminder -i"
+        },
+        {
+          "label": "Lock",
+          "run": "quickshell ipc call lock lock"
+        },
+        {
+          "label": "Reload config",
+          "run": "hyprctl reload"
+        }
+      ]
+    }
+  ]
+}
