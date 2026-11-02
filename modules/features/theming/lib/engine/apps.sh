@@ -50,6 +50,22 @@ tell_apps() {
   GSETTINGS_SCHEMA_DIR="$gsettings_schema_dir" "$gsettings" set \
     org.gnome.desktop.interface accent-color "$accent" >/dev/null 2>&1 || true
 
+  # Discord (Equicord): drop the rendered palette into the themes folder and make
+  # sure it is enabled. Best-effort — Equicord may not be installed.
+  equicord_dir="${XDG_CONFIG_HOME:-$HOME/.config}/Equicord"
+  if [ -d "$equicord_dir" ] && [ -s "$live_link/discord.css" ]; then
+    mkdir -p "$equicord_dir/themes" 2>/dev/null || true
+    cp "$live_link/discord.css" "$equicord_dir/themes/anixie.theme.css" 2>/dev/null || true
+    if [ -f "$equicord_dir/settings/settings.json" ]; then
+      tmp=$(mktemp "$equicord_dir/settings/.settings.XXXXXX") || true
+      if [ -n "$tmp" ]; then
+        "$jq" 'if (.enabledThemes // [] | index("anixie")) then . else .enabledThemes = ((.enabledThemes // []) + ["anixie"] | unique) end' \
+          "$equicord_dir/settings/settings.json" >"$tmp" 2>/dev/null &&
+        mv "$tmp" "$equicord_dir/settings/settings.json" || rm -f "$tmp"
+      fi
+    fi
+  fi
+
   apply_cursor
   "$tmux" source-file "$live_link/tmux.conf" >/dev/null 2>&1 || true
   "$wallpaper" apply >/dev/null 2>&1 || true

@@ -18,5 +18,7 @@
   "yellow": "#e0af68",
   "danger": "#ff757f",
   "error": "#ff757f",
-  "ansi4": "#123456"
+  "ansi4": "#123456",
+  "selectionBg": "#82aaff",
+  "selectionFg": "#0f111a"
 }

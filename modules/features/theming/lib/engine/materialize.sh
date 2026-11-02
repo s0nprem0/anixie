@@ -69,7 +69,7 @@ materialise() {
 
   for source in palette.json mode kitty.conf helix.toml yazi.toml hyprlock.conf \
     qt6ct-colors.conf qt6ct.conf qt5ct.conf kvantum.kvconfig gtk-3.0-settings.ini gtk-4.0-settings.ini \
-    gtk-3.0.css gtk-4.0.css share-picker.css tmux.conf btop.theme terminal.zsh; do
+    gtk-3.0.css gtk-4.0.css share-picker.css discord.css tmux.conf btop.theme terminal.zsh; do
     [ -s "$gen/$source" ] || {
       rm -rf "$gen"
       die "the generation is missing $source"

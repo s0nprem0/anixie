@@ -18,6 +18,7 @@ gtk_template="@GTK_TEMPLATE@"
 gtk3_css_template="@GTK3_CSS_TEMPLATE@"
 gtk4_css_template="@GTK4_CSS_TEMPLATE@"
 share_picker_template="@SHARE_PICKER_TEMPLATE@"
+discord_template="@DISCORD_TEMPLATE@"
 papirus_folders="@PAPIRUS_FOLDERS@"
 tokens="@TOKENS@"
 render_lib="@RENDER_LIB@"
@@ -125,9 +126,10 @@ render_template "$gtk_template" "$palette_file" "$outdir/gtk-4.0-settings.ini" "
 render_template "$gtk3_css_template" "$palette_file" "$outdir/gtk-3.0.css" "$extras"
 render_template "$gtk4_css_template" "$palette_file" "$outdir/gtk-4.0.css" "$extras"
 render_template "$share_picker_template" "$palette_file" "$outdir/share-picker.css" "$extras"
+render_template "$discord_template" "$palette_file" "$outdir/discord.css" "$extras"
 
 for file in helix.toml yazi.toml hyprlock.conf qt6ct-colors.conf \
-  gtk-3.0-settings.ini gtk-4.0-settings.ini gtk-3.0.css gtk-4.0.css share-picker.css; do
+  gtk-3.0-settings.ini gtk-4.0-settings.ini gtk-3.0.css gtk-4.0.css share-picker.css discord.css; do
   if grep -Eq '@[A-Z][A-Z0-9_]*@' "$outdir/$file"; then
     printf 'theme-apps: unrendered placeholder in %s\n' "$file" >&2
     exit 1

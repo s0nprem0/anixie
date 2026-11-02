@@ -88,7 +88,7 @@ generations_dir="$state_dir/generations"
 . "@AUTO_LIB@"
 
 # Load theming engine modules
-engine_dir="$(dirname "$0")/lib/engine"
+engine_dir="@ENGINE_DIR@"
 # shellcheck source=/dev/null
 [ -f "$engine_dir/core.sh" ] && . "$engine_dir/core.sh"
 # shellcheck source=/dev/null
@@ -153,7 +153,7 @@ materialise() {
 
   for source in palette.json mode kitty.conf helix.toml yazi.toml hyprlock.conf \
     qt6ct-colors.conf qt6ct.conf qt5ct.conf kvantum.kvconfig gtk-3.0-settings.ini gtk-4.0-settings.ini \
-    gtk-3.0.css gtk-4.0.css share-picker.css tmux.conf btop.theme terminal.zsh; do
+    gtk-3.0.css gtk-4.0.css share-picker.css discord.css tmux.conf btop.theme terminal.zsh; do
     [ -s "$gen/$source" ] || {
       rm -rf "$gen"
       die "the generation is missing $source"
@@ -229,6 +229,22 @@ tell_apps() {
   accent=$(color_accent_name "$(colour primary)")
   GSETTINGS_SCHEMA_DIR="$gsettings_schema_dir" "$gsettings" set \
     org.gnome.desktop.interface accent-color "$accent" >/dev/null 2>&1 || true
+
+  # Discord (Equicord): drop the rendered palette into the themes folder and make
+  # sure it is enabled. Best-effort — Equicord may not be installed.
+  equicord_dir="${XDG_CONFIG_HOME:-$HOME/.config}/Equicord"
+  if [ -d "$equicord_dir" ] && [ -s "$live_link/discord.css" ]; then
+    mkdir -p "$equicord_dir/themes" 2>/dev/null || true
+    cp "$live_link/discord.css" "$equicord_dir/themes/anixie.theme.css" 2>/dev/null || true
+    if [ -f "$equicord_dir/settings/settings.json" ]; then
+      tmp=$(mktemp "$equicord_dir/settings/.settings.XXXXXX") || true
+      if [ -n "$tmp" ]; then
+        "$jq" 'if (.enabledThemes // [] | index("anixie")) then . else .enabledThemes = ((.enabledThemes // []) + ["anixie"] | unique) end' \
+          "$equicord_dir/settings/settings.json" >"$tmp" 2>/dev/null &&
+        mv "$tmp" "$equicord_dir/settings/settings.json" || rm -f "$tmp"
+      fi
+    fi
+  fi
 
   apply_cursor
   "$tmux" source-file "$live_link/tmux.conf" >/dev/null 2>&1 || true
@@ -536,7 +552,7 @@ doctor_theme() {
       printf 'ok       palette\n'
     fi
     for file in kitty.conf helix.toml yazi.toml hyprlock.conf qt6ct.conf qt5ct.conf kvantum.kvconfig \
-      gtk-3.0-settings.ini gtk-4.0-settings.ini gtk-3.0.css gtk-4.0.css share-picker.css tmux.conf btop.theme terminal.zsh; do
+      gtk-3.0-settings.ini gtk-4.0-settings.ini gtk-3.0.css gtk-4.0.css share-picker.css discord.css tmux.conf btop.theme terminal.zsh; do
       if [ ! -s "$live_link/$file" ]; then
         printf 'missing  %s\n' "$file"
         failures=$((failures + 1))
