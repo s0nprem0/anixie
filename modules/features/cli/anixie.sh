@@ -24,6 +24,13 @@
 # cannot quietly drift from what the command accepts.
 set -eu
 
+# A group is only worth listing when its command is actually installed. The WSL
+# profile leaves out the desktop commands, so help and completion stay honest
+# instead of advertising rows that cannot run.
+available() {
+  command -v "${1%% *}" >/dev/null 2>&1
+}
+
 # One group per line, five fields:
 #
 #   name|command|aliases|subcommands|description
@@ -74,6 +81,7 @@ usage() {
   printf 'Groups:\n'
   while IFS='|' read -r name cmd aliases subs desc; do
     [ -n "$name" ] || continue
+    available "$cmd" || continue
     if [ -n "$aliases" ]; then
       printf '  %-11s %s (also: %s)\n' "$name" "$desc" \
         "$(printf '%s' "$aliases" | sed 's/ /, /g')"
@@ -90,6 +98,7 @@ EOF
 group_names() {
   while IFS='|' read -r name cmd aliases subs desc; do
     [ -n "$name" ] || continue
+    available "$cmd" || continue
     printf '%s\n' "$name"
     if [ "${1:-}" = "--aliases" ]; then
       for alias in $aliases; do printf '%s\n' "$alias"; done
@@ -114,6 +123,7 @@ EOF
 # A group's own words, one per line, for completion. Fails if unknown.
 subcommands() {
   while IFS='|' read -r name cmd aliases subs desc; do
+    available "$cmd" || continue
     case " $name $aliases " in
       *" $1 "*)
         for word in $subs; do printf '%s\n' "$word"; done
