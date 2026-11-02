@@ -132,6 +132,7 @@ Item {
           id: searchField
           width: parent.width
           placeholderText: "Search"
+          Accessible.name: "Search settings"
           text: root.searchText
           onTextChanged: root.searchText = text
 
@@ -179,6 +180,8 @@ Item {
                 width: sidebar.width
                 height: Style.space(36)
                 radius: Theme.cornerRadius
+                focus: true
+                activeFocusOnTab: true
 
                 readonly property var tabData: root._searchQuery === ""
                   ? root.allTabs[tabButton.index]
@@ -187,9 +190,24 @@ Item {
 
                 color: tabButton.active
                   ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.18)
-                  : (tabMouse.containsMouse ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.06) : "transparent")
+                  : (tabButton.activeFocus
+                      ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.10)
+                      : (tabMouse.containsMouse ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.06) : "transparent"))
                 border.width: Style.strokeWidth
-                border.color: tabButton.active ? Theme.primary : Theme.border
+                border.color: tabButton.active
+                  ? Theme.primary
+                  : (tabButton.activeFocus ? Theme.primary : Theme.border)
+
+                // Left accent bar for the active tab.
+                Rectangle {
+                  anchors.left: parent.left
+                  anchors.verticalCenter: parent.verticalCenter
+                  width: Style.space(3)
+                  height: parent.height - Style.space(12)
+                  radius: Theme.cornerRadius
+                  visible: tabButton.active
+                  color: Theme.primary
+                }
 
                 Accessible.role: Accessible.Button
                 Accessible.name: tabButton.tabData.label
@@ -239,6 +257,19 @@ Item {
                   }
                 }
               }
+            }
+
+            // Empty state when search yields nothing.
+            Text {
+              width: sidebar.width
+              visible: root._searchQuery !== "" && root.filteredTabs.length === 0
+              text: "No results"
+              color: Theme.muted
+              font.family: Style.font.family
+              font.pixelSize: Style.font.body
+              horizontalAlignment: Text.AlignHCenter
+              topPadding: Style.space(12)
+              renderType: Text.NativeRendering
             }
           }
         }
