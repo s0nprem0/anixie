@@ -225,12 +225,8 @@ QtObject {
     WlrLayershell.namespace: "quickshell-context"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
 
-    Rectangle {
+    PopupCard {
       anchors.fill: parent
-      radius: Theme.cornerRadius
-      color: Theme.surface
-      border.color: Theme.border
-      border.width: Style.strokeWidth
     }
 
     Item {
