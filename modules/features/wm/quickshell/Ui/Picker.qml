@@ -411,9 +411,9 @@ Item {
               anchors.fill: parent
               anchors.margins: Style.strokeWidth
               captureSource: modelData
-              live: windowStrip.visible && windowTile.onActiveWorkspace
+              live: root.windowsVisible && windowStrip.visible && windowTile.onActiveWorkspace
               paintCursor: false
-              visible: windowTile.captured
+              visible: root.windowsVisible && windowStrip.visible && windowTile.captured
             }
 
             // The application's own mark, in the corner, so two windows of the
