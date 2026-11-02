@@ -426,16 +426,27 @@ QtObject {
 
   // A short readout when the shell comes up, so a restart (crash, manual
   // restart, or an update that reloaded the service) is visible rather than
-  // silent. Delayed so it does not race the other startup readouts.
-  property Timer startupOsdTimer: Timer {
-    interval: 600
-    repeat: false
-    onTriggered: root.show("", "Quickshell ready", "", "", "", 1000)
+  // silent. Suppressed on a fresh boot: the marker file lives in the
+  // runtime dir, which is cleared on reboot, so it only exists when the
+  // shell has been started before in this session.
+  property Process startupCheck: Process {
+    command: ["sh", "-c",
+      'f="${XDG_RUNTIME_DIR:-/tmp}/quickshell-started"; '
+      + 'if [ -f "$f" ]; then echo restart; fi; '
+      + ': > "$f"']
+    stdout: StdioCollector {
+      onStreamFinished: {
+        if (String(this.text || "").trim() !== "restart") return
+        Qt.callLater(function () {
+          root.show("update", "Quickshell ready", "", "", "", 1000)
+        })
+      }
+    }
   }
 
   Component.onCompleted: {
     root.backlightFind.running = true
     if (Pipewire.ready) root.armed = true
-    root.startupOsdTimer.restart()
+    root.startupCheck.running = true
   }
 }
