@@ -1,0 +1,113 @@
+inherits = "@HELIX_PARENT@"
+
+[comment]
+fg = "@MUTED@"
+
+[constant]
+fg = "@ACCENT_ALT@"
+
+["constant.numeric"]
+fg = "@ACCENT_ALT@"
+
+[function]
+fg = "@ACCENT@"
+
+[keyword]
+fg = "@PRIMARY@"
+
+["keyword.directive"]
+fg = "@ACCENT@"
+
+["markup.heading"]
+fg = "@PRIMARY@"
+modifiers = ["bold"]
+
+["markup.link"]
+fg = "@ACCENT@"
+modifiers = ["underline"]
+
+[operator]
+fg = "@MUTED@"
+
+[punctuation]
+fg = "@MUTED@"
+
+[string]
+fg = "@SUCCESS@"
+
+[type]
+fg = "@ACCENT_ALT@"
+
+["ui.background"]
+bg = "@BG@"
+
+["ui.cursor"]
+bg = "@PRIMARY@"
+fg = "@BG@"
+
+["ui.cursor.match"]
+bg = "@SURFACE@"
+fg = "@ACCENT_ALT@"
+
+["ui.cursor.primary"]
+bg = "@PRIMARY@"
+fg = "@BG@"
+
+["ui.linenr"]
+fg = "@MUTED@"
+
+["ui.linenr.selected"]
+fg = "@PRIMARY@"
+
+["ui.menu"]
+bg = "@SURFACE@"
+fg = "@FG@"
+
+["ui.menu.selected"]
+bg = "@PRIMARY@"
+fg = "@BG@"
+
+["ui.popup"]
+bg = "@SURFACE@"
+fg = "@FG@"
+
+["ui.selection"]
+bg = "@SURFACE@"
+
+["ui.selection.primary"]
+bg = "@SURFACE@"
+
+["ui.statusline"]
+bg = "@SURFACE@"
+fg = "@FG@"
+
+["ui.statusline.inactive"]
+bg = "@SURFACE@"
+fg = "@MUTED@"
+
+["ui.statusline.insert"]
+bg = "@SUCCESS@"
+fg = "@BG@"
+
+["ui.statusline.normal"]
+bg = "@PRIMARY@"
+fg = "@BG@"
+
+["ui.statusline.select"]
+bg = "@ACCENT_ALT@"
+fg = "@BG@"
+
+["ui.text"]
+fg = "@FG@"
+
+["ui.virtual.indent-guide"]
+fg = "@SURFACE@"
+
+["ui.virtual.whitespace"]
+fg = "@MUTED@"
+
+["ui.window"]
+fg = "@MUTED@"
+
+[variable]
+fg = "@FG@"
