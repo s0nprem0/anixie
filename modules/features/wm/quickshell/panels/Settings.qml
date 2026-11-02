@@ -10,6 +10,7 @@ Item {
     { label: "Appearance", icon: Util.palette, source: "Appearance.qml" },
     { label: "Bar", icon: Util.chart, source: "BarModules.qml" },
     { label: "Displays", icon: Util.laptop, source: "Displays.qml" },
+    { label: "Media & audio", icon: Util.media, source: "MediaMixer.qml" },
     { label: "Network", icon: Util.globe, source: "Network.qml" },
     { label: "Night light", icon: Util.moon, source: "NightLight.qml" },
     { label: "Notifications", icon: Util.bell, source: "Notifications.qml" },
