@@ -47,8 +47,7 @@ Item {
   // query is empty — once something is typed the list is the answer and a strip
   // of pictures above it is in the way — and only on the tabs whose content is
   // applications.
-  readonly property bool windowsVisible: PickHost.tabs && PickHost.tab <= 1
-    && PickHost.query === "" && MenuHost.windows.length > 0
+  readonly property bool windowsVisible: false
 
   // Which window the Shift+arrows are on; -1 is the list. Kept apart from
   // PickHost.selected because the two lists can both be on screen.
@@ -230,10 +229,6 @@ Item {
             const key = event.key
 
             if (key === Qt.Key_Return || key === Qt.Key_Enter) {
-              if (root.windowIndex >= 0 && root.activateWindow()) {
-                event.accepted = true
-                return
-              }
               PickHost.accept()
               event.accepted = true
               return
@@ -241,15 +236,6 @@ Item {
 
             if (key === Qt.Key_Escape) {
               PickHost.dismiss()
-              event.accepted = true
-              return
-            }
-
-            // Shift and the up/down keys walk the live windows; the plain keys
-            // walk the list. Two lists on one surface need two gestures, and
-            // Shift is what the reference uses for the window strip.
-            if ((key === Qt.Key_Down || key === Qt.Key_Up) && (event.modifiers & Qt.ShiftModifier)) {
-              root.moveWindow(key === Qt.Key_Down ? 1 : -1)
               event.accepted = true
               return
             }
