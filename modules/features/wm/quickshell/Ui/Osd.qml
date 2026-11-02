@@ -37,6 +37,9 @@ Item {
   readonly property real preferredMaxWidth: Style.space(root.mediaOsd ? 360 : 240)
   readonly property real maxWidth: Math.min(root.preferredMaxWidth, Math.max(Style.space(120), root.availableWidth - Style.space(16)))
 
+  // Horizontal padding so the glyph and the text never touch the card edge.
+  readonly property real pad: Style.space(12)
+
   readonly property real iconWidth: Style.space(24)
   readonly property real messageWidth: root.hasProgress
     ? Style.space(44)
@@ -45,13 +48,13 @@ Item {
   readonly property real preferredTrackWidth: Style.space(140)
   readonly property real trackWidth: root.hasProgress
     ? Math.max(0, Math.min(root.preferredTrackWidth,
-        root.maxWidth - root.iconWidth - Style.space(10) - root.messageWidth - Style.space(10) - Style.space(28)))
+        root.maxWidth - root.pad - root.iconWidth - Style.space(10) - root.messageWidth - Style.space(10) - root.pad))
     : 0
 
   implicitWidth: Math.min(root.maxWidth, Math.max(Style.space(120),
     root.hasProgress
-      ? (root.iconWidth + Style.space(10) + root.trackWidth + Style.space(10) + root.messageWidth + Style.space(28))
-      : (root.iconWidth + Style.space(10) + root.messageWidth + Style.space(28))))
+      ? (root.pad + root.iconWidth + Style.space(10) + root.trackWidth + Style.space(10) + root.messageWidth + root.pad)
+      : (root.pad + root.iconWidth + Style.space(10) + root.messageWidth + root.pad)))
   implicitHeight: Style.space(36)
 
   Rectangle {
@@ -65,6 +68,8 @@ Item {
       id: content
 
       anchors.centerIn: parent
+      anchors.leftMargin: root.pad
+      anchors.rightMargin: root.pad
       spacing: Style.space(10)
 
       Text {
