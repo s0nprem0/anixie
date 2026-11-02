@@ -2,7 +2,8 @@
 
 A NixOS desktop: Hyprland as the compositor, Quickshell as the shell (bar,
 panels, launcher, notifications, OSD, dock), and one palette through all of it.
-Built for `2200h`; the shape is reusable, the hardware bits are not.
+Built for `2200h` on the desktop and `wsl` on Windows; the shape is reusable, the
+hardware bits are not.
 
 ## Using it
 
@@ -19,9 +20,10 @@ overrides. `git add` is enough to build, but commit before `nh os switch` so the
 generation matches the history.
 
 **Going back** is a generation away: pick the previous one in the systemd-boot
-menu, or `nixos-rebuild switch --rollback`.
+menu, or `nixos-rebuild switch --rollback`. On WSL there is no boot menu, so
+use `nixos-rebuild switch --rollback` (or `nh os rollback`).
 
-The shell is a systemd user service:
+The shell is a systemd user service on the desktop:
 
 ```sh
 systemctl --user restart quickshell
