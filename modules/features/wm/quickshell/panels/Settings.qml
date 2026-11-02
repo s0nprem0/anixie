@@ -190,11 +190,11 @@ Item {
                 readonly property bool active: root.allTabs[root.currentTab].label === tabButton.tabData.label
 
                 color: tabButton.active
-                  ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.18)
+                  ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.25)
                   : (tabButton.activeFocus
-                      ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.10)
-                      : (tabMouse.containsMouse ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.06) : "transparent"))
-                border.width: Style.strokeWidth
+                      ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12)
+                      : (tabMouse.containsMouse ? Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.08) : "transparent"))
+                border.width: tabButton.active ? Style.strokeWidth * 2 : Style.strokeWidth
                 border.color: tabButton.active
                   ? Theme.primary
                   : (tabButton.activeFocus ? Theme.primary : Theme.border)
@@ -203,8 +203,8 @@ Item {
                 Rectangle {
                   anchors.left: parent.left
                   anchors.verticalCenter: parent.verticalCenter
-                  width: Style.space(3)
-                  height: parent.height - Style.space(12)
+                  width: Style.space(4)
+                  height: parent.height - Style.space(8)
                   radius: Theme.cornerRadius
                   visible: tabButton.active
                   color: Theme.primary
@@ -230,9 +230,10 @@ Item {
 
                   Text {
                     text: tabButton.tabData.label || ""
-                    color: tabButton.active ? Theme.fg : Theme.fg
+                    color: tabButton.active ? Theme.primary : Theme.fg
                     font.family: Style.font.family
                     font.pixelSize: Style.font.body
+                    font.weight: tabButton.active ? Font.DemiBold : Font.Normal
                     renderType: Text.NativeRendering
                     elide: Text.ElideRight
                     verticalAlignment: Text.AlignVCenter
