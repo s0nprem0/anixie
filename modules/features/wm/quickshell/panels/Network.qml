@@ -101,7 +101,14 @@ Item {
   Connections {
     target: NetworkHost
 
-    function onActionFailed(message) { root.actionError = message }
+    function onActionFailed(message) {
+      const ssid = root.actionSsid
+      if (ssid !== "" && String(message).indexOf(ssid) < 0) {
+        root.actionError = ssid + ": " + message
+      } else {
+        root.actionError = message
+      }
+    }
     function onSecretRequested(ssid) {
       root.askingSsid = ssid
       root.expandedSsid = ssid
@@ -636,7 +643,9 @@ Item {
 
             glyph: netRow.modelData.secured ? Util.lock : ""
             label: netRow.inFlight
-              ? (root.actionKind === "connect" ? "Connecting…" : "Disconnecting…")
+              ? (root.actionKind === "connect"
+                  ? "Connecting to " + netRow.modelData.ssid + "…"
+                  : "Disconnecting " + netRow.modelData.ssid + "…")
               : netRow.modelData.ssid
             selected: netRow.modelData.inUse && !netRow.inFlight
 
@@ -646,26 +655,33 @@ Item {
               spacing: Style.space(4)
               anchors.verticalCenter: parent.verticalCenter
 
-              Text {
+              Item {
                 anchors.verticalCenter: parent.verticalCenter
-                visible: text !== ""
-                text: root.bandLabel(netRow.modelData)
-                color: Theme.muted
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
-                renderType: Text.NativeRendering
+                width: Style.space(24)
+                height: parent.height
+
+                Text {
+                  anchors.verticalCenter: parent.verticalCenter
+                  anchors.left: parent.left
+                  visible: text !== ""
+                  text: root.bandLabel(netRow.modelData)
+                  color: Theme.muted
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.caption
+                  renderType: Text.NativeRendering
+                }
               }
 
               Row {
-                spacing: 1
+                spacing: Style.space(2)
                 anchors.verticalCenter: parent.verticalCenter
 
                 Repeater {
                   model: 4
                   delegate: Rectangle {
                     required property int index
-                    width: 2
-                    height: 3 + index * 2
+                    width: 3
+                    height: 4 + index * 2
                     radius: 1
                     anchors.bottom: parent.bottom
                     color: index < root.signalLevel(netRow.modelData.signal)
@@ -705,7 +721,7 @@ Item {
             // Password form for secured, unused networks.
             Column {
               width: parent.width
-              spacing: Style.space(6)
+              spacing: Style.space(4)
               visible: netRow.modelData.secured && !netRow.modelData.inUse
 
               onVisibleChanged: {
@@ -753,6 +769,18 @@ Item {
                   available: true
                   onClicked: netRow.passwordVisible = !netRow.passwordVisible
                 }
+
+                TextButton {
+                  id: cancelButton
+                  label: "Cancel"
+                  danger: false
+                  available: true
+                  onClicked: {
+                    inlineSecretField.text = ""
+                    root.askingSsid = ""
+                    root.expandedSsid = ""
+                  }
+                }
               }
 
               PanelActionButton {
@@ -767,15 +795,7 @@ Item {
                 }
               }
 
-              PanelActionButton {
-                width: parent.width
-                label: "Cancel"
-                navigational: false
-                onClicked: {
-                  inlineSecretField.text = ""
-                  root.askingSsid = ""
-                }
-              }
+
             }
 
             // Simple connect action for open networks.
@@ -859,10 +879,98 @@ Item {
 
     PanelSeparator {}
 
-    // ---- advanced ----
+    // ---- connection details (disclosed) ----
     PanelActionButton {
       width: card.contentWidth
-      label: "Advanced"
+      label: "Connection details"
+      value: root.detailsExpanded ? "hide" : "show"
+      navigational: false
+      onClicked: root.detailsExpanded = !root.detailsExpanded
+    }
+
+    Item {
+      width: card.contentWidth
+      implicitHeight: root.detailsExpanded ? innerDetails.implicitHeight : 0
+      clip: true
+      opacity: root.detailsExpanded ? 1 : 0
+      enabled: root.detailsExpanded
+      Behavior on opacity { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
+
+      Column {
+        id: innerDetails
+        width: parent.width
+        spacing: Style.space(8)
+
+        PanelRow {
+          width: parent.width
+          visible: root.address !== ""
+          label: "IP"
+          value: root.address
+        }
+
+        PanelRow {
+          width: parent.width
+          visible: root.gateway !== ""
+          label: "Gateway"
+          value: root.gateway
+        }
+
+        PanelRow {
+          width: parent.width
+          visible: NetworkHost.security !== ""
+          label: "Security"
+          value: NetworkHost.security
+        }
+
+        PanelRow {
+          width: parent.width
+          visible: root.wired !== ""
+          label: "Wired"
+          value: root.wired
+        }
+
+        PanelRow {
+          id: dnsRow
+          width: parent.width
+          hasControl: true
+          label: "DNS"
+
+          Dropdown {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: dnsRow.controlWidth
+            model: root.dnsProviders
+            placeholder: "custom"
+            enabled: !root.dnsBusy
+            currentIndex: root.dnsIndex()
+            onActivated: function (index) { root.setDns(root.dnsProviders[index]) }
+          }
+        }
+
+        PanelRow {
+          id: bandRow
+          width: parent.width
+          visible: root.band !== ""
+          hasControl: true
+          label: "Band"
+
+          Dropdown {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: bandRow.controlWidth
+            model: root.bandOptions
+            enabled: !root.bandBusy
+            currentIndex: root.bandIndex()
+            onActivated: function (index) { root.setBand(root.bandOptions[index].value) }
+          }
+        }
+      }
+    }
+
+    // ---- sharing (disclosed) ----
+    PanelActionButton {
+      width: card.contentWidth
+      label: "Sharing"
       value: root.moreExpanded ? "hide" : "show"
       navigational: false
       onClicked: root.moreExpanded = !root.moreExpanded
@@ -870,198 +978,127 @@ Item {
 
     Item {
       width: card.contentWidth
-      // Animate the open/close instead of snapping.
-      implicitHeight: root.moreExpanded ? innerAdvanced.implicitHeight : 0
+      implicitHeight: root.moreExpanded ? innerSharing.implicitHeight : 0
       clip: true
       opacity: root.moreExpanded ? 1 : 0
       enabled: root.moreExpanded
       Behavior on opacity { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
 
       Column {
-        id: innerAdvanced
+        id: innerSharing
         width: parent.width
         spacing: Style.space(8)
 
-      // Connection details
-      PanelRow {
-        width: parent.width
-        visible: root.address !== ""
-        label: "IP"
-        value: root.address
-      }
-
-      PanelRow {
-        width: parent.width
-        visible: root.gateway !== ""
-        label: "Gateway"
-        value: root.gateway
-      }
-
-      PanelRow {
-        width: parent.width
-        visible: NetworkHost.security !== ""
-        label: "Security"
-        value: NetworkHost.security
-      }
-
-      PanelRow {
-        width: parent.width
-        visible: root.wired !== ""
-        label: "Wired"
-        value: root.wired
-      }
-
-      PanelRow {
-        id: dnsRow
-        width: parent.width
-        hasControl: true
-        label: "DNS"
-
-        Dropdown {
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          width: dnsRow.controlWidth
-          model: root.dnsProviders
-          placeholder: "custom"
-          enabled: !root.dnsBusy
-          currentIndex: root.dnsIndex()
-          onActivated: function (index) { root.setDns(root.dnsProviders[index]) }
+        Toggle {
+          id: qrToggle
+          width: parent.width
+          height: implicitHeight
+          label: "Share this network"
+          description: "a QR code another device can scan to join"
+          checked: root.qrVisible
+          onToggled: root.setQr(!root.qrVisible)
         }
-      }
 
-      PanelRow {
-        id: bandRow
-        width: parent.width
-        visible: root.band !== ""
-        hasControl: true
-        label: "Band"
-
-        Dropdown {
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          width: bandRow.controlWidth
-          model: root.bandOptions
-          enabled: !root.bandBusy
-          currentIndex: root.bandIndex()
-          onActivated: function (index) { root.setBand(root.bandOptions[index].value) }
+        PanelActionButton {
+          width: parent.width
+          label: root.passwordCopied ? "Password copied" : (root.passwordBusy ? "Copying…" : "Copy password")
+          outlined: true
+          navigational: false
+          available: !root.passwordBusy
+          onClicked: root.copyPassword()
         }
-      }
 
-      PanelSeparator {}
+        Item {
+          width: parent.width
+          height: root.qrVisible ? root.qrSize : 0
+          visible: height > 0
 
-      // Sharing
-      Toggle {
-        id: qrToggle
-        width: parent.width
-        height: implicitHeight
-        label: "Share this network"
-        description: "a QR code another device can scan to join"
-        checked: root.qrVisible
-        onToggled: root.setQr(!root.qrVisible)
-      }
-
-      PanelActionButton {
-        width: parent.width
-        label: root.passwordCopied ? "Password copied" : (root.passwordBusy ? "Copying…" : "Copy password")
-        outlined: true
-        navigational: false
-        available: !root.passwordBusy
-        onClicked: root.copyPassword()
-      }
-
-      Item {
-        width: parent.width
-        // Reserve the QR slot while it loads so the panel does not reflow
-        // when the image becomes ready.
-        height: root.qrVisible ? root.qrSize : 0
-        visible: height > 0
-
-        SizedImage {
-          id: qrImage
-          anchors.horizontalCenter: parent.horizontalCenter
-          width: root.qrSize
-          height: root.qrSize
-          source: root.qrPath
-          fillMode: Image.PreserveAspectFit
-        }
-      }
-
-      Text {
-        width: parent.width
-        height: implicitHeight
-        visible: root.qrVisible && root.qrError !== ""
-        text: root.qrError
-        color: Theme.danger
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        wrapMode: Text.WordWrap
-        maximumLineCount: 2
-        elide: Text.ElideRight
-        renderType: Text.NativeRendering
-      }
-
-      PanelSeparator {}
-
-      // VPNs
-      PanelSectionHeader {
-        width: parent.width
-        label: "VPNs & Proxies"
-      }
-
-      Text {
-        width: parent.width
-        height: implicitHeight
-        visible: root.vpns.length === 0
-        text: "None"
-        color: Theme.muted
-        font.family: Style.font.family
-        font.pixelSize: Style.font.bodySmall
-        renderType: Text.NativeRendering
-      }
-
-      Column {
-        width: parent.width
-        spacing: Style.space(2)
-
-        Repeater {
-          model: root.vpns
-
-          delegate: PanelActionButton {
-            required property var modelData
-
-            width: parent.width
-            label: (modelData.name.length > 18 ? modelData.name.substring(0, 15) + "…" : modelData.name) + " (" + modelData.type + ")"
-            value: (modelData.active ? "Connected" : "Disconnected")
-              + " · " + (modelData.active ? "disc" : "conn")
-            navigational: false
-            available: !root.vpnBusy
-            onClicked: root.toggleVpn(modelData)
+          SizedImage {
+            id: qrImage
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: root.qrSize
+            height: root.qrSize
+            source: root.qrPath
+            fillMode: Image.PreserveAspectFit
           }
         }
-      }
 
-      PanelSeparator {}
+        Text {
+          width: parent.width
+          height: implicitHeight
+          visible: root.qrVisible && root.qrError !== ""
+          text: root.qrError
+          color: Theme.danger
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+          wrapMode: Text.WordWrap
+          maximumLineCount: 2
+          elide: Text.ElideRight
+          renderType: Text.NativeRendering
+        }
+      }
+    }
 
-      // Restart and forget
-      PanelActionButton {
-        width: parent.width
-        label: root.restarting ? "Restarting…" : "Restart Wi-Fi"
-        navigational: false
-        available: !root.restarting && root.radioEnabled && !root.busy
-        onClicked: root.restartWifi()
-      }
+    PanelSeparator {}
 
-      PanelActionButton {
-        width: parent.width
-        visible: root.connected && root.networkFor(root.activeSsid) !== null
-        label: "Forget this network"
-        danger: true
-        outlined: true
-        navigational: false
-        available: !root.busy
-        onClicked: root.forget()
+    // ---- VPNs (always visible, compact) ----
+    PanelSectionHeader {
+      width: card.contentWidth
+      label: "VPNs & Proxies"
+    }
+
+    Text {
+      width: card.contentWidth
+      height: implicitHeight
+      visible: root.vpns.length === 0
+      text: "None"
+      color: Theme.muted
+      font.family: Style.font.family
+      font.pixelSize: Style.font.bodySmall
+      renderType: Text.NativeRendering
+    }
+
+    Column {
+      width: card.contentWidth
+      spacing: Style.space(2)
+
+      Repeater {
+        model: root.vpns
+
+        delegate: PanelActionButton {
+          required property var modelData
+
+          width: parent.width
+          label: (modelData.name.length > 18 ? modelData.name.substring(0, 15) + "…" : modelData.name) + " (" + modelData.type + ")"
+          value: (modelData.active ? "Connected" : "Disconnected")
+            + " · " + (modelData.active ? "disc" : "conn")
+          navigational: false
+          available: !root.vpnBusy
+          onClicked: root.toggleVpn(modelData)
+        }
       }
-      }
+    }
+
+    PanelSeparator {}
+
+    // ---- restart / forget (always visible) ----
+    PanelActionButton {
+      width: card.contentWidth
+      label: root.restarting ? "Restarting…" : "Restart Wi-Fi"
+      navigational: false
+      available: !root.restarting && root.radioEnabled && !root.busy
+      onClicked: root.restartWifi()
+    }
+
+    PanelActionButton {
+      width: card.contentWidth
+      visible: root.connected && root.networkFor(root.activeSsid) !== null
+      label: "Forget this network"
+      danger: true
+      outlined: true
+      navigational: false
+      available: !root.busy
+      onClicked: root.forget()
     }
   }
 }
