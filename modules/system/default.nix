@@ -1,0 +1,29 @@
+{
+  imports = [
+    ./nix.nix
+    ./boot.nix
+    ./dev.nix
+    ./encryption.nix
+    ./networking.nix
+    ./audio.nix
+    ./fonts.nix
+    ./firmware.nix
+    ./gaming.nix
+    ./craftapps.nix
+    ./users.nix
+    ./auth.nix
+    ./snapshot.nix
+    ./storage.nix
+    ./desktop.nix
+    ./screenrecord.nix
+    ./secrets.nix
+    ./lock.nix
+    ./bluetooth.nix
+    ./printing.nix
+    ./memory.nix
+    ./power.nix
+    ./performance.nix
+    ./virtualization.nix
+    ./voidstrap.nix
+  ];
+}
