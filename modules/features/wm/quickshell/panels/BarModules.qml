@@ -338,7 +338,7 @@ Item {
                     renderType: Text.NativeRendering
                   }
 
-                  Dropdown {
+                  SearchableDropdown {
                     width: Style.space(88)
                     model: root.sections.map(root.sectionLabel)
                     currentIndex: root.sections.indexOf(sectionItem.sectionName)
@@ -349,7 +349,7 @@ Item {
                     }
                   }
 
-                  Dropdown {
+                  SearchableDropdown {
                     width: Style.space(96)
                     model: (["All screens"]).concat(Quickshell.screens.map(function (s) { return String(s.name) }))
                     currentIndex: {
@@ -560,7 +560,7 @@ Item {
           selected = enabledIds.length > 0 ? enabledIds[0] : ""
       }
 
-      Dropdown {
+      SearchableDropdown {
         id: widgetSelect
         width: parent.width
         model: parent.enabledIds.map(root.prettyId)

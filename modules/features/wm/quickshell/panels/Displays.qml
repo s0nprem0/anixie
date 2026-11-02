@@ -703,7 +703,7 @@ Item {
             label: "Layout"
             visible: !block.off && block.layoutOptions.length > 1
 
-            Dropdown {
+            SearchableDropdown {
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
               width: layoutRow.controlWidth
@@ -725,7 +725,7 @@ Item {
             hasControl: true
             label: "Scale"
 
-            Dropdown {
+            SearchableDropdown {
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
               width: scaleRow.controlWidth
@@ -743,7 +743,7 @@ Item {
             hasControl: true
             label: "Rotation"
 
-            Dropdown {
+            SearchableDropdown {
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
               width: rotationRow.controlWidth
@@ -762,7 +762,7 @@ Item {
             hasControl: true
             label: "SDR brightness"
 
-            Dropdown {
+            SearchableDropdown {
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
               width: sdrBrightnessRow.controlWidth
@@ -782,7 +782,7 @@ Item {
             hasControl: true
             label: "SDR saturation"
 
-            Dropdown {
+            SearchableDropdown {
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
               width: sdrSaturationRow.controlWidth
@@ -821,7 +821,7 @@ Item {
             // and "1280×1024 · 60.01" was losing the rate it exists to show.
             controlWidth: Style.space(200)
 
-            Dropdown {
+            SearchableDropdown {
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
               width: modeRow.controlWidth
@@ -844,7 +844,7 @@ Item {
             hasControl: true
             label: "Placement"
 
-            Dropdown {
+            SearchableDropdown {
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
               width: positionRow.controlWidth

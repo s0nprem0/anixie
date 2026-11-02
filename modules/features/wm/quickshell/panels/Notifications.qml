@@ -791,14 +791,14 @@ Item {
         renderType: Text.NativeRendering
       }
 
-      Dropdown {
+      SearchableDropdown {
         width: card.contentWidth
         model: root.displayOptions
         currentIndex: root.displayIndex
         onActivated: function (index) { root.chooseDisplay(index) }
       }
 
-      Dropdown {
+      SearchableDropdown {
         width: card.contentWidth
         visible: NotificationHost.displayMode === "specific"
         model: root.screenOptions
@@ -832,7 +832,7 @@ Item {
         renderType: Text.NativeRendering
       }
 
-      Dropdown {
+      SearchableDropdown {
         width: card.contentWidth
         model: root.retentionOptions
         currentIndex: root.retentionIndex
