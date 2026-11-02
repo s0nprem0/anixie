@@ -1,7 +1,10 @@
 # Single source of truth for the everyday CLI tools. Consumed by ./default.nix
 # (installed into the user profile) and by the devshells, so `nix develop`
 # covers the same ground without the two lists drifting apart.
-{ pkgs, ... }:
+{
+  pkgs,
+  desktop ? true,
+}:
 
 with pkgs;
 [
@@ -17,17 +20,9 @@ with pkgs;
   unzip
   zip
 
-  # Hardware, which a laptop is worth being able to inspect.
-  pciutils
-  usbutils
-
-  # Key injection, for the emoji picker to type its choice through. The picker
-  # itself is `emoji` (see features/wm/emoji); bemoji used to be here for it, and
-  # went with the fuzzel it drew its list through.
-  wtype
+  # Key injection and notifications are desktop-only; see the block below.
 
   # The notification client. The daemon that draws what it sends is the shell's.
-  libnotify
 
   difftastic
   github-cli
@@ -55,9 +50,6 @@ with pkgs;
 
   httpie
 
-  # direnv (and its nix-direnv caching) comes from programs.direnv in
-  # modules/system/dev.nix, which installs both.
-
   lazydocker
   lazygit
   # The rebuild helper. NH_FLAKE is exported alongside it, so `nh os switch`
@@ -80,10 +72,6 @@ with pkgs;
 
   # Diagnostics for when something is wrong: the hardware, the IO, the power, and
   # the network in the order they are usually suspected.
-  lshw
-  inxi
-  iotop
-  powertop
   psmisc
   dnsutils
   iperf3
@@ -99,7 +87,17 @@ with pkgs;
   # package is old, so `_7zz` is the drop-in if it is ever marked insecure.
   p7zip
   unrar
-
-  # The GPU. One integrated card on this laptop, so the basic view is enough.
+]
+# Hardware and desktop-only diagnostics. WSL has no GPU, PCI or USB bus to
+# inspect, so they stay out of the headless profile.
+++ pkgs.lib.optionals desktop [
+  inxi
+  iotop
+  lshw
   nvtopPackages.full
+  pciutils
+  powertop
+  usbutils
+  wtype
+  libnotify
 ]

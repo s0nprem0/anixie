@@ -8,7 +8,10 @@
 {
   # Tools that ship configuration get their own directory under features/shell/
   # instead, so this stays limited to bare binaries.
-  home.packages = import ./packages.nix { inherit pkgs; };
+  home.packages = import ./packages.nix {
+    inherit pkgs;
+    desktop = (config.anixie or { }) ? wm;
+  };
 
   # nh reads this as the default flake for `nh os switch` and friends, so the
   # rebuild aliases work from any directory rather than only from the repo.
