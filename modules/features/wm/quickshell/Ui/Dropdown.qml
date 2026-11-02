@@ -413,7 +413,6 @@ Item {
       delegate: Rectangle {
         id: row
         width: ListView.view.width
-        height: Style.space(32)
         required property int index
         required property var modelData
 
