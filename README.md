@@ -102,6 +102,10 @@ cd ~/anixie
 anixie update                 # rebuilds ~/anixie#wsl
 ```
 
+Bare `nixos-rebuild` is not supported: channels are disabled, so the stock
+`/etc/nixos/configuration.nix` in the tarball cannot evaluate. Always use
+`anixie update` or `nixos-rebuild switch --flake ~/anixie#wsl`.
+
 `anixie update` calls `nh os switch`, which works in WSL. If you change the
 default username on an existing install, NixOS-WSL wants `nixos-rebuild boot`
 followed by a restart; building the tarball this way avoids that by baking in
