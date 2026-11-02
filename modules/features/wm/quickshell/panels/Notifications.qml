@@ -576,7 +576,7 @@ Item {
           Repeater {
             model: modelData.entries
 
-            delegate: PanelActionButton {
+            delegate: Button {
               required property var modelData
 
               width: parent.width
@@ -595,7 +595,7 @@ Item {
       }
     }
 
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       visible: root.heldEntries.length > 0
       height: implicitHeight
@@ -624,7 +624,7 @@ Item {
       Repeater {
         model: root.quietSources
 
-        delegate: PanelActionButton {
+        delegate: Button {
           required property var modelData
 
           width: card.contentWidth
@@ -665,7 +665,7 @@ Item {
         renderType: Text.NativeRendering
       }
 
-      PanelActionButton {
+      Button {
         width: card.contentWidth
         height: implicitHeight
         label: "For 30 minutes"
@@ -673,7 +673,7 @@ Item {
         onClicked: NotificationHost.snoozeSharingOffer(1800)
       }
 
-      PanelActionButton {
+      Button {
         width: card.contentWidth
         height: implicitHeight
         label: "For 1 hour"
@@ -681,7 +681,7 @@ Item {
         onClicked: NotificationHost.snoozeSharingOffer(3600)
       }
 
-      PanelActionButton {
+      Button {
         width: card.contentWidth
         height: implicitHeight
         label: "For 4 hours"
@@ -689,7 +689,7 @@ Item {
         onClicked: NotificationHost.snoozeSharingOffer(14400)
       }
 
-      PanelActionButton {
+      Button {
         width: card.contentWidth
         height: implicitHeight
         label: "Not now"
@@ -710,7 +710,7 @@ Item {
 
     // A source can be snoozed from its group header below, but this is the
     // one-row way to quiet everything without waiting for a card.
-    PanelActionButton {
+    Button {
       id: snoozeAll
       width: card.contentWidth
       visible: !root.empty
@@ -722,7 +722,7 @@ Item {
 
     // Live cards are already here, but this is the one action that clears a
     // burst without closing each card.
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       visible: root.liveEntries.length > 0
       height: implicitHeight
@@ -734,7 +734,7 @@ Item {
     // Replay the newest entries in the same cards used for live notifications.
     // The popup is a separate window, so close the panel first rather than
     // leaving it covering the desktop underneath the replay.
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       visible: root.activeEntries.length > 0
       height: implicitHeight
@@ -747,7 +747,7 @@ Item {
     }
 
     // Clear everything (live, restored, history) in one go.
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       visible: root.liveEntries.length > 0 || root.heldEntries.length > 0 || root.activeEntries.length > 0 || NotificationHost.restoring
       height: implicitHeight
@@ -761,7 +761,7 @@ Item {
 
     // Only offered when there is history to clear; live cards are not archived
     // until they are dismissed.
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       visible: root.activeEntries.length > 0 || root.heldEntries.length > 0
       height: implicitHeight

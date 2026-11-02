@@ -208,7 +208,7 @@ BarWidget {
         renderType: Text.NativeRendering
       }
 
-      PanelActionButton {
+      Button {
         width: card.contentWidth
         label: "Refresh now"
         navigational: false

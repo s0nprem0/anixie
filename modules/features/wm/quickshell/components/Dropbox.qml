@@ -204,7 +204,7 @@ BarWidget {
 
       PanelSeparator {}
 
-      PanelActionButton {
+      Button {
         width: card.contentWidth
         label: root.busy ? "Working…" : (root.running ? "Stop Dropbox" : "Start Dropbox")
         navigational: false
@@ -213,14 +213,14 @@ BarWidget {
         onClicked: root.startStop()
       }
 
-      PanelActionButton {
+      Button {
         width: card.contentWidth
         label: "Open Dropbox folder"
         value: root.folder
         onClicked: root.open(root.folder)
       }
 
-      PanelActionButton {
+      Button {
         width: card.contentWidth
         label: "Refresh"
         navigational: false
@@ -255,7 +255,7 @@ BarWidget {
       Repeater {
         model: root.recent
 
-        delegate: PanelActionButton {
+        delegate: Button {
           id: recentRow
           required property var modelData
 

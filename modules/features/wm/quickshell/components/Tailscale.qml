@@ -458,7 +458,7 @@ BarWidget {
         value: root.backend
       }
 
-      PanelActionButton {
+      Button {
         width: card.contentWidth
         label: root.loggingIn
           ? "Waiting for browser…"

@@ -327,7 +327,7 @@ Item {
       renderType: Text.NativeRendering
     }
 
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       label: "Theme doctor"
       value: "Check"

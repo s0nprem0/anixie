@@ -46,7 +46,7 @@ Item {
 
     PanelSeparator {}
 
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       label: "Lock"
       value: "Super+Ctrl+L"
@@ -57,7 +57,7 @@ Item {
       }
     }
 
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       label: "Suspend"
       navigational: false
@@ -67,7 +67,7 @@ Item {
       }
     }
 
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       label: "Log out"
       navigational: false
@@ -79,7 +79,7 @@ Item {
 
     PanelSeparator {}
 
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       label: "Restart"
       danger: true
@@ -87,7 +87,7 @@ Item {
       onClicked: root.ask("systemctl reboot", "Restart the machine?", "")
     }
 
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       label: "Shut down"
       danger: true

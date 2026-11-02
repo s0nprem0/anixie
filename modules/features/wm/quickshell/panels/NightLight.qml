@@ -42,7 +42,7 @@ Item {
 
     PanelSeparator {}
 
-    SliderField {
+    PanelSlider {
       width: card.contentWidth
       label: "Temperature"
       value: root.temperature + " K"

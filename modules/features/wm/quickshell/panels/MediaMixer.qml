@@ -520,7 +520,7 @@ Item {
         }
       }
 
-      SliderField {
+      PanelSlider {
         width: parent.width
         from: 0
         to: 1
@@ -557,7 +557,7 @@ Item {
         }
       }
 
-      SliderField {
+      PanelSlider {
         width: parent.width
         from: 0
         to: 1
@@ -585,7 +585,7 @@ Item {
     Repeater {
       model: root.streams
 
-      delegate: SliderField {
+      delegate: PanelSlider {
         id: streamField
         required property var modelData
 
@@ -603,7 +603,7 @@ Item {
     // ---- devices ----
     PanelSeparator {}
 
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       label: "Devices"
       value: root.devicesExpanded ? "hide" : "show"

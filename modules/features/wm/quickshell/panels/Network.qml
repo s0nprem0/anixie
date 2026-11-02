@@ -527,7 +527,7 @@ Item {
       renderType: Text.NativeRendering
     }
 
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       visible: root.failed
       label: "Try again"
@@ -545,7 +545,7 @@ Item {
       width: card.contentWidth
       spacing: Style.space(8)
 
-      PanelActionButton {
+      Button {
         width: (card.contentWidth - Style.space(8)) / 2
         label: Util.wifi + "  Wi-Fi"
         value: root.radioEnabled ? "On" : "Off"
@@ -554,7 +554,7 @@ Item {
         onClicked: root.setRadio(!root.radioEnabled)
       }
 
-      PanelActionButton {
+      Button {
         width: (card.contentWidth - Style.space(8)) / 2
         label: "Airplane"
         value: root.airplaneMode ? "On" : "Off"
@@ -811,7 +811,7 @@ Item {
                 }
               }
 
-              PanelActionButton {
+              Button {
                 width: parent.width
                 label: "Connect"
                 navigational: false
@@ -827,7 +827,7 @@ Item {
             }
 
             // Simple connect action for open networks.
-            PanelActionButton {
+            Button {
               width: parent.width
               visible: !netRow.modelData.secured && !netRow.modelData.inUse
               label: "Connect"
@@ -837,7 +837,7 @@ Item {
             }
 
             // Active network action.
-            PanelActionButton {
+            Button {
               width: parent.width
               visible: netRow.modelData.inUse
               label: "Disconnect"
@@ -934,7 +934,7 @@ Item {
     PanelSeparator {}
 
     // ---- connection details (disclosed) ----
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       label: "Connection details"
       value: root.detailsExpanded ? "hide" : "show"
@@ -1022,7 +1022,7 @@ Item {
     }
 
     // ---- sharing (disclosed) ----
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       label: "Sharing"
       value: root.moreExpanded ? "hide" : "show"
@@ -1053,7 +1053,7 @@ Item {
           onToggled: root.setQr(!root.qrVisible)
         }
 
-        PanelActionButton {
+        Button {
           width: parent.width
           label: root.passwordCopied ? "Password copied" : (root.passwordBusy ? "Copying…" : "Copy password")
           outlined: true
@@ -1107,7 +1107,7 @@ Item {
       emptyText: "None"
       rowSpacing: Style.space(2)
       delegate: Component {
-        PanelActionButton {
+        Button {
           required property var modelData
 
           width: parent.width
@@ -1124,7 +1124,7 @@ Item {
     PanelSeparator {}
 
     // ---- restart / forget (always visible) ----
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       label: root.restarting ? "Restarting…" : "Restart Wi-Fi"
       navigational: false
@@ -1132,7 +1132,7 @@ Item {
       onClicked: root.restartWifi()
     }
 
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       visible: root.connected && root.networkFor(root.activeSsid) !== null
       label: "Forget this network"

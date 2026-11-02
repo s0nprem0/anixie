@@ -162,7 +162,7 @@ BarWidget {
 
       PanelSeparator {}
 
-      SliderField {
+      PanelSlider {
         width: card.contentWidth
         label: "Brightness"
         value: root.present ? root.percent + "%" : "—"
@@ -176,7 +176,7 @@ BarWidget {
 
       // Only for hardware that has one; the device is named in settings so a
       // machine without a backlit keyboard simply shows nothing here.
-      SliderField {
+      PanelSlider {
         width: card.contentWidth
         visible: root.keyboardPresent
         height: implicitHeight

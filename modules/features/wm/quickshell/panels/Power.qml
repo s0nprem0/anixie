@@ -434,7 +434,7 @@ Item {
     }
 
     // ---- brightness ----
-    SliderField {
+    PanelSlider {
       width: card.contentWidth
       label: "Brightness"
       value: root.brightness + "%"

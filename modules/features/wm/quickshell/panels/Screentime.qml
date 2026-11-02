@@ -113,7 +113,7 @@ Item {
       height: visible ? implicitHeight : 0
     }
 
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       label: "Focus for 25 minutes"
       value: FocusHost.active ? "" : "Super+Ctrl+F"
@@ -121,14 +121,14 @@ Item {
       onClicked: FocusHost.start("25")
     }
 
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       label: "Focus for 50 minutes"
       navigational: false
       onClicked: FocusHost.start("50")
     }
 
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       label: "Extend by 15 minutes"
       navigational: false
@@ -136,7 +136,7 @@ Item {
       onClicked: FocusHost.extend("15")
     }
 
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       label: "Stop focus"
       danger: true
@@ -147,7 +147,7 @@ Item {
 
     PanelSeparator {}
 
-    PanelActionButton {
+    Button {
       width: card.contentWidth
       label: "Reset today"
       danger: true
