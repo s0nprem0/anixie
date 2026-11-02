@@ -313,6 +313,21 @@ Item {
     ? "Wireless is off"
     : (root.failed ? "" : (root.scanning ? "Scanning…" : "No networks found"))
 
+  // Networks grouped for scanning: connected first, then saved (known profiles),
+  // then newly seen ones. Section labels only when more than one group exists.
+  readonly property var networkSections: {
+    const nets = root.networks || []
+    const connected = nets.filter(function (n) { return !!n.inUse })
+    const saved = nets.filter(function (n) { return !n.inUse && !!(n.network && n.network.known) })
+    const available = nets.filter(function (n) { return !n.inUse && !(n.network && n.network.known) })
+    const groups = []
+    const multi = (connected.length > 0 ? 1 : 0) + (saved.length > 0 ? 1 : 0) + (available.length > 0 ? 1 : 0) > 1
+    if (connected.length > 0) groups.push({ label: multi ? "Connected" : "", items: connected })
+    if (saved.length > 0) groups.push({ label: multi ? "Saved" : "", items: saved })
+    if (available.length > 0) groups.push({ label: multi ? "Available" : "", items: available })
+    return groups
+  }
+
   // ---- commands ----
   //
   // The service owns the list and the actions; these are the small wrappers the
@@ -620,10 +635,9 @@ Item {
         spacing: Style.space(2)
         visible: root.networks.length > 0
 
-        Repeater {
-          model: root.networks
-
-        delegate: Column {
+        Component {
+          id: networkRowDelegate
+          Column {
           id: netRow
           required property var modelData
 
@@ -682,6 +696,27 @@ Item {
                       : Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.12)
                   }
                 }
+              }
+
+              Text {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: netRow.modelData.inUse
+                text: "Connected"
+                color: Theme.accent
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+                font.weight: Font.DemiBold
+                renderType: Text.NativeRendering
+              }
+
+              Text {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: !netRow.modelData.inUse && !!(netRow.network && netRow.network.known)
+                text: "saved"
+                color: Theme.muted
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+                renderType: Text.NativeRendering
               }
 
               Text {
@@ -866,8 +901,34 @@ Item {
             }
           }
         }
+        }
+
+        Repeater {
+          model: root.networkSections
+
+          delegate: Column {
+            required property var modelData
+            width: parent.width
+            spacing: Style.space(2)
+
+            Text {
+              width: parent.width
+              visible: modelData.label !== ""
+              text: modelData.label
+              color: Theme.muted
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              font.weight: Font.DemiBold
+              renderType: Text.NativeRendering
+            }
+
+            Repeater {
+              model: modelData.items
+              delegate: networkRowDelegate
+            }
+          }
+        }
       }
-    }
     }
 
     PanelSeparator {}
