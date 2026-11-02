@@ -67,6 +67,8 @@ BarIndicator 1.0 BarIconButton.qml
 IconContentBounds 1.0 IconContentBounds.qml
 OpticalGlyph 1.0 OpticalGlyph.qml
 Panel 1.0 Panel.qml
+PanelController 1.0 PanelController.qml
+PanelKeyCatcher 1.0 PanelKeyCatcher.qml
 PanelRow 1.0 PanelRow.qml
 Slider 1.0 Slider.qml
 SliderField 1.0 SliderField.qml
