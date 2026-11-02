@@ -8,7 +8,9 @@
   imports = [
     ../../modules/system/dev.nix
     ../../modules/system/docker.nix
+    ../../modules/system/fonts.nix
     ../../modules/system/nix.nix
+    ../../modules/system/remote.nix
     ../../modules/system/secrets.nix
     ../../modules/system/users.nix
   ];
@@ -24,6 +26,15 @@
     # Linux shell. WSL already writes this into /etc/wsl.conf; registering the
     # binfmt handler is what actually makes a .exe start.
     interop.register = true;
+
+    # Use the Windows host's GPU drivers for WSLg applications.
+    useWindowsDriver = true;
+
+    # Reuse the Windows SSH agent (and its keys) inside the distro.
+    ssh-agent.enable = true;
+
+    # USB/IP passthrough for devices plugged into the Windows host.
+    usbip.enable = true;
   };
 
   networking.hostName = host;
