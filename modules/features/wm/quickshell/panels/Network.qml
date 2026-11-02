@@ -591,7 +591,8 @@ Item {
       implicitHeight: Math.max(Style.space(84), root.networks.length === 0
         ? (emptyMessageText.implicitHeight + Style.space(8))
         : networksColumn.implicitHeight)
-      height: implicitHeight
+      clip: true
+      Behavior on implicitHeight { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
 
       Text {
         id: emptyMessageText
@@ -692,11 +693,11 @@ Item {
             spacing: Style.space(6)
             // Animate the open/close instead of snapping, so the panel grows
             // smoothly rather than jumping.
-            height: netRow.expanded ? implicitHeight : 0
+            implicitHeight: netRow.expanded ? Math.max(0, childrenRect.height) : 0
             clip: true
             opacity: netRow.expanded ? 1 : 0
             enabled: netRow.expanded
-            Behavior on height { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
+            Behavior on implicitHeight { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
             Behavior on opacity { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
 
             // Password form for secured, unused networks.
@@ -868,11 +869,11 @@ Item {
       width: card.contentWidth
       spacing: Style.space(8)
       // Animate the open/close instead of snapping.
-      height: root.moreExpanded ? implicitHeight : 0
+      implicitHeight: root.moreExpanded ? Math.max(0, childrenRect.height) : 0
       clip: true
       opacity: root.moreExpanded ? 1 : 0
       enabled: root.moreExpanded
-      Behavior on height { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
+      Behavior on implicitHeight { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
       Behavior on opacity { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
 
       // Connection details
