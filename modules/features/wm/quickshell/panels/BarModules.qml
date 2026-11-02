@@ -213,11 +213,11 @@ Item {
       }
     }
 
-    TextField {
+    FilterInput {
       width: card.contentWidth
       placeholderText: "Filter modules"
       text: root.filterText
-      onTextChanged: root.filterText = text
+      onEdited: function (t) { root.filterText = t }
     }
 
     Row {

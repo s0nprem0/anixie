@@ -129,13 +129,12 @@ Item {
         spacing: Style.space(4)
         focus: false
 
-        TextField {
+        FilterInput {
           id: searchField
           width: parent.width
-          placeholderText: "Search"
-          Accessible.name: "Search settings"
+          placeholderText: "Search settings"
           text: root.searchText
-          onTextChanged: root.searchText = text
+          onEdited: function (t) { root.searchText = t }
 
           Keys.onPressed: function (event) {
             if (event.key === Qt.Key_Down) {
