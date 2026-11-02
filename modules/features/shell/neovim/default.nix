@@ -43,7 +43,6 @@ in
         gcc
         git
         gnumake
-        imagemagick
         lazygit
         nodejs
         ripgrep
@@ -51,6 +50,7 @@ in
         unzip
         wget
       ]
+      ++ lib.optional desktop imagemagick
       ++ lib.optional desktop kdePackages.qtdeclarative;
   };
 
