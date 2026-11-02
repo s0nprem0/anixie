@@ -1,4 +1,4 @@
-{ ... }:
+_:
 
 {
   # Docker Engine running inside the WSL distro itself. WSL2 ships a real
