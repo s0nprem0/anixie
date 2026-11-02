@@ -73,15 +73,20 @@ Item {
       ? PanelHost.barExtent + Style.space(24)
       : Style.space(24)
 
+    // A small floor so the OSD never sits flush against a screen edge, even
+    // when it shares no edge with the bar (desktop Linux has no CSS safe-area
+    // insets, so this stands in for one).
+    readonly property real osdSafeInset: Style.space(8)
+
     anchors.top: osdWindow.osdTop
     anchors.bottom: osdWindow.osdBottom
     anchors.left: osdWindow.osdLeft
     anchors.right: osdWindow.osdRight
 
-    margins.top: osdWindow.osdTop ? osdWindow.osdClearance : 0
-    margins.bottom: osdWindow.osdBottom ? osdWindow.osdClearance : 0
-    margins.left: osdWindow.osdLeft ? osdWindow.osdClearance : 0
-    margins.right: osdWindow.osdRight ? osdWindow.osdClearance : 0
+    margins.top: osdWindow.osdTop ? Math.max(osdSafeInset, osdWindow.osdClearance) : osdSafeInset
+    margins.bottom: osdWindow.osdBottom ? Math.max(osdSafeInset, osdWindow.osdClearance) : osdSafeInset
+    margins.left: osdWindow.osdLeft ? Math.max(osdSafeInset, osdWindow.osdClearance) : osdSafeInset
+    margins.right: osdWindow.osdRight ? Math.max(osdSafeInset, osdWindow.osdClearance) : osdSafeInset
 
     implicitWidth: osdCard.implicitWidth
     implicitHeight: osdCard.implicitHeight

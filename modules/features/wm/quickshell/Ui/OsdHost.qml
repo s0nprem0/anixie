@@ -379,18 +379,30 @@ QtObject {
       if (root.brightnessProcessedToken === finishedToken) return
       root.brightnessProcessedToken = finishedToken
 
-      if (exitCode !== 0) return
+      if (exitCode !== 0) {
+        root.show("brightness", "Couldn't read brightness", "", "", "", 1500, root.preferredScreen)
+        return
+      }
 
       const lines = String(root.brightnessProbe.output || "").trim().split(/\r?\n/)
       const raw = lines.length > 0 ? lines[0].trim() : ""
-      if (raw === "") return
+      if (raw === "") {
+        root.show("brightness", "Couldn't read brightness", "", "", "", 1500, root.preferredScreen)
+        return
+      }
 
       const parts = raw.split(",")
-      if (parts.length < 4) return
+      if (parts.length < 4) {
+        root.show("brightness", "Couldn't read brightness", "", "", "", 1500, root.preferredScreen)
+        return
+      }
 
       const percentText = String(parts[3] || "").trim().replace("%", "")
       const percent = root.parseInteger(percentText)
-      if (percent === null) return
+      if (percent === null) {
+        root.show("brightness", "Couldn't read brightness", "", "", "", 1500, root.preferredScreen)
+        return
+      }
 
       const clamped = Math.max(0, Math.min(100, percent))
       root.show("brightness", "", clamped, 100, clamped + "%", 1200, root.preferredScreen)

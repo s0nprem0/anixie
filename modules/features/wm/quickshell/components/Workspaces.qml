@@ -179,7 +179,7 @@ BarWidget {
     root.layout = next
 
     // Tell the OSD which layout the workspace just switched to.
-    try { OsdHost.show("layout-tiling", next + " layout") } catch (e) {}
+    try { OsdHost.show("layout-tiling", next.charAt(0).toUpperCase() + next.slice(1) + " layout") } catch (e) {}
 
     // A workspace rule is how Hyprland changes a layout at runtime; `hyprctl
     // keyword general:layout` would change every workspace instead.
