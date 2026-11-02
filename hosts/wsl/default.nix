@@ -1,5 +1,6 @@
 {
   host,
+  pkgs,
   user,
   ...
 }:
@@ -9,6 +10,7 @@
     ../../modules/system/dev.nix
     ../../modules/system/docker.nix
     ../../modules/system/fonts.nix
+    ../../modules/system/memory.nix
     ../../modules/system/nix.nix
     ../../modules/system/remote.nix
     ../../modules/system/secrets.nix

@@ -130,6 +130,11 @@ processors=4
 Use `wsl --shutdown` for the full restart that picks up `/etc/wsl.conf` or
 network changes.
 
+SSH uses key authentication (passwords are disabled). Add your public key to
+`~/.ssh/authorized_keys` on the WSL side, or rely on the Windows SSH agent
+already surfaced via `wsl.ssh-agent`. For USB passthrough, install `usbipd`
+on Windows, then `usbipd bind --busid <id>` and `usbipd attach --wsl --busid <id>`.
+
 ## The bar
 
 `bar.json` ships the layout: one bar per screen, same layout everywhere; panels
