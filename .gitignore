@@ -1,5 +1,6 @@
 result
 result-*
+nixos.wsl
 .direnv/
 __pycache__/
 *.pyc

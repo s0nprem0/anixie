@@ -19,6 +19,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # The WSL host reuses the parts of this flake that make sense on Windows
+    # (Nix settings, the user, Home Manager's CLI and shell modules) while the
+    # module supplies WSL's kernel, boot shims and default-user handling.
+    nixos-wsl = {
+      url = "github:nix-community/NixOS-WSL/main";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Hyprland plugins. The revisions are pinned to the compositor series this
     # flake builds against (0.56): an out-of-tree plugin compiles against
     # Hyprland's internal headers, so a nixpkgs bump that moves Hyprland is a
@@ -71,64 +79,91 @@
   outputs =
     inputs@{ flake-parts, ... }:
     let
-      # The identity of this machine and its user, stated once here and threaded
-      # to every module through specialArgs. Nothing else in the tree hardcodes
-      # a username, hostname or flake path.
-      host = "2200h";
+      # The identity of the desktop and its user, stated once here and threaded
+      # to every module through specialArgs. The WSL host reuses the user and
+      # flake path but has a hostname of its own.
+      desktopHost = "2200h";
+      wslHost = "wsl";
       user = "son";
       # Relative to the user's home directory, which is what every consumer
       # below prepends. Including the user here would make ~/son/nix-dots.
       flakeDir = "anixie";
 
-      # Bound rather than inlined so the checks below can lint what the machine
-      # actually installs — the quickshell tree with its placeholders rendered.
-      nixos = inputs.nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
+      # One system builder for both hosts. The desktop and WSL differ in which
+      # host module and Home Manager profile they import, not in how Nix,
+      # Home Manager or the secrets module are wired.
+      mkNixos =
+        {
+          host,
+          home,
+          modules,
+        }:
+        inputs.nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
 
-        specialArgs = {
-          inherit
-            host
-            user
-            flakeDir
-            inputs
-            ;
+          specialArgs = {
+            inherit
+              host
+              user
+              flakeDir
+              inputs
+              ;
+          };
+
+          modules = [
+            inputs.home-manager.nixosModules.default
+
+            inputs.sops-nix.nixosModules.sops
+
+            {
+              nixpkgs.config.allowUnfree = true;
+
+              home-manager = {
+                useGlobalPkgs = true;
+                useUserPackages = true;
+                backupFileExtension = "hm-backup";
+
+                # Forward the identity so Home Manager modules see the same
+                # host/user/flakeDir arguments the NixOS modules do.
+                extraSpecialArgs = {
+                  inherit
+                    host
+                    user
+                    flakeDir
+                    inputs
+                    ;
+                };
+
+                # The secrets module is a Home Manager module, so it cannot sit
+                # in the NixOS `modules` list above.
+                sharedModules = [
+                  inputs.sops-nix.homeManagerModules.sops
+                ];
+
+                users.${user} = import home;
+              };
+            }
+          ]
+          ++ modules;
         };
 
+      # Bound rather than inlined so the checks below can lint what the machine
+      # actually installs — the quickshell tree with its placeholders rendered.
+      nixos = mkNixos {
+        host = desktopHost;
+        home = ./modules/home;
+        modules = [ ./hosts/vivobook ];
+      };
+
+      # WSL keeps the same user and rebuild entry point. Its host module leaves
+      # out the desktop stack (Hyprland, greetd, hardware, boot loader) and the
+      # NixOS-WSL module supplies WSL's kernel and boot shims instead.
+      wsl = mkNixos {
+        host = wslHost;
+        home = ./modules/home/wsl.nix;
         modules = [
-          ./hosts/vivobook
-
-          inputs.home-manager.nixosModules.default
-
-          inputs.sops-nix.nixosModules.sops
-
-          {
-            nixpkgs.config.allowUnfree = true;
-
-            home-manager = {
-              useGlobalPkgs = true;
-              useUserPackages = true;
-              backupFileExtension = "hm-backup";
-
-              # Forward the identity so Home Manager modules see the same
-              # host/user/flakeDir arguments the NixOS modules do.
-              extraSpecialArgs = {
-                inherit
-                  host
-                  user
-                  flakeDir
-                  inputs
-                  ;
-              };
-
-              # The secrets module is a Home Manager module, so it cannot sit in
-              # the NixOS `modules` list above.
-              sharedModules = [
-                inputs.sops-nix.homeManagerModules.sops
-              ];
-
-              users.${user} = import ./modules/home;
-            };
-          }
+          inputs.nixos-wsl.nixosModules.default
+          ./hosts/wsl
         ];
       };
     in
@@ -137,7 +172,10 @@
 
       # A NixOS configuration belongs to a machine, not to a system, so it
       # lives under the `flake` freeform block rather than in perSystem.
-      flake.nixosConfigurations.${host} = nixos;
+      flake.nixosConfigurations = {
+        ${desktopHost} = nixos;
+        ${wslHost} = wsl;
+      };
 
       perSystem =
         { system, ... }:

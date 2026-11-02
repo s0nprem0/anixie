@@ -26,9 +26,14 @@
     # Allows a login shell that is not in environment.systemPackages.
     ignoreShellProgramCheck = true;
 
+    # Only join groups that an enabled service actually created. A name no
+    # module declares is a warning at activation, and on a host without that
+    # service — WSL, for one — it is a group that does not exist.
     extraGroups = [
-      "networkmanager"
       "wheel"
+    ]
+    ++ lib.filter (group: builtins.hasAttr group config.users.groups) [
+      "networkmanager"
       "podman"
       "libvirtd"
       "kvm"

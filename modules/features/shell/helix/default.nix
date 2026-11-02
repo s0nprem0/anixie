@@ -1,5 +1,6 @@
 {
   config,
+  lib,
   pkgs,
   flakeDir,
   host,
@@ -11,6 +12,10 @@ let
   # needs the checkout on disk rather than the store copy a build sees.
   flake = ''(builtins.getFlake "${config.home.homeDirectory}/${flakeDir}")'';
   hostExpr = "${flake}.nixosConfigurations.${host}";
+
+  # QML tooling belongs to the desktop profile. WSL has no Quickshell tree to
+  # lint, so installing qmlls there would only pull Qt in for an unused server.
+  desktop = (config.anixie or { }) ? wm;
 in
 {
   programs.helix = {
@@ -18,16 +23,18 @@ in
 
     # On Helix's PATH only, not the profile's: they are the editor's, and a
     # shell has no use for a language server.
-    extraPackages = with pkgs; [
-      bash-language-server
-      lua-language-server
-      marksman
-      nixd
-      nixfmt
-      shfmt
+    extraPackages =
+      with pkgs;
+      [
+        bash-language-server
+        lua-language-server
+        marksman
+        nixd
+        nixfmt
+        shfmt
+      ]
       # qmlls ships in qtdeclarative, not a package of its own.
-      kdePackages.qtdeclarative
-    ];
+      ++ lib.optional desktop kdePackages.qtdeclarative;
 
     settings.editor = {
       line-number = "relative";
@@ -85,20 +92,24 @@ in
     };
 
     languages = {
-      language-server.nixd.config.nixd = {
-        nixpkgs.expr = "import ${flake}.inputs.nixpkgs { }";
-        formatting.command = [ "nixfmt" ];
-        options = {
-          nixos.expr = "${hostExpr}.options";
-          home-manager.expr = "${hostExpr}.options.home-manager.users.type.getSubOptions [ ]";
+      language-server = {
+        nixd.config.nixd = {
+          nixpkgs.expr = "import ${flake}.inputs.nixpkgs { }";
+          formatting.command = [ "nixfmt" ];
+          options = {
+            nixos.expr = "${hostExpr}.options";
+            home-manager.expr = "${hostExpr}.options.home-manager.users.type.getSubOptions [ ]";
+          };
         };
-      };
-
-      # Quickshell's types live in its own QML module, which qmlls cannot find
-      # on its own: -E has it read the import path from the environment.
-      language-server.qmlls = {
-        args = [ "-E" ];
-        environment.QML_IMPORT_PATH = "${pkgs.quickshell}/lib/qt-6/qml";
+      }
+      // lib.optionalAttrs desktop {
+        # Quickshell's types live in its own QML module, which qmlls cannot
+        # find on its own: -E has it read the import path from the
+        # environment.
+        qmlls = {
+          args = [ "-E" ];
+          environment.QML_IMPORT_PATH = "${pkgs.quickshell}/lib/qt-6/qml";
+        };
       };
 
       language = [

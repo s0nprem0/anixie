@@ -36,7 +36,9 @@ latter, interleaved with service noise.
 
 ```
 hosts/vivobook/           the machine: hardware, boot, hostname
+hosts/wsl/                the Windows host: NixOS-WSL, no desktop stack
 modules/system/           NixOS side: users, audio, network, boot, lock, snapshots
+modules/home/             Home Manager profile per host (desktop vs WSL)
 modules/features/         per-user side
   applications/           packaged apps, one directory each
   cli/                    the `anixie` front door
@@ -60,6 +62,53 @@ Ui/                       shared pieces, hosts and the surface/IPC components:
 bar.json                  the shipped bar layout
 modules.json              where a widget goes when enabled from the menu/CLI
 ```
+
+## WSL
+
+`nixosConfigurations.wsl` is a second host for Windows Subsystem for Linux. It
+shares the user, Nix settings and the terminal half of the profile (`cli`,
+`shell`), but not the desktop: no Hyprland, greetd, audio, Bluetooth, boot
+loader or hardware modules. `hosts/wsl` is the whole host definition.
+
+Build the distro from this flake rather than importing the stock NixOS-WSL
+tarball, so the first boot already has `son` and this configuration:
+
+```sh
+nix build .#nixosConfigurations.wsl.config.system.build.tarballBuilder
+sudo ./result/bin/nixos-wsl-tarball-builder   # writes ./nixos.wsl
+```
+
+Copy `nixos.wsl` to Windows, then install and start it:
+
+```powershell
+wsl --install --from-file .\nixos.wsl --name NixOS
+wsl -d NixOS
+```
+
+On WSL before 2.4.4, import instead:
+
+```powershell
+wsl --import NixOS $env:USERPROFILE\NixOS .\nixos.wsl --version 2
+```
+
+The first boot is already the flake's build. Clone the checkout inside the
+distro and keep using the same front door:
+
+```sh
+git clone <this repo> ~/anixie
+cd ~/anixie
+anixie update                 # rebuilds ~/anixie#wsl
+```
+
+`anixie update` calls `nh os switch`, which works in WSL. If you change the
+default username on an existing install, NixOS-WSL wants `nixos-rebuild boot`
+followed by a restart; building the tarball this way avoids that by baking in
+`son` from the start.
+
+There is no `bar` command in the WSL profile because there is no Quickshell to
+talk to. `wsl.interop.register` makes `cmd.exe`, `explorer.exe` and `wslpath`
+work from the Linux shell. Use `wsl --shutdown` for the full restart that picks
+up `/etc/wsl.conf` or network changes.
 
 ## The bar
 
