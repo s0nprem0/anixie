@@ -306,6 +306,8 @@ Item {
       return OsdHost.autoDuration ? "on" : "off"
     }
     function state(): string { return OsdHost.opened ? "open" : "closed" }
+    // Announce that the shell is up (or back up after a restart/crash).
+    function ready(): string { OsdHost.show("", "Quickshell ready", "", "", "", 1000); return "ok" }
   }
 
   // The display-name overlay, for the Displays panel and `monitors identify`.

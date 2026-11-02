@@ -129,6 +129,9 @@ QtObject {
     if (key === "keyboard") return Util.keyboard
     if (key === "nightlight") return Util.moon
 
+    // The shell itself: a restart or update of quickshell.
+    if (key === "shell" || key === "update" || key === "restart") return Util.update
+
     // The global tiling/floating switch, read back from LayoutModeHost.
     if (key === "layout-tiling" || key === "tiling") return Util.tiling
     if (key === "layout-floating" || key === "floating") return Util.floating
@@ -421,8 +424,18 @@ QtObject {
     onTriggered: root.opened = false
   }
 
+  // A short readout when the shell comes up, so a restart (crash, manual
+  // restart, or an update that reloaded the service) is visible rather than
+  // silent. Delayed so it does not race the other startup readouts.
+  property Timer startupOsdTimer: Timer {
+    interval: 600
+    repeat: false
+    onTriggered: root.show("", "Quickshell ready", "", "", "", 1000)
+  }
+
   Component.onCompleted: {
     root.backlightFind.running = true
     if (Pipewire.ready) root.armed = true
+    root.startupOsdTimer.restart()
   }
 }
