@@ -698,6 +698,7 @@ QtObject {
     root.fileSearch.command = [
       "sh",
       "-c",
+      "export PATH=\"/etc/profiles/per-user/${USER:-}/bin:/run/current-system/sw/bin:$PATH\"\n" +
       "q=\"$1\"; term=\"$2\"; dir=\"$3\"; gen=\"$4\"\n" +
       "if [ -z \"$term\" ]; then exit 0; fi\n" +
       "if ! command -v fd >/dev/null 2>&1; then exit 127; fi\n" +
