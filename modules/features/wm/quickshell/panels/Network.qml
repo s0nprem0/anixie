@@ -592,7 +592,6 @@ Item {
         ? (emptyMessageText.implicitHeight + Style.space(8))
         : networksColumn.implicitHeight)
       clip: true
-      Behavior on implicitHeight { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
 
       Text {
         id: emptyMessageText
@@ -696,7 +695,6 @@ Item {
             clip: true
             opacity: netRow.expanded ? 1 : 0
             enabled: netRow.expanded
-            Behavior on implicitHeight { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
             Behavior on opacity { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
 
             Column {
@@ -877,7 +875,6 @@ Item {
       clip: true
       opacity: root.moreExpanded ? 1 : 0
       enabled: root.moreExpanded
-      Behavior on implicitHeight { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
       Behavior on opacity { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
 
       Column {
