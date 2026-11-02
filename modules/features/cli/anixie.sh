@@ -206,6 +206,16 @@ cmd=$(resolve "$1") || {
 }
 shift
 
+# A group can be advertised by the front door without its command being
+# installed on this host (the WSL profile has no Quickshell, so `bar` and
+# the desktop commands are absent). Fail clearly instead of exec'ing a
+# missing binary.
+first=${cmd%% *}
+if ! command -v "$first" >/dev/null 2>&1; then
+  printf 'anixie: %s is not available on this host\n' "$first" >&2
+  exit 127
+fi
+
 # The command field holds one or more words to exec. Split it without
 # pathname expansion, then exec the result so user arguments stay separate.
 set -f
