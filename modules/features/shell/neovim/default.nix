@@ -1,5 +1,6 @@
 {
   config,
+  lib,
   pkgs,
   flakeDir,
   ...
@@ -11,6 +12,11 @@ let
   # copied into the store: a store path is read-only, and lazy.nvim would fail
   # to pin updates. It also means new plugin files need no rebuild to appear.
   configDir = "${config.home.homeDirectory}/${flakeDir}/modules/features/shell/neovim/nvim";
+
+  # QML tooling belongs to the desktop profile. WSL has no Quickshell tree to
+  # lint, so installing qtdeclarative there would only pull Qt in for an
+  # unused server.
+  desktop = (config.anixie or { }) ? wm;
 in
 {
   programs.neovim = {
@@ -29,21 +35,23 @@ in
     # git, compiles treesitter parsers and fzf-native with cc/make, and lets
     # Mason install its npm-based servers and Prettier with node. ripgrep, fd
     # and lazygit are what fzf-lua and snacks shell out to.
-    extraPackages = with pkgs; [
-      curl
-      fd
-      gcc
-      git
-      gnumake
-      imagemagick
-      kdePackages.qtdeclarative
-      lazygit
-      nodejs
-      ripgrep
-      tree-sitter
-      unzip
-      wget
-    ];
+    extraPackages =
+      with pkgs;
+      [
+        curl
+        fd
+        gcc
+        git
+        gnumake
+        imagemagick
+        lazygit
+        nodejs
+        ripgrep
+        tree-sitter
+        unzip
+        wget
+      ]
+      ++ lib.optional desktop kdePackages.qtdeclarative;
   };
 
   xdg.configFile."nvim".source = config.lib.file.mkOutOfStoreSymlink configDir;
