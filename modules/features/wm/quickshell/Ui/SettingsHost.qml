@@ -12,7 +12,7 @@ QtObject {
 
   function panelBuilder() {
     if (root.panelComponent === null) {
-      root.panelComponent = Qt.createComponent(Qt.resolvedUrl("../panels/Settings.qml"), Component.PreferSynchronous)
+      root.panelComponent = Qt.createComponent(Qt.resolvedUrl("../panels/Settings.qml"))
     }
     return root.panelComponent
   }
