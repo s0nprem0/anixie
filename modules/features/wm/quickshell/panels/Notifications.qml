@@ -255,34 +255,11 @@ Item {
       visible: root.empty
     }
 
-    Column {
+    PanelList {
       width: card.contentWidth
       visible: root.empty
-      spacing: Style.space(4)
-      topPadding: Style.space(10)
-      bottomPadding: Style.space(10)
-
-      Text {
-        width: parent.width
-        text: "No notifications yet"
-        color: Theme.fg
-        font.family: Style.font.family
-        font.pixelSize: Style.font.body
-        font.weight: Font.DemiBold
-        horizontalAlignment: Text.AlignHCenter
-        renderType: Text.NativeRendering
-      }
-
-      Text {
-        width: parent.width
-        text: "Dismissed notifications will appear here."
-        color: Theme.muted
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        wrapMode: Text.WordWrap
-        horizontalAlignment: Text.AlignHCenter
-        renderType: Text.NativeRendering
-      }
+      emptyText: "No notifications yet\nDismissed notifications will appear here."
+      rowSpacing: Style.space(4)
     }
 
     PanelSeparator {

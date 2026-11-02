@@ -1101,25 +1101,13 @@ Item {
       label: "VPNs & Proxies"
     }
 
-    Text {
+    PanelList {
       width: card.contentWidth
-      height: implicitHeight
-      visible: root.vpns.length === 0
-      text: "None"
-      color: Theme.muted
-      font.family: Style.font.family
-      font.pixelSize: Style.font.bodySmall
-      renderType: Text.NativeRendering
-    }
-
-    Column {
-      width: card.contentWidth
-      spacing: Style.space(2)
-
-      Repeater {
-        model: root.vpns
-
-        delegate: PanelActionButton {
+      model: root.vpns
+      emptyText: "None"
+      rowSpacing: Style.space(2)
+      delegate: Component {
+        PanelActionButton {
           required property var modelData
 
           width: parent.width

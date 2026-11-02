@@ -574,15 +574,11 @@ Item {
       outputs: root.ready ? root.outputs : []
     }
 
-    Text {
+    PanelList {
       width: card.contentWidth
-      visible: !root.ready || root.outputs.length === 0
-      height: implicitHeight
-      text: root.ready ? "No screens found" : "Looking for screens…"
-      color: Theme.muted
-      font.family: Style.font.family
-      font.pixelSize: Style.font.body
-      renderType: Text.NativeRendering
+      model: root.ready ? root.outputs : []
+      emptyText: root.ready ? "No screens found" : "Looking for screens…"
+      rowSpacing: Style.space(2)
     }
 
     Repeater {

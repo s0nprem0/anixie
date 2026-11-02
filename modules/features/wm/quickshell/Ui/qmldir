@@ -79,6 +79,7 @@ SizedImage 1.0 SizedImage.qml
 Toggle 1.0 Toggle.qml
 PanelHero 1.0 PanelHero.qml
 PanelActionButton 1.0 PanelActionButton.qml
+PanelList 1.0 PanelList.qml
 TextButton 1.0 TextButton.qml
 ContextMenuRow 1.0 ContextMenuRow.qml
 TextField 1.0 TextField.qml
