@@ -655,24 +655,14 @@ Item {
               spacing: Style.space(4)
               anchors.verticalCenter: parent.verticalCenter
 
-              Item {
+              Text {
                 anchors.verticalCenter: parent.verticalCenter
-                width: Style.space(28)
-                height: parent.height
-                clip: true
-
-                Text {
-                  anchors.verticalCenter: parent.verticalCenter
-                  anchors.left: parent.left
-                  width: parent.width
-                  visible: text !== ""
-                  text: root.bandLabel(netRow.modelData)
-                  color: Theme.muted
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
-                  elide: Text.ElideRight
-                  renderType: Text.NativeRendering
-                }
+                visible: text !== ""
+                text: root.bandLabel(netRow.modelData)
+                color: Theme.muted
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+                renderType: Text.NativeRendering
               }
 
               Row {
