@@ -270,7 +270,7 @@ Item {
       label: "Wallpaper palette"
     }
 
-    SegmentedControl {
+    ButtonGroup {
       width: card.contentWidth
       model: ["auto", "light", "dark"]
       currentIndex: root.wallpaperModeIndex()
@@ -284,7 +284,7 @@ Item {
       label: "Rotate wallpapers"
     }
 
-    SegmentedControl {
+    ButtonGroup {
       width: card.contentWidth
       model: ["Off", "30m", "2h", "6h"]
       currentIndex: root.rotationIndex()
@@ -298,7 +298,7 @@ Item {
       label: "Bar background"
     }
 
-    SegmentedControl {
+    ButtonGroup {
       width: card.contentWidth
       model: ["clear", "glassy", "opaque"]
       currentIndex: root.barBackgroundIndex()

@@ -136,7 +136,7 @@ Item {
       label: "Position"
     }
 
-    SegmentedControl {
+    ButtonGroup {
       width: card.contentWidth
       model: ["top", "bottom", "left", "right"]
       currentIndex: ["top", "bottom", "left", "right"].indexOf(BarContext.position)
@@ -152,7 +152,7 @@ Item {
       label: "Background"
     }
 
-    SegmentedControl {
+    ButtonGroup {
       width: card.contentWidth
       model: ["clear", "glassy", "opaque"]
       currentIndex: ["clear", "glassy", "opaque"].indexOf(String(BarConfig.config.background || "clear"))

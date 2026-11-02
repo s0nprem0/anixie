@@ -83,7 +83,7 @@ PanelHero 1.0 PanelHero.qml
 PanelActionButton 1.0 PanelActionButton.qml
 Button 1.0 PanelActionButton.qml
 ButtonGroup 1.0 SegmentedControl.qml
-PanelSlider 1.0 Slider.qml
+PanelSlider 1.0 SliderField.qml
 PanelList 1.0 PanelList.qml
 TextButton 1.0 TextButton.qml
 ContextMenuRow 1.0 ContextMenuRow.qml

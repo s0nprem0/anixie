@@ -412,7 +412,7 @@ Item {
       renderType: Text.NativeRendering
     }
 
-    SegmentedControl {
+    ButtonGroup {
       width: card.contentWidth
       model: root.profileChoices
       currentIndex: root.profiles.indexOf(root.profile)
