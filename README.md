@@ -111,8 +111,19 @@ There is no `bar` command in the WSL profile because there is no Quickshell to
 talk to. `wsl.interop.register` makes `cmd.exe`, `explorer.exe` and `wslpath`
 work from the Linux shell. Docker is enabled natively (`virtualisation.docker`),
 and `son` is in the `docker` group, so `docker run hello-world` works without
-sudo after a fresh login. Use `wsl --shutdown` for the full restart that picks
-up `/etc/wsl.conf` or network changes.
+sudo after a fresh login. OpenSSH (port 22), Tailscale, the Windows SSH agent
+and USB/IP are also enabled; the Windows GPU driver is used for WSLg, and the
+desktop's font set is installed. Docker's memory and CPU limits are set on the
+Windows side in `%USERPROFILE%\.wslconfig`, for example:
+
+```ini
+[wsl2]
+memory=8GB
+processors=4
+```
+
+Use `wsl --shutdown` for the full restart that picks up `/etc/wsl.conf` or
+network changes.
 
 ## The bar
 
