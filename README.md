@@ -109,7 +109,9 @@ followed by a restart; building the tarball this way avoids that by baking in
 
 There is no `bar` command in the WSL profile because there is no Quickshell to
 talk to. `wsl.interop.register` makes `cmd.exe`, `explorer.exe` and `wslpath`
-work from the Linux shell. Use `wsl --shutdown` for the full restart that picks
+work from the Linux shell. Docker is enabled natively (`virtualisation.docker`),
+and `son` is in the `docker` group, so `docker run hello-world` works without
+sudo after a fresh login. Use `wsl --shutdown` for the full restart that picks
 up `/etc/wsl.conf` or network changes.
 
 ## The bar

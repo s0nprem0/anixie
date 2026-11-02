@@ -7,6 +7,7 @@
 {
   imports = [
     ../../modules/system/dev.nix
+    ../../modules/system/docker.nix
     ../../modules/system/nix.nix
     ../../modules/system/secrets.nix
     ../../modules/system/users.nix

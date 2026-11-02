@@ -33,10 +33,11 @@
       "wheel"
     ]
     ++ lib.filter (group: builtins.hasAttr group config.users.groups) [
+      "docker"
+      "kvm"
+      "libvirtd"
       "networkmanager"
       "podman"
-      "libvirtd"
-      "kvm"
     ]
     # GameMode's renice needs the user in the `gamemode` group.
     ++ lib.optionals (
