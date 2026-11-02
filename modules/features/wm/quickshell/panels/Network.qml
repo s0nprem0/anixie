@@ -749,7 +749,7 @@ Item {
 
                 TextField {
                   id: inlineSecretField
-                  width: Math.max(0, parent.width - showPasswordButton.width - Style.space(4))
+                  width: Math.max(0, parent.width - showPasswordButton.width - cancelButton.width - Style.space(8))
                   echoMode: netRow.passwordVisible ? TextInput.Normal : TextInput.Password
                   placeholderText: "network password"
                   Keys.onEscapePressed: {
