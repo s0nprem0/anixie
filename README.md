@@ -116,7 +116,7 @@ and `"hidden": true` removes.
 ```json
 {
   "entries": [
-    { "label": "Open dots", "run": "app-launch kitty -e hx ~/nix-dots" },
+    { "label": "Open dots", "run": "app-launch kitty -e hx ~/anixie" },
     {
       "group": "Style",
       "entries": [

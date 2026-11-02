@@ -18,7 +18,7 @@ BarWidget {
     const configured = String(root.setting("repo", ""))
     if (configured !== "") return configured
     const home = Quickshell.env("HOME")
-    return (home && home !== "") ? home + "/nix-dots" : ""
+    return (home && home !== "") ? home + "/anixie" : ""
   }
 
   readonly property int intervalMs: {

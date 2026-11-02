@@ -62,7 +62,7 @@ with pkgs;
   lazydocker
   lazygit
   # The rebuild helper. NH_FLAKE is exported alongside it, so `nh os switch`
-  # finds ~/nix-dots without being told.
+  # finds ~/anixie without being told.
   nh
   nix-output-monitor
   ripgrep

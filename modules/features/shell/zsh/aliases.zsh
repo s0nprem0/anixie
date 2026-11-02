@@ -10,7 +10,7 @@ alias git_personal='git config user.email "s0nprem0@proton.me" && git config use
 alias git_academic='git config user.email "jaysonbulugagao@gmail.com" && git config user.name "202302986"'
 
 # Rebuilds. `rebuild` is the one place that knows the nh flags (NH_FLAKE points
-# at ~/nix-dots), so the aliases and `anixie update` cannot drift apart.
+# at ~/anixie), so the aliases and `anixie update` cannot drift apart.
 alias nrs='rebuild switch'   # build and activate now
 alias nrb='rebuild boot'     # build for the next boot
 alias nrt='rebuild test'     # activate a throwaway generation
