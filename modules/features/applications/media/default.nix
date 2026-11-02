@@ -26,6 +26,7 @@ in
   config = lib.mkIf cfg.enable {
     home.packages = [
       pkgs.mpv
+      pkgs.imv
     ]
     ++ lib.optionals cfg.obs [
       (pkgs.runCommand "obs-studio-ndi"
@@ -55,16 +56,16 @@ in
       enable = true;
       defaultApplications = {
         # Images: mpv handles stills too, so xdg-open on a picture is not a dead end.
-        "image/png" = "mpv.desktop";
-        "image/jpeg" = "mpv.desktop";
-        "image/jpg" = "mpv.desktop";
-        "image/gif" = "mpv.desktop";
-        "image/webp" = "mpv.desktop";
-        "image/bmp" = "mpv.desktop";
-        "image/tiff" = "mpv.desktop";
-        "image/svg+xml" = "mpv.desktop";
-        "image/avif" = "mpv.desktop";
-        "image/heic" = "mpv.desktop";
+        "image/png" = "imv.desktop";
+        "image/jpeg" = "imv.desktop";
+        "image/jpg" = "imv.desktop";
+        "image/gif" = "imv.desktop";
+        "image/webp" = "imv.desktop";
+        "image/bmp" = "imv.desktop";
+        "image/tiff" = "imv.desktop";
+        "image/svg+xml" = "imv.desktop";
+        "image/avif" = "imv.desktop";
+        "image/heic" = "imv.desktop";
         # Audio
         "audio/mpeg" = "mpv.desktop";
         "audio/mp3" = "mpv.desktop";
