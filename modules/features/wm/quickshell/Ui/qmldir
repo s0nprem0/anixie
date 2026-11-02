@@ -61,6 +61,7 @@ PickRow 1.0 PickRow.qml
 BarWidget 1.0 BarWidget.qml
 WidgetButton 1.0 WidgetButton.qml
 BarIconButton 1.0 BarIconButton.qml
+IconContentBounds 1.0 IconContentBounds.qml
 OpticalGlyph 1.0 OpticalGlyph.qml
 Panel 1.0 Panel.qml
 PanelRow 1.0 PanelRow.qml
