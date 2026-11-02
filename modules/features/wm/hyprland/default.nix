@@ -22,11 +22,9 @@ in
     # The shell draws still wallpapers on its background layer. mpvpaper owns
     # video wallpapers, which the shell cannot render yet.
     mpvpaper
-    brightnessctl
     cliphist
     grim
     slurp
-    wl-clipboard
   ];
 
   wayland.windowManager.hyprland = {

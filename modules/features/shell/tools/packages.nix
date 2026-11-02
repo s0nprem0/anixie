@@ -54,7 +54,6 @@ with pkgs;
   age
 
   httpie
-  jq
 
   # direnv (and its nix-direnv caching) comes from programs.direnv in
   # modules/system/dev.nix, which installs both.

@@ -62,7 +62,6 @@ in
       # installing the client as well means `pactl` is there to reach for by hand
       # when a device is misbehaving.
       pkgs.pulseaudio
-      pkgs.jq
 
       audioOutput.package
     ];

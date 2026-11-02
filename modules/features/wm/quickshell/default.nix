@@ -166,7 +166,7 @@ in
       "@CRITICAL_PROFILE@" = config.anixie.power.batteryAutomation.criticalProfile;
     };
 
-    home.packages = [ pkgs.quickshell ];
+    home.packages = [ ];
 
     xdg.configFile."quickshell" = {
       recursive = true;

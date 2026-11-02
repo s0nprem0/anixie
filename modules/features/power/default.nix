@@ -167,7 +167,6 @@ in
 
     home.packages = [
       powerprofile
-      pkgs.brightnessctl
     ];
 
     # Applies the stored profile at login, on every plug or unplug, and while the

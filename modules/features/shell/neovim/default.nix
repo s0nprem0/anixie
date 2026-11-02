@@ -43,7 +43,6 @@ in
       tree-sitter
       unzip
       wget
-      wl-clipboard
     ];
   };
 
