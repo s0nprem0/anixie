@@ -989,13 +989,12 @@ Item {
           hasControl: true
           label: "DNS"
 
-          Dropdown {
+          SearchableDropdown {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             width: dnsRow.controlWidth
             model: root.dnsProviders
             placeholder: "custom"
-            searchable: true
             enabled: !root.dnsBusy
             currentIndex: root.dnsIndex()
             onActivated: function (index) { root.setDns(root.dnsProviders[index]) }
@@ -1009,12 +1008,11 @@ Item {
           hasControl: true
           label: "Band"
 
-          Dropdown {
+          SearchableDropdown {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             width: bandRow.controlWidth
             model: root.bandOptions
-            searchable: true
             enabled: !root.bandBusy
             currentIndex: root.bandIndex()
             onActivated: function (index) { root.setBand(root.bandOptions[index].value) }

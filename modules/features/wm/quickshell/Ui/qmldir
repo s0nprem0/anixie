@@ -69,6 +69,7 @@ PanelRow 1.0 PanelRow.qml
 Slider 1.0 Slider.qml
 SliderField 1.0 SliderField.qml
 ChoiceRow 1.0 ChoiceRow.qml
+SearchableDropdown 1.0 SearchableDropdown.qml
 SegmentedControl 1.0 SegmentedControl.qml
 ScrollBar 1.0 ScrollBar.qml
 PanelSectionHeader 1.0 PanelSectionHeader.qml
