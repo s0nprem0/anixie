@@ -178,6 +178,9 @@ BarWidget {
     const next = root.layouts[(at + 1) % root.layouts.length]
     root.layout = next
 
+    // Tell the OSD which layout the workspace just switched to.
+    try { OsdHost.show("layout-tiling", next + " layout") } catch (e) {}
+
     // A workspace rule is how Hyprland changes a layout at runtime; `hyprctl
     // keyword general:layout` would change every workspace instead.
     layoutSet.command = ["hyprctl", "eval",
