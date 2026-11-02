@@ -327,7 +327,8 @@ Item {
         }
         list.highlighted = idx
       }
-      listContent.forceActiveFocus()
+      if (root.searchable) filterField.forceActiveFocus()
+      else listContent.forceActiveFocus()
       Qt.callLater(function () {
         if (list.highlighted >= 0) {
           listContent.positionViewAtIndex(list.highlighted, ListView.Contain)
@@ -370,6 +371,19 @@ Item {
         placeholderText: "Filter…"
         text: root.filterText
         onTextChanged: root.filterText = text
+        Keys.onPressed: function (event) {
+          if (event.key === Qt.Key_Down) {
+            list.moveHighlight(1)
+            listContent.forceActiveFocus()
+            event.accepted = true
+          } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+            list.choose()
+            event.accepted = true
+          } else if (event.key === Qt.Key_Escape) {
+            list.close()
+            event.accepted = true
+          }
+        }
         font.family: Style.font.family
         font.pixelSize: Style.font.body
         color: Theme.fg
