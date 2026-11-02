@@ -259,16 +259,12 @@ Item {
             }
 
             // Empty state when search yields nothing.
-            Text {
+            PanelList {
               width: sidebar.width
               visible: root._searchQuery !== "" && root.filteredTabs.length === 0
-              text: "No results"
-              color: Theme.muted
-              font.family: Style.font.family
-              font.pixelSize: Style.font.body
-              horizontalAlignment: Text.AlignHCenter
-              topPadding: Style.space(12)
-              renderType: Text.NativeRendering
+              model: []
+              emptyText: "No results"
+              rowSpacing: Style.space(2)
             }
           }
         }
@@ -289,15 +285,12 @@ Item {
           }
         }
 
-        Text {
+        PanelList {
           width: parent.width
           visible: tabLoader.status === Loader.Error && tabLoader.source !== ""
-          text: "No settings here"
-          color: Theme.muted
-          font.family: Style.font.family
-          font.pixelSize: Style.font.body
-          horizontalAlignment: Text.AlignHCenter
-          renderType: Text.NativeRendering
+          model: []
+          emptyText: "No settings here"
+          rowSpacing: Style.space(2)
         }
       }
     }

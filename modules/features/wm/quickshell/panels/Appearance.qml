@@ -185,14 +185,13 @@ Item {
         }
       }
 
-      Text {
+      PanelList {
         visible: AppearanceHost && AppearanceHost.library && AppearanceHost.library.length === 0
         anchors.centerIn: parent
-        text: (AppearanceHost && AppearanceHost.libraryProc && AppearanceHost.libraryProc.running) ? "Loading wallpapers…" : "No wallpapers found"
-        color: Theme.muted
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        renderType: Text.NativeRendering
+        width: Style.space(200)
+        model: []
+        emptyText: (AppearanceHost && AppearanceHost.libraryProc && AppearanceHost.libraryProc.running) ? "Loading wallpapers…" : "No wallpapers found"
+        rowSpacing: Style.space(2)
       }
     }
 
