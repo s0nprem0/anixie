@@ -1,4 +1,6 @@
 {
+  config,
+  lib,
   pkgs,
   flakeDir,
   ...
@@ -45,7 +47,7 @@
   # `nix flake update` and rebuilds. The bar's badge says the tree is newer than
   # the system; nothing says the tree itself is stale. This does, once a week,
   # and does nothing else — updating and rebuilding stays a deliberate act.
-  systemd.user.services.flake-age = {
+  systemd.user.services.flake-age = lib.mkIf ((config.anixie or { }) ? wm) {
     description = "Notice when the pinned flake is a month old";
     serviceConfig.Type = "oneshot";
     script = ''
@@ -60,7 +62,7 @@
     '';
   };
 
-  systemd.user.timers.flake-age = {
+  systemd.user.timers.flake-age = lib.mkIf ((config.anixie or { }) ? wm) {
     description = "Weekly check on the flake's age";
     wantedBy = [ "timers.target" ];
     timerConfig = {
