@@ -82,6 +82,8 @@ PanelActionButton 1.0 PanelActionButton.qml
 PanelList 1.0 PanelList.qml
 TextButton 1.0 TextButton.qml
 ContextMenuRow 1.0 ContextMenuRow.qml
+PopupMenuRow 1.0 ContextMenuRow.qml
+PopupCard 1.0 PopupCard.qml
 TextField 1.0 TextField.qml
 NumberField 1.0 NumberField.qml
 Dropdown 1.0 Dropdown.qml
