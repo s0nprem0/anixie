@@ -583,24 +583,38 @@ Item {
       onActionTriggered: root.rescan()
     }
 
-    Text {
+    // Reserve a minimum height for the list area so an empty or freshly
+    // scanned list does not collapse the panel and reflow everything below it.
+    Item {
+      id: networksArea
       width: card.contentWidth
+      implicitHeight: Math.max(Style.space(84), root.networks.length === 0
+        ? (emptyMessageText.implicitHeight + Style.space(8))
+        : networksColumn.implicitHeight)
       height: implicitHeight
-      visible: root.networks.length === 0 && root.emptyMessage !== ""
-      text: root.emptyMessage
-      color: Theme.muted
-      font.family: Style.font.family
-      font.pixelSize: Style.font.bodySmall
-      horizontalAlignment: Text.AlignHCenter
-      renderType: Text.NativeRendering
-    }
 
-    Column {
-      width: card.contentWidth
-      spacing: Style.space(2)
+      Text {
+        id: emptyMessageText
+        anchors.centerIn: parent
+        width: parent.width
+        visible: root.networks.length === 0 && root.emptyMessage !== ""
+        text: root.emptyMessage
+        color: Theme.muted
+        font.family: Style.font.family
+        font.pixelSize: Style.font.bodySmall
+        horizontalAlignment: Text.AlignHCenter
+        renderType: Text.NativeRendering
+      }
 
-      Repeater {
-        model: root.networks
+      Column {
+        id: networksColumn
+        width: parent.width
+        anchors.top: parent.top
+        spacing: Style.space(2)
+        visible: root.networks.length > 0
+
+        Repeater {
+          model: root.networks
 
         delegate: Column {
           id: netRow
@@ -830,6 +844,7 @@ Item {
         }
       }
     }
+    }
 
     PanelSeparator {}
 
@@ -936,7 +951,9 @@ Item {
 
       Item {
         width: parent.width
-        height: root.qrVisible && root.qrReady ? root.qrSize : 0
+        // Reserve the QR slot while it loads so the panel does not reflow
+        // when the image becomes ready.
+        height: root.qrVisible ? root.qrSize : 0
         visible: height > 0
 
         SizedImage {

@@ -461,6 +461,28 @@ QtObject {
     return Math.max(margin, Math.min(pos, maxTop))
   }
 
+  // Top-anchored placement for panels on a vertical bar. Unlike panelY this does
+  // not depend on the panel's (changing) height, so a panel whose content loads
+  // in stages no longer repositions itself on every change. The top is the
+  // owning button's top, clamped so even a full-height panel still fits.
+  function panelTop(anchor, screenName) {
+    const host = root.barFor(screenName)
+    if (!anchor || !host || !root.isAlive(anchor)) return Style.space(8)
+
+    let top = 0
+    try {
+      top = anchor.mapToItem(host, 0, 0).y
+    } catch (e) {
+      return Style.space(8)
+    }
+
+    const margin = Style.space(8)
+    const screenHeight = Math.max(0, Screens.heightOf(screenName) || 0)
+    const maxPanelH = root.maxHeightFor(screenHeight)
+    const maxTop = Math.max(margin, screenHeight - maxPanelH - margin)
+    return Math.max(margin, Math.min(Math.round(top), maxTop))
+  }
+
   // The invisible surfaces that dismiss everything.
   //
   // A panel surface only receives input that lands on it, so without this a
@@ -575,7 +597,7 @@ QtObject {
         margins.top: panelWindow.onBottom
           ? 0
           : (root.vertical
-            ? root.panelY(panelWindow.entry.anchor, panelWindow.implicitHeight || 400, panelWindow.screenName)
+            ? root.panelTop(panelWindow.entry.anchor, panelWindow.screenName)
             : root.barExtent)
         margins.bottom: panelWindow.onBottom ? root.barExtent : 0
         margins.left: panelWindow.onRight
