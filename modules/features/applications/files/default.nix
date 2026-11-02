@@ -16,7 +16,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ pkgs.thunar ];
+    home.packages = [ pkgs.thunar pkgs.xfce.exo ];
 
     # kitty and yazi both claim folders in their desktop entries, and with no
     # default the winner is whichever entry happens to be read first — a
@@ -26,5 +26,10 @@ in
       enable = true;
       defaultApplications."inode/directory" = "thunar.desktop";
     };
+
+    # Thunar's "Open Terminal Here" asks exo for the configured terminal emulator,
+    # which defaults to nothing on a system without XFCE's session. Point it at
+    # kitty so the menu item actually opens a terminal instead of failing.
+    xdg.configFile."xfce4/helpers.rc".text = "TerminalEmulator=kitty\n";
   };
 }
