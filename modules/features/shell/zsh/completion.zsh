@@ -2,15 +2,31 @@
 # completion styles that go with it, plus the LS_COLORS cache.
 
 # Cache `dircolors -b` output once (LS_COLORS is otherwise unset, leaving
-# the list-colors zstyle empty).
+# the list-colors zstyle empty). The first line records the generator so a
+# changed format regenerates the cache, and the write goes through a temp file
+# so an interrupted start cannot leave a half-written script to source.
+LSCOLORS_HEADER="# anixie: dircolors -b v1"
 LSCOLORS_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/dircolors.zsh"
 if (( $+commands[dircolors] )); then
-    mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
-    if [[ ! -s "$LSCOLORS_CACHE" ]]; then
-        dircolors -b > "$LSCOLORS_CACHE"
+    mkdir -p "${LSCOLORS_CACHE:h}"
+    if [[ ! -s "$LSCOLORS_CACHE" || "$(head -n 1 "$LSCOLORS_CACHE")" != "$LSCOLORS_HEADER" ]]; then
+        if tmp=$(mktemp "$LSCOLORS_CACHE.XXXXXX"); then
+            if {
+                print -r -- "$LSCOLORS_HEADER"
+                dircolors -b
+            } > "$tmp"; then
+                mv "$tmp" "$LSCOLORS_CACHE"
+            else
+                rm -f "$tmp"
+            fi
+            unset tmp
+        fi
     fi
-    source "$LSCOLORS_CACHE"
+    if [[ -s "$LSCOLORS_CACHE" ]]; then
+        source "$LSCOLORS_CACHE"
+    fi
 fi
+unset LSCOLORS_HEADER LSCOLORS_CACHE
 
 zstyle ':completion:*:*:*:*:*' menu select
 zstyle ':completion:*' auto-description 'specify: %d'

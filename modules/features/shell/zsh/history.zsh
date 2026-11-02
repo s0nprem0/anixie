@@ -12,13 +12,23 @@ TIMEFMT=$'\nreal\t%E\nuser\t%U\nsys\t%S\ncpu\t%P'
 
 if (( $+commands[zoxide] )); then
     # Cache the init script to speed up shell startup; regenerate when the
-    # binary is newer than the cache (i.e. after an upgrade)
+    # binary is newer than the cache (i.e. after an upgrade). The temp+mv keeps
+    # a failed or interrupted run from leaving a truncated script to source.
     ZOXIDE_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zoxide.zsh"
-    mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
+    mkdir -p "${ZOXIDE_CACHE:h}"
     if [[ ! -s "$ZOXIDE_CACHE" || "$commands[zoxide]" -nt "$ZOXIDE_CACHE" ]]; then
-        zoxide init zsh > "$ZOXIDE_CACHE"
+        if tmp=$(mktemp "$ZOXIDE_CACHE.XXXXXX"); then
+            if zoxide init zsh > "$tmp"; then
+                mv "$tmp" "$ZOXIDE_CACHE"
+            else
+                rm -f "$tmp"
+            fi
+            unset tmp
+        fi
     fi
-    source "$ZOXIDE_CACHE"
+    if [[ -s "$ZOXIDE_CACHE" ]]; then
+        source "$ZOXIDE_CACHE"
+    fi
 fi
 
 if (( $+commands[atuin] )); then
@@ -43,16 +53,21 @@ if (( $+commands[atuin] )); then
     fi
 
     if (( regen )); then
-        tmp=$(mktemp "$ATUIN_CACHE.XXXXXX") || return
-        if {
-            print -r -- "$atuin_header"
-            atuin init zsh "${atuin_flags[@]}"
-        } > "$tmp"; then
-            mv "$tmp" "$ATUIN_CACHE"
-        else
-            rm -f "$tmp"
+        if tmp=$(mktemp "$ATUIN_CACHE.XXXXXX"); then
+            if {
+                print -r -- "$atuin_header"
+                atuin init zsh "${atuin_flags[@]}"
+            } > "$tmp"; then
+                mv "$tmp" "$ATUIN_CACHE"
+            else
+                rm -f "$tmp"
+            fi
+            unset tmp
         fi
     fi
 
-    source "$ATUIN_CACHE"
+    if [[ -s "$ATUIN_CACHE" ]]; then
+        source "$ATUIN_CACHE"
+    fi
+    unset atuin_flags atuin_header ATUIN_CACHE regen
 fi

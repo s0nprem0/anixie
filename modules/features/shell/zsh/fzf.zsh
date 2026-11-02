@@ -47,11 +47,20 @@ export FZF_ALT_C_OPTS="--prompt='dirs > '"
 # binary is newer (post-upgrade).
 if (( $+commands[fzf] )); then
   FZF_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/fzf.zsh"
-  mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
+  mkdir -p "${FZF_CACHE:h}"
   if [[ ! -s "$FZF_CACHE" || "$commands[fzf]" -nt "$FZF_CACHE" ]]; then
-    fzf --zsh > "$FZF_CACHE"
+    if tmp=$(mktemp "$FZF_CACHE.XXXXXX"); then
+      if fzf --zsh > "$tmp"; then
+        mv "$tmp" "$FZF_CACHE"
+      else
+        rm -f "$tmp"
+      fi
+      unset tmp
+    fi
   fi
-  source "$FZF_CACHE"
+  if [[ -s "$FZF_CACHE" ]]; then
+    source "$FZF_CACHE"
+  fi
 fi
 
 # Custom: insert a file at the cursor without hidden files

@@ -68,10 +68,21 @@ let
   # Inline fragments that are not worth their own file.
   inlineChunks = [
     (lib.mkOrder 500 ''
-      # nvm. Sourced before compinit at 570 so its `nvm` completion is
-      # registered when the completion system initialises.
+      # nvm loads on first use: sourcing nvm.sh eagerly costs ~0.2s at startup,
+      # and most shells never touch it. `--no-use` still defines every nvm
+      # function, so the first `nvm ...` call works normally. Completion comes
+      # from _nvm in the fpath below, not from nvm's own setup.
       export NVM_DIR="$HOME/.nvm"
-      [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+      nvm() {
+        unset -f nvm
+        if [ -s "$NVM_DIR/nvm.sh" ]; then
+          source "$NVM_DIR/nvm.sh" --no-use
+          nvm "$@"
+        else
+          print -u2 "nvm: $NVM_DIR/nvm.sh not found"
+          return 1
+        fi
+      }
     '')
     (lib.mkOrder 520 ''
       # Full upstream completion set, alongside the curated nix-zsh-completions
@@ -97,6 +108,13 @@ in
       ${pkgs.coreutils}/bin/cp -rfT --no-preserve=mode,ownership ${nvm} "$HOME/.nvm"
     '';
 
+    # compinit -C never re-checks the dump, so drop it whenever this generation
+    # changes. The next shell rebuilds it once, with whatever completions the
+    # new generation installed.
+    activation.zshCompdump = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      ${pkgs.coreutils}/bin/rm -f "${config.xdg.cacheHome}/zsh/zcompdump-"*
+    '';
+
     # atuin comes from programs.atuin below; it is not repeated here.
     packages = with pkgs; [
       bat
@@ -118,6 +136,19 @@ in
 
     autosuggestion.enable = true;
     fastSyntaxHighlighting.enable = true;
+
+    # `-C` trusts the dump: it skips both compaudit (the ownership scan over
+    # every fpath directory) and the freshness check, which together cost
+    # ~40ms per shell. The activation hook below deletes the dump on every
+    # rebuild, so new completions are picked up on the next shell. If a package
+    # is installed outside a rebuild, delete ~/.cache/zsh/zcompdump-* once.
+    completionInit = ''
+      autoload -U compinit
+      zcompdump_dir="''${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
+      mkdir -p "$zcompdump_dir"
+      compinit -C -d "$zcompdump_dir/zcompdump-$ZSH_VERSION"
+      unset zcompdump_dir
+    '';
 
     history = {
       size = 10000;

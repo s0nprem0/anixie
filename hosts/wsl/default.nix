@@ -26,10 +26,19 @@
     enable = true;
     defaultUser = user;
 
-    # Let Windows executables (cmd.exe, explorer.exe, wslpath) run from the
-    # Linux shell. WSL already writes this into /etc/wsl.conf; registering the
-    # binfmt handler is what actually makes a .exe start.
+    # Register the binfmt handler so a .exe can start at all; without it even
+    # an absolute /mnt/c path fails. Windows directories stay off $PATH (below),
+    # so call binaries by absolute path, e.g. /mnt/c/Windows/System32/cmd.exe.
     interop.register = true;
+
+    # Keep Windows' directories off $PATH. Otherwise every command lookup has
+    # to scan the 9p mounts under /mnt/c, which costs ~0.2s the first time zsh
+    # builds its command hash on each start. Both switches are needed:
+    # `includePath` filters the login environment, `wslConf` stops WSL itself
+    # from appending them. Set them back to true to restore interop by bare
+    # name and accept that cost.
+    interop.includePath = false;
+    wslConf.interop.appendWindowsPath = false;
 
     # Use the Windows host's GPU drivers for WSLg applications.
     useWindowsDriver = true;

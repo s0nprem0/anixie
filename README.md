@@ -113,8 +113,15 @@ followed by a restart; building the tarball this way avoids that by baking in
 
 There is no `bar` command in the WSL profile because there is no Quickshell to
 talk to, and `anixie commands` only lists the commands actually installed
-there. `wsl.interop.register` makes `cmd.exe`, `explorer.exe` and `wslpath`
-work from the Linux shell. Docker is enabled natively (`virtualisation.docker`),
+there. `wsl.interop.register` makes Windows executables runnable, but their
+directories are deliberately not on `$PATH`: scanning `/mnt/c` the first time
+zsh builds its command hash costs about 0.2s per shell. Call them by absolute
+path instead, for example `/mnt/c/Windows/System32/cmd.exe` or
+`/mnt/c/Windows/explorer.exe .`. Setting `wsl.interop.includePath` and
+`wsl.wslConf.interop.appendWindowsPath` back to `true` restores bare-name
+interop at that startup cost; a `wsl --shutdown` is needed when
+`/etc/wsl.conf` changes. Docker is enabled natively
+(`virtualisation.docker`),
 and `son` is in the `docker` group, so `docker run hello-world` works without
 sudo after a fresh login. OpenSSH (port 22), Tailscale, the Windows SSH agent
 and USB/IP are also enabled; the Windows GPU driver is used for WSLg, and the
