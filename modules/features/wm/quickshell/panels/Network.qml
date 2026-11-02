@@ -690,7 +690,14 @@ Item {
           Column {
             width: parent.width
             spacing: Style.space(6)
-            visible: netRow.expanded
+            // Animate the open/close instead of snapping, so the panel grows
+            // smoothly rather than jumping.
+            height: netRow.expanded ? implicitHeight : 0
+            clip: true
+            opacity: netRow.expanded ? 1 : 0
+            enabled: netRow.expanded
+            Behavior on height { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
+            Behavior on opacity { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
 
             // Password form for secured, unused networks.
             Column {
@@ -860,7 +867,13 @@ Item {
     Column {
       width: card.contentWidth
       spacing: Style.space(8)
-      visible: root.moreExpanded
+      // Animate the open/close instead of snapping.
+      height: root.moreExpanded ? implicitHeight : 0
+      clip: true
+      opacity: root.moreExpanded ? 1 : 0
+      enabled: root.moreExpanded
+      Behavior on height { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
+      Behavior on opacity { NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic } }
 
       // Connection details
       PanelRow {
