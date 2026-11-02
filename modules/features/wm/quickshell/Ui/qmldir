@@ -16,6 +16,7 @@ singleton FocusHost 1.0 FocusHost.qml
 singleton ScreentimeStore 1.0 ScreentimeStore.qml
 Screensaver 1.0 Screensaver.qml
 LockSurface 1.0 LockSurface.qml
+MultiSelect 1.0 MultiSelect.qml
 singleton CapturePreview 1.0 CapturePreview.qml
 singleton NotificationHost 1.0 NotificationHost.qml
 singleton NotificationStore 1.0 NotificationStore.qml
