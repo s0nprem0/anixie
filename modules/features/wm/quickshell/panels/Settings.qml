@@ -217,7 +217,6 @@ Item {
                   anchors.leftMargin: Style.space(8)
                   anchors.rightMargin: Style.space(8)
                   spacing: Style.space(6)
-                  verticalAlignment: Qt.AlignVCenter
 
                   Text {
                     text: tabButton.tabData.icon || ""
