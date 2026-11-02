@@ -18,6 +18,8 @@
   # NixOS-WSL supplies the kernel, init and the /bin shims. The Windows-managed
   # VHD replaces the disk layout, so the desktop host's boot, firmware,
   # encryption and storage modules have nothing to do here.
+  programs.gnupg.agent.pinentryPackage = pkgs.pinentry-curses;
+
   wsl = {
     enable = true;
     defaultUser = user;
