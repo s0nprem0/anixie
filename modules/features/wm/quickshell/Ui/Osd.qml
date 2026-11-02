@@ -48,13 +48,13 @@ Item {
   readonly property real preferredTrackWidth: Style.space(140)
   readonly property real trackWidth: root.hasProgress
     ? Math.max(0, Math.min(root.preferredTrackWidth,
-        root.maxWidth - root.pad - root.iconWidth - Style.space(10) - root.messageWidth - Style.space(10) - root.pad))
+        root.maxWidth - root.iconWidth - Style.space(10) - root.messageWidth - Style.space(10) - root.pad * 2))
     : 0
 
   implicitWidth: Math.min(root.maxWidth, Math.max(Style.space(120),
     root.hasProgress
-      ? (root.pad + root.iconWidth + Style.space(10) + root.trackWidth + Style.space(10) + root.messageWidth + root.pad)
-      : (root.pad + root.iconWidth + Style.space(10) + root.messageWidth + root.pad)))
+      ? (root.iconWidth + Style.space(10) + root.trackWidth + Style.space(10) + root.messageWidth + root.pad * 2)
+      : (root.iconWidth + Style.space(10) + root.messageWidth + root.pad * 2)))
   implicitHeight: Style.space(36)
 
   Rectangle {
@@ -67,9 +67,8 @@ Item {
     Row {
       id: content
 
-      anchors.centerIn: parent
-      anchors.leftMargin: root.pad
-      anchors.rightMargin: root.pad
+      anchors.fill: parent
+      anchors.margins: root.pad
       spacing: Style.space(10)
 
       Text {
@@ -99,6 +98,7 @@ Item {
           color: Theme.primary
 
           Behavior on width {
+            enabled: !Style.reduceMotion
             NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic }
           }
         }

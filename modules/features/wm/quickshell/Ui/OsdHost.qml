@@ -211,7 +211,9 @@ QtObject {
       root.icon = root.glyphFor(iconName, percent)
     }
 
-    root.hasProgress = progress
+    // Layout changes are text-only readouts; never show a progress bar for them.
+    const isLayout = iconKey === "layout-tiling" || iconKey === "layout" || iconKey.startsWith("layout-")
+    root.hasProgress = isLayout ? false : progress
     root.value = value
     root.maxValue = max
     root.message = finalMessage
