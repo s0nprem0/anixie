@@ -24,6 +24,11 @@ Item {
   // that silently does nothing.
   property bool available: true
 
+  // When true, the popup shows a filter field at the top so long lists (DNS
+  // providers, bands, …) can be narrowed without scrolling.
+  property bool searchable: false
+  property string filterText: ""
+
   signal activated(int index)
 
   // ---- the keyboard ----
@@ -62,6 +67,21 @@ Item {
     // list there is nowhere to go, and handing it back to the panel would walk
     // the focus off the thing being chosen.
     return true
+  }
+
+  // Filtered view of the model when searchable. Plain strings and {label,value}
+  // objects are both supported; matching is case-insensitive on the label.
+  readonly property var filteredModel: {
+    if (!root.searchable || root.filterText.trim() === "") return root.model
+    const q = root.filterText.trim().toLowerCase()
+    const out = []
+    if (!Array.isArray(root.model)) return root.model
+    for (let i = 0; i < root.model.length; i++) {
+      const entry = root.model[i]
+      const label = root.labelFor(entry).toLowerCase()
+      if (label.indexOf(q) >= 0) out.push(entry)
+    }
+    return out
   }
 
   readonly property var currentEntry: {
@@ -235,6 +255,9 @@ Item {
           list.updatePosition()
         }
       }
+      function onFilterTextChanged() {
+        if (list.opened) list.updatePosition()
+      }
       function onAvailableChanged() {
         if (!root.available && list.opened) list.close()
       }
@@ -251,9 +274,21 @@ Item {
       let from = list.highlighted
       if (from < 0) from = delta > 0 ? -1 : root.model.length
       let next = from + delta
-      while (next >= 0 && next < root.model.length && !root.isEnabled(next)) next += delta > 0 ? 1 : -1
+      while (next >= 0 && next < root.model.length) {
+        if (root.isEnabled(next) && (function () {
+          if (!root.searchable) return true
+          const q = root.filterText.trim().toLowerCase()
+          if (q === "") return true
+          return root.labelFor(root.model[next]).toLowerCase().indexOf(q) >= 0
+        })()) break
+        next += delta > 0 ? 1 : -1
+      }
       next = Math.max(0, Math.min(root.model.length - 1, next))
       if (!root.isEnabled(next)) return
+      if (root.searchable) {
+        const q = root.filterText.trim().toLowerCase()
+        if (q !== "" && root.labelFor(root.model[next]).toLowerCase().indexOf(q) < 0) return
+      }
       list.highlighted = next
       listContent.positionViewAtIndex(next, ListView.Contain)
     }
@@ -272,16 +307,23 @@ Item {
     // and a ListView starts at the top. Opening at the current entry is what
     // makes the control say what is selected without a scroll first.
     onOpened: {
+      root.filterText = ""
       updatePosition()
       if (!Array.isArray(root.model) || root.model.length === 0) {
         list.highlighted = -1
       } else {
         let idx = root.currentIndex >= 0 ? root.currentIndex : 0
         if (idx >= root.model.length) idx = root.model.length - 1
-        if (!root.isEnabled(idx)) {
-          // find first enabled
+        if (!root.isEnabled(idx) || (root.searchable && root.filterText.trim() !== "" && root.labelFor(root.model[idx]).toLowerCase().indexOf(root.filterText.trim().toLowerCase()) < 0)) {
+          // find first enabled matching
           idx = -1
-          for (let i = 0; i < root.model.length; i++) if (root.isEnabled(i)) { idx = i; break }
+          const q = root.searchable ? root.filterText.trim().toLowerCase() : ""
+          for (let i = 0; i < root.model.length; i++) {
+            if (!root.isEnabled(i)) continue
+            if (q !== "" && root.labelFor(root.model[i]).toLowerCase().indexOf(q) < 0) continue
+            idx = i
+            break
+          }
         }
         list.highlighted = idx
       }
@@ -316,12 +358,34 @@ Item {
       NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Style.duration(100) }
     }
 
-    contentItem: ListView {
-      id: listContent
-      clip: true
-      implicitHeight: contentHeight
-      model: root.model
-      ScrollBar.vertical: ScrollBar {}
+    contentItem: Column {
+      id: listColumn
+      spacing: 0
+
+      TextField {
+        id: filterField
+        visible: root.searchable
+        width: parent.width
+        height: visible ? Style.space(28) : 0
+        placeholderText: "Filter…"
+        text: root.filterText
+        onTextChanged: root.filterText = text
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        color: Theme.fg
+        renderType: Text.NativeRendering
+        verticalAlignment: Text.AlignVCenter
+        leftPadding: Style.space(8)
+        rightPadding: Style.space(8)
+      }
+
+      ListView {
+        id: listContent
+        width: parent.width
+        clip: true
+        implicitHeight: contentHeight
+        model: root.model
+        ScrollBar.vertical: ScrollBar {}
       currentIndex: list.highlighted
       boundsBehavior: Flickable.StopAtBounds
       focus: true
@@ -355,6 +419,14 @@ Item {
 
         readonly property bool highlighted: row.index === list.highlighted
         readonly property bool committed: row.index === root.currentIndex
+        readonly property bool matches: {
+          if (!root.searchable) return true
+          const q = root.filterText.trim().toLowerCase()
+          if (q === "") return true
+          return root.labelFor(row.modelData).toLowerCase().indexOf(q) >= 0
+        }
+        visible: row.matches
+        height: row.matches ? Style.space(32) : 0
 
         color: !root.isEnabled(row.index)
           ? "transparent"
@@ -411,6 +483,7 @@ Item {
             root.activated(row.index)
           }
         }
+      }
       }
     }
   }
