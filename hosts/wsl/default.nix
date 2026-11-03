@@ -22,6 +22,10 @@
   # encryption and storage modules have nothing to do here.
   programs.gnupg.agent.pinentryPackage = pkgs.pinentry-curses;
 
+  # WSL networking is owned by Windows; a NixOS firewall here can only block
+  # forwarded traffic (localhost/Windows host) without adding any real isolation.
+  networking.firewall.enable = false;
+
   wsl = {
     enable = true;
     defaultUser = user;
@@ -39,6 +43,11 @@
     # name and accept that cost.
     interop.includePath = false;
     wslConf.interop.appendWindowsPath = false;
+
+    # systemd is the init; keep it explicit so a future WSL default change
+    # cannot silently disable the service manager the rest of this config
+    # assumes (dockerd, tailscaled, sshd, oomd).
+    wslConf.boot.systemd = true;
 
     # Use the Windows host's GPU drivers for WSLg applications.
     useWindowsDriver = true;

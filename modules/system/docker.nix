@@ -7,5 +7,13 @@ _:
   # the default user talk to the daemon.
   virtualisation.docker = {
     enable = true;
+
+    # WSL and the desktop both accumulate dangling images and stopped containers
+    # across rebuilds; prune them on a schedule so the store-backed VHD does
+    # not fill up unnoticed.
+    autoPrune = {
+      enable = true;
+      dates = "weekly";
+    };
   };
 }
