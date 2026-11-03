@@ -50,7 +50,7 @@ display|monitors|monitors|scale internal lid mirror brightness recover wake work
 power|powerprofile|powerprofile|set apply show status automation set-automation charge|power profiles per source and charge ceiling: set ac|battery PROFILE, charge full|limit N
 wifi|wifi||band dns password qr|Wi-Fi: band, DNS, password, QR
 audio|audio-output|audio-output|set switch|audio output: set, switch
-shot|shot|screenshot|smart region windows fullscreen window scroll copy save annotate preview redact text cancel|screenshots: smart, region, windows, fullscreen
+shot|shot|screenshot|smart region windows fullscreen window scroll copy save annotate preview redact text cancel copy-path copy-uri edit-last|screenshots: smart, region, windows, fullscreen
 record|record||--status --stop --fullscreen --audio --webcam-device --webcam-size|screen recording
 clipboard|clipboard||--copy|clipboard history popup
 emoji|emoji|||emoji picker
