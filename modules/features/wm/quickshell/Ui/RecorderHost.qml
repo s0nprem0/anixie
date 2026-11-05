@@ -5,7 +5,7 @@ import Quickshell.Io
 
 // Whether a screen recording is running.
 //
-// The shell holds this rather than asking for it. `record --status` is a cheap
+// The shell holds this rather than asking for it. `record-process` is a cheap
 // question in itself — it reads a pid file and checks the process is still a
 // recorder — but answering it means parsing 456 lines of bash, and the bar asked
 // it every 1.5 seconds: about 4% of a core, continuously, for a boolean that
@@ -29,7 +29,7 @@ QtObject {
   // which is the safe reading: a dot that never appears is a smaller problem
   // than one that will not go away.
   property Process startupQuery: Process {
-    command: ["record", "--status"]
+    command: ["record-process"]
     running: true
 
     onExited: function (exitCode) { root.recording = exitCode === 0 }

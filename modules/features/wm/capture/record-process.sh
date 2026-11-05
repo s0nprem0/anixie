@@ -10,10 +10,10 @@
 # plain `pgrep -x` would match any other executable sharing that prefix — and a
 # process can rename itself besides. Resolving /proc/<pid>/exe settles both.
 #
-# The candidate list is found with `pgrep -f`, which matches the full command
-# line: the recorder is started by its store path, so that path is what appears
-# there. Every candidate is then confirmed by its exe, so a shell that merely
-# mentions the name in an argument does not count.
+# The candidate list comes from the process table. On the real machine that is
+# `pgrep`, which is the fast path; when RECORD_PROC_ROOT points at a fixture
+# tree (the tests) the tree is walked directly, so the override is actually
+# usable instead of being shadowed by the host's process list.
 #
 # Exits 1 when nothing matched. `record --status` and the bar indicator both read
 # that as "not recording".
@@ -23,6 +23,11 @@ set -uo pipefail
 # Overridable so the matching can be exercised against a fixture tree rather than
 # the running machine's /proc.
 proc_root=${RECORD_PROC_ROOT:-/proc}
+# A trailing slash would make the /proc fast-path check miss and double up in
+# paths, so normalize before anything reads it.
+if [ "$proc_root" != "/" ]; then
+  proc_root=${proc_root%/}
+fi
 
 usage() {
   printf 'Usage: record-process [--pid <pid>] [--signal INT|KILL]\n' >&2
@@ -65,19 +70,43 @@ is_recorder() {
   [ "$exe" = "gpu-screen-recorder" ]
 }
 
+# Whether pid $1 belongs to the current user. A missing status file (a fixture
+# tree, or a pid that vanished) is not a reason to drop it.
+same_user() {
+  local uid
+  [ -r "$proc_root/$1/status" ] || return 0
+  # pgrep -u matches the effective uid, which is the second number on the
+  # Uid line (real, effective, saved, fs). Fall back to the first when the
+  # line carries a single value, so simple fixture trees keep working.
+  uid=$(awk '/^Uid:/{if (NF >= 3) print $3; else print $2; exit}' "$proc_root/$1/status" 2>/dev/null)
+  [ -z "$uid" ] || [ "$uid" = "$(id -u)" ]
+}
+
 matched=()
-while read -r pid; do
-  [ -n "$pid" ] || continue
-  # A pid was named, so only that one counts; otherwise every recorder of ours is
-  # a candidate. Membership rather than a loop, because `wanted` is a flat list.
-  if [ "$wanted" != " " ]; then
-    case "$wanted" in
-      *" $pid "*) ;;
-      *) continue ;;
-    esac
+
+if [ "$wanted" != " " ]; then
+  # A pid was named, so only those are candidates.
+  for pid in $wanted; do
+    [ -n "$pid" ] || continue
+    same_user "$pid" || continue
+    is_recorder "$pid" && matched+=("$pid")
+  done
+else
+  if [ "$proc_root" = "/proc" ]; then
+    while read -r pid; do
+      [ -n "$pid" ] || continue
+      is_recorder "$pid" && matched+=("$pid")
+    done < <(pgrep -u "$(id -u)" -f 'gpu-screen-recorder' 2>/dev/null)
+  else
+    for entry in "$proc_root"/[0-9]*; do
+      [ -d "$entry" ] || continue
+      pid=${entry##*/}
+      case "$pid" in *[!0-9]*) continue ;; esac
+      same_user "$pid" || continue
+      is_recorder "$pid" && matched+=("$pid")
+    done
   fi
-  is_recorder "$pid" && matched+=("$pid")
-done < <(pgrep -u "$(id -u)" -f 'gpu-screen-recorder' 2>/dev/null)
+fi
 
 [ ${#matched[@]} -gt 0 ] || exit 1
 

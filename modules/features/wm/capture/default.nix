@@ -57,9 +57,9 @@ let
   };
 
   # Check or signal the recorder, by pid. Split out from `record` because the bar
-  # indicator asks it whether a recording is running on a poll, and that question
-  # should not have to load the whole recording script to be answered. Used only
-  # through the path `record` carries, so it stays off PATH.
+  # indicator asks it whether a recording is running, and that question should not
+  # have to load the whole recording script to be answered. On PATH as well, so
+  # the shell's startup check can use it without parsing `record`.
   recordProcess = mkScript {
     name = "record-process";
     file = ./record-process.sh;
@@ -131,6 +131,7 @@ in
       # Recording, and the webcam overlay a recording can carry.
       webcamOverlay.package
       record.package
+      recordProcess.package
 
       # Reading what is on the screen rather than picturing it, and shrinking what
       # comes off it before sending it somewhere.
