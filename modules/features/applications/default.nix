@@ -5,6 +5,7 @@
     ./chat
     ./claude
     ./documents
+    ./ente-auth
     ./files
     ./gaming
     ./keepassxc
