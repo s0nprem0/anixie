@@ -7,6 +7,11 @@
 
 let
   cfg = config.anixie.applications.media;
+
+  # OBS with the NDI output plugin. Built once and reused by the wrapper below.
+  obsWrapped = pkgs.wrapOBS {
+    plugins = with pkgs.obs-studio-plugins; [ distroav ];
+  };
 in
 {
   options.anixie.applications.media = {
@@ -29,27 +34,20 @@ in
       pkgs.imv
     ]
     ++ lib.optionals cfg.obs [
-      (pkgs.runCommand "obs-studio-ndi"
-        {
-          nativeBuildInputs = [ pkgs.makeWrapper ];
-          propagatedBuildInputs = [
-            (pkgs.wrapOBS {
-              plugins = with pkgs.obs-studio-plugins; [ distroav ];
-            })
-          ];
-        }
-        ''
-          mkdir -p $out/bin
-          makeWrapper ${
-            pkgs.wrapOBS { plugins = with pkgs.obs-studio-plugins; [ distroav ]; }
-          }/bin/obs $out/bin/obs \
-            --set NDILIB_REDIST_FOLDER ${pkgs.ndi-6}/lib \
-            --prefix LD_LIBRARY_PATH : ${pkgs.ndi-6}/lib
-          ln -s ${
-            pkgs.wrapOBS { plugins = with pkgs.obs-studio-plugins; [ distroav ]; }
-          }/share $out/share 2>/dev/null || true
-        ''
-      )
+      (pkgs.runCommand "obs-studio-ndi" { } ''
+        mkdir -p $out/bin
+        # Launch OBS under nice/ionice so its CPU and disk priority stay above
+        # background work, which is what removes the periodic scheduling
+        # hiccups during a recording.
+        cat > $out/bin/obs <<'EOF'
+        #!/bin/sh
+        export NDILIB_REDIST_FOLDER=${pkgs.ndi-6}/lib
+        export LD_LIBRARY_PATH=${pkgs.ndi-6}/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+        exec ${pkgs.coreutils}/bin/nice -n -10 ${pkgs.util-linux}/bin/ionice -c2 -n0 ${obsWrapped}/bin/obs "$@"
+        EOF
+        chmod +x $out/bin/obs
+        ln -s ${obsWrapped}/share $out/share 2>/dev/null || true
+      '')
     ];
 
     xdg.mimeApps = {

@@ -1,6 +1,11 @@
 # Nub: an all-in-one Node.js toolkit (https://nubjs.com). Ships as a prebuilt
 # Rust binary; there is no nixpkgs package yet, so fetch the release tarball.
-{ lib, stdenv, fetchurl, autoPatchelfHook }:
+{
+  lib,
+  stdenv,
+  fetchurl,
+  autoPatchelfHook,
+}:
 
 stdenv.mkDerivation {
   pname = "nub";
