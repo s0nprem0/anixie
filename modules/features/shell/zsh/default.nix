@@ -61,8 +61,8 @@ let
   nvm = pkgs.fetchFromGitHub {
     owner = "nvm-sh";
     repo = "nvm";
-    tag = "v0.40.8";
-    hash = "sha256-24FP1brAAyWu+Q0Dk+Y4aXgdCBon9GkBXgFaGXBO7sc=";
+    tag = "v0.41.0";
+    hash = "sha256-0yZneYYb5VXTr2Cm9zFK2H2/zjYs9t0CdLeltDY26gI=";
   };
 
   # Inline fragments that are not worth their own file.
