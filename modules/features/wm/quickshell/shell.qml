@@ -19,6 +19,13 @@ import "components"
 ShellRoot {
   id: shell
 
+  Component.onCompleted: {
+    // Force the dropdown host to exist at shell load rather than on the first
+    // click, so its overlay surface is ready and positioned before a panel can
+    // open. See Ui/DropdownHost.qml.
+    if (!DropdownHost.ready) console.warn("dropdown host unavailable")
+  }
+
   ShellLayers {}
 
   // The low-battery warning. Lives on the shell rather than on the bar's readout

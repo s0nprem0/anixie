@@ -12,6 +12,7 @@ singleton LockHost 1.0 LockHost.qml
 singleton NetworkHost 1.0 NetworkHost.qml
 singleton IdleHost 1.0 IdleHost.qml
 singleton ContextMenuHost 1.0 ContextMenuHost.qml
+singleton DropdownHost 1.0 DropdownHost.qml
 singleton FocusHost 1.0 FocusHost.qml
 singleton ScreentimeStore 1.0 ScreentimeStore.qml
 Screensaver 1.0 Screensaver.qml

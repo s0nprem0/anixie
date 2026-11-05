@@ -607,6 +607,28 @@ QtObject {
             : root.panelX(panelWindow.entry.anchor, panelWindow.implicitWidth || 340, panelWindow.screenName))
         margins.right: panelWindow.onRight ? root.barExtent : 0
 
+        // Where this panel actually sits on its output. Under Wayland a surface
+        // does not know its own global position, so DropdownHost (and anyone
+        // else) reads these instead of calling mapToGlobal.
+        readonly property int _screenX: panelWindow.onRight
+          ? panelWindow.screenW - root.barExtent - (panelWindow.implicitWidth || 0)
+          : (root.vertical ? root.barExtent : panelWindow.margins.left)
+        readonly property int _screenY: panelWindow.onBottom
+          ? panelWindow.screenH - root.barExtent - (panelWindow.implicitHeight || 0)
+          : (root.vertical ? panelWindow.margins.top : root.barExtent)
+
+        function syncEntry() {
+          const e = root.entries[panelWindow.key]
+          if (!e) return
+          e.screenX = panelWindow._screenX
+          e.screenY = panelWindow._screenY
+          e.contentItem = loader.item
+          e.window = panelWindow
+        }
+
+        on_ScreenXChanged: syncEntry()
+        on_ScreenYChanged: syncEntry()
+
         // Always Overlay, focused or not: the curtains are on Top, and a panel
         // on Top could stack under its screen's curtain and lose its clicks.
         // Only one is open per screen, so panels never overlap each other.
@@ -649,6 +671,7 @@ QtObject {
                 })
               }
             }
+            panelWindow.syncEntry()
           }
 
           onLoaded: {
