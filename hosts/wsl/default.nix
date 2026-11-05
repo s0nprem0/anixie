@@ -22,6 +22,10 @@
   # encryption and storage modules have nothing to do here.
   programs.gnupg.agent.pinentryPackage = pkgs.pinentry-curses;
 
+  # Local SSH agent so encrypted keys are cached and the passphrase is only
+  # asked once per session, instead of depending on the Windows bridge.
+  programs.ssh.startAgent = true;
+
   # WSL networking is owned by Windows; a NixOS firewall here can only block
   # forwarded traffic (localhost/Windows host) without adding any real isolation.
   networking.firewall.enable = false;
@@ -53,7 +57,7 @@
     useWindowsDriver = true;
 
     # Reuse the Windows SSH agent (and its keys) inside the distro.
-    ssh-agent.enable = true;
+    ssh-agent.enable = false;
 
     # USB/IP passthrough for devices plugged into the Windows host.
     usbip.enable = true;
