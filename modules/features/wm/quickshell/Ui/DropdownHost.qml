@@ -429,36 +429,13 @@ QtObject {
 
   // Full-screen curtain on every output while a list is open: a click anywhere
   // outside the card closes it, including on monitors that the list's own
-  // surface does not cover. It sits on the Overlay layer so it is above the
-  // panels but below the list's row hit areas on the target screen.
-  property Item curtain: Item {
-    visible: false
-
-    Variants {
-      model: root.opened ? Screens.all : []
-
-      delegate: PanelWindow {
-        required property var modelData
-
-        screen: modelData
-        anchors.top: true
-        anchors.bottom: true
-        anchors.left: true
-        anchors.right: true
-        color: "transparent"
-        exclusionMode: ExclusionMode.Ignore
-
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.namespace: "quickshell-dropdown-curtain"
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-
-        MouseArea {
-          anchors.fill: parent
-          acceptedButtons: Qt.AllButtons
-          onPressed: root.close()
-        }
-      }
-    }
+  // surface does not cover.
+  property Curtain curtain: Curtain {
+    screens: root.opened ? Screens.all : []
+    layer: WlrLayer.Overlay
+    namespace: "quickshell-dropdown-curtain"
+    keyboardFocus: WlrKeyboardFocus.None
+    onPressed: function (screenName) { root.close() }
   }
 
   property PanelWindow window: PanelWindow {

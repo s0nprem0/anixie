@@ -195,36 +195,13 @@ QtObject {
   // The click-catcher. A menu is transient: the next click anywhere closes it
   // without reaching whatever was underneath, which is what a menu does
   // everywhere else.
-  property Item curtain: Item {
-    visible: false
-
-    // The curtain is intentionally target-screen only: it covers the output the
-    // menu was opened on and dismisses on any click there.
-    Variants {
-      model: root.opened && root.target !== null && root.targetAlive() ? [root.target] : []
-
-      delegate: PanelWindow {
-        required property var modelData
-
-        screen: Screens.byName(Screens.nameOf(modelData))
-        anchors.top: true
-        anchors.bottom: true
-        anchors.left: true
-        anchors.right: true
-        color: "transparent"
-        exclusionMode: ExclusionMode.Ignore
-
-        WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.namespace: "quickshell-context-curtain"
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-
-        MouseArea {
-          anchors.fill: parent
-          acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
-          onPressed: root.close()
-        }
-      }
-    }
+  property Curtain curtain: Curtain {
+    screens: root.opened && root.target !== null && root.targetAlive() ? [root.target] : []
+    resolveScreen: true
+    layer: WlrLayer.Top
+    namespace: "quickshell-context-curtain"
+    keyboardFocus: WlrKeyboardFocus.None
+    onPressed: function (screenName) { root.close() }
   }
 
   property PopupWindow window: PopupWindow {
