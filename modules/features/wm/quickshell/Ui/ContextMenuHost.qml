@@ -112,6 +112,7 @@ QtObject {
     root.items = root.normalize(entries)
     root.index = root.firstEnabled()
     root.opened = true
+    menuFlickable.contentY = 0
   }
 
   onItemsChanged: {
@@ -211,6 +212,7 @@ QtObject {
 
   property PopupWindow window: PopupWindow {
     visible: root.opened && root.target !== null && root.targetAlive()
+    onVisibleChanged: if (visible) keys.forceActiveFocus()
     color: "transparent"
 
     anchor.item: root.target
@@ -256,7 +258,7 @@ QtObject {
         } else if (event.key === Qt.Key_Tab) {
           root.move(event.modifiers & Qt.ShiftModifier ? -1 : 1)
           event.accepted = true
-        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
           root.activate()
           event.accepted = true
         }
@@ -264,10 +266,11 @@ QtObject {
     }
 
     Flickable {
+      id: menuFlickable
       anchors.fill: parent
       anchors.margins: 0
       contentWidth: width
-      contentHeight: menuColumn.implicitHeight
+      contentHeight: menuColumn.implicitHeight + root.padding * 2
       clip: true
       boundsBehavior: Flickable.StopAtBounds
       interactive: contentHeight > height
@@ -276,8 +279,11 @@ QtObject {
 
       Column {
         id: menuColumn
-        width: parent.width
-        anchors.margins: root.padding
+        width: parent.width - root.padding * 2
+        anchors.top: parent.top
+        anchors.topMargin: root.padding
+        anchors.left: parent.left
+        anchors.leftMargin: root.padding
         spacing: 0
 
         Repeater {

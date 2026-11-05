@@ -60,7 +60,6 @@ Item {
       color: root.foreground
       font.family: Style.font.family
       font.pixelSize: Style.font.body
-      opacity: root.available ? 1 : Style.disabledOpacity
     }
 
     Text {
@@ -72,7 +71,6 @@ Item {
       font.pixelSize: Style.font.body
       elide: Text.ElideRight
       renderType: Text.NativeRendering
-      opacity: root.available ? 1 : Style.disabledOpacity
     }
   }
 
