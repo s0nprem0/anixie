@@ -1,8 +1,18 @@
 { pkgs, ... }:
 
+let
+  # The pinned nixpkgs records a stale hash for opencode's node_modules
+  # fixed-output derivation. This is the value the same recipe produces with
+  # the bun in this nixpkgs revision.
+  opencode = pkgs.opencode.overrideAttrs (old: {
+    node_modules = old.node_modules.overrideAttrs (_: {
+      outputHash = "sha256-prx9dX7kUvs/E3zopkaPk5LXh3xJAy5sZeum/W8L7cA=";
+    });
+  });
+in
 {
   home.packages = [
-    pkgs.opencode
+    opencode
   ];
 
   # Only the entries below are managed. `~/.config/opencode` itself stays a

@@ -23,10 +23,16 @@ let
     pnpmDeps = pkgs.fetchPnpmDeps {
       inherit (old) pname;
       inherit version src;
-      pnpm = pkgs.pnpm_10;
-      fetcherVersion = 3;
-      hash = "sha256-Yh12UoWHzClDZoKPYlaNsr/+GQLS35iJ9enJa5tG+Nw=";
+      pnpm = pkgs.pnpm_12;
+      fetcherVersion = 5;
+      hash = "sha256-X4muYcEHXLquPb+ORoU1DdMCiJRLlU5Oywn1VCx0R7s=";
     };
+
+    # nixpkgs' recipe builds with the pnpm version it pinned; this release
+    # needs pnpm 12, so use the same version for the build and the fetcher.
+    nativeBuildInputs = map (
+      p: if (p.pname or "") == "pnpm" then pkgs.pnpm_12 else p
+    ) old.nativeBuildInputs;
 
     env = (old.env or { }) // {
       EQUICORD_HASH = version;
