@@ -7,6 +7,7 @@
     ./documents
     ./files
     ./gaming
+    ./keepassxc
     ./localsend
     ./media
     ./craftapps
