@@ -22,6 +22,10 @@ in
     extraDirs = [ "${wallpapers}" ];
   };
 
+  # The Vivobook's AMD iGPU needs its kernel module loaded explicitly; otherwise
+  # the compositor ends up on llvmpipe software rendering.
+  boot.kernelModules = [ "amdgpu" ];
+
   # Set explicitly so NixOS stops guessing. This is the release the machine is
   # actually running, which is what a freshly provisioned system should declare.
   system.stateVersion = "26.11";
