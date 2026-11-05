@@ -27,6 +27,8 @@ with pkgs;
   difftastic
   github-cli
   gnumake
+  pnpm
+  (pkgs.callPackage ./nub.nix { })
 
   # The interpreter on PATH, for scripts and one-off venvs. uv, which builds the
   # venvs the skills use, stays in the dev shell with the other toolchains.
