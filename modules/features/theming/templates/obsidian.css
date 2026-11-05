@@ -1,0 +1,28 @@
+body {
+  --background-primary: @BG@;
+  --background-primary-alt: @BG_DARK@;
+  --background-secondary: @SURFACE@;
+  --background-secondary-alt: @SURFACE_CONTAINER@;
+  --text-normal: @FG@;
+  --text-muted: @MUTED@;
+  --text-faint: @FG_LIGHT@;
+  --interactive-normal: @PRIMARY@;
+  --interactive-hover: @ACCENT@;
+  --interactive-accent: @PRIMARY@;
+  --background-modifier-border: @OUTLINE@;
+  --background-modifier-form-field: @SURFACE_CONTAINER@;
+  --background-modifier-form-field-highlighted: @SURFACE_VARIANT@;
+  --text-selection: @SELECTION_BG@;
+  --text-on-accent: @BG@;
+}
+
+.theme-dark, .theme-light {
+  --color-red: @DANGER@;
+  --color-orange: @YELLOW@;
+  --color-yellow: @YELLOW@;
+  --color-green: @SUCCESS@;
+  --color-cyan: @ACCENT@;
+  --color-blue: @PRIMARY@;
+  --color-purple: @ACCENT_ALT@;
+  --color-pink: @ACCENT_ALT@;
+}

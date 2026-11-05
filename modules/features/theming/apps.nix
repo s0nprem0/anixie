@@ -24,6 +24,10 @@ in
     "hypr/hyprlock.conf".source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/hyprlock.conf";
     "btop/themes/anixie.theme".source =
       config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/btop.theme";
+    "alacritty/alacritty.toml".source =
+      config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/alacritty.toml";
+    "ghostty/config".source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/ghostty";
+    "foot/foot.ini".source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/foot.ini";
   };
 
   # ---- Helix ----
