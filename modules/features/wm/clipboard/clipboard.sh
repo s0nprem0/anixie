@@ -66,7 +66,7 @@ case "${1:-}" in
 
     mime=$("$file" -b --mime-type -- "$tmp")
     # Try to preserve tabs/newlines for table-like content
-    if grep -q $'\t' "$tmp" && [ "$(grep -c $'\n' "$tmp")" -ge 1 ]; then
+    if grep -q "$(printf '\t')" "$tmp" && [ "$(wc -l <"$tmp")" -ge 1 ]; then
       "$wl_copy" --type text/tab-separated-values <"$tmp" 2>/dev/null || true
       "$wl_copy" --type text/plain <"$tmp" 2>/dev/null || "$wl_copy" --type "$mime" <"$tmp"
       exit 0

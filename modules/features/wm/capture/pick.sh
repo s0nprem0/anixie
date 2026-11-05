@@ -90,7 +90,6 @@ if [ "${1:-}" = "--select-window" ]; then
   [ ${#cand_arr[@]} -eq 0 ] && exit 0
 
   declare -a warp_entries=()
-  local_i=0
   for rect in "${cand_arr[@]}"; do
     [ -z "$rect" ] && continue
     if [[ $rect =~ ^(-?[0-9]+),(-?[0-9]+)[[:space:]]([0-9]+)x([0-9]+)$ ]]; then
@@ -114,7 +113,7 @@ if [ "${1:-}" = "--select-window" ]; then
   target=""
   case "$direction" in
     next|prev)
-      mapfile -t oarr <<<"$ordered"
+      mapfile -t oarr < <(printf '%s\n' "${ordered[@]}")
       count=${#oarr[@]}
       cidx=-1
       for i in "${!oarr[@]}"; do
@@ -158,7 +157,7 @@ if [ "${1:-}" = "--select-window" ]; then
   esac
 
   if [ -n "$target" ]; then
-    IFS='|' read -r tr wx wy <<<"$target"
+    IFS='|' read -r _ wx wy <<<"$target"
     $HYPRCTL eval "hl.dispatch(hl.dsp.cursor.move({ x = $wx, y = $wy }))" >/dev/null 2>&1 || true
   fi
   exit 0

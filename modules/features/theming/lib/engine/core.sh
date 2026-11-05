@@ -1,5 +1,8 @@
 #!/bin/bash
 # Core theming engine utilities
+# shellcheck disable=SC2154
+# Sourced by theme.sh, which defines the tools and state directories these
+# functions use; checked standalone, shellcheck cannot see those assignments.
 
 # Write a file through a temporary in the same directory, so a failure never
 # leaves a half-written palette or config behind.

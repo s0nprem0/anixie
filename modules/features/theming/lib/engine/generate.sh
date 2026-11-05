@@ -1,12 +1,15 @@
 #!/bin/bash
 # Wallpaper generation logic
+# shellcheck disable=SC2154
+# Sourced by theme.sh, which defines the tools and state directories these
+# functions use; checked standalone, shellcheck cannot see those assignments.
 
 # Read the current wallpaper into a palette. Deliberately last in the order of
 # things that can fail: a wallpaper matugen cannot parse leaves the previous
 # palette in place rather than half-applying a new one. Results are cached by
 # path, modification time and requested mode; videos use their first frame.
 generate() {
-  local wp="${1:-}" requested="${2:-auto}" mode json tmp
+  local wp="${1:-}" requested="${2:-auto}" json tmp
   local source mtime key cache_dir cache frame saturation mono
   local -a args
   mkdir -p "$state_dir" || die "could not create $state_dir"

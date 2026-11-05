@@ -565,7 +565,7 @@ doctor_theme() {
 
     # Contrast checks for critical text tokens
     if [ -f "$live_link/palette.json" ]; then
-      for pair in "muted:surface muted:background fgLight:surface fgLight:background"; do
+      for pair in muted:surface muted:background fgLight:surface fgLight:background; do
         fg_tok=${pair%%:*}
         bg_tok=${pair#*:}
         fg_c=$("$jq" -r --arg k "$fg_tok" '.[$k] // empty' "$live_link/palette.json")

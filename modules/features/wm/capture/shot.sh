@@ -117,7 +117,7 @@ while [ $# -gt 0 ]; do
       fi
       last=$(cat "$last_capture_file" 2>/dev/null || true)
       [ -n "$last" ] && [ -f "$last" ] || fail "Previous capture not found."
-      if @WL_COPY@ --type text/plain <<< "$last"; then
+      if printf '%s\n' "$last" | @WL_COPY@ --type text/plain; then
         @NOTIFY_SEND_RAW@ -a capture -u low -t 2000 "Copied path" "$last" >/dev/null 2>&1 || true
         printf '%s\n' "$last"
         exit 0

@@ -1,5 +1,8 @@
 #!/bin/bash
 # Application notification logic
+# shellcheck disable=SC2154
+# Sourced by theme.sh, which defines the tools and state directories these
+# functions use; checked standalone, shellcheck cannot see those assignments.
 
 apply_cursor() {
   local size=""

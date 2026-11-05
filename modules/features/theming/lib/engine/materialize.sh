@@ -1,5 +1,8 @@
 #!/bin/bash
 # Theme materialization logic
+# shellcheck disable=SC2154
+# Sourced by theme.sh, which defines the tools and state directories these
+# functions use; checked standalone, shellcheck cannot see those assignments.
 
 prune_generations() {
   local current="$1" keep=0 gen line
