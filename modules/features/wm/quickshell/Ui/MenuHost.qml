@@ -7,6 +7,7 @@ import Quickshell.Wayland
 import ".."
 import "Jsonc.js" as Jsonc
 import "Suggest.js" as Suggest
+import "MenuTree.js" as MenuTree
 
 // The menu: every command this shell has, flattened and searchable, with the
 // applications alongside them — built here, in the shell, rather than by a
@@ -117,61 +118,11 @@ QtObject {
     }
   }
 
-  function clone(value) {
-    return JSON.parse(JSON.stringify(value))
-  }
-
-  // Merge the user's entries over the shipped ones, by group name for a group
-  // and by label within its group for a leaf. A user entry with the same
-  // identity replaces the shipped one; a new one is appended. `"hidden": true`
-  // removes the shipped entry instead, which is the only way to take something
-  // off the menu without a rebuild.
-  function mergeEntries(base, extra) {
-    const out = (base || []).map(function (entry) { return root.clone(entry) })
-    const items = Array.isArray(extra) ? extra : []
-
-    for (const item of items) {
-      if (!item || typeof item !== "object") continue
-
-      const isGroup = item.group !== undefined && Array.isArray(item.entries)
-      const key = isGroup ? "group" : "label"
-      const value = String(item[key] || "")
-
-      let found = -1
-      if (value !== "") {
-        for (let i = 0; i < out.length; i++) {
-          const candidate = out[i]
-          const candidateIsGroup = candidate && candidate.group !== undefined
-            && Array.isArray(candidate.entries)
-          if (candidateIsGroup === isGroup && String(candidate[key] || "") === value) {
-            found = i
-            break
-          }
-        }
-      }
-
-      if (item.hidden === true) {
-        if (found >= 0) out.splice(found, 1)
-        continue
-      }
-
-      if (isGroup) {
-        if (found >= 0) out[found].entries = root.mergeEntries(out[found].entries, item.entries)
-        else out.push(root.clone(item))
-        continue
-      }
-
-      if (found >= 0) out[found] = root.clone(item)
-      else out.push(root.clone(item))
-    }
-
-    return out
-  }
 
   function entries() {
     const shipped = root.tree && Array.isArray(root.tree.entries) ? root.tree.entries : []
     const extra = root.extension && Array.isArray(root.extension.entries) ? root.extension.entries : []
-    return root.mergeEntries(shipped, extra)
+    return MenuTree.mergeEntries(shipped, extra)
   }
 
   // The applications, sorted and deduplicated by identity/name.
@@ -301,7 +252,7 @@ QtObject {
   function recordLaunch(entry) {
     if (!entry || entry.id === "") return
 
-    const next = root.clone(root.usage)
+    const next = MenuTree.clone(root.usage)
     const previous = next[entry.id] || { count: 0, last: 0 }
     next[entry.id] = {
       count: Number(previous.count || 0) + 1,
