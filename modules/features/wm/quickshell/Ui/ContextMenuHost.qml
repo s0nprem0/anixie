@@ -21,6 +21,10 @@ QtObject {
   property bool opened: false
   property int index: -1
 
+  // Monotonic id for the currently open session, used to ignore stale
+  // callbacks (focus restore, choose) after a newer menu has opened.
+  property int openGeneration: 0
+
   // How the popup is placed against the anchor rect. A bar widget uses the
   // bar's own edge; a desktop click grows down and right from the pointer.
   property int edges: Edges.Bottom
@@ -111,6 +115,7 @@ QtObject {
   function show(entries) {
     root.items = root.normalize(entries)
     root.index = root.firstEnabled()
+    root.openGeneration += 1
     root.opened = true
     menuFlickable.contentY = 0
   }
@@ -136,6 +141,16 @@ QtObject {
     root.target = null
     root.items = []
     root.index = -1
+  }
+
+  // Close the menu if its anchor disappears (panel closed, bar reloaded, ...).
+  property Timer livenessTimer: Timer {
+    interval: 100
+    repeat: true
+    running: root.opened
+    onTriggered: {
+      if (!root.targetAlive()) root.close()
+    }
   }
 
   function actionable(item) {
@@ -167,7 +182,9 @@ QtObject {
     const item = root.items[index]
     if (!root.actionable(item)) return
 
+    const gen = root.openGeneration
     root.close()
+    if (gen !== root.openGeneration) return
     if (typeof item.action === "function") item.action()
   }
 
@@ -212,7 +229,14 @@ QtObject {
 
   property PopupWindow window: PopupWindow {
     visible: root.opened && root.target !== null && root.targetAlive()
-    onVisibleChanged: if (visible) keys.forceActiveFocus()
+    onVisibleChanged: {
+      if (!visible) return
+      const gen = root.openGeneration
+      Qt.callLater(function () {
+        if (gen !== root.openGeneration) return
+        keys.forceActiveFocus()
+      })
+    }
     color: "transparent"
 
     anchor.item: root.target
