@@ -414,8 +414,9 @@ library_paths() {
 # folders once rather than once per purpose.
 library_scan() {
   {
-    if [ -f "$GENERATED" ]; then
-      "$STAT" -Lc "generated${TAB}%Y${TAB}%s" "$GENERATED" 2>/dev/null
+    generated="$(generated_file "")"
+    if [ -f "$generated" ]; then
+      "$STAT" -Lc "generated${TAB}%Y${TAB}%s" "$generated" 2>/dev/null
     else
       printf 'generated\t0\t0\n'
     fi
@@ -466,7 +467,7 @@ library_json() {
 
   json=$(
     {
-      printf 'Generated\tgenerated\t%s\t0\t1\n' "$(thumb_for "$GENERATED")"
+      printf 'Generated\tgenerated\t%s\t0\t1\n' "$(thumb_for "$(generated_file "")")"
       printf '%s\n' "$scan" | while IFS="$TAB" read -r path mtime size; do
         [ "$path" = generated ] && continue
         if is_video "$path"; then video=1; else video=0; fi
@@ -515,7 +516,10 @@ generated_file() {
   output="$1"
   theme=$(current_theme)
   if [ -z "$output" ]; then
-    printf '%s' "$GENERATED"
+    # A theme-specific name so the path changes on a theme switch: the shell
+    # keys its image reload off the path, and a constant name would leave the
+    # previous (stale) picture on screen.
+    printf '%s/%s-wallpaper.png' "$GENERATED_DIR" "$theme"
   else
     safe=$(printf '%s' "$output" | tr -c 'A-Za-z0-9._-' '_')
     printf '%s/%s-%s.png' "$GENERATED_DIR" "$theme" "$safe"
@@ -591,6 +595,9 @@ prune_generated() {
     file=$(generated_file "$output")
     printf '%s\n%s.size\n' "$file" "$file" >>"$keep"
   done
+  # Keep the fallback gradient for the current theme too.
+  fallback_generated=$(generated_file "")
+  printf '%s\n%s.size\n' "$fallback_generated" "$fallback_generated" >>"$keep"
   prune_cache "$GENERATED_DIR" "$keep"
   rm -f "$keep"
 
@@ -616,8 +623,9 @@ apply() {
   fallback_video=$(printf '%s' "$fallback_line" | cut -f3)
   if [ "$fallback_mode" = generated ] || [ ! -f "$fallback_path" ]; then
     generate "" || true
-    if [ -f "$GENERATED" ]; then
-      fallback_path="$GENERATED"
+    generated="$(generated_file "")"
+    if [ -f "$generated" ]; then
+      fallback_path="$generated"
     else
       fallback_path=""
     fi
@@ -675,7 +683,7 @@ apply() {
 
 pick_one() {
   {
-    printf 'Generated (from the %s palette)\tgenerated\t\t\t%s\n' "$(current_theme)" "$(thumb_for "$GENERATED")"
+    printf 'Generated (from the %s palette)\tgenerated\t\t\t%s\n' "$(current_theme)" "$(thumb_for "$(generated_file "")")"
     library_paths | while IFS= read -r path; do
       [ "$path" = generated ] && continue
       printf '%s\t%s\t\t\t%s\n' "$(basename "$path")" "$path" "$(thumb_for "$path")"
