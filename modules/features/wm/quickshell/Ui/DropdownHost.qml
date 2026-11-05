@@ -432,7 +432,7 @@ QtObject {
   // surface does not cover.
   property Curtain curtain: Curtain {
     screens: root.opened ? Screens.all : []
-    layer: WlrLayer.Overlay
+    wlrLayer: WlrLayer.Overlay
     namespace: "quickshell-dropdown-curtain"
     keyboardFocus: WlrKeyboardFocus.None
     onPressed: function (screenName) { root.close() }

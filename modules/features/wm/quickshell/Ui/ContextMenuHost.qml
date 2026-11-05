@@ -198,7 +198,7 @@ QtObject {
   property Curtain curtain: Curtain {
     screens: root.opened && root.target !== null && root.targetAlive() ? [root.target] : []
     resolveScreen: true
-    layer: WlrLayer.Top
+    wlrLayer: WlrLayer.Top
     namespace: "quickshell-context-curtain"
     keyboardFocus: WlrKeyboardFocus.None
     onPressed: function (screenName) { root.close() }

@@ -22,7 +22,7 @@ Item {
   // Whether entries in `screens` are items whose screen must be resolved.
   property bool resolveScreen: false
 
-  property int layer: WlrLayer.Overlay
+  property int wlrLayer: WlrLayer.Overlay
   property string namespace: "quickshell-curtain"
   property int keyboardFocus: WlrKeyboardFocus.None
   property int marginsTop: 0
@@ -62,7 +62,7 @@ Item {
       margins.left: root.marginsLeft
       margins.right: root.marginsRight
 
-      WlrLayershell.layer: root.layer
+      WlrLayershell.layer: root.wlrLayer
       WlrLayershell.namespace: root.namespace
       WlrLayershell.keyboardFocus: root.keyboardFocus
 
