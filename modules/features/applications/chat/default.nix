@@ -11,13 +11,13 @@ let
   # nixpkgs is still on the 2026-09-03 date tag, while upstream has moved to
   # v1.15.x releases. Keep nixpkgs' build recipe and override just the release.
   equicord = pkgs.equicord.overrideAttrs (old: rec {
-    version = "v1.15.12.0";
+    version = "v1.15.15.0";
 
     src = pkgs.fetchFromGitHub {
       owner = "Equicord";
       repo = "Equicord";
       tag = version;
-      hash = "sha256-i7VlyecgQvVHYqI0SuNdxLSLot5kcgBUsB/MKcKmxys=";
+      hash = "sha256-mqmFkVb0XZ8CQuokTIe60Ll4RMJ2rlL6HLKvo/mS0zA=";
     };
 
     pnpmDeps = pkgs.fetchPnpmDeps {
@@ -25,7 +25,7 @@ let
       inherit version src;
       pnpm = pkgs.pnpm_12;
       fetcherVersion = 5;
-      hash = "sha256-X4muYcEHXLquPb+ORoU1DdMCiJRLlU5Oywn1VCx0R7s=";
+      hash = "sha256-l19oMNqFMva7m8DAe9x+IJLM2O87GVwZayyE1ci7HvM=";
     };
 
     # nixpkgs' recipe builds with the pnpm version it pinned; this release
