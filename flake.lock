@@ -8,11 +8,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793944547,
-        "narHash": "sha256-T1E9Lr0BJZpamY36V9jNDkcFUTNnfwIVGhh+w8z8Cf0=",
+        "lastModified": 1793945046,
+        "narHash": "sha256-p1bP3ZEWSsunE5Ww3XRFP5VBEwLqny1MeFyfTqBMXoc=",
         "owner": "s0nprem0",
         "repo": "alexie",
-        "rev": "791b8a573f7b486dd215f448e585060cee6ad1a3",
+        "rev": "84225d7a8d3796c4a3f44d29545a9bb7f9cd3128",
         "type": "github"
       },
       "original": {

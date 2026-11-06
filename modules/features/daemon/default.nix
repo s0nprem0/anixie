@@ -19,6 +19,9 @@ in
       (pkgs.writeShellScriptBin "monitors" ''
         exec ${alexiePkg}/bin/alexie monitors "$@"
       '')
+      (pkgs.writeShellScriptBin "menu" ''
+        exec ${alexiePkg}/bin/alexie menu "$@"
+      '')
     ];
 
     systemd.user.services.alexie = {
