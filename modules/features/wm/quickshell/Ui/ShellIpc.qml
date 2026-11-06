@@ -397,6 +397,15 @@ Item {
     function recording(state: string): void { RecorderHost.set(state === "start") }
   }
 
+  // The in-shell area picker. A visual region selector that hands the result to
+  // grim + swappy/wl-copy, so a screenshot can be aimed without slurp.
+  IpcHandler {
+    target: "picker"
+
+    function open(): void { AreaPickerHost.open(false) }
+    function openClip(): void { AreaPickerHost.open(true) }
+  }
+
   // What `pick` calls in through, and what the menu calls for itself.
   //
   // One entry point taking the path to a file holding the whole request: the

@@ -52,6 +52,10 @@ bind(mod .. " + PRINT", "Color picker", "pkill -x hyprpicker 2>/dev/null; hyprpi
 -- The text inside a region, OCR'd to the clipboard.
 bind_handler(mod .. " + CTRL + PRINT", "Extract text", capture("capture-text"))
 
+-- The in-shell area picker: a visual region selector that hands the result to
+-- grim + swappy/wl-copy, so a screenshot can be aimed without slurp.
+bind(mod .. " + CTRL + SHIFT + S", "Area picker", "quickshell ipc call picker open")
+
 -- The whole menu, filtered to the capture entries. The family has grown past
 -- what is worth a key each, and this is how the rest stay reachable.
 --

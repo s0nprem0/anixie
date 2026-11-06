@@ -109,3 +109,7 @@ WorkspaceOverview 1.0 WorkspaceOverview.qml
 
 singleton CaptureHistory 1.0 CaptureHistory.qml
 CaptureHistoryOverlay 1.0 CaptureHistoryOverlay.qml
+
+singleton AreaPickerHost 1.0 AreaPickerHost.qml
+AreaPicker 1.0 AreaPicker.qml
+AreaPickerLayer 1.0 AreaPickerLayer.qml

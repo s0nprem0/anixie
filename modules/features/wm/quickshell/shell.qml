@@ -31,6 +31,8 @@ ShellRoot {
     // click, so its overlay surface is ready and positioned before a panel can
     // open. See Ui/DropdownHost.qml.
     if (!DropdownHost.ready) console.warn("dropdown host unavailable")
+    // Pin the area picker host so its overlay surface is ready on first use.
+    AreaPickerHost
   }
 
   ShellLayers {}
@@ -42,6 +44,7 @@ ShellRoot {
   ShellOverlays {}
   NotificationPopups {}
   PickerLayer {}
+  AreaPickerLayer {}
   ClipboardLayer {}
   ShellIpc {}
   ShellShortcuts {}
