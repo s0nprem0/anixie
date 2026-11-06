@@ -214,12 +214,12 @@ Item {
 
       TextButton {
         label: "Random"
-        onClicked: Commands.run("wallpaper rotate")
+        onClicked: Commands.runAlexie("wallpaper rotate")
       }
 
       TextButton {
         label: "Picker"
-        onClicked: Commands.run("wallpaper")
+        onClicked: Commands.runAlexie("wallpaper")
       }
     }
 

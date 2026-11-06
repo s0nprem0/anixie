@@ -53,4 +53,14 @@ QtObject {
 
     root.run(parts.join(" "))
   }
+
+  // Run a command through alexie when it is installed, falling back to the
+  // bash tool otherwise. Use this for the commands alexie has ported (monitors,
+  // theme, wallpaper, toggle, ...) so the native implementation is preferred
+  // without breaking hosts where the daemon is disabled.
+  function runAlexie(command) {
+    const line = String(command || "").trim()
+    if (line === "") return
+    root.run("if command -v alexie >/dev/null 2>&1; then alexie " + line + "; else " + line + "; fi")
+  }
 }

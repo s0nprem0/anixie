@@ -17,7 +17,7 @@ BarWidget {
     tooltipText: "Appearance · Super+Ctrl+T"
     onPressed: function (button) {
       if (button === Qt.LeftButton || button === Qt.MiddleButton) AppearanceHost.toggle()
-      else if (button === Qt.RightButton) Commands.run("wallpaper")
+      else if (button === Qt.RightButton) Commands.runAlexie("wallpaper")
     }
   }
 }

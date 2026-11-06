@@ -567,7 +567,7 @@ Item {
       label: "Arrangement"
       action: "Identify"
       actionEnabled: root.ready && root.activeCount > 1
-      onActionTriggered: Commands.run("monitors identify")
+      onActionTriggered: Commands.runAlexie("monitors identify")
     }
 
     DisplayMap {

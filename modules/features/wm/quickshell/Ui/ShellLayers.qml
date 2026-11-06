@@ -80,7 +80,7 @@ Item {
             { label: "Files", glyph: Util.menu, action: function () { Commands.app("thunar") } },
             { separator: true },
             { label: "Appearance", glyph: Util.palette, action: function () { Commands.run("appearance") } },
-            { label: "Next theme", action: function () { Commands.run("theme next") } },
+            { label: "Next theme", action: function () { Commands.runAlexie("theme next") } },
             { separator: true },
             { label: "Screen time & focus…", glyph: Util.clock, action: function () { Commands.run("screentime panel") } },
             { label: "Lock", glyph: Util.lock, action: function () { LockHost.lock() } }
