@@ -15,16 +15,15 @@ let
   desktop = (config.anixie or { }) ? wm;
 in
 {
-  # The front door. Everything it dispatches to is installed elsewhere in
-  # features/; this only names them in one place. Now a Rust binary from the
-  # alexie flake, replacing the bash dispatcher.
+  # The alexie CLI. Everything it dispatches to is installed elsewhere in
+  # features/; this only names them in one place.
   home.packages = [
-    inputs.alexie.packages.${pkgs.stdenv.hostPlatform.system}.anixie
+    inputs.alexie.packages.${pkgs.stdenv.hostPlatform.system}.default
   ]
   ++ lib.optionals desktop [
     # The bar is QML inside the shell, but patching a widget or moving it from a
     # script should not have to spell out `quickshell ipc call bar`. This also
-    # gives `anixie bar --help` a manual of its own rather than ipc's.
+    # gives `bar --help` a manual of its own rather than ipc's.
     (pkgs.writeShellScriptBin "bar" (
       builtins.replaceStrings
         [ "@ANIXIE_LIB@" "@QUICKSHELL@" ]
@@ -33,7 +32,7 @@ in
     ))
   ]
   ++ [
-    # Rebuild, shared by `anixie update` and the nrs/nrb/nrt aliases so the
+    # Rebuild, shared by the nrs/nrb/nrt aliases so the
     # nh flags live in one place.
     (pkgs.writeShellScriptBin "rebuild" (
       builtins.replaceStrings

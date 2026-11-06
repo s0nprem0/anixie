@@ -19,7 +19,7 @@
 #   bar tray               open the parked-widget drawer
 #
 # The bar is QML inside the running shell, so every one of these is one
-# `quickshell ipc call bar` away. This command exists so `anixie bar --help` can
+# `quickshell ipc call bar` away. This command exists so `bar --help` can
 # describe the group instead of printing `quickshell ipc`'s own help.
 set -eu
 

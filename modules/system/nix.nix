@@ -58,7 +58,7 @@
       [ "$days" -ge 30 ] || exit 0
 
       ${pkgs.libnotify}/bin/notify-send -a NixOS \
-        "Updates are $days days old" "nix flake update && anixie update"
+        "Updates are $days days old" "nix flake update && rebuild"
     '';
   };
 

@@ -7,7 +7,7 @@
 #   update --allow-dirty build even with untracked files (see below)
 #
 # The same command is installed as `rebuild`, which is what the nrs/nrb/nrt
-# aliases call; the usage above uses the name the `anixie` front door shows.
+# aliases call.
 #
 # Everything goes through `nh -e auto`. That is what makes it work from an
 # ordinary shell: activating writes /nix/var/nix/profiles/system, which is
@@ -26,7 +26,7 @@
 #
 # `nixos-rebuild` without --flake is not behind this: it falls back to the channel
 # evaluator and fails on a missing <nixos-config>, which is the error this exists
-# to make impossible to hit by accident. `anixie update` and the `nrs`/`nrb`/`nrt`
+# to make impossible to hit by accident. `rebuild` and the `nrs`/`nrb`/`nrt`
 # aliases all come through here, so the flags are written once.
 set -eu
 
