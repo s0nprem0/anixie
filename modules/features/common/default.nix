@@ -9,6 +9,7 @@
     pkgs.brightnessctl
     pkgs.jq
     pkgs.quickshell
+    pkgs.qt6.qtmultimedia
     pkgs.wl-clipboard
   ];
 }
