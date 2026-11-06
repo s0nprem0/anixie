@@ -185,12 +185,12 @@ hl.monitor({ output = "", mode = "preferred", position = "auto", scale = @MONITO
 -- than through a helper because Hyprland exposes no config reader, and io is
 -- available to the config: it is the same Lua state `hyprctl eval` runs in.
 --
--- A line is `output scale transform disabled mirror position mode`. Fields
--- were added over time: a two-field line predates rotation and on/off, a
--- four-field line predates mirroring, and a five-field line predates position
--- and mode. Missing fields fall back to no rotation, the output on, not
--- mirroring, auto placement, and preferred mode, so an older file keeps its
--- scales without being rewritten.
+-- A line is `output scale transform disabled mirror position mode
+-- sdrbrightness sdrsaturation`. Fields were added over time: a two-field line
+-- predates rotation and on/off, a four-field line predates mirroring, and a
+-- five-field line predates position and mode. Missing fields fall back to no
+-- rotation, the output on, not mirroring, auto placement, preferred mode, and
+-- neutral SDR values, so an older file keeps its scales without being rewritten.
 --
 -- Every field has to look right before it is used. A hand-edited or truncated
 -- file should not be able to ask Hyprland for an output name, a scale, a
@@ -222,8 +222,12 @@ do
 
   if file then
     for line in file:lines() do
-      local output, scale, transform, disabled, mirror, position, mode =
-        line:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)$")
+      local output, scale, transform, disabled, mirror, position, mode, sdrb, sdrr =
+        line:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)$")
+      if not output then
+        output, scale, transform, disabled, mirror, position, mode =
+          line:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)$")
+      end
       if not output then
         output, scale, transform, disabled, mirror, position =
           line:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)$")
@@ -246,6 +250,8 @@ do
       local mirror_value = mirror or "none"
       local position_value = position or "auto"
       local mode_value = mode or "preferred"
+      local sdrb_value = tonumber(sdrb or "1")
+      local sdrr_value = tonumber(sdrr or "1")
 
       if
         output_name(output)
@@ -260,6 +266,10 @@ do
         and (mirror_value == "none" or output_name(mirror_value))
         and position_ok(position_value)
         and mode_ok(mode_value)
+        and sdrb_value
+        and sdrb_value > 0
+        and sdrr_value
+        and sdrr_value > 0
       then
         hl.monitor({
           output = output,
@@ -269,6 +279,8 @@ do
           transform = transform_value,
           disabled = disabled_value == "1",
           mirror = mirror_value == "none" and "" or mirror_value,
+          sdrbrightness = sdrb_value,
+          sdrsaturation = sdrr_value,
         })
       end
     end

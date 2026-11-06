@@ -8,45 +8,7 @@
 
 let
   cfg = config.anixie.wm.display;
-  daemonEnabled = config.anixie.daemon.enable or false;
-
-  # Monitor scaling, the internal panel, and mirroring — the things the brightness
-  # and function keys do not reach. Built the same way as the capture commands:
-  # paths substituted rather than left to $PATH, since these run from a bind.
-  #
-  # The source is split by concern under monitors/ and concatenated in name
-  # order, so the installed command is still one file with no runtime lookup.
-  monitorsSource =
-    let
-      dir = ./monitors;
-      names = lib.filter (name: lib.hasSuffix ".bash" name) (builtins.attrNames (builtins.readDir dir));
-    in
-    builtins.concatStringsSep "\n" (map (name: builtins.readFile (dir + "/${name}")) names);
-
-  monitors = pkgs.writeShellScriptBin "monitors" (
-    builtins.replaceStrings
-      [
-        "@HYPRCTL@"
-        "@JQ@"
-        "@BRIGHTNESSCTL@"
-        "@DDCUTIL@"
-        "@QUICKSHELL@"
-        "@SYSTEMD_RUN@"
-        "@SYSTEMCTL@"
-        "@ANIXIE_LIB@"
-      ]
-      [
-        "${pkgs.hyprland}/bin/hyprctl"
-        "${pkgs.jq}/bin/jq"
-        "${pkgs.brightnessctl}/bin/brightnessctl"
-        "${pkgs.ddcutil}/bin/ddcutil"
-        "${pkgs.quickshell}/bin/quickshell"
-        "${pkgs.systemd}/bin/systemd-run"
-        "${pkgs.systemd}/bin/systemctl"
-        "${../../cli/lib.sh}"
-      ]
-      monitorsSource
-  );
+  alexiePkg = inputs.alexie.packages.${pkgs.stdenv.hostPlatform.system}.default;
 in
 {
   options.anixie.wm.display = {
@@ -79,7 +41,7 @@ in
     }
 
     (lib.mkIf cfg.enable {
-      home.packages = (if daemonEnabled then [ ] else [ monitors ]) ++ [
+      home.packages = [
         # Resolution, scale, refresh rate and output switching from the terminal, for
         # anything `monitors` does not cover.
         pkgs.wlr-randr
@@ -100,11 +62,7 @@ in
         };
         Service = {
           Type = "oneshot";
-          ExecStart =
-            if daemonEnabled then
-              "${inputs.alexie.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/alexie monitors recover"
-            else
-              "${monitors}/bin/monitors recover";
+          ExecStart = "${alexiePkg}/bin/alexie monitors recover";
         };
         Install.WantedBy = [ "graphical-session-pre.target" ];
       };
