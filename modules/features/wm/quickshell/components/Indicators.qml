@@ -125,7 +125,7 @@ BarWidget {
       active: root.idleStopped
       selected: root.idleStopped
       dimmed: !root.idleStopped
-      onPressed: function () { Commands.run("toggle idle") }
+      onPressed: function () { Commands.runAlexie("toggle idle") }
     }
   }
 
@@ -139,7 +139,7 @@ BarWidget {
       active: root.stayAwake
       selected: root.stayAwake
       dimmed: !root.stayAwake
-      onPressed: function () { Commands.run("toggle stayawake") }
+      onPressed: function () { Commands.runAlexie("toggle stayawake") }
     }
   }
 
@@ -153,7 +153,7 @@ BarWidget {
       active: root.nightlight
       selected: root.nightlight
       dimmed: !root.nightlight
-      onPressed: function () { Commands.run("toggle nightlight") }
+      onPressed: function () { Commands.runAlexie("toggle nightlight") }
     }
   }
 
@@ -186,7 +186,7 @@ BarWidget {
         : "Focus mode · click for screen time"
       active: true
       selected: true
-      onPressed: function () { Commands.run("screentime panel") }
+      onPressed: function () { Commands.runAlexie("screentime panel") }
     }
   }
 
