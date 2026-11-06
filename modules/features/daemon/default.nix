@@ -8,7 +8,11 @@
 
 let
   cfg = config.anixie.daemon;
-  alexiePkg = inputs.alexie.packages.${pkgs.stdenv.hostPlatform.system}.default;
+  # Upstream test can fail in the Nix sandbox (HOME=/homeless-shelter); skip checks
+  # for the packaged binary. Re-enable when alexie fixes sandbox-safe tests.
+  alexiePkg = inputs.alexie.packages.${pkgs.stdenv.hostPlatform.system}.default.overrideAttrs (_: {
+    doCheck = false;
+  });
 in
 {
   options.anixie.daemon.enable = lib.mkEnableOption "alexie Rust daemon + CLI";
