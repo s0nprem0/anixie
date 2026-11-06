@@ -24,6 +24,8 @@ ghostty_template="@GHOSTTY_TEMPLATE@"
 foot_template="@FOOT_TEMPLATE@"
 vscode_template="@VSCODE_TEMPLATE@"
 obsidian_template="@OBSIDIAN_TEMPLATE@"
+librewolf_userchrome_template="@LIBREWOLF_USERCHROME_TEMPLATE@"
+librewolf_usercontent_template="@LIBREWOLF_USERCONTENT_TEMPLATE@"
 papirus_folders="@PAPIRUS_FOLDERS@"
 tokens="@TOKENS@"
 render_lib="@RENDER_LIB@"
@@ -137,10 +139,12 @@ render_template "$ghostty_template" "$palette_file" "$outdir/ghostty" "$extras"
 render_template "$foot_template" "$palette_file" "$outdir/foot.ini" "$extras"
 render_template "$vscode_template" "$palette_file" "$outdir/vscode.json" "$extras"
 render_template "$obsidian_template" "$palette_file" "$outdir/obsidian.css" "$extras"
+render_template "$librewolf_userchrome_template" "$palette_file" "$outdir/librewolf-userChrome.css" "$extras"
+render_template "$librewolf_usercontent_template" "$palette_file" "$outdir/librewolf-userContent.css" "$extras"
 
 for file in helix.toml yazi.toml hyprlock.conf qt6ct-colors.conf \
   gtk-3.0-settings.ini gtk-4.0-settings.ini gtk-3.0.css gtk-4.0.css share-picker.css discord.css \
-  alacritty.toml ghostty foot.ini vscode.json obsidian.css; do
+  alacritty.toml ghostty foot.ini vscode.json obsidian.css librewolf-userChrome.css librewolf-userContent.css; do
   if grep -Eq '@[A-Z][A-Z0-9_]*@' "$outdir/$file"; then
     printf 'theme-apps: unrendered placeholder in %s\n' "$file" >&2
     exit 1

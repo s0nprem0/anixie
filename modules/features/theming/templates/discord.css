@@ -35,8 +35,3 @@
   --scrollbar-auto-thumb: @OUTLINE@;
   --scrollbar-auto-track: @BG@;
 }
-```<|end|><|start|> assistant to=edit<|channel|>analysis <|constrain|>xml<|message|><rfl:parameter name="path">
-/home/son/anixie/modules/features/theming/theme-apps.sh
-oldString">
-render_template "$gtk4_css_template" "$palette_file" "$outdir/gtk-4.0.css" "$extras"
-render_template "$share_picker_template" "$palette_file" "$outdir/share-picker.css" "$extras"

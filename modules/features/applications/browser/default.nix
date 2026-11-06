@@ -260,8 +260,18 @@ in
         isDefault = true;
         name = "default";
         path = "default";
-        inherit userChrome userContent;
+        settings."toolkit.legacyUserProfileCustomizations.stylesheets" = true;
       };
+    };
+
+    # Profile chrome is driven by the active anixie theme generation (see
+    # modules/features/theming). HM would otherwise write static store files when
+    # `userChrome`/`userContent` are set, so we symlink to the live generation.
+    home.file = {
+      ".librewolf/default/chrome/userChrome.css".source =
+        config.lib.file.mkOutOfStoreSymlink "${config.anixie.theme.stateDir}/live/librewolf-userChrome.css";
+      ".librewolf/default/chrome/userContent.css".source =
+        config.lib.file.mkOutOfStoreSymlink "${config.anixie.theme.stateDir}/live/librewolf-userContent.css";
     };
 
     # Sidebery's custom CSS is not read from the profile chrome folder; keep a
