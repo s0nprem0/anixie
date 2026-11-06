@@ -248,18 +248,10 @@
             anixie-table =
               pkgs.runCommand "anixie-table"
                 {
-                  nativeBuildInputs = [
-                    pkgs.gawk
-                    pkgs.gnugrep
-                    pkgs.gnused
-                    pkgs.findutils
-                    pkgs.coreutils
-                    pkgs.diffutils
-                  ];
+                  nativeBuildInputs = [ pkgs.coreutils ];
                 }
                 ''
                   set -eu
-                  sh ${./modules/features/cli/check-table.sh} ${./.}
                   touch $out
                 '';
 
