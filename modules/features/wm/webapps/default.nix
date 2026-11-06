@@ -7,6 +7,7 @@
 
 let
   cfg = config.anixie.wm.webapps;
+  daemonEnabled = config.anixie.daemon.enable or false;
 in
 {
   options.anixie.wm.webapps.enable = lib.mkOption {
@@ -20,7 +21,7 @@ in
     # is the thing that actually removes the browser chrome; Firefox has no
     # equivalent without an extension.
     home.packages = [
-      (pkgs.writeShellScriptBin "webapp" (
+      (pkgs.writeShellScriptBin (if daemonEnabled then "webapp-legacy" else "webapp") (
         builtins.replaceStrings
           [ "@APPS@" "@BROWSER@" "@UPDATE_DB@" "@ANIXIE_LIB@" ]
           [

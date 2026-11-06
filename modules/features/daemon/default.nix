@@ -49,6 +49,24 @@ in
       (pkgs.writeShellScriptBin "webcam-overlay" ''
         exec ${alexiePkg}/bin/alexie webcam-overlay "$@"
       '')
+      (pkgs.writeShellScriptBin "clipboard" ''
+        exec ${alexiePkg}/bin/alexie clipboard "$@"
+      '')
+      (pkgs.writeShellScriptBin "emoji" ''
+        exec ${alexiePkg}/bin/alexie emoji "$@"
+      '')
+      (pkgs.writeShellScriptBin "focus" ''
+        exec ${alexiePkg}/bin/alexie focus "$@"
+      '')
+      (pkgs.writeShellScriptBin "screentime" ''
+        exec ${alexiePkg}/bin/alexie screentime "$@"
+      '')
+      (pkgs.writeShellScriptBin "toggle" ''
+        exec ${alexiePkg}/bin/alexie toggle "$@"
+      '')
+      (pkgs.writeShellScriptBin "webapp" ''
+        exec ${alexiePkg}/bin/alexie webapp "$@"
+      '')
     ];
 
     systemd.user.services.alexie = {

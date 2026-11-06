@@ -1,11 +1,13 @@
 {
+  config,
   lib,
   pkgs,
   ...
 }:
 
 let
-  focus = pkgs.writeShellScriptBin "focus" (
+  daemonEnabled = config.anixie.daemon.enable or false;
+  focus = pkgs.writeShellScriptBin (if daemonEnabled then "focus-legacy" else "focus") (
     builtins.replaceStrings [ "@QUICKSHELL@" ] [ "${pkgs.quickshell}/bin/quickshell" ] (
       builtins.readFile ./focus.sh
     )

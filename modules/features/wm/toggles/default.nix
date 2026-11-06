@@ -6,9 +6,10 @@
 }:
 
 let
+  daemonEnabled = config.anixie.daemon.enable or false;
   # The modes the bar's indicators show, as one command. The keys call it, the
   # indicator polls it, and the picker lists it — one answer to "is it on".
-  toggle = pkgs.writeShellScriptBin "toggle" (
+  toggle = pkgs.writeShellScriptBin (if daemonEnabled then "toggle-legacy" else "toggle") (
     builtins.replaceStrings
       [
         "@HYPRCTL@"

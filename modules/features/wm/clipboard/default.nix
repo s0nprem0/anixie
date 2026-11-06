@@ -7,6 +7,7 @@
 
 let
   cfg = config.anixie.wm.clipboard;
+  daemonEnabled = config.anixie.daemon.enable or false;
 
   mkScript = import ../../cli/scripts.nix { inherit pkgs; };
 
@@ -14,7 +15,7 @@ let
   # (see hyprland/config/70-startup.lua); the command is both the shell's way in
   # and the popup's decode/copy/delete helper.
   clipboard = mkScript {
-    name = "clipboard";
+    name = if daemonEnabled then "clipboard-legacy" else "clipboard";
     file = ./clipboard.sh;
     bins = {
       "@CLIPHIST@" = "${pkgs.cliphist}/bin/cliphist";

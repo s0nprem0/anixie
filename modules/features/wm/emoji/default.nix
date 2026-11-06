@@ -7,8 +7,9 @@
 
 let
   cfg = config.anixie.wm.emoji;
+  daemonEnabled = config.anixie.daemon.enable or false;
 
-  emoji = pkgs.writeShellScriptBin "emoji" (
+  emoji = pkgs.writeShellScriptBin (if daemonEnabled then "emoji-legacy" else "emoji") (
     builtins.replaceStrings
       [
         "@EMOJI_TEST@"

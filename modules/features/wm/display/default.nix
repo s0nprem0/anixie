@@ -78,17 +78,16 @@ in
     }
 
     (lib.mkIf cfg.enable {
-      home.packages =
-        (if daemonEnabled then [] else [ monitors ]) ++ [
-          # Resolution, scale, refresh rate and output switching from the terminal, for
-          # anything `monitors` does not cover.
-          pkgs.wlr-randr
+      home.packages = (if daemonEnabled then [ ] else [ monitors ]) ++ [
+        # Resolution, scale, refresh rate and output switching from the terminal, for
+        # anything `monitors` does not cover.
+        pkgs.wlr-randr
 
-          # External monitor brightness over DDC/CI. The internal panel keeps using
-          # brightnessctl; ddcutil is only reached when the focused output is not an
-          # eDP/LVDS/DSI panel.
-          pkgs.ddcutil
-        ];
+        # External monitor brightness over DDC/CI. The internal panel keeps using
+        # brightnessctl; ddcutil is only reached when the focused output is not an
+        # eDP/LVDS/DSI panel.
+        pkgs.ddcutil
+      ];
 
       # Before Hyprland reads display.conf, clear an internal panel that was left
       # switched off while docked. Without this, booting undocked applies
