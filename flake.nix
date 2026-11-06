@@ -236,20 +236,6 @@
                   touch $out
                 '';
 
-            # The anixie group table advertises each command's subcommands for
-            # help and completion. The commands' own dispatch cases are what
-            # accept them, and a subcommand added to one without the other is
-            # invisible. This check compares the two so the table cannot drift.
-            anixie-table =
-              pkgs.runCommand "anixie-table"
-                {
-                  nativeBuildInputs = [ pkgs.coreutils ];
-                }
-                ''
-                  set -eu
-                  touch $out
-                '';
-
             # The theming scripts keep their state, colour maths and template
             # rendering in small shell libraries. These tests exercise those
             # pieces directly, without needing a running desktop.
