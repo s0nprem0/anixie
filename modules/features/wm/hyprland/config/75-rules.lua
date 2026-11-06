@@ -23,6 +23,12 @@ hl.layer_rule({
   no_anim = true,
 })
 
+hl.layer_rule({
+  name = "area-picker-noanim",
+  match = { namespace = "quickshell-area-picker" },
+  no_anim = true,
+})
+
 -- The shell's own surfaces. Layer blur is opt-in per namespace; without
 -- these the bar and the popups render sharp over a blurred desktop.
 for _, namespace in ipairs({

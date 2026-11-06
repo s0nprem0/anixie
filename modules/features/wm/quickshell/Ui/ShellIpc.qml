@@ -402,8 +402,12 @@ Item {
   IpcHandler {
     target: "picker"
 
-    function open(): void { AreaPickerHost.open(false) }
-    function openClip(): void { AreaPickerHost.open(true) }
+    function open(): void { AreaPickerHost.open(false, "swappy", false, "") }
+    function openClip(): void { AreaPickerHost.open(true, "clipboard", false, "") }
+    function openText(): void { AreaPickerHost.open(false, "text", false, "") }
+    function openFreeze(): void { AreaPickerHost.open(false, "swappy", true, "") }
+    function openFreezeClip(): void { AreaPickerHost.open(true, "clipboard", true, "") }
+    function openOn(screenName: string): void { AreaPickerHost.open(false, "swappy", false, screenName) }
   }
 
   // What `pick` calls in through, and what the menu calls for itself.

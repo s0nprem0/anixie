@@ -28,6 +28,14 @@
           "run": "shot region"
         },
         {
+          "label": "Screenshot \u2014 area picker",
+          "run": "quickshell ipc call picker open"
+        },
+        {
+          "label": "Screenshot \u2014 area picker (clipboard)",
+          "run": "quickshell ipc call picker openClip"
+        },
+        {
           "label": "Screenshot \u2014 pick window",
           "run": "shot windows"
         },
