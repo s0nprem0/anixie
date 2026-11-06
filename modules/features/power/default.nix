@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  inputs ? { },
   ...
 }:
 
@@ -179,7 +180,11 @@ in
       };
       Service = {
         Type = "simple";
-        ExecStart = "${powerprofile}/bin/powerprofile watch";
+        ExecStart =
+          if (config.anixie.daemon.enable or false) then
+            "${inputs.alexie.packages.${pkgs.system}.default}/bin/alexie power watch"
+          else
+            "${powerprofile}/bin/powerprofile watch";
         Restart = "on-failure";
         RestartSec = 2;
       };

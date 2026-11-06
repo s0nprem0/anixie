@@ -15,7 +15,7 @@ let
   # (see hyprland/config/70-startup.lua); the command is both the shell's way in
   # and the popup's decode/copy/delete helper.
   clipboard = mkScript {
-    name = if daemonEnabled then "clipboard-legacy" else "clipboard";
+    name = "clipboard";
     file = ./clipboard.sh;
     bins = {
       "@CLIPHIST@" = "${pkgs.cliphist}/bin/cliphist";
@@ -47,7 +47,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ clipboard.package ];
+    home.packages = lib.optionals (!daemonEnabled) [ clipboard.package ];
 
     # The watcher is a long-running helper, not a command. Handing its path to
     # the compositor keeps it out of the user's PATH.
