@@ -4,6 +4,7 @@
   pkgs,
   host,
   flakeDir,
+  inputs,
   ...
 }:
 
@@ -15,9 +16,10 @@ let
 in
 {
   # The front door. Everything it dispatches to is installed elsewhere in
-  # features/; this only names them in one place.
+  # features/; this only names them in one place. Now a Rust binary from the
+  # alexie flake, replacing the bash dispatcher.
   home.packages = [
-    (pkgs.writeShellScriptBin "anixie" (builtins.readFile ./anixie.sh))
+    inputs.alexie.packages.${pkgs.system}.anixie
   ]
   ++ lib.optionals desktop [
     # The bar is QML inside the shell, but patching a widget or moving it from a
