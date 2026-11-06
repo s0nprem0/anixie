@@ -1,9 +1,16 @@
-{ pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   # Kept on the root btrfs subvolume, never inside /home: a snapshot of a
   # subvolume placed within itself is exactly what btrfs refuses to make.
   dest = "/var/lib/anixie/snapshots";
+
+  daemonEnabled = config.anixie.daemon.enable or false;
 
   snapshot = pkgs.writeShellScriptBin "snapshot" (
     builtins.replaceStrings
@@ -30,8 +37,7 @@ let
 in
 {
   # btrfs-progs for the command line, rsync for restore.
-  environment.systemPackages = [
-    snapshot
+  environment.systemPackages = lib.optionals (!daemonEnabled) [ snapshot ] ++ [
     pkgs.btrfs-progs
     pkgs.rsync
   ];

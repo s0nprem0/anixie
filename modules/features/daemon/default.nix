@@ -67,6 +67,9 @@ in
       (pkgs.writeShellScriptBin "webapp" ''
         exec ${alexiePkg}/bin/alexie webapp "$@"
       '')
+      (pkgs.writeShellScriptBin "snapshot" ''
+        exec ${alexiePkg}/bin/alexie snapshot "$@"
+      '')
     ];
 
     systemd.user.services.alexie = {

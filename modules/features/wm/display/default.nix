@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  inputs ? { },
   ...
 }:
 
@@ -99,7 +100,11 @@ in
         };
         Service = {
           Type = "oneshot";
-          ExecStart = "${monitors}/bin/monitors recover";
+          ExecStart =
+            if daemonEnabled then
+              "${inputs.alexie.packages.${pkgs.system}.default}/bin/alexie monitors recover"
+            else
+              "${monitors}/bin/monitors recover";
         };
         Install.WantedBy = [ "graphical-session-pre.target" ];
       };

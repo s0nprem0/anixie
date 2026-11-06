@@ -135,9 +135,14 @@ in
       recordProcess.package
 
       # Reading what is on the screen rather than picturing it, and shrinking what
-      # comes off it before sending it somewhere.
+      # comes off it before sending it somewhere. capture-text and capture-qr are
+      # ported to alexie, so their bash versions are skipped when the daemon is on.
+    ]
+    ++ lib.optionals (!daemonEnabled) [
       captureText.package
       captureQr.package
+    ]
+    ++ [
       transcode.package
       captureShare.package
 

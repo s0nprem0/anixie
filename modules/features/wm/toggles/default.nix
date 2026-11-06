@@ -1,6 +1,7 @@
 {
   config,
   flakeDir,
+  lib,
   pkgs,
   ...
 }:
@@ -9,7 +10,7 @@ let
   daemonEnabled = config.anixie.daemon.enable or false;
   # The modes the bar's indicators show, as one command. The keys call it, the
   # indicator polls it, and the picker lists it — one answer to "is it on".
-  toggle = pkgs.writeShellScriptBin (if daemonEnabled then "toggle-legacy" else "toggle") (
+  toggle = pkgs.writeShellScriptBin "toggle" (
     builtins.replaceStrings
       [
         "@HYPRCTL@"
@@ -55,8 +56,7 @@ let
   );
 in
 {
-  home.packages = [
-    toggle
+  home.packages = lib.optionals (!daemonEnabled) [ toggle ] ++ [
     passwordlessSudo
     remoteSession
   ];
