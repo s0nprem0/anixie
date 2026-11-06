@@ -32,12 +32,12 @@ hl.on("hyprland.start", function()
   sync_displays()
 
   -- cliphist is fed both kinds of clipboard, so a screenshot copied with
-  -- Super+Shift+C is in the history alongside any copied text. The wrapper
+  -- Super+Shift+C is in the history alongside any copied text. The watcher
   -- drops selections that password managers mark as secrets.
   -- Guarded: a compositor restart must not stack a second watcher. The
-  -- script also self-guards via a PID file, so this Lua check is just the
+  -- watcher also self-guards via a PID file, so this Lua check is just the
   -- first line of defence (avoids spawning a uwsm app scope for nothing).
-  hl.exec_cmd("sh -c 'pgrep -f clipboard-watch >/dev/null 2>&1 || app-launch @CLIPBOARD_WATCH@ >/dev/null 2>&1 &'")
+  hl.exec_cmd("sh -c 'pgrep -f \"alexie clipboard watch\" >/dev/null 2>&1 || app-launch @CLIPBOARD_WATCH@ >/dev/null 2>&1 &'")
 
   -- Push this Hyprland's socket and instance signature into both the
   -- D-Bus activation environment and the systemd user manager. Home

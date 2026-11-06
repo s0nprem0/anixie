@@ -2,25 +2,17 @@
   config,
   lib,
   pkgs,
+  inputs ? { },
   ...
 }:
 
 let
   cfg = config.anixie.wm.clipboard;
-
-  mkScript = import ../../cli/scripts.nix { inherit pkgs; };
-
-  # Kept separate from the picker because it is started once at session start
-  # and outlives every invocation of `clipboard`. The compositor starts it by
-  # absolute path, so it does not need a name on PATH.
-  clipboardWatch = mkScript {
-    name = "clipboard-watch";
-    file = ./clipboard-watch.sh;
-    bins = {
-      "@CLIPHIST@" = "${pkgs.cliphist}/bin/cliphist";
-      "@WL_PASTE@" = "${pkgs.wl-clipboard}/bin/wl-paste";
-    };
-  };
+  # The watcher is native in alexie now (`alexie clipboard watch`); the
+  # compositor starts it by absolute path, so it does not need a name on
+  # PATH. The placeholder carries the subcommand, which app-launch
+  # forwards as arguments.
+  alexiePkg = inputs.alexie.packages.${pkgs.stdenv.hostPlatform.system}.default;
 in
 
 {
@@ -31,8 +23,6 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # The watcher is a long-running helper, not a command. Handing its path to
-    # the compositor keeps it out of the user's PATH.
-    anixie.theme.template.placeholders."@CLIPBOARD_WATCH@" = clipboardWatch.command;
+    anixie.theme.template.placeholders."@CLIPBOARD_WATCH@" = "${alexiePkg}/bin/alexie clipboard watch";
   };
 }
