@@ -148,8 +148,13 @@ Item {
 
       color: "transparent"
       exclusionMode: ExclusionMode.Ignore
-      visible: IdentifyHost.opened
+      // Display only: an empty input region, so clicks land on whatever is under
+      // the label instead of on a surface that has nothing to click.
       mask: Region {}
+
+      // Keep the surface mapped while it fades out, then let it go. Binding
+      // `visible` to `opened` alone would unmap it on the first frame of the fade.
+      visible: IdentifyHost.opened || identifyCard.opacity > 0
 
       WlrLayershell.layer: WlrLayer.Overlay
       WlrLayershell.namespace: "quickshell-identify"
@@ -158,24 +163,55 @@ Item {
       readonly property string label:
         /^(eDP|LVDS|DSI)/.test(String(modelData.name)) ? "Laptop panel" : "External display"
 
+      readonly property string description: IdentifyHost.descriptionFor(modelData.name)
+
       Rectangle {
+        id: identifyCard
         anchors.centerIn: parent
-        width: identifyLabel.implicitWidth + Style.space(40)
-        height: identifyLabel.implicitHeight + Style.space(28)
+        width: identifyText.implicitWidth + Style.space(40)
+        height: identifyText.implicitHeight + Style.space(28)
         radius: Theme.cornerRadius
         color: Theme.surface
         border.color: Theme.border
         border.width: Style.strokeWidth
 
-        Text {
-          id: identifyLabel
+        opacity: IdentifyHost.opened ? 1 : 0
+        scale: IdentifyHost.opened ? 1 : 0.96
+        transformOrigin: Item.Center
+        Behavior on opacity {
+          NumberAnimation { duration: Style.duration(Style.motion.fast); easing.type: Easing.OutCubic }
+        }
+        Behavior on scale {
+          NumberAnimation { duration: Style.duration(Style.motion.fast); easing.type: Easing.OutCubic }
+        }
+
+        Column {
+          id: identifyText
           anchors.centerIn: parent
-          text: identifyWindow.label + "  ·  " + modelData.name
-          color: Theme.fg
-          font.family: Style.font.family
-          font.pixelSize: Style.font.subtitle * 2
-          font.weight: Font.DemiBold
-          renderType: Text.NativeRendering
+          spacing: Style.space(4)
+
+          Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: identifyWindow.label + "  ·  " + modelData.name
+            color: Theme.fg
+            font.family: Style.font.family
+            font.pixelSize: Style.font.subtitle * 3
+            font.weight: Font.DemiBold
+            renderType: Text.NativeRendering
+
+            Accessible.role: Accessible.StaticText
+            Accessible.name: identifyWindow.label + "  ·  " + modelData.name
+          }
+
+          Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: identifyWindow.description !== ""
+            text: identifyWindow.description
+            color: Theme.muted
+            font.family: Style.font.family
+            font.pixelSize: Style.font.subtitle
+            renderType: Text.NativeRendering
+          }
         }
       }
     }

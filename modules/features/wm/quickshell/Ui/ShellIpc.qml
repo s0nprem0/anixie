@@ -308,7 +308,7 @@ Item {
   IpcHandler {
     target: "identify"
 
-    function flash(): string { IdentifyHost.flash(); return "ok" }
+    function flash(duration: string, payload: string): string { IdentifyHost.flash(duration, payload); return "ok" }
   }
 
   // The wallpaper path, for the `wallpaper` command and for scripts. Setting it
