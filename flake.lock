@@ -8,11 +8,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793970717,
-        "narHash": "sha256-tsNXUXKjNtFMzgSOKDgmAye/RcPP3maJzoSS+ddoy9o=",
+        "lastModified": 1793972014,
+        "narHash": "sha256-6msCDtrwBnCsGHzV4GahGCjikwbaRTWyR+B36Wx7vPM=",
         "owner": "s0nprem0",
         "repo": "alexie",
-        "rev": "b99fbeaa0d435117e13106676c22582b3e46051e",
+        "rev": "d1d63dec377147048ca840059af6ce168942af74",
         "type": "github"
       },
       "original": {
@@ -799,11 +799,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793851434,
-        "narHash": "sha256-sUw9ujFkmhXkxJq8k5WHlhTeqdwjlNW6nPLHAVpskao=",
+        "lastModified": 1793921150,
+        "narHash": "sha256-pFmWQyvMLt9NkueioPOC/El4N2bUSvkI5Y/XdTMhdTE=",
         "ref": "refs/heads/main",
-        "rev": "4edc006d4a2755304cfe948ed3b66ee1b3eaa13f",
-        "revCount": 1744,
+        "rev": "6eab0c98ca45c9b223768774626f6d3ae2da38bf",
+        "revCount": 1756,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/KloBraticc/Voidstrap"
