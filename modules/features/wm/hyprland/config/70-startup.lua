@@ -9,10 +9,15 @@ local function sync_displays()
   hl.exec_cmd("monitors lid reconcile >/dev/null")
 end
 
--- Held so the one-shot timer survives until it fires.
-local display_timer = nil
+-- Generation counter so a burst of add/remove events coalesces to one sync.
+-- Overwriting the timer handle alone leaves the previous timer still firing
+-- (or cancelling the wrong sync); the generation check drops stale callbacks.
+local sync_gen = 0
 local function schedule_sync()
-  display_timer = hl.timer(function()
+  sync_gen = sync_gen + 1
+  local my_gen = sync_gen
+  hl.timer(function()
+    if my_gen ~= sync_gen then return end
     sync_displays()
     -- The shell watches its screen list and re-applies the wallpaper for a new
     -- or resized output. Only fill in when it is not reachable (restart,
@@ -29,7 +34,10 @@ hl.on("hyprland.start", function()
   -- cliphist is fed both kinds of clipboard, so a screenshot copied with
   -- Super+Shift+C is in the history alongside any copied text. The wrapper
   -- drops selections that password managers mark as secrets.
-  hl.exec_cmd("app-launch @CLIPBOARD_WATCH@")
+  -- Guarded: a compositor restart must not stack a second watcher. The
+  -- script also self-guards via a PID file, so this Lua check is just the
+  -- first line of defence (avoids spawning a uwsm app scope for nothing).
+  hl.exec_cmd("sh -c 'pgrep -f clipboard-watch >/dev/null 2>&1 || app-launch @CLIPBOARD_WATCH@ >/dev/null 2>&1 &'")
 
   -- Push this Hyprland's socket and instance signature into both the
   -- D-Bus activation environment and the systemd user manager. Home

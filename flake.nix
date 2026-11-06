@@ -276,6 +276,23 @@
                   touch $out
                 '';
 
+            # Hyprland's config is Lua with no compiler; a typo is a crash-loop
+            # on restart. Check the rendered file (after @TOKEN@ substitution),
+            # not the fragments — a bare @MONITOR_DEFAULT_SCALE@ is a syntax error
+            # in source but a number once rendered.
+            lua-syntax =
+              pkgs.runCommand "lua-syntax"
+                {
+                  nativeBuildInputs = [ pkgs.lua ];
+                }
+                ''
+                  set -eu
+                  ${pkgs.lua}/bin/luac -p ${
+                    nixos.config.home-manager.users.${user}.xdg.configFile."hypr/hyprland.lua".source
+                  }
+                  touch $out
+                '';
+
             # The QML tree has a few pure JavaScript pieces — the JSONC parser,
             # the fuzzy matcher, the state migration seam and the launcher's
             # suggestions — and Node can load them because they export
