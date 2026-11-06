@@ -43,7 +43,7 @@
     # alexie: Rust daemon + CLI replacing anixie's shell tooling. Optional;
     # enabled via anixie.daemon.enable. Lives in a separate repo.
     alexie = {
-      url = "path:/home/son/alexie";
+      url = "github:s0nprem0/alexie";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

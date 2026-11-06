@@ -9,13 +9,16 @@
       },
       "locked": {
         "lastModified": 1793940649,
-        "narHash": "sha256-h9gpQelSnmJe9UK7kLHQeUaq6CWffn1a76sMpzEg1OE=",
-        "path": "/home/son/alexie",
-        "type": "path"
+        "narHash": "sha256-lDEQe/c3KHNwEb678OYhdgMyB3FYjpzHXENKz/v3X+s=",
+        "owner": "s0nprem0",
+        "repo": "alexie",
+        "rev": "1eefea83ec6fedd6de0dbc25d493c0b1056bc748",
+        "type": "github"
       },
       "original": {
-        "path": "/home/son/alexie",
-        "type": "path"
+        "owner": "s0nprem0",
+        "repo": "alexie",
+        "type": "github"
       }
     },
     "aquamarine": {
