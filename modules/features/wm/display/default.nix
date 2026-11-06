@@ -7,6 +7,7 @@
 
 let
   cfg = config.anixie.wm.display;
+  daemonEnabled = config.anixie.daemon.enable or false;
 
   # Monitor scaling, the internal panel, and mirroring — the things the brightness
   # and function keys do not reach. Built the same way as the capture commands:
@@ -77,21 +78,17 @@ in
     }
 
     (lib.mkIf cfg.enable {
-      home.packages = [
-        # Named `monitors`, not `display`: ImageMagick already ships a `display` — its
-        # X11 image viewer — and shadowing it would take a name away from a package
-        # that is installed here for the capture commands.
-        monitors
+      home.packages =
+        (if daemonEnabled then [] else [ monitors ]) ++ [
+          # Resolution, scale, refresh rate and output switching from the terminal, for
+          # anything `monitors` does not cover.
+          pkgs.wlr-randr
 
-        # Resolution, scale, refresh rate and output switching from the terminal, for
-        # anything `monitors` does not cover.
-        pkgs.wlr-randr
-
-        # External monitor brightness over DDC/CI. The internal panel keeps using
-        # brightnessctl; ddcutil is only reached when the focused output is not an
-        # eDP/LVDS/DSI panel.
-        pkgs.ddcutil
-      ];
+          # External monitor brightness over DDC/CI. The internal panel keeps using
+          # brightnessctl; ddcutil is only reached when the focused output is not an
+          # eDP/LVDS/DSI panel.
+          pkgs.ddcutil
+        ];
 
       # Before Hyprland reads display.conf, clear an internal panel that was left
       # switched off while docked. Without this, booting undocked applies

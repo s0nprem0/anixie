@@ -14,7 +14,12 @@ in
   options.anixie.daemon.enable = lib.mkEnableOption "alexie Rust daemon + CLI";
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ alexiePkg ];
+    home.packages = [
+      alexiePkg
+      (pkgs.writeShellScriptBin "monitors" ''
+        exec ${alexiePkg}/bin/alexie monitors "$@"
+      '')
+    ];
 
     systemd.user.services.alexie = {
       Unit = {

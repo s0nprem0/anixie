@@ -58,4 +58,4 @@ bind_global(mod .. " + CTRL + SHIFT + B", "Bar modules", "bar-manage")
 -- The background picker, next to the theme picker. `wallpaper` with no argument
 -- lists the generated background and the pictures for the current theme; it is
 -- the same command the shell's desktop context menu calls.
-bind(mod .. " + CTRL + SPACE", "Wallpaper picker", "wallpaper")
+bind(mod .. " + CTRL + SPACE", "Wallpaper picker", "if command -v alexie >/dev/null 2>&1; then alexie wallpaper; else wallpaper; fi")
