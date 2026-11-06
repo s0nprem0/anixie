@@ -1,37 +1,14 @@
 {
-  config,
   lib,
-  pkgs,
   ...
 }:
 
-let
-  cfg = config.anixie.wm.webapps;
-  daemonEnabled = config.anixie.daemon.enable or false;
-in
 {
+  # Kept for the option's sake only: `webapp` is native in alexie now, and
+  # Chromium (which it shells out to) comes from the browser module.
   options.anixie.wm.webapps.enable = lib.mkOption {
     type = lib.types.bool;
     default = true;
     description = "Whether to install the webapp command, which turns a website into a Chromium --app desktop entry.";
-  };
-
-  config = lib.mkIf cfg.enable {
-    # A website as an application. Chromium is the implementation because `--app`
-    # is the thing that actually removes the browser chrome; Firefox has no
-    # equivalent without an extension.
-    home.packages = lib.optionals (!daemonEnabled) [
-      (pkgs.writeShellScriptBin "webapp" (
-        builtins.replaceStrings
-          [ "@APPS@" "@BROWSER@" "@UPDATE_DB@" "@ANIXIE_LIB@" ]
-          [
-            "${config.xdg.dataHome}/applications"
-            "${pkgs.chromium}/bin/chromium"
-            "${pkgs.desktop-file-utils}/bin/update-desktop-database"
-            "${../../cli/lib.sh}"
-          ]
-          (builtins.readFile ./webapp.sh)
-      ))
-    ];
   };
 }
