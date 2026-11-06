@@ -8,11 +8,10 @@
 
 let
   cfg = config.anixie.daemon;
-  # Upstream test can fail in the Nix sandbox (HOME=/homeless-shelter); skip checks
-  # for the packaged binary. Re-enable when alexie fixes sandbox-safe tests.
-  alexiePkg = inputs.alexie.packages.${pkgs.stdenv.hostPlatform.system}.default.overrideAttrs (_: {
-    doCheck = false;
-  });
+  # Same derivation every other module uses. Overriding doCheck here
+  # (as was done while a sandbox test failed) built a second copy of
+  # alexie on every NixOS build; the suite is sandbox-safe now.
+  alexiePkg = inputs.alexie.packages.${pkgs.stdenv.hostPlatform.system}.default;
 in
 {
   options.anixie.daemon.enable = lib.mkEnableOption "alexie Rust daemon + CLI";
