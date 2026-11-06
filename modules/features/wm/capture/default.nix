@@ -101,12 +101,6 @@ let
     };
   };
 
-  transcode = mkScript {
-    name = if daemonEnabled then "transcode-legacy" else "transcode";
-    file = ./transcode.sh;
-    inherit bins;
-  };
-
   captureShare = mkScript {
     name = if daemonEnabled then "capture-share-legacy" else "capture-share";
     file = ./share.sh;
@@ -143,7 +137,6 @@ in
       captureQr.package
     ]
     ++ [
-      transcode.package
       captureShare.package
 
       # Annotation is satty's job. It is written for Wayland and opens in crop mode,
