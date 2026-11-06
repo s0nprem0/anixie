@@ -26,7 +26,7 @@ NotificationSharing 1.0 NotificationSharing.qml
 NotificationReplay 1.0 NotificationReplay.qml
 NotificationFocus 1.0 NotificationFocus.qml
 NotificationPopups 1.0 NotificationPopups.qml
-ShellLayers 1.0 ShellLayers.qml
+ScreenLayers 1.0 ScreenLayers.qml
 ShellOverlays 1.0 ShellOverlays.qml
 PickerLayer 1.0 PickerLayer.qml
 ClipboardLayer 1.0 ClipboardLayer.qml

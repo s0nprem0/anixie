@@ -23,6 +23,12 @@ import "components"
 // The surfaces, the one-off overlays, the notification popups, the IPC targets
 // and the shortcuts each live in their own component. This file is the shell's
 // assembly point.
+//
+// ScreenLayers owns per-output surfaces (Variants over all screens: background,
+// screensaver, identify, bars). ShellOverlays owns focused-output singletons
+// (polkit, OSD, dock, workspace overview, capture preview). New surfaces
+// follow their current owner; do not put a focused-output window in
+// ScreenLayers or a per-screen surface in ShellOverlays.
 ShellRoot {
   id: shell
 
@@ -35,7 +41,7 @@ ShellRoot {
     AreaPickerHost
   }
 
-  ShellLayers {}
+  ScreenLayers {}
 
   // The low-battery warning. Lives on the shell rather than on the bar's readout
   // so it keeps working regardless of which modules the bar is showing.

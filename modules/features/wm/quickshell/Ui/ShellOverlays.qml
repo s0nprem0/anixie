@@ -5,8 +5,13 @@ import Quickshell.Wayland
 import ".."
 import "../components"
 
-// The one-off windows that do not belong to a bar or a screen model: the polkit
-// prompt, the OSD, the dock and the capture preview.
+// ShellOverlays: one-off windows that do not belong to a per-screen Variants
+// model — the polkit prompt, the OSD, the dock, the workspace overview and
+// the capture preview. Each is a single PanelWindow on Screens.focused.
+//
+// This is the focused-output file, not the per-screen layers: new windows that
+// live on the focused output belong here; per-screen surfaces belong in
+// ScreenLayers.
 Item {
   // The output the dock and its edge reveal live on. Both windows name it, so the
   // reveal strip is always on the same output as the dock it brings back.

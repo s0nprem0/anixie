@@ -5,9 +5,12 @@ import Quickshell.Wayland
 import ".."
 import "../components"
 
-// Per-output layer surfaces: the background, the idle screensaver, the display
-// name overlay and every bar. Each sits on its own screen and is destroyed and
-// rebuilt when Variants' model changes.
+// ScreenLayers: per-output layer surfaces via Variants over all screens —
+// background, screensaver, identify, and every bar. Each sits on its own
+// screen and is destroyed and rebuilt when Variants' model changes.
+//
+// This is the per-screen file, not the one-off overlays: new per-output
+// surfaces belong here; new focused-output windows belong in ShellOverlays.
 Item {
   id: layers
 
