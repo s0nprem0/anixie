@@ -7,24 +7,6 @@
 }:
 
 let
-  daemonEnabled = config.anixie.daemon.enable or false;
-  # The modes the bar's indicators show, as one command. The keys call it, the
-  # indicator polls it, and the picker lists it — one answer to "is it on".
-  toggle = pkgs.writeShellScriptBin "toggle" (
-    builtins.replaceStrings
-      [
-        "@HYPRCTL@"
-        "@QUICKSHELL@"
-        "@ANIXIE_LIB@"
-      ]
-      [
-        "${pkgs.hyprland}/bin/hyprctl"
-        "${pkgs.quickshell}/bin/quickshell"
-        "${../../cli/lib.sh}"
-      ]
-      (builtins.readFile ./toggle.sh)
-  );
-
   # Whether sudo asks for a password, so the bar can say when it does not. On
   # this machine it does, since users.nix sets wheelNeedsPassword — but the
   # reading is asked of sudo itself rather than assumed from the setting, because
@@ -56,7 +38,7 @@ let
   );
 in
 {
-  home.packages = lib.optionals (!daemonEnabled) [ toggle ] ++ [
+  home.packages = [
     passwordlessSudo
     remoteSession
   ];
