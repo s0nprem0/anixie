@@ -222,6 +222,7 @@ do
 
   if file then
     for line in file:lines() do
+      if line:match("^#") then goto continue end
       local output, scale, transform, disabled, mirror, position, mode, sdrb, sdrr =
         line:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)$")
       if not output then
@@ -283,6 +284,7 @@ do
           sdrsaturation = sdrr_value,
         })
       end
+      ::continue::
     end
     file:close()
   end
