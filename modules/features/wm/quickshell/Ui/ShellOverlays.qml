@@ -299,6 +299,7 @@ Item {
       }
       onPinToggled: CapturePreview.togglePin()
       onDismissed: CapturePreview.hide()
+      onRetried: CapturePreview.reveal(CapturePreview.path)
     }
   }
 

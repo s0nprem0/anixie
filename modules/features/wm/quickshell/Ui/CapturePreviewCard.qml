@@ -57,6 +57,7 @@ Item {
   signal copyFailure()
   signal hoverEntered()
   signal hoverExited()
+  signal retried()
 
   readonly property int maxWidth: Style.space(360)
   readonly property int maxHeight: Style.space(250)
@@ -226,11 +227,18 @@ Item {
 
     Text {
       anchors.centerIn: parent
-      text: preview.status === Image.Error ? "Could not load capture" : "Loading capture…"
+      text: preview.status === Image.Error ? "Could not load capture — click to retry" : "Loading capture…"
       color: Theme.muted
       font.family: Style.font.family
       font.pixelSize: Style.font.bodySmall
       renderType: Text.NativeRendering
+    }
+
+    MouseArea {
+      anchors.fill: parent
+      cursorShape: Qt.PointingHandCursor
+      enabled: preview.status === Image.Error
+      onClicked: root.retried()
     }
   }
 
