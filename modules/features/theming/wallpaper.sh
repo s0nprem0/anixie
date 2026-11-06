@@ -16,7 +16,7 @@
 #   wallpaper use FILE [--output NAME]
 #                             use a picture, for one output or all of them
 #   wallpaper record FILE [--output NAME]
-#                             save a choice without applying it (theme.sh)
+#                             save a choice without applying it (theme)
 #   wallpaper next|prev [--random]
 #   wallpaper rotate          rotate to a random wallpaper
 #   wallpaper rotation [MINUTES]
@@ -761,7 +761,7 @@ use() {
   fi
 
   if [ "$target" != generated ] && [ "$(current_theme)" = wallpaper ]; then
-    # The selection is already saved. Tell theme.sh so it does not record a
+    # The selection is already saved. Tell theme so it does not record a
     # second, global choice on top of an output-specific one.
     if command -v theme >/dev/null 2>&1 && ANIXIE_WALLPAPER_RECORDED=1 theme wallpaper "$target"; then
       return
@@ -784,7 +784,7 @@ use() {
 
 # Save a selection without applying it. This is what `theme wallpaper FILE`
 # uses, so the picture that produced a palette is the picture on screen without
-# making theme.sh re-enter this command's picker/apply path.
+# making theme re-enter this command's picker/apply path.
 record_selection() {
   [ $# -ge 1 ] || { echo "wallpaper: record needs a value" >&2; exit 1; }
   target="$1"

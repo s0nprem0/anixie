@@ -105,7 +105,7 @@ HOME="$tmp/home" sh "$tmp/wallpaper" next >/dev/null
 HOME="$tmp/home" sh "$tmp/wallpaper" rotate >/dev/null
 "$JQ" -e '.version == 1' "$tmp/state/wallpapers.json" >/dev/null
 
-# `record` writes a choice without applying it, which is the path theme.sh uses
+# `record` writes a choice without applying it, which is the path theme uses
 # after deriving a palette from a named picture.
 HOME="$tmp/home" sh "$tmp/wallpaper" record "$tmp/lib/b.png" >/dev/null
 "$JQ" -e --arg p "$tmp/lib/b.png" '

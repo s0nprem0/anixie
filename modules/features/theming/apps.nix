@@ -6,7 +6,7 @@
 let
   # One palette, every app. Each of these is read when its program starts, so a
   # theme switched at runtime reaches the shell, Hyprland and kitty at once and
-  # the rest at their next start — see theme.sh, which is honest about it.
+  # the rest at their next start — see theme, which is honest about it.
   light = config.anixie.theme.mode == "light";
   stateDir = config.anixie.theme.stateDir;
 in
