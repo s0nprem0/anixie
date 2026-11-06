@@ -22,6 +22,12 @@ in
       (pkgs.writeShellScriptBin "menu" ''
         exec ${alexiePkg}/bin/alexie menu "$@"
       '')
+      (pkgs.writeShellScriptBin "theme" ''
+        exec ${alexiePkg}/bin/alexie theme "$@"
+      '')
+      (pkgs.writeShellScriptBin "wallpaper" ''
+        exec ${alexiePkg}/bin/alexie wallpaper "$@"
+      '')
     ];
 
     systemd.user.services.alexie = {

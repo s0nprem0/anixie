@@ -10,6 +10,7 @@ let
   # ~/.config: Home Manager owns those paths as read-only store symlinks, and a
   # theme set at runtime has to be able to write.
   stateDir = config.anixie.theme.stateDir;
+  daemonEnabled = config.anixie.daemon.enable or false;
   wallpaperDirs = lib.escapeShellArg (
     lib.concatStringsSep "\n" (
       config.anixie.theme.wallpaper.dirs ++ config.anixie.theme.wallpaper.extraDirs
@@ -41,7 +42,7 @@ let
   # shell draws stills on its background layer; videos go through mpvpaper,
   # because the shell has no video renderer yet. This command picks the owner and
   # tells a running shell what to show.
-  wallpaper = pkgs.writeShellScriptBin "wallpaper" (
+  wallpaper = pkgs.writeShellScriptBin (if daemonEnabled then "wallpaper-legacy" else "wallpaper") (
     builtins.replaceStrings
       [
         "@STATE_DIR@"
@@ -177,7 +178,7 @@ let
       (builtins.readFile ./theme-apps.sh)
   );
 
-  theme = pkgs.writeShellScriptBin "theme" (
+  theme = pkgs.writeShellScriptBin (if daemonEnabled then "theme-legacy" else "theme") (
     builtins.replaceStrings
       [
         "@PALETTES@"
@@ -219,7 +220,7 @@ let
         "${pkgs.glib}/bin/gsettings"
         "${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}/glib-2.0/schemas"
         "${pkgs.jq}/bin/jq"
-        "${wallpaper}/bin/wallpaper"
+        "${wallpaper}/bin/${if daemonEnabled then "wallpaper-legacy" else "wallpaper"}"
         "${themeApps}/bin/theme-apps"
         (lib.escapeShellArg config.anixie.theme.auto.schedule.light)
         (lib.escapeShellArg config.anixie.theme.auto.schedule.dark)
