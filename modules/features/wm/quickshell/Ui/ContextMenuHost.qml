@@ -248,10 +248,6 @@ QtObject {
     implicitWidth: root.menuWidth
     implicitHeight: Math.min(root.menuHeight, root.maxMenuHeight)
 
-    // Keep mapped while the close animation runs.
-    opacity: root.reveal
-    Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "quickshell-context"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
@@ -262,18 +258,86 @@ QtObject {
       onCleared: root.close()
     }
 
-    RectangularShadow {
-      anchors.fill: cardShadowTarget
-      radius: Theme.cornerRadius
-      blur: 16
-      spread: -2
-      offset.y: 4
-      color: Qt.rgba(0, 0, 0, 0.35)
-    }
-
-    PopupCard {
-      id: cardShadowTarget
+    // A Wayland surface has no window-level opacity, so fade the content
+    // instead. The window stays mapped until the close animation finishes.
+    Item {
+      id: content
       anchors.fill: parent
+      opacity: root.reveal
+      Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+
+      RectangularShadow {
+        anchors.fill: cardShadowTarget
+        radius: Theme.cornerRadius
+        blur: 16
+        spread: -2
+        offset.y: 4
+        color: Qt.rgba(0, 0, 0, 0.35)
+      }
+
+      PopupCard {
+        id: cardShadowTarget
+        anchors.fill: parent
+      }
+
+      Flickable {
+        id: menuFlickable
+        anchors.fill: parent
+        anchors.margins: 0
+        contentWidth: width
+        contentHeight: menuColumn.implicitHeight + root.padding * 2
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        interactive: contentHeight > height
+
+        ScrollBar.vertical: ScrollBar {}
+
+        Column {
+          id: menuColumn
+          width: parent.width - root.padding * 2
+          anchors.top: parent.top
+          anchors.topMargin: root.padding
+          anchors.left: parent.left
+          anchors.leftMargin: root.padding
+          spacing: 0
+
+          Repeater {
+            model: root.items
+
+            delegate: Item {
+              required property var modelData
+              required property int index
+
+              width: parent.width
+              height: modelData && modelData.separator === true ? root.separatorHeight : root.rowHeight
+
+              Rectangle {
+                visible: modelData && modelData.separator === true
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width
+                height: 1
+                color: Theme.muted
+                opacity: 0.4
+              }
+
+              ContextMenuRow {
+                visible: !(modelData && modelData.separator === true)
+                anchors.fill: parent
+                label: modelData && modelData.label ? modelData.label : ""
+                glyph: modelData && modelData.glyph ? modelData.glyph : ""
+                iconName: modelData && modelData.iconName ? modelData.iconName : ""
+                trailingIcon: modelData && modelData.trailingIcon ? modelData.trailingIcon : ""
+                activeIcon: modelData && modelData.activeIcon ? modelData.activeIcon : ""
+                activeText: modelData && modelData.activeText ? modelData.activeText : ""
+                danger: modelData && modelData.danger === true
+                available: !modelData || modelData.enabled !== false
+                selected: root.index === index
+                onClicked: root.choose(index)
+              }
+            }
+          }
+        }
+      }
     }
 
     Item {
@@ -306,65 +370,6 @@ QtObject {
         } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
           root.activate()
           event.accepted = true
-        }
-      }
-    }
-
-    Flickable {
-      id: menuFlickable
-      anchors.fill: parent
-      anchors.margins: 0
-      contentWidth: width
-      contentHeight: menuColumn.implicitHeight + root.padding * 2
-      clip: true
-      boundsBehavior: Flickable.StopAtBounds
-      interactive: contentHeight > height
-
-      ScrollBar.vertical: ScrollBar {}
-
-      Column {
-        id: menuColumn
-        width: parent.width - root.padding * 2
-        anchors.top: parent.top
-        anchors.topMargin: root.padding
-        anchors.left: parent.left
-        anchors.leftMargin: root.padding
-        spacing: 0
-
-        Repeater {
-          model: root.items
-
-          delegate: Item {
-            required property var modelData
-            required property int index
-
-            width: parent.width
-            height: modelData && modelData.separator === true ? root.separatorHeight : root.rowHeight
-
-            Rectangle {
-              visible: modelData && modelData.separator === true
-              anchors.verticalCenter: parent.verticalCenter
-              width: parent.width
-              height: 1
-              color: Theme.muted
-              opacity: 0.4
-            }
-
-            ContextMenuRow {
-              visible: !(modelData && modelData.separator === true)
-              anchors.fill: parent
-              label: modelData && modelData.label ? modelData.label : ""
-              glyph: modelData && modelData.glyph ? modelData.glyph : ""
-              iconName: modelData && modelData.iconName ? modelData.iconName : ""
-              trailingIcon: modelData && modelData.trailingIcon ? modelData.trailingIcon : ""
-              activeIcon: modelData && modelData.activeIcon ? modelData.activeIcon : ""
-              activeText: modelData && modelData.activeText ? modelData.activeText : ""
-              danger: modelData && modelData.danger === true
-              available: !modelData || modelData.enabled !== false
-              selected: root.index === index
-              onClicked: root.choose(index)
-            }
-          }
         }
       }
     }
