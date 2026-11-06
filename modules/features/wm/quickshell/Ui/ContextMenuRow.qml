@@ -11,6 +11,10 @@ Item {
 
   property string label: ""
   property string glyph: ""
+  property string iconName: ""
+  property string trailingIcon: ""
+  property string activeIcon: ""
+  property string activeText: ""
   property bool danger: false
   property bool available: true
   property bool selected: false
@@ -53,9 +57,21 @@ Item {
     anchors.verticalCenter: parent.verticalCenter
     spacing: Style.space(8)
 
+    // Themed icon, when an iconName is given. Falls back to the glyph text.
+    Image {
+      id: iconImage
+      visible: root.iconName !== ""
+      width: visible ? Style.space(16) : 0
+      height: width
+      source: root.iconName !== "" ? (root.selected && root.activeIcon !== "" ? Quickshell.iconPath(root.activeIcon, true) : Quickshell.iconPath(root.iconName, true)) : ""
+      fillMode: Image.PreserveAspectFit
+      smooth: true
+      anchors.verticalCenter: parent.verticalCenter
+    }
+
     Text {
       id: glyphText
-      visible: root.glyph !== ""
+      visible: root.iconName === "" && root.glyph !== ""
       width: visible ? implicitWidth : 0
       text: root.glyph
       color: root.foreground
@@ -65,13 +81,38 @@ Item {
 
     Text {
       id: labelText
-      width: Math.max(0, parent.width - glyphText.width - (glyphText.visible ? parent.spacing : 0))
-      text: root.label
+      width: Math.max(0, parent.width - (iconImage.visible ? iconImage.width + parent.spacing : 0) - (glyphText.visible ? glyphText.width + parent.spacing : 0) - (trailingText.visible ? trailingText.width + parent.spacing : 0) - (trailingIconImage.visible ? trailingIconImage.width + parent.spacing : 0))
+      text: root.selected && root.activeText !== "" ? root.activeText : root.label
       color: root.foreground
       font.family: Style.font.family
       font.pixelSize: Style.font.body
       elide: Text.ElideRight
       renderType: Text.NativeRendering
+    }
+
+    // Trailing icon (text glyph).
+    Text {
+      id: trailingText
+      visible: root.trailingIcon !== "" && !root.trailingIcon.startsWith("icon:")
+      width: visible ? implicitWidth : 0
+      text: root.trailingIcon
+      color: root.foreground
+      opacity: 0.7
+      font.family: Style.font.family
+      font.pixelSize: Style.font.body
+      anchors.verticalCenter: parent.verticalCenter
+    }
+
+    Image {
+      id: trailingIconImage
+      visible: root.trailingIcon !== "" && root.trailingIcon.startsWith("icon:")
+      width: visible ? Style.space(14) : 0
+      height: width
+      source: visible ? Quickshell.iconPath(root.trailingIcon.slice(5), true) : ""
+      fillMode: Image.PreserveAspectFit
+      smooth: true
+      opacity: 0.7
+      anchors.verticalCenter: parent.verticalCenter
     }
   }
 

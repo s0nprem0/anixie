@@ -2,7 +2,9 @@ pragma Singleton
 
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Effects
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Wayland
 import ".."
 
@@ -20,6 +22,8 @@ QtObject {
   property var target: null
   property rect anchorRect: Qt.rect(0, 0, 0, 0)
   property bool opened: false
+  property bool closing: false
+  property real reveal: 0
   property int index: -1
 
   // Monotonic id for the currently open session, used to ignore stale
@@ -117,7 +121,9 @@ QtObject {
     root.items = root.normalize(entries)
     root.index = root.firstEnabled()
     root.openGeneration += 1
+    root.closing = false
     root.opened = true
+    root.reveal = 1
     menuFlickable.contentY = 0
   }
 
@@ -138,10 +144,25 @@ QtObject {
   }
 
   function close() {
+    if (!root.opened && !root.closing) return
     root.opened = false
-    root.target = null
-    root.items = []
-    root.index = -1
+    root.closing = true
+    root.reveal = 0
+    Qt.callLater(function () {
+      // Keep the window mapped for the close animation, then clear.
+      closeTimer.restart()
+    })
+  }
+
+  property Timer closeTimer: Timer {
+    interval: 160
+    repeat: false
+    onTriggered: {
+      root.closing = false
+      root.target = null
+      root.items = []
+      root.index = -1
+    }
   }
 
   // Close the menu if its anchor disappears (panel closed, bar reloaded, ...).
@@ -206,7 +227,8 @@ QtObject {
   }
 
   property PopupWindow window: PopupWindow {
-    visible: root.opened && root.target !== null && root.targetAlive()
+    id: popupWindow
+    visible: (root.opened || root.closing) && root.target !== null && root.targetAlive()
     onVisibleChanged: {
       if (!visible) return
       const gen = root.openGeneration
@@ -221,15 +243,36 @@ QtObject {
     anchor.rect: root.anchorRect
     anchor.edges: root.edges
     anchor.gravity: root.gravity
+    anchor.adjustment: PopupAdjustment.ResizeY | PopupAdjustment.SlideX
 
     implicitWidth: root.menuWidth
     implicitHeight: Math.min(root.menuHeight, root.maxMenuHeight)
+
+    // Keep mapped while the close animation runs.
+    opacity: root.reveal
+    Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "quickshell-context"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
 
+    HyprlandFocusGrab {
+      active: root.opened || root.closing
+      windows: [popupWindow]
+      onCleared: root.close()
+    }
+
+    RectangularShadow {
+      anchors.fill: cardShadowTarget
+      radius: Theme.cornerRadius
+      blur: 16
+      spread: -2
+      offset.y: 4
+      color: Qt.rgba(0, 0, 0, 0.35)
+    }
+
     PopupCard {
+      id: cardShadowTarget
       anchors.fill: parent
     }
 
@@ -312,6 +355,10 @@ QtObject {
               anchors.fill: parent
               label: modelData && modelData.label ? modelData.label : ""
               glyph: modelData && modelData.glyph ? modelData.glyph : ""
+              iconName: modelData && modelData.iconName ? modelData.iconName : ""
+              trailingIcon: modelData && modelData.trailingIcon ? modelData.trailingIcon : ""
+              activeIcon: modelData && modelData.activeIcon ? modelData.activeIcon : ""
+              activeText: modelData && modelData.activeText ? modelData.activeText : ""
               danger: modelData && modelData.danger === true
               available: !modelData || modelData.enabled !== false
               selected: root.index === index
