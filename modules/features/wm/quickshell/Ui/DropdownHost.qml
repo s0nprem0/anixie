@@ -298,7 +298,11 @@ QtObject {
     const screenW = Math.max(1, Math.round(screen.width))
     const screenH = Math.max(1, Math.round(screen.height))
 
-    let width = Math.min(root.target.width, screenW - spacing * 2)
+    // A control can be as wide as its panel (the bar, a full-width row, ...),
+    // but the popup should never stretch across the screen: cap it to a
+    // readable width unless the caller asked for a specific maximum.
+    const defaultMaxWidth = Style.space(480)
+    let width = Math.min(root.target.width, defaultMaxWidth, screenW - spacing * 2)
     if (root.minWidth > 0) width = Math.max(width, root.minWidth)
     if (root.maxWidth > 0) width = Math.min(width, root.maxWidth)
     if (width > screenW - spacing * 2) width = screenW - spacing * 2

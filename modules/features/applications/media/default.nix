@@ -21,6 +21,12 @@ in
       description = "Whether to install mpv, the media player.";
     };
 
+    vlc = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Whether to install VLC, themed to follow the anixie palette.";
+    };
+
     obs = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -32,6 +38,30 @@ in
     home.packages = [
       pkgs.mpv
       pkgs.imv
+    ]
+    ++ lib.optionals cfg.vlc [
+      (pkgs.runCommand "vlc-themed" { } ''
+        mkdir -p $out/bin
+        cat > $out/bin/vlc <<'EOF'
+        #!/bin/sh
+        # VLC is a Qt5 application; qt5ct is the platform theme that reads the
+        # anixie palette. Force it here so the desktop entry and any caller that
+        # bypasses the session environment still get the themed window.
+        export QT_QPA_PLATFORMTHEME=qt5ct
+        # VLC only flips to its dark variant on request, so follow the live mode
+        # instead of leaving it on the (light) default.
+        if [ "$(tr -d '[:space:]' < ${config.anixie.theme.stateDir}/mode 2>/dev/null)" = "dark" ]; then
+          exec ${pkgs.vlc}/bin/vlc --qt-dark-palette "$@"
+        else
+          exec ${pkgs.vlc}/bin/vlc "$@"
+        fi
+        EOF
+        chmod +x $out/bin/vlc
+        # Keep the store desktop file's icon/theme data reachable.
+        if [ -d ${pkgs.vlc}/share ]; then
+          ln -s ${pkgs.vlc}/share $out/share
+        fi
+      '')
     ]
     ++ lib.optionals cfg.obs [
       (pkgs.runCommand "obs-studio-ndi" { } ''
@@ -49,6 +79,18 @@ in
         ln -s ${obsWrapped}/share $out/share 2>/dev/null || true
       '')
     ];
+
+    xdg.desktopEntries = lib.mkIf cfg.vlc {
+      vlc = {
+        name = "VLC media player";
+        genericName = "Media player";
+        exec = "vlc %U";
+        icon = "vlc";
+        terminal = false;
+        categories = [ "AudioVideo" "Player" "Video" ];
+        mimeType = [ "video/*" "audio/*" ];
+      };
+    };
 
     xdg.mimeApps = {
       enable = true;
