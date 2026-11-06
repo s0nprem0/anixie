@@ -16,7 +16,6 @@
     ./pick
     ./quickshell
     ./reminder
-    ./screentime
     ./share-picker
     ./shortcuts
     ./toggles
