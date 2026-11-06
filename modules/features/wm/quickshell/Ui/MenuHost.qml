@@ -434,6 +434,26 @@ QtObject {
           continue
         }
 
+        // A submenu is a leaf that opens a nested picker rather than running a
+        // command. Its children are walked into a row carrying them, and
+        // PickHost pushes them onto its navigation stack on Enter.
+        if (Array.isArray(node.submenu)) {
+          if (node.when !== undefined && !root.holds(node.when)) continue
+          const group = prefix.join(" › ")
+          add({
+            label: node.label,
+            group: group,
+            icon: node.icon !== undefined ? String(node.icon) : "",
+            state: "",
+            detail: "",
+            match: "",
+            app: null,
+            run: "",
+            submenu: node.submenu
+          })
+          continue
+        }
+
         if (node.when !== undefined && !root.holds(node.when)) continue
 
         const group = prefix.join(" › ")

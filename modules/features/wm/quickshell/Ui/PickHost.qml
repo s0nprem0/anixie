@@ -38,6 +38,9 @@ QtObject {
   // Shown. Gates the window's visibility and its keyboard focus.
   property bool shown: false
 
+  // Navigation stack for drill-down sub-menus. Each entry is a saved frame.
+  property var navStack: []
+
   // "list" picks from the entries. "input" is a bare text field with no list.
   property string mode: "list"
 
@@ -232,6 +235,53 @@ QtObject {
     root.apply()
   }
 
+  // Drill-down sub-menus. A selected row carrying a `submenu` array pushes the
+  // current frame onto the stack and presents the children, with a Back row on
+  // top. `back()` pops, or dismisses when already at the top level.
+  function pushSubmenu(children, title) {
+    if (!Array.isArray(children) || children.length === 0) return
+    const frame = {
+      entries: root.entries,
+      title: root.title,
+      placeholder: root.placeholder,
+      grouped: root.grouped,
+      tabs: root.tabs,
+      tab: root.tab,
+      tabHint: root.tabHint,
+      query: root.query,
+      selected: root.selected,
+      dynamic: root.dynamic
+    }
+    root.navStack = root.navStack.concat([frame])
+
+    const backRow = { label: "← Back", group: "", header: false, separator: false, back: true }
+    const withBack = [backRow].concat(children)
+    root.present({
+      title: title !== undefined && title !== null ? String(title) : root.title,
+      placeholder: root.placeholder,
+      grouped: root.grouped,
+      dynamic: false,
+      tabs: false,
+      entries: withBack
+    })
+  }
+
+  function popSubmenu() {
+    if (!Array.isArray(root.navStack) || root.navStack.length === 0) {
+      root.dismiss()
+      return
+    }
+    const stack = root.navStack.slice()
+    const frame = stack.pop()
+    root.navStack = stack
+    root.present(frame)
+  }
+
+  function back() {
+    if (Array.isArray(root.navStack) && root.navStack.length > 0) root.popSubmenu()
+    else root.dismiss()
+  }
+
   // Headers and separators are drawn rows rather than choices. They carry no
   // command, so the keys must walk past them and Return over one must do
   // nothing instead of dismissing the picker.
@@ -408,6 +458,16 @@ QtObject {
     }
     if (!root.selectable(entry)) {
       root.ensureSelection()
+      return
+    }
+
+    // Drill-down: a row carrying a submenu opens it instead of running.
+    if (entry && Array.isArray(entry.submenu)) {
+      root.pushSubmenu(entry.submenu, entry.label !== undefined && entry.label !== null ? String(entry.label) : "")
+      return
+    }
+    if (entry && entry.back === true) {
+      root.popSubmenu()
       return
     }
 

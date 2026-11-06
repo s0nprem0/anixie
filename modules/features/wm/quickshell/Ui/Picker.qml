@@ -236,10 +236,14 @@ Item {
             }
 
             if (key === Qt.Key_Escape) {
+            if (Array.isArray(PickHost.navStack) && PickHost.navStack.length > 0) {
+              PickHost.back()
+            } else {
               PickHost.dismiss()
-              event.accepted = true
-              return
             }
+            event.accepted = true
+            return
+          }
 
             // Up and down are the list's, not the field's: a picker is navigated
             // with the same keys whatever is in the field, so they must not move
