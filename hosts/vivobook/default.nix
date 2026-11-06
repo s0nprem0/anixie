@@ -17,9 +17,12 @@ in
     ../../modules/system/ndi.nix
   ];
 
-  home-manager.users.${user}.anixie.theme.wallpaper = {
-    default = "${wallpapers}/cat_sigar.jpg";
-    extraDirs = [ "${wallpapers}" ];
+  home-manager.users.${user}.anixie = {
+    theme.wallpaper = {
+      default = "${wallpapers}/cat_sigar.jpg";
+      extraDirs = [ "${wallpapers}" ];
+    };
+    daemon.enable = true;
   };
 
   # The Vivobook's AMD iGPU needs its kernel module loaded explicitly; otherwise
