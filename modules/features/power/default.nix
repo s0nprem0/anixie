@@ -182,7 +182,7 @@ in
         Type = "simple";
         ExecStart =
           if (config.anixie.daemon.enable or false) then
-            "${inputs.alexie.packages.${pkgs.system}.default}/bin/alexie power watch"
+            "${inputs.alexie.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/alexie power watch"
           else
             "${powerprofile}/bin/powerprofile watch";
         Restart = "on-failure";

@@ -8,7 +8,7 @@
 
 let
   cfg = config.anixie.daemon;
-  alexiePkg = inputs.alexie.packages.${pkgs.system}.default;
+  alexiePkg = inputs.alexie.packages.${pkgs.stdenv.hostPlatform.system}.default;
 in
 {
   options.anixie.daemon.enable = lib.mkEnableOption "alexie Rust daemon + CLI";

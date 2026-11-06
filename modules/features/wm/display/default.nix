@@ -102,7 +102,7 @@ in
           Type = "oneshot";
           ExecStart =
             if daemonEnabled then
-              "${inputs.alexie.packages.${pkgs.system}.default}/bin/alexie monitors recover"
+              "${inputs.alexie.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/alexie monitors recover"
             else
               "${monitors}/bin/monitors recover";
         };

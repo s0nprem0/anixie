@@ -19,7 +19,7 @@ in
   # features/; this only names them in one place. Now a Rust binary from the
   # alexie flake, replacing the bash dispatcher.
   home.packages = [
-    inputs.alexie.packages.${pkgs.system}.anixie
+    inputs.alexie.packages.${pkgs.stdenv.hostPlatform.system}.anixie
   ]
   ++ lib.optionals desktop [
     # The bar is QML inside the shell, but patching a widget or moving it from a
