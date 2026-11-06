@@ -1,5 +1,6 @@
 pragma Singleton
 
+pragma ComponentBehavior: Bound
 import QtQuick
 
 // Flashes every output's name on that output.

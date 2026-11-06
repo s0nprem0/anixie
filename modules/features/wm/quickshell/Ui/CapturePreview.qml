@@ -1,5 +1,6 @@
 pragma Singleton
 
+pragma ComponentBehavior: Bound
 import QtQuick
 
 // The screenshot preview: the capture, shown for ten seconds after it is taken,

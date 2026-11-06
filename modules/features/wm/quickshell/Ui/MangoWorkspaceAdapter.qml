@@ -1,5 +1,6 @@
 pragma Singleton
 
+pragma ComponentBehavior: Bound
 import QtQuick
 
 // Mango (mangowc) adapter. The compositor's IPC is not wired into this shell

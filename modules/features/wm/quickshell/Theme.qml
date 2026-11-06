@@ -10,6 +10,7 @@
 // that the `theme` command reads in the shell feeds this one in the build.
 pragma Singleton
 
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Io
 

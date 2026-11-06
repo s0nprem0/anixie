@@ -1,5 +1,6 @@
 pragma Singleton
 
+pragma ComponentBehavior: Bound
 import QtQuick
 
 // The workspace widgets, one per bar, behind a single IPC target.

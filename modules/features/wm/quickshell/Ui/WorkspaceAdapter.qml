@@ -1,5 +1,6 @@
 pragma Singleton
 
+pragma ComponentBehavior: Bound
 import QtQuick
 
 // Compositor-agnostic workspace adapter used by the workspace overview.
