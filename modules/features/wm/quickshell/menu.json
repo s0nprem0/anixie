@@ -18,7 +18,7 @@
     },
     {
       "label": "Browser",
-      "app": "firefox"
+      "app": "librewolf"
     },
     {
       "group": "Capture",

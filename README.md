@@ -214,7 +214,7 @@ The same tree is scriptable:
 menu --list                 # every row
 menu --list Setup           # one group
 menu --only Capture         # open only that group
-menu firefox                # launch an application by name
+menu librewolf             # launch an application by name
 ```
 
 When a typed query is not an app or command, the full menu falls through in

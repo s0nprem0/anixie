@@ -341,7 +341,7 @@ function preview(text) {
 // A browser's app name is the browser, not the site. Chromium puts the origin in
 // the leading anchor of a web notification, so a browser notification is grouped
 // and iconised by the site instead of every site collapsing into "Google-chrome".
-var BROWSER = /\b(chrome|chromium|firefox|zen|brave|edge|vivaldi|helium)\b/i
+var BROWSER = /\b(chrome|chromium|firefox|librewolf|zen|brave|edge|vivaldi|helium)\b/i
 
 function isBrowser(app) {
   return BROWSER.test(String(app || ""))
