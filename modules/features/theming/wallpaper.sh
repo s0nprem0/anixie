@@ -55,7 +55,6 @@ FLOCK="@FLOCK@"
 WIDTH="@WIDTH@"
 HEIGHT="@HEIGHT@"
 
-GENERATED="$STATE/wallpaper.png"
 WALLPAPERS="$STATE/wallpapers.json"
 BACKGROUND_JSON="$STATE/background.json"
 LIBRARY_CACHE="$STATE/library.json"
