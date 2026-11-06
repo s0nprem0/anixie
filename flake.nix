@@ -40,6 +40,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # alexie: Rust daemon + CLI replacing anixie's shell tooling. Optional;
+    # enabled via anixie.daemon.enable. Lives in a separate repo.
+    alexie = {
+      url = "path:/home/son/alexie";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     hyprglass = {
       url = "github:hyprnux/hyprglass/85b8a8ed8431d7b6f1ef8dad8ae0470d8ea7f291";
       flake = false;
