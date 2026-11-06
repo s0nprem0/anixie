@@ -7,6 +7,7 @@
 
 let
   cfg = config.anixie.wm.capture;
+  daemonEnabled = config.anixie.daemon.enable or false;
 
   mkScript = import ../../cli/scripts.nix { inherit pkgs; };
 
@@ -43,13 +44,13 @@ let
   };
 
   shotPick = mkScript {
-    name = "shot-pick";
+    name = if daemonEnabled then "shot-pick-legacy" else "shot-pick";
     file = ./pick.sh;
     inherit bins;
   };
 
   shot = mkScript {
-    name = "shot";
+    name = if daemonEnabled then "shot-legacy" else "shot";
     file = ./shot.sh;
     bins = bins // {
       "@SHOT_PICK@" = shotPick.command;
@@ -61,19 +62,19 @@ let
   # have to load the whole recording script to be answered. On PATH as well, so
   # the shell's startup check can use it without parsing `record`.
   recordProcess = mkScript {
-    name = "record-process";
+    name = if daemonEnabled then "record-process-legacy" else "record-process";
     file = ./record-process.sh;
     inherit bins;
   };
 
   webcamOverlay = mkScript {
-    name = "webcam-overlay";
+    name = if daemonEnabled then "webcam-overlay-legacy" else "webcam-overlay";
     file = ./webcam-overlay.sh;
     inherit bins;
   };
 
   record = mkScript {
-    name = "record";
+    name = if daemonEnabled then "record-legacy" else "record";
     file = ./record.sh;
     bins = bins // {
       "@SHOT_PICK@" = shotPick.command;
@@ -85,7 +86,7 @@ let
   # Read something off the screen that is not a picture: the text in a region, or
   # the value behind a QR code.
   captureText = mkScript {
-    name = "capture-text";
+    name = if daemonEnabled then "capture-text-legacy" else "capture-text";
     file = ./text.sh;
     bins = bins // {
       "@SHOT_PICK@" = shotPick.command;
@@ -93,7 +94,7 @@ let
   };
 
   captureQr = mkScript {
-    name = "capture-qr";
+    name = if daemonEnabled then "capture-qr-legacy" else "capture-qr";
     file = ./qr.sh;
     bins = bins // {
       "@SHOT_PICK@" = shotPick.command;
@@ -101,13 +102,13 @@ let
   };
 
   transcode = mkScript {
-    name = "transcode";
+    name = if daemonEnabled then "transcode-legacy" else "transcode";
     file = ./transcode.sh;
     inherit bins;
   };
 
   captureShare = mkScript {
-    name = "capture-share";
+    name = if daemonEnabled then "capture-share-legacy" else "capture-share";
     file = ./share.sh;
     bins = bins // {
       "@SHOT@" = shot.command;

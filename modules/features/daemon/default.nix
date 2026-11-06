@@ -28,6 +28,27 @@ in
       (pkgs.writeShellScriptBin "wallpaper" ''
         exec ${alexiePkg}/bin/alexie wallpaper "$@"
       '')
+      (pkgs.writeShellScriptBin "shot" ''
+        exec ${alexiePkg}/bin/alexie shot "$@"
+      '')
+      (pkgs.writeShellScriptBin "record" ''
+        exec ${alexiePkg}/bin/alexie record "$@"
+      '')
+      (pkgs.writeShellScriptBin "transcode" ''
+        exec ${alexiePkg}/bin/alexie transcode "$@"
+      '')
+      (pkgs.writeShellScriptBin "capture-text" ''
+        exec ${alexiePkg}/bin/alexie capture-text "$@"
+      '')
+      (pkgs.writeShellScriptBin "capture-qr" ''
+        exec ${alexiePkg}/bin/alexie capture-qr "$@"
+      '')
+      (pkgs.writeShellScriptBin "capture-share" ''
+        exec ${alexiePkg}/bin/alexie capture-share "$@"
+      '')
+      (pkgs.writeShellScriptBin "webcam-overlay" ''
+        exec ${alexiePkg}/bin/alexie webcam-overlay "$@"
+      '')
     ];
 
     systemd.user.services.alexie = {
