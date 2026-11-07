@@ -298,6 +298,14 @@ function sanitizeTag(raw) {
     var url = safeUrl(href[1] || href[2] || "")
     return url !== "" ? '<a href="' + escapeHtml(url) + '">' : ""
   }
+  if (/^<img\s*\/\s*>$/i.test(tag) || /^<img\s+[^>]*\/?>$/.test(tag)) {
+    var src = String(raw || "").match(/<img\s+[^>]*src\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*\/?>/i)
+    var file = src ? localImagePath(src[1] || src[2] || "") : ""
+    // File-backed only, under the same path policy as sender
+    // images; sized to the card so a huge source cannot blow it up.
+    return file !== "" ? '<img src="file://' + escapeHtml(file) + '" width="220" />' : ""
+  }
+  if (/^<img\b/.test(tag)) return ""
   return ""
 }
 

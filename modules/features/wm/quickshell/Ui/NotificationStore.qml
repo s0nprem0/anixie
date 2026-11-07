@@ -734,6 +734,7 @@ QtObject {
       glyph: root.hint(notification, "anixie-glyph"),
       execArgv: root.hint(notification, "anixie-exec"),
       execActions: root.hint(notification, "anixie-actions"),
+      progress: root.hint(notification, "progress"),
       urgency: notification.urgency,
       timestamp: stamp
     })

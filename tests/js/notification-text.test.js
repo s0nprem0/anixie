@@ -33,3 +33,21 @@ test("a stored history row keeps its action commands", () => {
   const stored = JSON.stringify([{ label: "Open", argv: ["xdg-open", "/tmp/a"] }])
   assert.deepEqual(Text.execActions(stored), [{ label: "Open", argv: ["xdg-open", "/tmp/a"] }])
 })
+
+test("rich keeps emphasis and policy-checked links", () => {
+  const out = Text.rich('<b>bold</b> <script>alert(1)</script> <a href="https://example.com">ok</a>')
+  assert.ok(out.includes("<b>bold</b>"))
+  assert.ok(!out.includes("<script>"))
+  assert.ok(out.includes('<a href="https://example.com">ok</a>'))
+})
+
+test("rich embeds safe file images capped to the card", () => {
+  const out = Text.rich('<img src="file:///home/son/Pictures/logo.png">')
+  assert.ok(out.includes('<img src="file:///home/son/Pictures/logo.png" width="220" />'))
+})
+
+test("rich drops remote or unsafe images", () => {
+  assert.ok(!Text.rich('<img src="https://example.com/x.png">').includes("<img"))
+  assert.ok(!Text.rich('<img src="file:///proc/self/cmdline">').includes("<img"))
+  assert.ok(!Text.rich('<img src="file:///home/son/../etc/passwd">').includes("<img"))
+})

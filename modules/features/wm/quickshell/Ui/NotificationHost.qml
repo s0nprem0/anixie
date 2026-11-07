@@ -355,6 +355,7 @@ QtObject {
         for (let i = root.tracked.length - 1; i >= 0; i--) {
           const existing = root.tracked[i]
           if (existing === notification) break
+          if (String(existing.id) === String(notification.id)) break
           if (root.sameNotification(existing, notification)) {
             existing.dismiss()
             break
@@ -367,8 +368,15 @@ QtObject {
 
       // An audible cue for anything worth interrupting with; low
       // urgency stays silent, and silencing already returned above.
+      // A sender's sound-name hint picks its own Freedesktop sound;
+      // "silent" (and any unresolvable name, when pw-play fails)
+      // stays silent.
       if (notification.urgency !== NotificationUrgency.Low) {
-        Quickshell.execDetached(["pw-play", "@NOTIFICATION_SOUND@"])
+        const wanted = String(root.hint(notification, "sound-name") || "").trim().toLowerCase()
+        if (wanted !== "silent") {
+          const name = wanted !== "" ? wanted.split("/").pop().replace(/\.[a-z0-9]+$/i, "") : "notification"
+          Quickshell.execDetached(["pw-play", "@NOTIFICATION_SOUND_DIR@/" + name + ".oga"])
+        }
       }
 
       const closeKey = notification

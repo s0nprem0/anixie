@@ -81,6 +81,15 @@ Item {
   }
 
   readonly property string glyph: root.hint("anixie-glyph", "glyph")
+
+  // Progress from the sender's hint (casing-insensitive over the
+  // common spellings), -1 when there is none. Also read from the
+  // history row field so replays show the final state.
+  readonly property real progress: {
+    const raw = root.hint("progress", "progress") || root.hint("x-kde-progress", "progress")
+    const n = Number(raw)
+    return raw !== "" && isFinite(n) ? Math.max(0, Math.min(100, n)) : -1
+  }
   readonly property var execArgv: {
     return NotificationHost.trustedExec(root.notification)
   }
@@ -493,6 +502,28 @@ Item {
           onLinkActivated: function (link) {
             const safe = NotificationText.safeUrl(link)
             if (safe !== "") Quickshell.execDetached(["xdg-open", safe])
+          }
+        }
+
+        // Progress (hint int/float 0-100, any common spelling). Shown
+        // as a bar so a download or transfer reads as ongoing work
+        // rather than a stack of identical toasts.
+        Rectangle {
+          width: parent.width
+          visible: root.progress >= 0
+          height: Style.space(5)
+          radius: Theme.cornerRadius
+          color: Theme.separator
+
+          Rectangle {
+            width: parent.width * root.progress / 100
+            height: parent.height
+            radius: Theme.cornerRadius
+            color: Theme.primary
+            Behavior on width {
+              enabled: !Style.reduceMotion
+              NumberAnimation { duration: Style.duration(Style.motion.base); easing.type: Easing.OutCubic }
+            }
           }
         }
 
