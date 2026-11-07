@@ -21,12 +21,6 @@ in
       description = "Whether to install mpv, the media player.";
     };
 
-    vlc = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Whether to install VLC, themed to follow the anixie palette.";
-    };
-
     obs = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -38,35 +32,6 @@ in
     home.packages = [
       pkgs.mpv
       pkgs.imv
-    ]
-    ++ lib.optionals cfg.vlc [
-      (pkgs.runCommand "vlc-themed" { } ''
-        mkdir -p $out/bin
-        cat > $out/bin/vlc <<'EOF'
-        #!/bin/sh
-        # VLC is a Qt5 application; qt5ct is the platform theme that reads the
-        # anixie palette. Force it here so the desktop entry and any caller that
-        # bypasses the session environment still get the themed window.
-        #
-        # Do not pass --qt-dark-palette: that flag makes VLC substitute its own
-        # hardcoded dark palette, overriding the qt5ct colours (and therefore
-        # the anixie palette). Light/dark is already encoded in the qt5ct config
-        # that theme-apps regenerates on every switch, and the icon theme follows
-        # the same mode, so VLC follows the palette in both modes.
-        # Qt on Wayland inherits the compositor's scale, which on some setups
-        # blows VLC's toolbar and context menus up to full-screen size. Pin the
-        # scale to 1 so VLC's own geometry (and its saved window size) decide.
-        export QT_QPA_PLATFORMTHEME=qt5ct
-        export QT_AUTO_SCREEN_SCALE_FACTOR=0
-        export QT_SCALE_FACTOR=1
-        exec ${pkgs.vlc}/bin/vlc --no-fullscreen "$@"
-        EOF
-        chmod +x $out/bin/vlc
-        # Keep the store desktop file's icon/theme data reachable.
-        if [ -d ${pkgs.vlc}/share ]; then
-          ln -s ${pkgs.vlc}/share $out/share
-        fi
-      '')
     ]
     ++ lib.optionals cfg.obs [
       (pkgs.runCommand "obs-studio-ndi" { } ''
@@ -84,18 +49,6 @@ in
         ln -s ${obsWrapped}/share $out/share 2>/dev/null || true
       '')
     ];
-
-    xdg.desktopEntries = lib.mkIf cfg.vlc {
-      vlc = {
-        name = "VLC media player";
-        genericName = "Media player";
-        exec = "vlc %U";
-        icon = "vlc";
-        terminal = false;
-        categories = [ "AudioVideo" "Player" "Video" ];
-        mimeType = [ "video/*" "audio/*" ];
-      };
-    };
 
     xdg.mimeApps = {
       enable = true;

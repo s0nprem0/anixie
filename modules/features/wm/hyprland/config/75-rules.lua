@@ -140,22 +140,6 @@ hl.window_rule({
   float = true,
 })
 
--- VLC's Qt interface opens as one window but tiles awkwardly in the scrolling
--- layout and its video surface should not pick up the compositor's blur/glass.
--- Float and centre it, and leave playback to inhibit idle while it is focused.
-hl.window_rule({
-  name = "vlc-float",
-  match = {
-    class = "^vlc$",
-  },
-  float = true,
-  fullscreen = false,
-  move = { "(monitor_w-window_w)/2", "(monitor_h-window_h)/2" },
-  no_blur = true,
-  no_shadow = true,
-  idle_inhibit = "focus",
-})
-
 -- Minecraft runs under GLFW with its own frame loop, so the compositor
 -- should get out of its way: no animations, no blur, no shadows, no dimming,
 -- and tearing allowed via `immediate` (needs `general.allow_tearing` above).
