@@ -42,6 +42,93 @@ let
       (builtins.readFile ./textsize.sh)
   );
 
+  # Template bundle for alexie's native renderer (see
+  # `alexie/src/theme/assets.rs` manifest). Assembled as a flat
+  # link-farm matching the manifest filenames, including the
+  # share-picker style under its subpath.
+  themeTemplates = pkgs.linkFarm "anixie-theme-templates" [
+    {
+      name = "helix.toml";
+      path = ./templates/helix.toml;
+    }
+    {
+      name = "yazi.toml";
+      path = ./templates/yazi.toml;
+    }
+    {
+      name = "hyprlock.conf";
+      path = ./templates/hyprlock.conf;
+    }
+    {
+      name = "qt6ct-colors.conf";
+      path = ./templates/qt6ct-colors.conf;
+    }
+    {
+      name = "gtk-settings.ini";
+      path = ./templates/gtk-settings.ini;
+    }
+    {
+      name = "gtk-3.0.css";
+      path = ./templates/gtk-3.0.css;
+    }
+    {
+      name = "gtk-4.0.css";
+      path = ./templates/gtk-4.0.css;
+    }
+    {
+      name = "share-picker/style.css";
+      path = ../wm/share-picker/style.css;
+    }
+    {
+      name = "discord.css";
+      path = ./templates/discord.css;
+    }
+    {
+      name = "alacritty.toml";
+      path = ./templates/alacritty.toml;
+    }
+    {
+      name = "ghostty";
+      path = ./templates/ghostty;
+    }
+    {
+      name = "foot.ini";
+      path = ./templates/foot.ini;
+    }
+    {
+      name = "vscode.json";
+      path = ./templates/vscode.json;
+    }
+    {
+      name = "obsidian.css";
+      path = ./templates/obsidian.css;
+    }
+    {
+      name = "librewolf-userChrome.css";
+      path = ./templates/librewolf-userChrome.css;
+    }
+    {
+      name = "librewolf-userContent.css";
+      path = ./templates/librewolf-userContent.css;
+    }
+    {
+      name = "mpv.conf";
+      path = ./templates/mpv.conf;
+    }
+    {
+      name = "zathurarc";
+      path = ./templates/zathurarc;
+    }
+    {
+      name = "eza-theme.yml";
+      path = ./templates/eza-theme.yml;
+    }
+    {
+      name = "opencode-theme.json";
+      path = ./templates/opencode-theme.json;
+    }
+  ];
+
   # The theme files for the applications that are not the shell, the compositor
   # or kitty. Separate from `theme` because it runs on every switch and only the
   # applications it names should pay for it.
@@ -204,6 +291,13 @@ in
     # to read the palettes at runtime — the Hyprland borders do — can point at it
     # without a second copy of the path.
     anixie.theme.template.placeholders."@PALETTES@" = "${./themes.json}";
+
+    xdg.configFile."alexie/config.toml".text = ''
+      [theme]
+      templates_dir = "${themeTemplates}"
+      tokens_json = "${./tokens.json}"
+      palettes_json = "${./themes.json}"
+    '';
 
     home = {
       packages = [
