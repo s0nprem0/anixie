@@ -196,6 +196,21 @@ QtObject {
     root.close()
     if (gen !== root.openGeneration) return
 
+    // The picker is geometry only: for the swappy/clipboard modes
+    // the capture itself goes through alexie shot, so both pickers
+    // share one capture/destination pipeline (save, copy, annotate,
+    // preview, last-capture). Freeze and OCR modes keep their own
+    // paths: freeze crops the frozen frame (a fresh grim would not
+    // match it), and OCR has no alexie-dest equivalent.
+    if (!text && !root.freeze) {
+      const geometry = x + "," + y + " " + w + "x" + h
+      const dest = clipboard ? "copy" : "annotate"
+      const cmd = "{ alexie shot region " + JSON.stringify(geometry) + " " + dest
+        + "; } || notify-send -a anixie 'Screenshot failed' 'Nothing was captured.'"
+      Quickshell.execDetached(["sh", "-c", cmd])
+      return
+    }
+
     let cmd
     if (root.freeze && root.freezePath) {
       // crop from the frozen frame with imagemagick
