@@ -161,9 +161,16 @@ in
   boot.kernelParams = [
     "nmi_watchdog=0"
     "pcie_aspm.policy=powersave"
+    # amd_pstate is already active on this hardware; pinning it keeps the
+    # driver from falling back to acpi-cpufreq on a kernel or firmware change.
+    "amd_pstate=active"
   ];
 
   # Compressed swap in RAM. The disk swap partition still exists for suspend,
   # but this keeps the common case off the slow device when memory fills.
-  zramSwap.enable = true;
+  zramSwap = {
+    enable = true;
+    algorithm = "zstd";
+    memoryPercent = 50;
+  };
 }
