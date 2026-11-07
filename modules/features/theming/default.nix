@@ -11,92 +11,10 @@ let
   # ~/.config: Home Manager owns those paths as read-only store symlinks, and a
   # theme set at runtime has to be able to write.
   stateDir = config.anixie.theme.stateDir;
-  daemonEnabled = config.anixie.daemon.enable or false;
-  # `theme` itself is native in alexie now (the bash theme.sh is gone), so the
-  # login services call the binary directly rather than a legacy package.
+  # `theme` and `wallpaper` themselves are native in alexie now (both
+  # bash versions are gone), so the login services call the binary
+  # directly rather than a legacy package.
   alexiePkg = inputs.alexie.packages.${pkgs.stdenv.hostPlatform.system}.default;
-  wallpaperDirs = lib.escapeShellArg (
-    lib.concatStringsSep "\n" (
-      config.anixie.theme.wallpaper.dirs ++ config.anixie.theme.wallpaper.extraDirs
-    )
-  );
-  wallpaperRecursive = if config.anixie.theme.wallpaper.recursive then "true" else "false";
-  # The picture used when neither the theme nor the output has a choice. Empty
-  # means the generated palette gradient. `~/` is expanded here because a shell
-  # assignment would keep the tilde literal.
-  wallpaperDefault =
-    let
-      default = config.anixie.theme.wallpaper.default;
-    in
-    if default == null then
-      ""
-    else
-      lib.escapeShellArg (
-        let
-          value = toString default;
-        in
-        if lib.hasPrefix "~/" value then
-          "${config.home.homeDirectory}/${lib.removePrefix "~/" value}"
-        else
-          value
-      );
-
-  # The generated desktop wallpaper and its dimensions. A gradient rather than an
-  # image file, so every palette carries its own without shipping pictures. The
-  # shell draws stills on its background layer; videos go through mpvpaper,
-  # because the shell has no video renderer yet. This command picks the owner and
-  # tells a running shell what to show.
-  wallpaper = pkgs.writeShellScriptBin (if daemonEnabled then "wallpaper-legacy" else "wallpaper") (
-    builtins.replaceStrings
-      [
-        "@STATE_DIR@"
-        "@DATA_DIR@"
-        "@PALETTES@"
-        "@DEFAULT_THEME@"
-        "@JQ@"
-        "@MAGICK@"
-        "@FFMPEG@"
-        "@MPVPAPER@"
-        "@HYPRCTL@"
-        "@PGREP@"
-        "@PKILL@"
-        "@QUICKSHELL@"
-        "@WIDTH@"
-        "@HEIGHT@"
-        "@WALLPAPER_DIRS@"
-        "@WALLPAPER_RECURSIVE@"
-        "@DEFAULT_WALLPAPER@"
-        "@SHA256SUM@"
-        "@STAT@"
-        "@FLOCK@"
-        "@ANIXIE_LIB@"
-      ]
-      [
-        stateDir
-        "${config.xdg.dataHome}/anixie"
-        "${./themes.json}"
-        config.anixie.theme.theme
-        "${pkgs.jq}/bin/jq"
-        "${pkgs.imagemagick}/bin/magick"
-        "${pkgs.ffmpeg}/bin/ffmpeg"
-        "${pkgs.mpvpaper}/bin/mpvpaper"
-        "${pkgs.hyprland}/bin/hyprctl"
-        "${pkgs.procps}/bin/pgrep"
-        "${pkgs.procps}/bin/pkill"
-        "${pkgs.quickshell}/bin/quickshell"
-        "1920"
-        "1080"
-        wallpaperDirs
-        wallpaperRecursive
-        wallpaperDefault
-        "${pkgs.coreutils}/bin/sha256sum"
-        "${pkgs.coreutils}/bin/stat"
-        "${pkgs.util-linux}/bin/flock"
-        "${../cli/lib.sh}"
-      ]
-      (builtins.readFile ./wallpaper.sh)
-  );
-
   appearance = pkgs.writeShellScriptBin "appearance" (
     builtins.replaceStrings [ "@QUICKSHELL@" ] [ "${pkgs.quickshell}/bin/quickshell" ] (
       builtins.readFile ./appearance.sh
@@ -282,7 +200,6 @@ in
     home = {
       packages = [
         appearance
-        wallpaper
         textsize
       ];
 
@@ -353,7 +270,7 @@ in
         Unit.Description = "Rotate the wallpaper";
         Service = {
           Type = "oneshot";
-          ExecStart = "${wallpaper}/bin/wallpaper next${
+          ExecStart = "${alexiePkg}/bin/alexie wallpaper next${
             if config.anixie.theme.auto.rotation.shuffle then " --random" else ""
           }";
         };
