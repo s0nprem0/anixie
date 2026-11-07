@@ -160,6 +160,17 @@ for file in helix.toml yazi.toml hyprlock.conf qt6ct-colors.conf \
   fi
 done
 
+# OpenCode's V1 theme converter reads these tokens unconditionally; a missing
+# one surfaces as "undefined is not an object (evaluating 'e.toInts')" when
+# the theme is selected. Keep the guard here so a template edit cannot
+# silently break the theme again.
+for key in syntaxNumber syntaxType syntaxOperator syntaxPunctuation selectedListItemText; do
+  if [ -z "$("$jq" -r --arg k "$key" '.theme[$k] // empty' "$outdir/opencode-theme.json")" ]; then
+    printf 'theme-apps: opencode theme is missing %s\n' "$key" >&2
+    exit 1
+  fi
+done
+
 # ---- tmux ----
 cat >"$outdir/qt6ct.conf" <<EOF
 [Appearance]

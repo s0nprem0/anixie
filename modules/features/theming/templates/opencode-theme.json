@@ -57,6 +57,11 @@
     "syntaxKeyword":        { "dark": "anixie_accent",      "light": "anixie_accent" },
     "syntaxFunction":       { "dark": "anixie_accent",      "light": "anixie_accent" },
     "syntaxVariable":       { "dark": "anixie_fg",          "light": "anixie_fg" },
-    "syntaxString":         { "dark": "anixie_tertiary",    "light": "anixie_tertiary" }
+    "syntaxString":         { "dark": "anixie_tertiary",    "light": "anixie_tertiary" },
+    "syntaxNumber":         { "dark": "anixie_tertiary",    "light": "anixie_tertiary" },
+    "syntaxType":           { "dark": "anixie_secondary",   "light": "anixie_secondary" },
+    "syntaxOperator":       { "dark": "anixie_accent",      "light": "anixie_accent" },
+    "syntaxPunctuation":    { "dark": "anixie_fg_light",    "light": "anixie_fg_light" },
+    "selectedListItemText": { "dark": "anixie_fg",          "light": "anixie_fg" }
   }
 }
