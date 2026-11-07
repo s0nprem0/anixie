@@ -38,6 +38,14 @@ QtObject {
     root.hide()
   }
 
+  function revealCopyFailed(path) {
+    if (path === "") return
+    try {
+      Quickshell.execDetached(["quickshell", "ipc", "call", "capture", "previewCopyFailed", path])
+    } catch (e) {}
+    root.hide()
+  }
+
   function openPath(path) {
     if (path === "") return
     Quickshell.execDetached(["xdg-open", path])

@@ -37,7 +37,11 @@ QtObject {
     if (typeof nextPath === "object") return false
     const p = String(nextPath)
     if (p.trim() === "") return false
-    return true
+    // Only absolute screenshot paths are accepted. Requiring a leading
+    // slash and a common image extension keeps an arbitrary string from
+    // becoming a file:// URL on the card.
+    if (p.charAt(0) !== "/") return false
+    return /\.(png|jpe?g|webp)$/i.test(p)
   }
 
   function reveal(nextPath) {
