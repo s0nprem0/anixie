@@ -47,14 +47,14 @@ in
         # VLC is a Qt5 application; qt5ct is the platform theme that reads the
         # anixie palette. Force it here so the desktop entry and any caller that
         # bypasses the session environment still get the themed window.
+        #
+        # Do not pass --qt-dark-palette: that flag makes VLC substitute its own
+        # hardcoded dark palette, overriding the qt5ct colours (and therefore
+        # the anixie palette). Light/dark is already encoded in the qt5ct config
+        # that theme-apps regenerates on every switch, and the icon theme follows
+        # the same mode, so VLC follows the palette in both modes.
         export QT_QPA_PLATFORMTHEME=qt5ct
-        # VLC only flips to its dark variant on request, so follow the live mode
-        # instead of leaving it on the (light) default.
-        if [ "$(tr -d '[:space:]' < ${config.anixie.theme.stateDir}/mode 2>/dev/null)" = "dark" ]; then
-          exec ${pkgs.vlc}/bin/vlc --qt-dark-palette "$@"
-        else
-          exec ${pkgs.vlc}/bin/vlc "$@"
-        fi
+        exec ${pkgs.vlc}/bin/vlc "$@"
         EOF
         chmod +x $out/bin/vlc
         # Keep the store desktop file's icon/theme data reachable.
