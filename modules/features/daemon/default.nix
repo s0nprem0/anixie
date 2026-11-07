@@ -113,6 +113,14 @@ in
         ExecStart = "${alexiePkg}/bin/alexie daemon";
         Restart = "on-failure";
         RestartSec = "2s";
+        # Tools that anixie's shell scripts located via absolute store
+        # paths are now resolved by the daemon from its own environment;
+        # the emoji picker's data file is not on any default search path.
+        Environment = [
+          "EMOJI_TEST=${pkgs.unicode-emoji}/share/unicode/emoji/emoji-test.txt"
+          "WTYPE=${pkgs.wtype}/bin/wtype"
+          "QUICKSHELL=${pkgs.quickshell}/bin/quickshell"
+        ];
       };
       Install = {
         WantedBy = [ config.wayland.systemd.target ];

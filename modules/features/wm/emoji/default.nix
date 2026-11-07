@@ -33,6 +33,8 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = lib.optionals (!daemonEnabled) [ emoji ];
+    home.packages = lib.optionals (!daemonEnabled) [ emoji ]
+      ++ [ pkgs.unicode-emoji ];
+    home.sessionVariables.EMOJI_TEST = "${pkgs.unicode-emoji}/share/unicode/emoji/emoji-test.txt";
   };
 }

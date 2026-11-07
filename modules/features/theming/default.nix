@@ -297,6 +297,10 @@ in
       templates_dir = "${themeTemplates}"
       tokens_json = "${./tokens.json}"
       palettes_json = "${./themes.json}"
+
+      [emoji]
+      test_path = "${pkgs.unicode-emoji}/share/unicode/emoji/emoji-test.txt"
+      wtype = "${pkgs.wtype}/bin/wtype"
     '';
 
     home = {
