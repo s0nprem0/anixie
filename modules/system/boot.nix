@@ -21,7 +21,10 @@
       timeout = 1;
     };
 
-    kernelPackages = pkgs.linuxPackages_latest;
+    # Default to the stock kernel; cachyos-kernel.nix (imported after this
+    # module) overrides it when enabled. Keeping it as mkDefault preserves a
+    # fallback if the CachyOS module is removed.
+    kernelPackages = lib.mkDefault pkgs.linuxPackages_latest;
 
     # Nothing expects a file in /tmp to survive a reboot. /tmp is not a tmpfs
     # here, so without this a build's leftovers stay on the root subvolume until

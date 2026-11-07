@@ -23,6 +23,17 @@
       # copy. The helix config and the theme files are shared by several builds,
       # so this is where the deduplication actually pays.
       auto-optimise-store = true;
+
+      # CachyOS kernel binary cache (see xddxdd/nix-cachyos-kernel). Added before
+      # enabling the kernel so the settings are active for the first build.
+      substituters = [
+        "https://cache.nixos.org/"
+        "https://cache.lantian.pub/lantian"
+      ];
+      trusted-public-keys = [
+        "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+        "lantian:WVGO7vsRMSEN+h7Lp7kv6SAmrkEXgUGbbXm7jMDjBuQ="
+      ];
     };
 
     # Old generations are the store's growth. The weekly sweep keeps two weeks of

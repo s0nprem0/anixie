@@ -2,6 +2,7 @@
   imports = [
     ./nix.nix
     ./boot.nix
+    ./cachyos-kernel.nix
     ./dev.nix
     ./encryption.nix
     ./networking.nix

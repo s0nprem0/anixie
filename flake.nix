@@ -47,6 +47,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # CachyOS kernel. Do NOT override nixpkgs: the pinned overlay depends on
+    # the exact nixpkgs revision this flake was built against.
+    nix-cachyos-kernel = {
+      url = "github:xddxdd/nix-cachyos-kernel/release";
+    };
+
     hyprglass = {
       url = "github:hyprnux/hyprglass/85b8a8ed8431d7b6f1ef8dad8ae0470d8ea7f291";
       flake = false;
