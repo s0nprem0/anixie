@@ -7,6 +7,7 @@
 
 let
   cfg = config.anixie.wm.network;
+  daemonEnabled = config.anixie.daemon.enable or false;
 
   mkScript = import ../../cli/scripts.nix { inherit pkgs; };
 
@@ -80,7 +81,10 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ wifi.package ];
+    # When the daemon is enabled, `wifi` is provided by the alexie shim
+    # (daemon/default.nix → `alexie network`), which now ports band/dns.
+    # Installing the bash dispatcher too would collide on PATH.
+    home.packages = lib.optionals (!daemonEnabled) [ wifi.package ];
 
     systemd.user.services.anixie-taildrop = {
       Unit = {

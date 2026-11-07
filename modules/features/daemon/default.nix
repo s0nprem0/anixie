@@ -79,6 +79,9 @@ in
       (pkgs.writeShellScriptBin "network" ''
         exec ${alexiePkg}/bin/alexie network "$@"
       '')
+      (pkgs.writeShellScriptBin "wifi" ''
+        exec ${alexiePkg}/bin/alexie network "$@"
+      '')
       (pkgs.writeShellScriptBin "sysmon" ''
         exec ${alexiePkg}/bin/alexie sysmon "$@"
       '')
