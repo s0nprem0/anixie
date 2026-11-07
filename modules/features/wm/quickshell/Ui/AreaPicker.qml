@@ -36,16 +36,27 @@ Item {
     radius: Theme.cornerRadius
   }
 
-  // Size label.
-  Text {
+  // Size label, on a pill so it stays readable over bright content.
+  Rectangle {
     x: root.host.selX
-    y: Math.max(0, root.host.selY - Style.space(20))
-    text: Math.round(root.host.selW) + " × " + Math.round(root.host.selH)
-    color: Theme.fg
-    font.family: Style.font.family
-    font.pixelSize: Style.font.caption
-    renderType: Text.NativeRendering
+    y: Math.max(0, root.host.selY - Style.space(24))
+    width: sizeText.implicitWidth + Style.space(12)
+    height: sizeText.implicitHeight + Style.space(6)
+    radius: Theme.cornerRadius
+    color: Theme.surface
+    border.color: Theme.border
+    border.width: Style.strokeWidth
     visible: root.host.selW > 0 && root.host.selH > 0
+
+    Text {
+      id: sizeText
+      anchors.centerIn: parent
+      text: Math.round(root.host.selW) + " × " + Math.round(root.host.selH)
+      color: Theme.fg
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      renderType: Text.NativeRendering
+    }
   }
 
   // Hovered window label.
@@ -102,13 +113,31 @@ Item {
     }
   }
 
-  Keys.onEscapePressed: root.host.close()
+  // Keyboard path: arrows nudge the selection edge (Shift for ten
+  // pixels), Enter captures, Esc cancels. The item takes focus on
+  // open so these reach it; the window runs with exclusive focus.
+  focus: true
+  Component.onCompleted: forceActiveFocus()
+
+  Keys.onPressed: function (event) {
+    const step = (event.modifiers & Qt.ShiftModifier) ? 10 : 1
+    if (event.key === Qt.Key_Escape) { root.host.close(); event.accepted = true; return }
+    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+      if (root.host.selW >= 4 && root.host.selH >= 4) root.host.capture()
+      event.accepted = true
+      return
+    }
+    if (event.key === Qt.Key_Left) { root.host.endX -= step; event.accepted = true }
+    else if (event.key === Qt.Key_Right) { root.host.endX += step; event.accepted = true }
+    else if (event.key === Qt.Key_Up) { root.host.endY -= step; event.accepted = true }
+    else if (event.key === Qt.Key_Down) { root.host.endY += step; event.accepted = true }
+  }
 
   Text {
     anchors.bottom: parent.bottom
     anchors.bottomMargin: Style.space(24)
     anchors.horizontalCenter: parent.horizontalCenter
-    text: "Drag to select · hover window to snap · click for full screen · right-click or Esc to cancel"
+    text: "Drag to select · hover window to snap · click for full screen · arrows nudge · Enter captures · right-click or Esc to cancel"
     color: Theme.muted
     font.family: Style.font.family
     font.pixelSize: Style.font.caption

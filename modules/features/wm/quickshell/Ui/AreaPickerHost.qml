@@ -33,6 +33,11 @@ QtObject {
   property var windowRects: []
   property string hoveredWindow: ""
 
+  // Output scale (physical/logical), for turning the logical selection
+  // into the physical geometry grim expects. Defaults to 1 when the
+  // monitors query has not answered yet.
+  property real targetScale: 1
+
   // Frozen frame path (if freeze mode).
   property string freezePath: ""
 
@@ -55,6 +60,7 @@ QtObject {
     root.endY = root.targetScreen ? root.targetScreen.height : 0
     root.windowRects = []
     root.hoveredWindow = ""
+    root.targetScale = 1
     root.freezePath = ""
     root.openGeneration += 1
     root.shown = true
@@ -66,12 +72,37 @@ QtObject {
     root.shown = false
   }
 
-  // Refresh the list of window rects on the target monitor via hyprctl.
+  // Refresh the list of window rects on the target monitor via hyprctl,
+  // and the monitor scale alongside it.
   function refreshWindows() {
     if (!root.targetScreen) return
-    const mon = root.targetScreen.name
     hyprClients.command = ["hyprctl", "clients", "-j"]
     hyprClients.running = true
+    hyprMonitors.command = ["hyprctl", "monitors", "-j"]
+    hyprMonitors.running = true
+  }
+
+  property Process hyprMonitors: Process {
+    running: false
+    command: ["true"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        try {
+          const parsed = JSON.parse(String(this.text || "[]"))
+          if (Array.isArray(parsed) && root.targetScreen) {
+            for (let i = 0; i < parsed.length; i++) {
+              if (String(parsed[i].name || "") === String(root.targetScreen.name)) {
+                const s = Number(parsed[i].scale || 1)
+                root.targetScale = isFinite(s) && s > 0 ? s : 1
+                break
+              }
+            }
+          }
+        } catch (e) {
+          root.targetScale = 1
+        }
+      }
+    }
   }
 
   property Process hyprClients: Process {
@@ -87,10 +118,6 @@ QtObject {
               const c = parsed[i]
               if (!c || !c.address) continue
               if (!Array.isArray(c.at) || !Array.isArray(c.size)) continue
-              // only windows on the target monitor
-              if (c.monitor !== undefined && root.targetScreen) {
-                // hyprctl monitor id; match by name if possible via at within screen
-              }
               out.push({ klass: String(c.class || c.initialClass || "app"), title: String(c.title || ""), at: c.at, size: c.size })
             }
           }
@@ -102,17 +129,20 @@ QtObject {
     }
   }
 
-  // Snap the selection to a window under (x, y) in screen-local coords.
+  // Snap the selection to a window under (x, y) in screen-local
+  // logical coords. Window rects are physical (hyprctl), so they
+  // are converted through the output scale first.
   function snapToWindow(x, y) {
     if (!root.targetScreen) return
-    const sx = root.targetScreen.x
-    const sy = root.targetScreen.y
+    const scale = root.targetScale > 0 ? root.targetScale : 1
+    const sx = root.targetScreen.x * scale
+    const sy = root.targetScreen.y * scale
     for (let i = 0; i < root.windowRects.length; i++) {
       const w = root.windowRects[i]
-      const cx = w.at[0] - sx
-      const cy = w.at[1] - sy
-      const cw = w.size[0]
-      const ch = w.size[1]
+      const cx = (w.at[0] - sx) / scale
+      const cy = (w.at[1] - sy) / scale
+      const cw = w.size[0] / scale
+      const ch = w.size[1] / scale
       if (cx <= x && cy <= y && cx + cw >= x && cy + ch >= y) {
         root.startX = cx
         root.startY = cy
@@ -138,20 +168,30 @@ QtObject {
   property Process freezeProc: Process {
     running: false
     command: ["true"]
-    onExited: function () { /* nothing; path stored */ }
+    onExited: function (exitCode) {
+      if (exitCode !== 0) {
+        root.freezePath = ""
+        root.freeze = false
+        Quickshell.execDetached(["notify-send", "-a", "anixie", "Screenshot failed", "Could not freeze the screen."])
+      }
+    }
   }
 
   // Run grim (or crop from freeze) on the selection, then hand off.
+  // Selection coords are logical; grim wants physical pixels, so
+  // everything is scaled through targetScale first.
   function capture() {
     if (!root.targetScreen) { root.close(); return }
     const gen = root.openGeneration
-    const x = Math.round(root.selX)
-    const y = Math.round(root.selY)
-    const w = Math.max(1, Math.round(root.selW))
-    const h = Math.max(1, Math.round(root.selH))
+    const scale = root.targetScale > 0 ? root.targetScale : 1
+    const x = Math.round(root.selX * scale)
+    const y = Math.round(root.selY * scale)
+    const w = Math.max(1, Math.round(root.selW * scale))
+    const h = Math.max(1, Math.round(root.selH * scale))
     const tmp = "/tmp/anixie-area-" + Date.now() + ".png"
     const clipboard = (root.mode === "clipboard")
     const text = (root.mode === "text")
+    const swappy = (root.mode === "swappy")
 
     root.close()
     if (gen !== root.openGeneration) return
@@ -175,10 +215,15 @@ QtObject {
       cmd += " && swappy -f " + JSON.stringify(tmp)
     }
 
-    // Reveal in capture preview after a successful capture (non-text).
-    if (!text) {
+    // Reveal in capture preview after a successful capture, except
+    // in swappy mode: swappy is the editor and showing the card as
+    // well double-handles the same file.
+    if (!text && !swappy) {
       cmd += " && quickshell ipc call capture preview " + JSON.stringify(tmp)
     }
+
+    // A failed capture used to die silently in the chain.
+    cmd = "{ " + cmd + "; } || notify-send -a anixie 'Screenshot failed' 'Nothing was captured.'"
 
     Quickshell.execDetached(["sh", "-c", cmd])
   }
