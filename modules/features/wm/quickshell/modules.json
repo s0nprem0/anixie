@@ -99,10 +99,6 @@
     "section": "right",
     "source": "components/Tray.qml"
   },
-  "bar.update": {
-    "section": "centerEnd",
-    "source": "components/UpdateBadge.qml"
-  },
   "bar.weather": {
     "section": "centerEnd",
     "source": "components/Weather.qml"

@@ -26,7 +26,6 @@ QtObject {
   readonly property Component remoteSession: Component { RemoteSession {} }
   readonly property Component weather: Component { Weather {} }
   readonly property Component worldClock: Component { WorldClock {} }
-  readonly property Component updateBadge: Component { UpdateBadge {} }
   readonly property Component keyboardLayout: Component { KeyboardLayout {} }
   readonly property Component layoutmode: Component { LayoutMode {} }
   readonly property Component agents: Component { Agents {} }
@@ -57,7 +56,6 @@ QtObject {
     "bar.remote-session": remoteSession,
     "bar.weather": weather,
     "bar.world-clock": worldClock,
-    "bar.update": updateBadge,
     "bar.keyboard-layout": keyboardLayout,
     "bar.layoutmode": layoutmode,
     "bar.agents": agents,

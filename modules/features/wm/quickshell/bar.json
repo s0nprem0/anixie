@@ -40,10 +40,6 @@
         "id": "bar.weather",
         "interval": 1800,
         "location": ""
-      },
-      {
-        "id": "bar.update",
-        "interval": 300
       }
     ],
     "tray": [
