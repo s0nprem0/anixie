@@ -67,8 +67,8 @@
   };
 
   photocraft = {
-    version = "0.20.2";
-    hash = "sha256-CeAT1o2DE+sLHNbyRhL1tf0NmT//46fBLOzf5c0TGkY=";
+    version = "0.21.0";
+    hash = "sha256-MRXlbMZG2601QeObYyO4okMY/uYZTXhN320GX3tdLTc=";
     title = "PhotoCraft";
     description = "Photoshop-style image editor";
   };
