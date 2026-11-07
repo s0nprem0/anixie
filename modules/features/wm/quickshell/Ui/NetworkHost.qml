@@ -375,6 +375,7 @@ QtObject {
     function onStateChanged() {
       const network = root.actionNetwork
       if (!network) return
+      const ssid = String(network.name || "")
 
       if (root.actionKind === "connect" && network.connected) {
         OsdHost.show("wifi", "Connected to " + ssid, "", "", "", 1500)

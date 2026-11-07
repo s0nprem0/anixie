@@ -359,6 +359,7 @@ Item {
     if (!item) return
 
     root.actionError = ""
+    root.askingSsid = ""
     NetworkHost.disconnect(item)
   }
 
@@ -426,8 +427,10 @@ Item {
     property int token: 0
     onTriggered: {
       if (token !== root.restartToken) return
+      // Slow hardware may still be draining; keep waiting until the
+      // radio confirms off instead of un-restarting immediately.
       if (root.radioEnabled) {
-        root.restarting = false
+        restart()
         return
       }
       NetworkHost.setWifiEnabled(true)
