@@ -67,11 +67,6 @@ let
     };
   };
 
-  captureShare = mkScript {
-    name = if daemonEnabled then "capture-share-legacy" else "capture-share";
-    file = ./share.sh;
-    inherit bins;
-  };
 in
 
 {
@@ -95,7 +90,6 @@ in
       captureQr.package
     ]
     ++ [
-      captureShare.package
 
       # Annotation is satty's job. It is written for Wayland and opens in crop mode,
       # so the annotate bind goes straight to cropping rather than making you pick the
