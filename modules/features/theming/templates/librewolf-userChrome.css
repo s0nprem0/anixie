@@ -4,3 +4,17 @@
 #sidebar-box { padding-inline-start: 0px !important; }
 
 * { border-radius: 0px !important; }
+
+/* Address bar + chrome text use the same Iosevka Nerd Font as the
+   monospace web setting (installed system-wide, see fonts.nix). */
+#urlbar-input,
+#urlbar {
+  font-family: "Iosevka Nerd Font", "Iosevka NF", monospace !important;
+}
+
+#nav-bar button,
+#nav-bar #back-button,
+#nav-bar #forward-button,
+#nav-bar #reload-button {
+  font-family: "Iosevka Nerd Font", "Iosevka NF", monospace !important;
+}
