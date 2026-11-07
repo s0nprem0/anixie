@@ -269,7 +269,15 @@ Item {
     onExited: function (exitCode) {
       if (root.detailsGeneration !== details.expectedGeneration) return
       if (root.wifiDevice ? root.wifiDevice.name !== details.expectedDevice : details.expectedDevice !== "") return
-      if (exitCode !== 0) return
+      // A failed read has no current facts to show; stale values from
+      // the previous network would read as the new one's.
+      if (exitCode !== 0) {
+        root.activeConnection = ""
+        root.address = ""
+        root.gateway = ""
+        root.wired = ""
+        return
+      }
 
       const parts = String(details.stdout.text || "").split("---")
 

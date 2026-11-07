@@ -280,9 +280,12 @@ QtObject {
   }
 
   property Timer bandsTimer: Timer {
-    interval: 5000
+    // Slow backstop only: the scanner's own list keeps itself fresh and
+    // `refreshBands` runs on activation and on scan completion, so a tight
+    // poll here is pure churn (one nmcli fork every few seconds).
+    interval: 15000
     repeat: true
-    running: root.scannerUsers > 0
+    running: root.scannerUsers > 0 && root.wifiEnabled
     onTriggered: root.refreshBands()
   }
 
