@@ -8,6 +8,37 @@
 let
   cfg = config.anixie.applications.browser;
 
+  # Optional autoconfig injection so anixie-bridge.js actually runs and
+  # LibreWolf chrome can recolor without a restart. Off by default: it
+  # rewrites the LibreWolf install tree and a bad autoconfig file can
+  # prevent the browser from launching.
+  librewolfPkg = pkgs.librewolf;
+  anixieLibrewolf = pkgs.runCommand "librewolf-anixie" { } ''
+    set -eu
+    mkdir -p "$out"
+    cp -a ${librewolfPkg}/. "$out"/
+    chmod -R u+w "$out"
+    mkdir -p "$out/lib/librewolf/defaults/pref"
+    cat > "$out/lib/librewolf/defaults/pref/anixie-autoconfig.js" <<'EOF'
+    pref("general.config.filename", "anixie.cfg");
+    pref("general.config.obscure_value", 0);
+    EOF
+    cat > "$out/lib/librewolf/anixie.cfg" <<'EOF'
+    try {
+      const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
+      const dir = Services.dirsvc.get("ProfD", Ci.nsIFile);
+      const f = dir.clone();
+      f.append("chrome");
+      f.append("anixie-bridge.js");
+      if (f.exists()) {
+        Services.scriptloader.loadSubScript(f.path);
+      }
+    } catch (e) {
+      console.error("anixie autoconfig:", e);
+    }
+    EOF
+  '';
+
   # Force-installed extensions via browser policies. AMO "latest" URLs resolve to
   # the current version; installation is performed by the browser on profile use.
   extensionSettings = {
@@ -242,10 +273,23 @@ let
   '';
 in
 {
-  options.anixie.applications.browser.enable = lib.mkOption {
-    type = lib.types.bool;
-    default = true;
-    description = "Whether to install Chromium and LibreWolf (with managed extensions and profile styling), with LibreWolf as the default browser.";
+  options.anixie.applications.browser = {
+    enable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Whether to install Chromium and LibreWolf (with managed extensions and profile styling), with LibreWolf as the default browser.";
+    };
+
+    liveBridge = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Inject an autoconfig bridge into LibreWolf so anixie-bridge.js runs
+        and chrome CSS custom properties (--anixie-*) update without a restart.
+        Off by default: it rewrites the LibreWolf install tree, and a bad
+        autoconfig file can prevent the browser from launching.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -253,6 +297,7 @@ in
 
     programs.librewolf = {
       enable = true;
+      package = if cfg.liveBridge then anixieLibrewolf else pkgs.librewolf;
       policies.ExtensionSettings = extensionSettings;
 
       profiles.default = {
@@ -260,7 +305,23 @@ in
         isDefault = true;
         name = "default";
         path = "default";
-        settings."toolkit.legacyUserProfileCustomizations.stylesheets" = true;
+        settings = {
+          # Enable userChrome/userContent theming (managed by anixie templates).
+          "toolkit.legacyUserProfileCustomizations.stylesheets" = true;
+
+          # Minimal/clean UI.
+          "browser.uidensity" = 1;
+          "browser.compactmode.show" = true;
+          "browser.aboutConfig.showWarning" = false;
+          "browser.toolbars.bookmarks.visibility" = "never";
+          "sidebar.position_start" = true;
+
+          # Functional tweaks: keep interactions responsive and predictable.
+          "findbar.highlightAll" = true;
+          "full-screen-api.warning.timeout" = 0;
+          "browser.tabs.loadBookmarksInTabs" = true;
+          "browser.urlbar.suggest.engines" = false;
+        };
       };
     };
 
@@ -272,6 +333,7 @@ in
         config.lib.file.mkOutOfStoreSymlink "${config.anixie.theme.stateDir}/live/librewolf-userChrome.css";
       ".librewolf/default/chrome/userContent.css".source =
         config.lib.file.mkOutOfStoreSymlink "${config.anixie.theme.stateDir}/live/librewolf-userContent.css";
+      ".librewolf/default/chrome/anixie-bridge.js".source = ./anixie-bridge.js;
     };
 
     # Sidebery's custom CSS is not read from the profile chrome folder; keep a

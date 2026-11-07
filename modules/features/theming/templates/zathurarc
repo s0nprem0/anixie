@@ -1,0 +1,37 @@
+# Zathura configuration rendered by anixie theme.
+
+set default-fg "@FG@"
+set default-bg "@BG@"
+
+set completion-fg "@FG@"
+set completion-bg "@BG_DARK@"
+set completion-group-fg "@ACCENT@"
+set completion-group-bg "@BG_DARK@"
+set completion-highlight-fg "@BG@"
+set completion-highlight-bg "@ACCENT@"
+
+set inputbar-fg "@FG@"
+set inputbar-bg "@BG_DARK@"
+
+set notification-fg "@FG@"
+set notification-bg "@BG_DARK@"
+set notification-error-fg "@DANGER@"
+set notification-error-bg "@BG_DARK@"
+set notification-warning-fg "@YELLOW@"
+set notification-warning-bg "@BG_DARK@"
+
+set tabbar-fg "@FG@"
+set tabbar-bg "@BG_DARK@"
+set tabbar-focus-fg "@FG@"
+set tabbar-focus-bg "@ACCENT@"
+
+set statusbar-fg "@FG@"
+set statusbar-bg "@BG_DARK@"
+
+set highlight-color "@SECONDARY@"
+set highlight-active-color "@ACCENT@"
+
+set recolor "true"
+set recolor-keephue "true"
+set recolor-lightcolor "@BG@"
+set recolor-darkcolor "@FG@"

@@ -1,0 +1,60 @@
+filekinds:
+  normal:
+    foreground: "@FG@"
+  directory:
+    foreground: "@ACCENT@"
+    is_bold: true
+  symlink:
+    foreground: "@SECONDARY@"
+    is_italic: true
+  pipe:
+    foreground: "@FG_LIGHT@"
+  block_device:
+    foreground: "@TERTIARY@"
+  char_device:
+    foreground: "@TERTIARY@"
+  socket:
+    foreground: "@TERTIARY@"
+  special:
+    foreground: "@TERTIARY@"
+  executable:
+    foreground: "@ACCENT@"
+    is_bold: true
+  mount_point:
+    foreground: "@DANGER@"
+    is_bold: true
+
+perms:
+  user_read:
+    foreground: "@ACCENT@"
+  user_write:
+    foreground: "@TERTIARY@"
+  user_execute_file:
+    foreground: "@ACCENT@"
+  user_execute_other:
+    foreground: "@ACCENT@"
+  group_read:
+    foreground: "@TERTIARY@"
+  group_write:
+    foreground: "@TERTIARY@"
+  group_execute:
+    foreground: "@TERTIARY@"
+  other_read:
+    foreground: "@FG_LIGHT@"
+  other_write:
+    foreground: "@FG_LIGHT@"
+  other_execute:
+    foreground: "@FG_LIGHT@"
+  special_user_file:
+    foreground: "@ACCENT@"
+    is_bold: true
+  special_other:
+    foreground: "@ACCENT@"
+    is_bold: true
+  attribute:
+    foreground: "@SECONDARY@"
+
+size:
+  major:
+    foreground: "@ACCENT@"
+    is_bold: true

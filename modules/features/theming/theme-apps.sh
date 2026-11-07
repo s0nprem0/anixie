@@ -26,6 +26,10 @@ vscode_template="@VSCODE_TEMPLATE@"
 obsidian_template="@OBSIDIAN_TEMPLATE@"
 librewolf_userchrome_template="@LIBREWOLF_USERCHROME_TEMPLATE@"
 librewolf_usercontent_template="@LIBREWOLF_USERCONTENT_TEMPLATE@"
+mpv_template="@MPV_TEMPLATE@"
+zathura_template="@ZATHURA_TEMPLATE@"
+eza_template="@EZA_TEMPLATE@"
+opencode_template="@OPENCODE_TEMPLATE@"
 papirus_folders="@PAPIRUS_FOLDERS@"
 tokens="@TOKENS@"
 render_lib="@RENDER_LIB@"
@@ -141,10 +145,15 @@ render_template "$vscode_template" "$palette_file" "$outdir/vscode.json" "$extra
 render_template "$obsidian_template" "$palette_file" "$outdir/obsidian.css" "$extras"
 render_template "$librewolf_userchrome_template" "$palette_file" "$outdir/librewolf-userChrome.css" "$extras"
 render_template "$librewolf_usercontent_template" "$palette_file" "$outdir/librewolf-userContent.css" "$extras"
+render_template "$mpv_template" "$palette_file" "$outdir/mpv.conf" "$extras"
+render_template "$zathura_template" "$palette_file" "$outdir/zathurarc" "$extras"
+render_template "$eza_template" "$palette_file" "$outdir/eza-theme.yml" "$extras"
+render_template "$opencode_template" "$palette_file" "$outdir/opencode-theme.json" "$extras"
 
 for file in helix.toml yazi.toml hyprlock.conf qt6ct-colors.conf \
   gtk-3.0-settings.ini gtk-4.0-settings.ini gtk-3.0.css gtk-4.0.css share-picker.css discord.css \
-  alacritty.toml ghostty foot.ini vscode.json obsidian.css librewolf-userChrome.css librewolf-userContent.css; do
+  alacritty.toml ghostty foot.ini vscode.json obsidian.css librewolf-userChrome.css librewolf-userContent.css \
+  mpv.conf zathurarc eza-theme.yml opencode-theme.json; do
   if grep -Eq '@[A-Z][A-Z0-9_]*@' "$outdir/$file"; then
     printf 'theme-apps: unrendered placeholder in %s\n' "$file" >&2
     exit 1

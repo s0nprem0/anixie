@@ -28,6 +28,10 @@ in
       config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/alacritty.toml";
     "ghostty/config".source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/ghostty";
     "foot/foot.ini".source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/foot.ini";
+    "mpv/mpv.conf".source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/mpv.conf";
+    "zathura/zathurarc".source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/zathurarc";
+    "eza/theme.yml".source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/eza-theme.yml";
+    "opencode/themes/anixie.json".source = config.lib.file.mkOutOfStoreSymlink "${stateDir}/live/opencode-theme.json";
   };
 
   # ---- Helix ----
