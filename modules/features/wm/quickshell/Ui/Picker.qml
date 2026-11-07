@@ -511,6 +511,18 @@ Item {
                 font.pixelSize: Style.font.body
                 font.weight: PickHost.tab === index ? Font.DemiBold : Font.Normal
                 renderType: Text.NativeRendering
+                bottomPadding: Style.space(4)
+
+                // Active tab gets a short accent underline: current tab can be
+                // read at a glance instead of only from color and weight.
+                Rectangle {
+                  visible: PickHost.tab === index
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.bottom: parent.bottom
+                  height: Style.strokeWidth
+                  color: Theme.accent
+                }
 
                 MouseArea {
                   anchors.fill: parent
