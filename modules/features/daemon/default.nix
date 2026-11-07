@@ -97,6 +97,9 @@ in
       (pkgs.writeShellScriptBin "reminder" ''
         exec ${alexiePkg}/bin/alexie reminder "$@"
       '')
+      (pkgs.writeShellScriptBin "share-picker" ''
+        exec ${alexiePkg}/bin/alexie share-picker "$@"
+      '')
     ];
 
     systemd.user.services.alexie = {
