@@ -29,11 +29,13 @@
     # for the floating title bars, Hack and Victor Mono for the editors and
     # terminals that read better at small sizes.
     #
-    # Iosevka and the Nerd Font build of Noto used to be here too. They are not
-    # referenced anywhere in the tree, and they are the two largest font trees
-    # in nixpkgs — 1.1 GiB and 1.0 GiB unpacked — for glyph coverage `noto-fonts`
-    # above already provides. Dropping them takes ~2.2 GiB out of the closure and
-    # the fontconfig cache; add one back if a specific app wants it.
+    # Iosevka Nerd Font is the monospace face used in LibreWolf (and any
+    # app that asks for Iosevka): yes it costs ~1.1 GiB, but it is the face
+    # the browser is actually set to, so the cost is deliberate.
+    # The Nerd Font build of Noto used to be here too; it is not referenced
+    # anywhere in the tree and is the other ~1.0 GiB tree, with glyph
+    # coverage `noto-fonts` above already provides.
+    nerd-fonts.iosevka
     nerd-fonts.fira-code
     nerd-fonts.hack
     nerd-fonts.victor-mono
