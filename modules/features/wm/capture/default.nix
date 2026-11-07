@@ -49,12 +49,6 @@ let
     inherit bins;
   };
 
-  webcamOverlay = mkScript {
-    name = if daemonEnabled then "webcam-overlay-legacy" else "webcam-overlay";
-    file = ./webcam-overlay.sh;
-    inherit bins;
-  };
-
   # Read something off the screen that is not a picture: the text in a region, or
   # the value behind a QR code.
   captureText = mkScript {
@@ -91,9 +85,6 @@ in
     home.packages = [
       # The picker the capture commands share.
       shotPick.package
-
-      # The webcam overlay a recording can carry.
-      webcamOverlay.package
 
       # Reading what is on the screen rather than picturing it, and shrinking what
       # comes off it before sending it somewhere. capture-text and capture-qr are
