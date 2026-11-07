@@ -73,6 +73,30 @@ in
       (pkgs.writeShellScriptBin "snapshot" ''
         exec ${alexiePkg}/bin/alexie snapshot "$@"
       '')
+      (pkgs.writeShellScriptBin "status" ''
+        exec ${alexiePkg}/bin/alexie status "$@"
+      '')
+      (pkgs.writeShellScriptBin "network" ''
+        exec ${alexiePkg}/bin/alexie network "$@"
+      '')
+      (pkgs.writeShellScriptBin "sysmon" ''
+        exec ${alexiePkg}/bin/alexie sysmon "$@"
+      '')
+      (pkgs.writeShellScriptBin "audio" ''
+        exec ${alexiePkg}/bin/alexie audio "$@"
+      '')
+      (pkgs.writeShellScriptBin "bluetooth" ''
+        exec ${alexiePkg}/bin/alexie bluetooth "$@"
+      '')
+      (pkgs.writeShellScriptBin "apps" ''
+        exec ${alexiePkg}/bin/alexie apps "$@"
+      '')
+      (pkgs.writeShellScriptBin "pick" ''
+        exec ${alexiePkg}/bin/alexie pick "$@"
+      '')
+      (pkgs.writeShellScriptBin "reminder" ''
+        exec ${alexiePkg}/bin/alexie reminder "$@"
+      '')
     ];
 
     systemd.user.services.alexie = {

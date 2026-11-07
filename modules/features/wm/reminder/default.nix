@@ -7,6 +7,7 @@
 
 let
   cfg = config.anixie.wm.reminder;
+  daemonEnabled = config.anixie.daemon.enable or false;
 in
 {
   options.anixie.wm.reminder.enable = lib.mkOption {
@@ -22,7 +23,7 @@ in
     #
     # systemd-run is already on the system path, and is what turns a duration into
     # a timer that outlives the command that set it.
-    home.packages = [
+    home.packages = lib.optionals (!daemonEnabled) [
       # The path is substituted in rather than left to $PATH, because the timer
       # runs as a service under the user manager and that does not necessarily
       # carry the path of whatever set the reminder.

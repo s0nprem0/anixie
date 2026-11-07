@@ -7,6 +7,7 @@
 
 let
   cfg = config.anixie.wm.pick;
+  daemonEnabled = config.anixie.daemon.enable or false;
 in
 {
   options.anixie.wm.pick.enable = lib.mkOption {
@@ -20,7 +21,7 @@ in
     # needs it and none of them should have to know about IPC. This is what
     # replaced fuzzel at every call site: a script writes its choices down, names
     # the command to run with the answer, and is finished.
-    home.packages = [
+    home.packages = lib.optionals (!daemonEnabled) [
       (pkgs.writeShellScriptBin "pick" (
         builtins.replaceStrings
           [

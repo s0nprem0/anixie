@@ -9,7 +9,7 @@ let
   cfg = config.anixie.wm.emoji;
   daemonEnabled = config.anixie.daemon.enable or false;
 
-  emoji = pkgs.writeShellScriptBin (if daemonEnabled then "emoji-legacy" else "emoji") (
+  emoji = pkgs.writeShellScriptBin "emoji" (
     builtins.replaceStrings
       [
         "@EMOJI_TEST@"
@@ -33,6 +33,6 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ emoji ];
+    home.packages = lib.optionals (!daemonEnabled) [ emoji ];
   };
 }
