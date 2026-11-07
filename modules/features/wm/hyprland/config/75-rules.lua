@@ -149,6 +149,7 @@ hl.window_rule({
     class = "^vlc$",
   },
   float = true,
+  fullscreen = false,
   move = { "(monitor_w-window_w)/2", "(monitor_h-window_h)/2" },
   no_blur = true,
   no_shadow = true,

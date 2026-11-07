@@ -53,8 +53,13 @@ in
         # the anixie palette). Light/dark is already encoded in the qt5ct config
         # that theme-apps regenerates on every switch, and the icon theme follows
         # the same mode, so VLC follows the palette in both modes.
+        # Qt on Wayland inherits the compositor's scale, which on some setups
+        # blows VLC's toolbar and context menus up to full-screen size. Pin the
+        # scale to 1 so VLC's own geometry (and its saved window size) decide.
         export QT_QPA_PLATFORMTHEME=qt5ct
-        exec ${pkgs.vlc}/bin/vlc "$@"
+        export QT_AUTO_SCREEN_SCALE_FACTOR=0
+        export QT_SCALE_FACTOR=1
+        exec ${pkgs.vlc}/bin/vlc --no-fullscreen "$@"
         EOF
         chmod +x $out/bin/vlc
         # Keep the store desktop file's icon/theme data reachable.
