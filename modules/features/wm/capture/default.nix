@@ -49,30 +49,10 @@ let
     inherit bins;
   };
 
-  # Check or signal the recorder, by pid. Split out from `record` because the bar
-  # indicator asks it whether a recording is running, and that question should not
-  # have to load the whole recording script to be answered. On PATH as well, so
-  # the shell's startup check can use it without parsing `record`.
-  recordProcess = mkScript {
-    name = if daemonEnabled then "record-process-legacy" else "record-process";
-    file = ./record-process.sh;
-    inherit bins;
-  };
-
   webcamOverlay = mkScript {
     name = if daemonEnabled then "webcam-overlay-legacy" else "webcam-overlay";
     file = ./webcam-overlay.sh;
     inherit bins;
-  };
-
-  record = mkScript {
-    name = if daemonEnabled then "record-legacy" else "record";
-    file = ./record.sh;
-    bins = bins // {
-      "@SHOT_PICK@" = shotPick.command;
-      "@RECORD_PROCESS@" = recordProcess.command;
-      "@WEBCAM_OVERLAY@" = webcamOverlay.command;
-    };
   };
 
   # Read something off the screen that is not a picture: the text in a region, or
@@ -112,10 +92,8 @@ in
       # The picker the capture commands share.
       shotPick.package
 
-      # Recording, and the webcam overlay a recording can carry.
+      # The webcam overlay a recording can carry.
       webcamOverlay.package
-      record.package
-      recordProcess.package
 
       # Reading what is on the screen rather than picturing it, and shrinking what
       # comes off it before sending it somewhere. capture-text and capture-qr are
