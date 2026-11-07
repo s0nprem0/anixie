@@ -234,7 +234,9 @@ Item {
     } catch (e) {}
     try {
       if (node.id !== undefined && node.name !== undefined && node.name !== null) {
-        Quickshell.execDetached(["audio-output", "set", String(node.id), String(node.name)])
+        // Route through alexie when available (daemon), falling back to the
+        // audio-output script. Commands.runAlexie handles the fallback.
+        Commands.runAlexie("audio set " + JSON.stringify(String(node.id)) + " " + JSON.stringify(String(node.name)))
       }
     } catch (e) {}
   }

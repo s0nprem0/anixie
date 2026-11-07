@@ -416,6 +416,8 @@ Item {
 
   Process {
     id: listQuery
+    // `monitors` resolves through the alexie shim when the daemon is
+    // enabled (daemon/default.nix) and to the bash script otherwise.
     command: ["monitors", "list"]
     running: true
     stdout: StdioCollector {
