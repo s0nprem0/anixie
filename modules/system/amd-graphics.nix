@@ -17,5 +17,6 @@
 
   environment.systemPackages = with pkgs; [
     vulkan-tools
+    libva-utils
   ];
 }
