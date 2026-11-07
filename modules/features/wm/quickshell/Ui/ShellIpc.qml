@@ -451,8 +451,14 @@ Item {
   IpcHandler {
     target: "menu"
 
-    function open(): void { MenuHost.open("") }
-    function only(group: string): void { MenuHost.open(group) }
+    function open(): string {
+      const out = MenuHost.open("")
+      return out !== "" ? out : "ok"
+    }
+    function only(group: string): string {
+      const out = MenuHost.open(group)
+      return out !== "" ? out : "ok"
+    }
     function list(group: string): string { return MenuHost.list(group) }
     function launch(name: string): string { return MenuHost.launchByName(name) }
   }

@@ -533,7 +533,7 @@ QtObject {
     const entries = group === "" ? root.tabEntries(0) : root.shown(group)
     if (entries.length === 0) {
       console.warn("menu: nothing to show" + (group ? " under \"" + group + "\"" : ""))
-      return
+      return group === "" ? "" : "ERR no such group: " + group
     }
 
     root.clearDynamic()
@@ -552,12 +552,23 @@ QtObject {
       tabHint: group === "" ? root.tabMeta[0].hint : "",
       entries: entries
     })
+    return "ok"
   }
 
   // The same rows as text, with the path the picker draws and the state in
   // parentheses: what a test can read without a picker on screen.
   function list(only) {
-    return root.shown(String(only || "")).map(function (row) {
+    const group = String(only || "")
+    if (group !== "") {
+      // No row under this group: scripts cannot tell a typo'd group from an
+      // empty menu without an error line.
+      if (!root.rows().some(function (row) {
+        return row.group === group || row.group.indexOf(group + " › ") === 0
+      })) {
+        return "ERR no such group: " + group
+      }
+    }
+    return root.shown(group).map(function (row) {
       let line = row.group !== "" ? row.group + " › " + row.label : row.label
       if (row.state !== "") line += " (" + row.state + ")"
       return line
@@ -760,6 +771,9 @@ QtObject {
   // Launch an application by name, so the launcher can be scripted: `menu btop++`.
   // Matched on the entry's Name, which is what the menu shows, and falling back to
   // the desktop id and then Quickshell's own guess, so `menu firefox` works too.
+  // The fallbacks are held to the same bar as the list: a NoDisplay or empty
+  // entry cannot be launched from the launcher, so the CLI must not do it
+  // through the back door.
   function launchByName(name) {
     const want = String(name)
     const lower = want.toLowerCase()
@@ -767,8 +781,14 @@ QtObject {
     for (let i = 0; i < root.apps.length && !entry; i++) {
       if (root.apps[i].name.toLowerCase() === lower) entry = root.apps[i]
     }
-    if (!entry) entry = DesktopEntries.byId(want)
-    if (!entry) entry = DesktopEntries.heuristicLookup(want)
+    if (!entry) {
+      const byId = DesktopEntries.byId(want)
+      if (byId && byId.enabled && !byId.noDisplay) entry = byId
+    }
+    if (!entry) {
+      const guessed = DesktopEntries.heuristicLookup(want)
+      if (guessed && guessed.enabled && !guessed.noDisplay) entry = guessed
+    }
     if (!entry) return "no application called \"" + want + "\""
 
     root.launch(entry)
