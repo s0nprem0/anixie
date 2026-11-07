@@ -105,7 +105,7 @@ Item {
     }
     onExited: function (exitCode) {
       if (exitCode === 0 && root.pendingProfile !== "") {
-        OsdHost.show(Util.bolt, "Power profile: " + root.pendingProfile, "", "", "", 1500)
+        OsdHost.show(Util.bolt, "Power profile: " + root.profileLabel(root.pendingProfile), "", "", "", 1500)
       }
       root.pendingProfile = ""
     }
@@ -115,6 +115,101 @@ Item {
     root.pendingProfile = String(name || "")
     profileSet.command = ["powerprofilesctl", "set", name]
     profileSet.running = true
+  }
+
+  // ---- charge limit ----
+
+  property string chargeCeiling: ""
+  property bool chargeBusy: false
+  property string chargeError: ""
+
+  Process {
+    id: chargeGet
+    running: true
+    command: ["@POWERPROFILE@", "charge"]
+    stdout: StdioCollector {
+      onStreamFinished: { root.chargeCeiling = this.text.trim() }
+    }
+    onExited: function (exitCode) {
+      root.chargeError = exitCode !== 0 ? "charge-limit unavailable" : ""
+    }
+  }
+
+  Process {
+    id: chargeSet
+    running: false
+    onExited: function (exitCode) {
+      root.chargeBusy = false
+      root.chargeError = exitCode !== 0 ? "failed to set charge limit" : ""
+      chargeGet.running = false
+      chargeGet.running = true
+    }
+  }
+
+  function setChargeCeiling(pct) {
+    root.chargeBusy = true
+    chargeSet.command = ["@POWERPROFILE@", "charge", "limit", String(pct)]
+    chargeSet.running = true
+  }
+
+  function setChargeFull() {
+    root.chargeBusy = true
+    chargeSet.command = ["@POWERPROFILE@", "charge", "full"]
+    chargeSet.running = true
+  }
+
+  readonly property int chargeCeilingPct: {
+    const v = parseInt(String(root.chargeCeiling).trim(), 10)
+    return isNaN(v) ? -1 : v
+  }
+
+  readonly property bool chargeAvailable: root.chargeCeilingPct >= 40 && root.chargeCeilingPct <= 100
+
+  // ---- power source & profiles ----
+
+  property string powerSource: ""
+  property string acProfile: ""
+  property string batteryProfile: ""
+  property bool performanceExtras: false
+
+  Process {
+    id: prefsGet
+    running: true
+    command: ["@POWERPROFILE@", "show"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const lines = String(this.text).trim().split("\n")
+        for (const line of lines) {
+          if (line.startsWith("source:")) root.powerSource = line.split(":")[1].trim()
+          else if (line.startsWith("on mains:")) root.acProfile = line.split(":")[1].trim()
+          else if (line.startsWith("on battery:")) root.batteryProfile = line.split(":")[1].trim()
+          else if (line.startsWith("tuning:")) root.performanceExtras = line.includes("extras on")
+        }
+      }
+    }
+  }
+
+  readonly property string powerSourceLabel: root.powerSource === "ac"
+    ? "On mains" : root.powerSource === "battery" ? "On battery" : ""
+
+  // ---- live CPU/GPU ----
+
+  property string cpuFreq: ""
+  property string gpuLevel: ""
+
+  Process {
+    id: liveGet
+    running: true
+    command: ["sh", "-c",
+      "awk '/cpu MHz/{print $4; exit}' /proc/cpuinfo | tr -d '\\n'; echo; "
+      + "cat /sys/class/drm/card*/device/power_dpm_force_performance_level 2>/dev/null | head -1 || echo auto"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const lines = String(this.text).trim().split("\n")
+        root.cpuFreq = lines[0] ? lines[0] + " MHz" : ""
+        root.gpuLevel = lines[1] || ""
+      }
+    }
   }
 
   Process {
@@ -421,6 +516,48 @@ Item {
       onActivated: function (index) { root.setProfile(root.profiles[index]) }
     }
 
+    PanelRow {
+      width: card.contentWidth
+      visible: root.powerSourceLabel !== ""
+      label: "Power source"
+      value: root.powerSourceLabel
+    }
+
+    PanelRow {
+      width: card.contentWidth
+      visible: root.acProfile !== ""
+      label: "On mains"
+      value: root.profileLabel(root.acProfile)
+    }
+
+    PanelRow {
+      width: card.contentWidth
+      visible: root.batteryProfile !== ""
+      label: "On battery"
+      value: root.profileLabel(root.batteryProfile)
+    }
+
+    PanelRow {
+      width: card.contentWidth
+      visible: root.performanceExtras
+      label: "Performance extras"
+      value: "GPU + ASPM + writeback"
+    }
+
+    PanelRow {
+      width: card.contentWidth
+      visible: root.cpuFreq !== ""
+      label: "CPU (core 0)"
+      value: root.cpuFreq
+    }
+
+    PanelRow {
+      width: card.contentWidth
+      visible: root.gpuLevel !== ""
+      label: "GPU DPM"
+      value: root.gpuLevel
+    }
+
     Text {
       width: card.contentWidth
       height: implicitHeight
@@ -506,6 +643,55 @@ Item {
       visible: root.present && root.cycles >= 0
       label: "Charge cycles"
       value: root.cycles >= 0 ? String(root.cycles) : "—"
+    }
+
+    PanelRow {
+      width: card.contentWidth
+      visible: root.chargeAvailable
+      label: "Charge ceiling"
+      value: root.chargeCeilingPct + "%"
+    }
+
+    PanelSectionHeader {
+      width: card.contentWidth
+      visible: root.chargeAvailable
+      label: "Charge limit"
+    }
+
+    Text {
+      width: card.contentWidth
+      height: implicitHeight
+      visible: root.chargeAvailable && root.chargeError !== ""
+      text: root.chargeError
+      color: Theme.danger
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      wrapMode: Text.WordWrap
+      renderType: Text.NativeRendering
+    }
+
+    ButtonGroup {
+      width: card.contentWidth
+      visible: root.chargeAvailable
+      model: ["60%", "80%", "100%"]
+      currentIndex: root.chargeCeilingPct === 60 ? 0 : root.chargeCeilingPct === 100 ? 2 : 1
+      available: !root.chargeBusy
+      onActivated: function (index) {
+        const pct = [60, 80, 100][index]
+        if (pct === 100) root.setChargeFull(); else root.setChargeCeiling(pct)
+      }
+    }
+
+    Text {
+      width: card.contentWidth
+      height: implicitHeight
+      visible: root.chargeAvailable
+      text: "Lower limits extend battery life; 100% is full capacity."
+      color: Theme.muted
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      wrapMode: Text.WordWrap
+      renderType: Text.NativeRendering
     }
 
     PanelSeparator {}
