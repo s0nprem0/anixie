@@ -49,14 +49,6 @@ let
     inherit bins;
   };
 
-  shot = mkScript {
-    name = if daemonEnabled then "shot-legacy" else "shot";
-    file = ./shot.sh;
-    bins = bins // {
-      "@SHOT_PICK@" = shotPick.command;
-    };
-  };
-
   # Check or signal the recorder, by pid. Split out from `record` because the bar
   # indicator asks it whether a recording is running, and that question should not
   # have to load the whole recording script to be answered. On PATH as well, so
@@ -104,9 +96,7 @@ let
   captureShare = mkScript {
     name = if daemonEnabled then "capture-share-legacy" else "capture-share";
     file = ./share.sh;
-    bins = bins // {
-      "@SHOT@" = shot.command;
-    };
+    inherit bins;
   };
 in
 
@@ -119,9 +109,8 @@ in
 
   config = lib.mkIf cfg.enable {
     home.packages = [
-      # The picker, and the screenshot command that uses it.
+      # The picker the capture commands share.
       shotPick.package
-      shot.package
 
       # Recording, and the webcam overlay a recording can carry.
       webcamOverlay.package
