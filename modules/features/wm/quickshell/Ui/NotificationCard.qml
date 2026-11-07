@@ -34,7 +34,7 @@ Item {
   readonly property string sourceLabel: NotificationText.source(root.notification) || root.appName
   readonly property string sourceKey: NotificationText.sourceKey(root.notification) || root.appName.toLowerCase()
   readonly property string appLabel: root.group.length > 1
-    ? root.sourceLabel + "  ·  " + root.group.length
+    ? root.group.length + " new · " + root.sourceLabel
     : root.sourceLabel
   readonly property string summary: root.notification ? String(root.notification.summary || "").slice(0, 2048) : ""
   readonly property string body: root.notification ? String(root.notification.body || "").slice(0, 32768) : ""
