@@ -14,6 +14,7 @@ in
     ./hardware-configuration.nix
 
     ../../modules/system
+    ../../modules/system/docker.nix
     ../../modules/system/ndi.nix
   ];
 

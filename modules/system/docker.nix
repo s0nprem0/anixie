@@ -1,19 +1,24 @@
-_:
+{ pkgs, ... }:
 
 {
-  # Docker Engine running inside the WSL distro itself. WSL2 ships a real
-  # Linux kernel and systemd, so dockerd runs here without a Windows-side
-  # Docker Desktop; the `docker` group created by this module is what lets
-  # the default user talk to the daemon.
+  # Docker Engine (dockerd) + CLI. The corporate-standard replacement for
+  # Podman's dockerCompat shim: `docker` on PATH is now the real Docker CLI
+  # talking to dockerd on /var/run/docker.sock. The nixpkgs `docker` package
+  # wraps the CLI with DOCKER_CLI_PLUGIN_DIRS pointing at the docker-compose
+  # and docker-buildx plugins, so `docker compose` and `docker buildx` work
+  # out of the box; the standalone binaries are added too for the legacy
+  # `docker-compose` / `docker-buildx` spellings.
   virtualisation.docker = {
     enable = true;
 
-    # WSL and the desktop both accumulate dangling images and stopped containers
-    # across rebuilds; prune them on a schedule so the store-backed VHD does
-    # not fill up unnoticed.
     autoPrune = {
       enable = true;
       dates = "weekly";
     };
   };
+
+  environment.systemPackages = with pkgs; [
+    docker-compose
+    docker-buildx
+  ];
 }
