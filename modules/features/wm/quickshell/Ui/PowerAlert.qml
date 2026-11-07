@@ -46,7 +46,7 @@ QtObject {
     Quickshell.execDetached([
       "@NOTIFY_SEND@", "-a", "Battery", "-u", urgency, "-i", icon,
       summary, body,
-      "--exec", "@QUICKSHELL@", "ipc", "call", "panel", "toggle", "power"
+      "--hint=string:anixie-exec:[\"" + "@QUICKSHELL@" + "\",\"ipc\",\"call\",\"panel\",\"toggle\",\"power\"]"
     ])
   }
 

@@ -80,7 +80,7 @@ Item {
       // A burst — a mailing list, a chat backlog — should not draw a column taller
       // than the screen with the last cards unreachable. The newest few are shown,
       // the rest are counted, and the history panel has them all.
-      readonly property int maxCards: NotificationHost.replaying || NotificationHost.restoring ? 10 : 4
+      readonly property int maxCards: (NotificationHost.replaying || NotificationHost.restoring) ? NotificationHost.replayLimit : NotificationHost.maxPopups
       readonly property var decks: {
         if (NotificationHost.replaying) {
           const replay = Array.isArray(NotificationHost.replayEntries)

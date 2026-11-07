@@ -34,7 +34,7 @@ QtObject {
     if (!entries || entries.length === 0) return
     history.restoredEntries = entries.slice().sort(function (a, b) {
       return Number(b.timestamp || 0) - Number(a.timestamp || 0)
-    }).slice(0, 10)
+    }).slice(0, host.replayLimit)
     history.restoring = history.restoredEntries.length > 0
     if (history.restoring) history.restoreTimer.restart()
   }
@@ -71,7 +71,7 @@ QtObject {
       // Held notifications were never shown; replaying them as if they had been
       // would be a different action from replaying closed history.
       const shown = entries.filter(function (entry) { return entry.quiet !== true })
-      history.replayEntries = shown.slice(0, 10)
+      history.replayEntries = shown.slice(0, host.replayLimit)
       history.replaying = history.replayEntries.length > 0
       if (history.replaying) history.replayTimer.restart()
     })

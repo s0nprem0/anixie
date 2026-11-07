@@ -95,6 +95,12 @@ QtObject {
   function dismissSharingOffer() { sharing.dismissSharingOffer() }
   function snoozeSharingOffer(seconds) { sharing.snoozeSharingOffer(seconds) }
 
+  // How many cards the popup column draws at once; the replay and
+  // restore views share one (slightly larger) limit, defined here so
+  // the three call sites cannot drift apart.
+  property int maxPopups: 4
+  property int replayLimit: 10
+
   // ---- replay and restart grace ----
 
   property alias replayEntries: replayState.replayEntries
@@ -358,6 +364,12 @@ QtObject {
 
       NotificationStore.begin(notification, quiet, reason)
       if (quiet) return
+
+      // An audible cue for anything worth interrupting with; low
+      // urgency stays silent, and silencing already returned above.
+      if (notification.urgency !== NotificationUrgency.Low) {
+        Quickshell.execDetached(["pw-play", "@NOTIFICATION_SOUND@"])
+      }
 
       const closeKey = notification
       if (root.closeConnected.indexOf(closeKey) < 0) {

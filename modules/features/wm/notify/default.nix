@@ -7,28 +7,21 @@
 
 let
   cfg = config.anixie.wm.notify;
-
-  # The sender contract for everything in the tree. notify-send is named by its
-  # full path because the wrapper is also called from systemd timers and from
-  # Hyprland binds, neither of which necessarily carries the user's profile path.
-  notify = pkgs.writeShellScriptBin "notify" (
-    builtins.replaceStrings
-      [ "@NOTIFY_SEND@" "@JQ@" ]
-      [ "${pkgs.libnotify}/bin/notify-send" "${pkgs.jq}/bin/jq" ]
-      (builtins.readFile ./notify.sh)
-  );
 in
 {
+  # The sender is notify-send itself now: the glyph/action/click
+  # contract that `notify` used to translate into hints is written
+  # by callers directly (see features/wm/mixer and Ui/PowerAlert).
   options.anixie.wm.notify = {
     enable = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Whether to install `notify`, the sender the notification daemon understands.";
+      description = "Whether the notification daemon's sender path is set.";
     };
 
     bin = lib.mkOption {
       type = lib.types.str;
-      default = "${notify}/bin/notify";
+      default = "${pkgs.libnotify}/bin/notify-send";
       description = ''
         The sender command, for modules that need its path rather than the name
         on PATH: the notification daemon, Hyprland binds and systemd timers do
@@ -38,6 +31,6 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ notify ];
+    home.packages = [ pkgs.libnotify ];
   };
 }

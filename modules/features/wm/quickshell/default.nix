@@ -158,6 +158,7 @@ in
 
       # One set of battery thresholds for the bar's colour, the warning and the
       # automation, so the three cannot drift apart again.
+      "@NOTIFICATION_SOUND@" = "${pkgs.sound-theme-freedesktop}/share/sounds/freedesktop/stereo/notification.oga";
       "@POWERPROFILE@" = config.anixie.power.bin;
       "@AUTOMATION_DEFAULT@" = if config.anixie.power.batteryAutomation.enable then "true" else "false";
       "@LOW_THRESHOLD@" = toString config.anixie.power.batteryAutomation.lowThreshold;
@@ -166,7 +167,7 @@ in
       "@CRITICAL_PROFILE@" = config.anixie.power.batteryAutomation.criticalProfile;
     };
 
-    home.packages = [ ];
+    home.packages = [ pkgs.sound-theme-freedesktop ];
 
     xdg.configFile."quickshell" = {
       recursive = true;

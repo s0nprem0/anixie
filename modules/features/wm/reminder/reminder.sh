@@ -109,9 +109,9 @@ systemd-run --user --quiet \
   --unit="$prefix-$(date +%s)-$$" \
   --description="Reminder: $message" \
   --on-active="${minutes}min" \
-  "@NOTIFY_SEND@" -a reminders -u normal -G f017 \
+  "@NOTIFY_SEND@" -a reminders -u normal "--hint=string:anixie-glyph:$(printf '\\357\\200\\227')" \
   "Reminder" "$message" \
-  --exec "@QUICKSHELL@" ipc call panel toggle notifications
+  "--hint=string:anixie-exec:[\"@QUICKSHELL@\",\"ipc\",\"call\",\"panel\",\"toggle\",\"notifications\"]"
 
 push_count
 
