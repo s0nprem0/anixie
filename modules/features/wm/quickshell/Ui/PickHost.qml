@@ -60,9 +60,9 @@ QtObject {
   property string tabHint: ""
   readonly property int tabCount: 4
 
-  // The suggestions.
-  property var dynamicLead: []
-  property var dynamicTail: []
+  // The suggestions live on MenuHost (refreshDynamic fills them there);
+  // PickHost only reads. Keeping two copies meant the suggestions were
+  // never visible: every query landed on an empty list.
 
   property string title: ""
   property string placeholder: ""
@@ -200,11 +200,10 @@ QtObject {
     root.selected = 0
 
     root.dynamicTimer.stop()
-    if (!root.dynamic) {
-      try { MenuHost.clearDynamic() } catch (e) {}
-    }
-    root.dynamicLead = []
-    root.dynamicTail = []
+    // Always drop the previous request's suggestions: with the read
+    // side on MenuHost they would linger until the 180ms timer fired,
+    // flashing one request's answers inside another's.
+    try { MenuHost.clearDynamic() } catch (e) {}
 
     root.shown = true
     root.apply()
@@ -227,11 +226,7 @@ QtObject {
     root.query = ""
     root.selected = 0
     root.dynamicTimer.stop()
-    if (!root.dynamic) {
-      try { MenuHost.clearDynamic() } catch (e) {}
-    }
-    root.dynamicLead = []
-    root.dynamicTail = []
+    try { MenuHost.clearDynamic() } catch (e) {}
     root.apply()
   }
 
@@ -337,9 +332,10 @@ QtObject {
     const results = []
 
     if (root.dynamic && String(root.query || "").trim() !== "") {
-      if (Array.isArray(root.dynamicLead)) {
-        for (let i = 0; i < root.dynamicLead.length; i++) {
-          if (root.dynamicLead[i]) results.push({ row: root.dynamicLead[i], score: 0, positions: [], index: -1 })
+      const lead = MenuHost.dynamicLead
+      if (Array.isArray(lead)) {
+        for (let i = 0; i < lead.length; i++) {
+          if (lead[i]) results.push({ row: lead[i], score: 0, positions: [], index: -1 })
         }
       }
     }
@@ -347,9 +343,10 @@ QtObject {
     for (let j = 0; j < filtered.length; j++) results.push(filtered[j])
 
     if (root.dynamic && String(root.query || "").trim() !== "") {
-      if (Array.isArray(root.dynamicTail)) {
-        for (let k = 0; k < root.dynamicTail.length; k++) {
-          if (root.dynamicTail[k]) results.push({ row: root.dynamicTail[k], score: 0, positions: [], index: -1 })
+      const tail = MenuHost.dynamicTail
+      if (Array.isArray(tail)) {
+        for (let k = 0; k < tail.length; k++) {
+          if (tail[k]) results.push({ row: tail[k], score: 0, positions: [], index: -1 })
         }
       }
     }
@@ -378,8 +375,6 @@ QtObject {
     if (q.trim() === "") {
       root.dynamicTimer.stop()
       try { MenuHost.clearDynamic() } catch (e) {}
-      root.dynamicLead = []
-      root.dynamicTail = []
     } else {
       root.dynamicTimer.restart()
     }
@@ -505,8 +500,6 @@ QtObject {
     if (root.dynamic) {
       try { MenuHost.clearDynamic() } catch (e) {}
     }
-    root.dynamicLead = []
-    root.dynamicTail = []
 
     root.shown = false
     root.onSelect = ""
