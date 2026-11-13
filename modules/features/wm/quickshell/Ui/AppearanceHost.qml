@@ -112,7 +112,19 @@ QtObject {
     root.busy = true
     root.lastError = ""
     root.refreshLibraryAfter = args[0] === "wallpaper" && (args[1] === "add" || args[1] === "set")
-    root.action.command = args
+
+    // theme and wallpaper are ported to alexie. Route through it when it is
+    // installed so the native implementation is preferred, falling back to the
+    // command on hosts where the daemon is disabled. Other commands (glass-toggle)
+    // are not ported and stay direct.
+    const ported = args.length > 0 && (args[0] === "theme" || args[0] === "wallpaper")
+    if (ported) {
+      const line = args.map(function (part) { return Util.shellQuote(part) }).join(" ")
+      root.action.command = ["sh", "-c",
+        "if command -v alexie >/dev/null 2>&1; then alexie " + line + "; else " + line + "; fi"]
+    } else {
+      root.action.command = args
+    }
     root.action.running = true
   }
 

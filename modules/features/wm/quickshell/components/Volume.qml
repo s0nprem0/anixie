@@ -60,7 +60,7 @@ BarWidget {
           action: function () { root.toggleMute() }
         },
         { separator: true },
-        { label: "Switch output", action: function () { Commands.run("audio-output switch") } }
+        { label: "Switch output", action: function () { Commands.runAlexie("audio switch") } }
       ]
     }
     anchors.centerIn: parent

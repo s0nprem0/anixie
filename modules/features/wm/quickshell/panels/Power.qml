@@ -126,7 +126,10 @@ Item {
   Process {
     id: chargeGet
     running: true
-    command: ["@POWERPROFILE@", "charge"]
+    // `charge` is ported to alexie; prefer it, falling back to the legacy
+    // powerprofile helper on hosts without the daemon.
+    command: ["sh", "-c",
+      "if command -v alexie >/dev/null 2>&1; then alexie power charge; else @POWERPROFILE@ charge; fi"]
     stdout: StdioCollector {
       onStreamFinished: { root.chargeCeiling = this.text.trim() }
     }
@@ -148,13 +151,16 @@ Item {
 
   function setChargeCeiling(pct) {
     root.chargeBusy = true
-    chargeSet.command = ["@POWERPROFILE@", "charge", "limit", String(pct)]
+    const value = Util.shellQuote(String(pct))
+    chargeSet.command = ["sh", "-c",
+      "if command -v alexie >/dev/null 2>&1; then alexie power charge limit " + value + "; else @POWERPROFILE@ charge limit " + value + "; fi"]
     chargeSet.running = true
   }
 
   function setChargeFull() {
     root.chargeBusy = true
-    chargeSet.command = ["@POWERPROFILE@", "charge", "full"]
+    chargeSet.command = ["sh", "-c",
+      "if command -v alexie >/dev/null 2>&1; then alexie power charge full; else @POWERPROFILE@ charge full; fi"]
     chargeSet.running = true
   }
 
@@ -175,17 +181,56 @@ Item {
   Process {
     id: prefsGet
     running: true
-    command: ["@POWERPROFILE@", "show"]
+    command: ["sh", "-c", "if command -v alexie >/dev/null 2>&1; then alexie power show --json; else @POWERPROFILE@ show; fi"]
     stdout: StdioCollector {
       onStreamFinished: {
-        const lines = String(this.text).trim().split("\n")
+        const raw = String(this.text).trim()
+        if (raw.indexOf("{") === 0) {
+          try {
+            const data = JSON.parse(raw)
+            if (data.source !== undefined) root.powerSource = String(data.source)
+            if (data.on_mains !== undefined) root.acProfile = String(data.on_mains)
+            if (data.on_battery !== undefined) root.batteryProfile = String(data.on_battery)
+            if (data.performance_extras !== undefined) root.performanceExtras = !!data.performance_extras
+            if (data.charge !== undefined) root.chargeCeiling = String(data.charge).replace(/% ceiling$/, "").trim()
+            if (data.automation !== undefined) root.automation = !!data.automation
+            return
+          } catch (e) {}
+        }
+
+        const lines = raw.split("\n")
         for (const line of lines) {
-          if (line.startsWith("source:")) root.powerSource = line.split(":")[1].trim()
-          else if (line.startsWith("on mains:")) root.acProfile = line.split(":")[1].trim()
-          else if (line.startsWith("on battery:")) root.batteryProfile = line.split(":")[1].trim()
-          else if (line.startsWith("tuning:")) root.performanceExtras = line.includes("extras on")
+          const trimmed = line.trim()
+          let key = ""
+          let value = ""
+          if (trimmed.indexOf("|") >= 0) {
+            const parts = trimmed.split("|").map(function (s) { return s.trim() }).filter(function (s) { return s !== "" })
+            if (parts.length >= 2) {
+              key = parts[0]
+              value = parts[1]
+            }
+          } else if (trimmed.indexOf(":") >= 0) {
+            const idx = trimmed.indexOf(":")
+            key = trimmed.slice(0, idx).trim()
+            value = trimmed.slice(idx + 1).trim()
+          }
+          if (key === "source") root.powerSource = value
+          else if (key === "on mains") root.acProfile = value
+          else if (key === "on battery") root.batteryProfile = value
+          else if (key === "tuning") root.performanceExtras = value.indexOf("extras on") >= 0
         }
       }
+    }
+  }
+
+  // Performance extras are applied by a system service rather than the power
+  // helper, so check the marker directly. Works with or without the daemon.
+  Process {
+    id: tuningCheck
+    running: true
+    command: ["sh", "-c", "if [ -d /run/anixie/performance ]; then echo on; else echo off; fi"]
+    stdout: StdioCollector {
+      onStreamFinished: { root.performanceExtras = String(this.text).trim() === "on" }
     }
   }
 
@@ -215,7 +260,7 @@ Item {
   Process {
     id: automationGet
     running: true
-    command: ["@POWERPROFILE@", "automation"]
+    command: ["sh", "-c", "if command -v alexie >/dev/null 2>&1; then alexie power automation; else @POWERPROFILE@ automation; fi"]
     stdout: StdioCollector {
       onStreamFinished: {
         const value = String(this.text).trim()
@@ -240,7 +285,8 @@ Item {
 
   function setAutomation(enabled) {
     root.automationBusy = true
-    automationSet.command = ["@POWERPROFILE@", "set-automation", enabled ? "on" : "off"]
+    automationSet.command = ["sh", "-c",
+      "if command -v alexie >/dev/null 2>&1; then alexie power set-automation " + (enabled ? "on" : "off") + "; else @POWERPROFILE@ set-automation " + (enabled ? "on" : "off") + "; fi"]
     automationSet.running = true
   }
 

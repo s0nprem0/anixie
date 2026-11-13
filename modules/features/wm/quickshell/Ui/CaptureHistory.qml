@@ -81,16 +81,28 @@ QtObject {
   }
 
   property Process refreshProc: Process {
-    command: ["sh", "-c", "dir=${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots; [ -d \"$dir\" ] || dir=$HOME/Pictures/Screenshots; find \"$dir\" -maxdepth 1 -type f \\( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \\) -printf '%T@ %p\\n' 2>/dev/null | sort -nr | head -20 | awk '{sub($1\" \",\"\"); print}'"]
+    command: ["sh", "-c", "if command -v alexie >/dev/null 2>&1; then alexie shot db list --json; else dir=${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots; [ -d \"$dir\" ] || dir=$HOME/Pictures/Screenshots; find \"$dir\" -maxdepth 1 -type f \\( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \\) -printf '%T@ %p\\n' 2>/dev/null | sort -nr | head -20 | awk '{sub($1\" \",\"\"); print}'; fi"]
     running: false
     stdout: StdioCollector {
       onStreamFinished: {
-        const data = this.text.trim()
-        if (data === "") {
+        const raw = String(this.text).trim()
+        if (raw === "") {
           root.items = []
           return
         }
-        const lines = data.split("\n")
+        if (raw.charAt(0) === "[") {
+          try {
+            const assets = JSON.parse(raw)
+            const out = []
+            for (let i = 0; i < assets.length; i++) {
+              const asset = assets[i]
+              if (asset && !asset.deleted && asset.source_path) out.push(String(asset.source_path))
+            }
+            root.items = out
+            return
+          } catch (e) {}
+        }
+        const lines = raw.split("\n")
         const out = []
         for (let i = 0; i < lines.length; i++) {
           const p = lines[i].trim()

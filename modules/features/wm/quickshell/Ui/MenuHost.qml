@@ -241,6 +241,57 @@ QtObject {
     }
   }
 
+  property var backendWebHistory: []
+  property var backendFileHistory: []
+  property var backendBookmarks: []
+
+  // Pull the backend's launch counts into the menu's usage map so the two
+  // surfaces agree. DesktopEntries supplies the entry identity (icon, exec,
+  // launch), so only the count is taken from alexie.
+  property Process appsSyncProc: Process {
+    running: false
+    command: ["sh", "-c", "if command -v alexie >/dev/null 2>&1; then alexie apps list --json; fi"]
+    stdout: StdioCollector {
+      onStreamFinished: root.applyAppsSync(String(this.text))
+    }
+  }
+
+  function applyAppsSync(text) {
+    const raw = String(text || "").trim()
+    if (raw === "") return
+    try {
+      const data = JSON.parse(raw)
+      const mostUsed = (data && Array.isArray(data.most_used)) ? data.most_used : []
+    root.backendWebHistory = (data && Array.isArray(data.web_history)) ? data.web_history : []
+    root.backendFileHistory = (data && Array.isArray(data.file_history)) ? data.file_history : []
+    root.backendBookmarks = (data && Array.isArray(data.bookmarks)) ? data.bookmarks : []
+      if (mostUsed.length === 0 && root.backendWebHistory.length === 0 && root.backendFileHistory.length === 0 && root.backendBookmarks.length === 0) return
+      const next = MenuTree.clone(root.usage)
+      for (let i = 0; i < mostUsed.length; i++) {
+        const item = mostUsed[i]
+        if (!item || !item.name) continue
+        let entry = null
+        for (let j = 0; j < root.apps.length; j++) {
+          if (root.apps[j].name === item.name) { entry = root.apps[j]; break }
+        }
+        if (!entry || !entry.id) continue
+        const previous = next[entry.id] || { count: 0, last: 0 }
+        next[entry.id] = {
+          count: Number(item.count || 0),
+          last: Number(previous.last || 0)
+        }
+      }
+      root.usage = next
+    } catch (e) {}
+  }
+
+  function syncAppsUsage() {
+    try {
+      root.appsSyncProc.running = false
+      root.appsSyncProc.running = true
+    } catch (e) {}
+  }
+
   function reloadUsage() {
     try {
       root.usageFile.reload()
@@ -248,6 +299,7 @@ QtObject {
     } catch (error) {
       root.usage = {}
     }
+    root.syncAppsUsage()
   }
 
   function recordLaunch(entry) {
@@ -287,6 +339,52 @@ QtObject {
     })
   }
 
+  function backendWebRows() {
+    const out = []
+    for (let i = 0; i < root.backendBookmarks.length; i++) {
+      const b = root.backendBookmarks[i]
+      if (!b || !b.url) continue
+      out.push({
+        label: b.name || b.url,
+        group: "Bookmarks",
+        icon: "",
+        detail: b.url,
+        match: (b.name || "") + " " + b.url,
+        run: "xdg-open " + Util.shellQuote(b.url)
+      })
+    }
+    for (let i = 0; i < root.backendWebHistory.length; i++) {
+      const h = root.backendWebHistory[i]
+      if (!h || !h.url) continue
+      out.push({
+        label: h.query || h.url,
+        group: "Web history",
+        icon: "",
+        detail: h.url,
+        match: (h.query || "") + " " + h.url,
+        run: "xdg-open " + Util.shellQuote(h.url)
+      })
+    }
+    return out
+  }
+
+  function backendFileRows() {
+    const out = []
+    for (let i = 0; i < root.backendFileHistory.length; i++) {
+      const f = root.backendFileHistory[i]
+      if (!f || !f.path) continue
+      out.push({
+        label: f.name || f.path,
+        group: "File history",
+        icon: "",
+        detail: f.path,
+        match: (f.name || "") + " " + f.path,
+        run: "xdg-open " + Util.shellQuote(f.path)
+      })
+    }
+    return out
+  }
+
   function appRow(entry) {
     return {
       label: entry.name,
@@ -307,7 +405,8 @@ QtObject {
   // full list — the reference repeats the most-used entries below the heading
   // rather than removing them from where they would be found anyway.
   function tabEntries(tab) {
-    if (tab === 2 || tab === 3) return []
+    if (tab === 2) return root.backendWebRows()
+    if (tab === 3) return root.backendFileRows()
 
     const body = tab === 1 ? root.appRows() : root.rows()
     const used = root.usageRows()
@@ -759,6 +858,11 @@ QtObject {
   function launch(entry) {
     if (!entry) return
     root.recordLaunch(entry)
+    // Keep the backend's launch counts in step with the shell's, so
+    // `alexie apps` and the menu agree on what is most used.
+    try {
+      Quickshell.execDetached(["sh", "-c", "if command -v alexie >/dev/null 2>&1; then alexie apps launch " + Util.shellQuote(entry.name || "") + "; fi"])
+    } catch (e) {}
     const command = entry.runInTerminal
       ? [root.terminal, "-e"].concat(entry.command)
       : entry.command
